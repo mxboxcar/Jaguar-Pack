@@ -142,3 +142,13 @@ ajax / form post (ทุกตัว `legacy.ajax` = system_check_ajax เดิ
 - `CombineTrack::run()` สำหรับกลุ่มที่พอร์ต `_api/submit_order_number_v2.php`
 - JS ของ `_lost_package/save` / `save_image` ยังเรียก `_api/blockblob_ajax` (ย้ายไฟล์ขึ้น Azure) แบบเดิม — endpoint นั้นเป็นของกลุ่มอื่น ต้องใช้ driver local ใน dev
 - เสนอ index: `tracking(tracking)`, `goodsconfirm(tracking_id)`, `warehouse_section_detail(tracking_id)`, `bill_product_on_tracking(tracking_id)` (ถ้ายังไม่มี)
+
+## 9. Review (adversarial, 2026-10-18)
+
+ทวนซ้ำด้วย HTTP จริง :8101 vs :8201 (ลูกค้า 137 / 545 / 74 (ไม่มีสิทธิ์ lost_package), zz_fdn_cust, zz_fdn_admin, ไม่ล็อกอิน) — ไม่พบจุดที่ต้องแก้โค้ด
+- เทียบ ~110 request: ทุกหน้า/grid/ajax อ่านอย่างเดียว ภาษา th/en/cn, paging ลึก (หน้า 2/50/5000/สุดท้าย/เกิน), ค้นหาทุกช่อง, สถานะทุกค่า, tracking ที่มี lot/ผูกออเดอร์/ชำระแล้ว/ลบแล้ว/goodsconfirm/ชั้นวาง → ตรงกันทั้งหมด ยกเว้นข้อที่ระบุในข้อ 2 และด้านล่าง
+- สิทธิ์: ทุก POST ไม่ล็อกอิน → redirect login; ลูกค้า → ErrorBox สิทธิ์ (admin grid ตอบว่างเหมือนเดิม); Origin ข้ามเว็บ → 403 ทุกตัว
+- IDOR (ลูกค้า 137 กับ tracking/lost_package ของคนอื่นที่เป็นแถว zz_): save / save_quick_quote / delete / arr_id / load_product_type / form / grid / lost_package cancel / form → ไม่มีแถวใดเปลี่ยน ไม่มีข้อมูลรั่ว
+- SQL injection (เฉพาะฝั่งใหม่, endpoint อ่าน): `' OR '1'='1`, `1) OR (1=1`, UNION, `\`, `%`, array → 200 ทั้งหมด ไม่มี error/ผลเกิน; XSS ใน page/txtsearch/status/image/ship → escape ทั้งหมด
+- ต่างจากเดิมเล็กน้อย (มาจากฐานร่วม ไม่แก้ในกลุ่มนี้): `page` ที่ไม่ใช่จำนวนเต็ม (`abc`, `1.5`) — `Paging::getpaging` แปลงเป็น int (เดิมสะท้อนค่าดิบลง onclick); ajax ที่ไม่ล็อกอิน เดิมตอบว่าง 200 ใหม่ 302 → login; หน้า index ที่ไม่มีสิทธิ์ ไม่มีหัวข้อ/breadcrumb เดิม
+- `load_tracking` (รวมรหัส): ลำดับแถวที่ `lot_id, no` เท่ากันเดิมไม่แน่นอน (ใหม่เรียงต่อด้วย id) และคำค้นสั้น/ว่างยังคืนแถวจำนวนมาก (เช่น `7903` ≈ 6 MB) — เสนอให้บังคับความยาวคำค้น (รอเจ้าของตัดสินใจ)
