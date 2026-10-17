@@ -75,9 +75,9 @@
 | 63 | 88 | `^goodsconfirm/([0-9]+)$` | `?page=goodsconfirm_detail&id=$1`  | goodsconfirm_detail | _goodsconfirm/form.php | **warehouse** |
 | 64 | 90 | `^mall$` | `?page=mall`  | mall | _mall/index.php | **shop** |
 | 65 | 91 | `^mall/(.+)$` | `?page=mall&search=$1`  | mall | _mall/index.php | **shop** |
-| 66 | 92 | `^mall/create$` | `?page=mall_detail&id=0`  | mall_detail | _mall/form.php | **shop** |
+| 66 | 92 | `^mall/create$` | `?page=mall_detail&id=0`  | mall_detail | _mall/form.php (**ไม่มีไฟล์นี้ในเว็บเดิม** — หน้าเดิม error/ว่าง) | **shop** |
 | 67 | 93 | `^mall/cart$` | `?page=mall_cart&id=0`  | mall_cart | _mall/formcart.php | **shop** |
-| 68 | 94 | `^mall/([0-9]+)$` | `?page=mall_detail&id=$1`  | mall_detail | _mall/form.php | **shop** |
+| 68 | 94 | `^mall/([0-9]+)$` | `?page=mall_detail&id=$1`  | mall_detail | _mall/form.php (**ไม่มีไฟล์นี้ในเว็บเดิม** — หน้าเดิม error/ว่าง) | **shop** |
 | 69 | 106 | `^admin/balance$` | `?page=admin_balance`  | admin_balance | _admin/_balance/index.php | **balance** |
 | 70 | 107 | `^admin/balance_cn$` | `?page=admin_balance_cn`  | admin_balance_cn | _admin/_balance_cn/index.php | **balance** |
 | 71 | 108 | `^admin/balance_company$` | `?page=admin_balance_company`  | admin_balance_company | _admin/_balance_company/index.php | **balance** |
@@ -245,9 +245,9 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_mall/save_sizecolor.php` | `/_admin/_mall/save_sizecolor` |  |  |
 | `_admin/_mall_category/delete.php` | `/_admin/_mall_category/delete` |  |  |
 | `_admin/_mall_category/form.php` | `/_admin/_mall_category/form` | admin_mall_category_detail |  |
-| `_admin/_mall_category/grid.php` | `/_admin/_mall_category/grid` |  |  |
-| `_admin/_mall_category/index.php` | `/_admin/_mall_category/index` | admin_mall_category |  |
-| `_admin/_mall_category/save.php` | `/_admin/_mall_category/save` |  |  |
+| `_admin/_mall_category/grid.php` | `/_admin/_mall_category/grid` |  | ตรวจ `getPermission('admin_mall_category')` แต่ไม่มีโมดูลนี้ใน role_detail → ไม่มีใครเข้าได้ (แม้แอดมิน) |
+| `_admin/_mall_category/index.php` | `/_admin/_mall_category/index` | admin_mall_category | ตรวจ `getPermission('admin_mall_category')` แต่ไม่มีโมดูลนี้ใน role_detail → ไม่มีใครเข้าได้ (แม้แอดมิน) |
+| `_admin/_mall_category/save.php` | `/_admin/_mall_category/save` |  | ตรวจ `getPermission('admin_mall_category')` แต่ไม่มีโมดูลนี้ใน role_detail → ไม่มีใครเข้าได้ (แม้แอดมิน) |
 | `_admin/_mallstock/grid.php` | `/_admin/_mallstock/grid` |  |  |
 | `_admin/_mallstock/index.php` | `/_admin/_mallstock/index` | admin_mall_stock |  |
 | `_admin/_mallstock/load_amount.php` | `/_admin/_mallstock/load_amount` |  |  |
@@ -314,7 +314,7 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_order/load_calculate_cashback.php` | `/_admin/_order/load_calculate_cashback` |  |  |
 | `_admin/_order/load_color_form.php` | `/_admin/_order/load_color_form` |  |  |
 | `_admin/_order/load_detail.php` | `/_admin/_order/load_detail` |  |  |
-| `_admin/_order/load_paging.php` | `/_admin/_order/load_paging` |  |  |
+| `_admin/_order/load_paging.php` | `/_admin/_order/load_paging` |  | ตาราง `caching` ไม่มีใน DB (query ล้มเงียบ) |
 | `_admin/_order/load_remark_product.php` | `/_admin/_order/load_remark_product` |  |  |
 | `_admin/_order/load_remark_shop.php` | `/_admin/_order/load_remark_shop` |  |  |
 | `_admin/_order/load_total_order.php` | `/_admin/_order/load_total_order` |  |  |
@@ -386,7 +386,7 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_payment/index.php` | `/_admin/_payment/index` | admin_payment |  |
 | `_admin/_payment/load_autocomplete_user.php` | `/_admin/_payment/load_autocomplete_user` |  |  |
 | `_admin/_payment/load_create.php` | `/_admin/_payment/load_create` |  |  |
-| `_admin/_payment/load_select_lot.php` | `/_admin/_payment/load_select_lot` |  |  |
+| `_admin/_payment/load_select_lot.php` | `/_admin/_payment/load_select_lot` |  | ตรวจ `getPermission('admin_payment_createpayment')` แต่ไม่มีโมดูลนี้ใน role_detail → ไม่มีใครเข้าได้ (แม้แอดมิน) |
 | `_admin/_payment/load_shipping_price.php` | `/_admin/_payment/load_shipping_price` |  |  |
 | `_admin/_payment/load_user_by_id.php` | `/_admin/_payment/load_user_by_id` |  |  |
 | `_admin/_payment/save_approved.php` | `/_admin/_payment/save_approved` |  |  |
@@ -408,16 +408,16 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_payment/index.php` | `/_payment/index` | payment |  |
 | `_payment/load_create.php` | `/_payment/load_create` |  |  |
 | `_payment/load_create_sum.php` | `/_payment/load_create_sum` |  |  |
-| `_payment/load_receipt_address.php` | `/_payment/load_receipt_address` |  |  |
+| `_payment/load_receipt_address.php` | `/_payment/load_receipt_address` |  | ตาราง `user_receipt_address` ไม่มีใน DB (query ล้มเงียบ) |
 | `_payment/load_select_lot.php` | `/_payment/load_select_lot` |  |  |
 | `_payment/load_shipping_price.php` | `/_payment/load_shipping_price` |  |  |
 | `_payment/load_vat.php` | `/_payment/load_vat` |  |  |
 | `_payment/save.php` | `/_payment/save` |  |  |
 | `_payment/save_create.php` | `/_payment/save_create` |  |  |
-| `_payment/save_create_receiptaddress.php` | `/_payment/save_create_receiptaddress` |  |  |
+| `_payment/save_create_receiptaddress.php` | `/_payment/save_create_receiptaddress` |  | ตาราง `user_receipt_address` ไม่มีใน DB (query ล้มเงียบ) |
 | `_payment/save_delete.php` | `/_payment/save_delete` |  |  |
-| `_payment/save_deleteaddress.php` | `/_payment/save_deleteaddress` |  |  |
-| `_payment/save_deletereceiptaddress.php` | `/_payment/save_deletereceiptaddress` |  |  |
+| `_payment/save_deleteaddress.php` | `/_payment/save_deleteaddress` |  | ตาราง `user_address` ไม่มีใน DB (query ล้มเงียบ) |
+| `_payment/save_deletereceiptaddress.php` | `/_payment/save_deletereceiptaddress` |  | ตาราง `user_receipt_address` ไม่มีใน DB (query ล้มเงียบ) |
 | `_payment/save_submit_payment.php` | `/_payment/save_submit_payment` |  |  |
 | `_payment/view_example.php` | `/_payment/view_example` |  |  |
 
@@ -647,7 +647,7 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_register/lost_password.php` | `/_register/lost_password` |  |  |
 | `_register/save.php` | `/_register/save` |  |  |
 | `lost_password.php` | `/lost_password` |  |  |
-| `password.php` | `/password` |  |  |
+| `password.php` | `/password` |  | ใช้ตาราง `user_copy` ซึ่งไม่มีใน DB (query ล้มเงียบ) |
 | `register.php` | `/register` |  |  |
 | `system_check_username.php` | `/system_check_username` |  |  |
 
@@ -763,7 +763,7 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_shipping_type/save_new_price_by_cubic.php` | `/_admin/_shipping_type/save_new_price_by_cubic` |  |  |
 | `_admin/_shipping_type/save_new_price_by_kg.php` | `/_admin/_shipping_type/save_new_price_by_kg` |  |  |
 | `gateway.php` | `/gateway` |  |  |
-| `get_price.php` | `/get_price` |  |  |
+| `get_price.php` | `/get_price` |  | ตรวจ `getPermission('view_bol')` แต่ไม่มีโมดูล view_bol ใน role_detail → ทุกคนได้ ErrorBox สิทธิ์ (endpoint ตาย) |
 | `get_resource.php` | `/get_resource` |  |  |
 | `index_close.php` | `/index_close` |  |  |
 | `load_quick_search.php` | `/load_quick_search` |  |  |

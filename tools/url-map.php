@@ -48,6 +48,21 @@ $foundationNote = [
     'sessionmaster/database.class.php' => '(ไม่ใช้แล้ว — session อยู่ใน sessions_v2)', 'sessionmaster/mysql.sessions.php' => '(ไม่ใช้แล้ว)',
 ];
 
+// หมายเหตุของไฟล์ในกลุ่มต่างๆ (พฤติกรรมแปลกของเว็บเดิมที่คนพอร์ตต้องรู้)
+$fileNote = [
+    'get_price.php' => 'ตรวจ `getPermission(\'view_bol\')` แต่ไม่มีโมดูล view_bol ใน role_detail → ทุกคนได้ ErrorBox สิทธิ์ (endpoint ตาย)',
+    'password.php' => 'ใช้ตาราง `user_copy` ซึ่งไม่มีใน DB (query ล้มเงียบ)',
+    '_payment/save_create_receiptaddress.php' => 'ตาราง `user_receipt_address` ไม่มีใน DB (query ล้มเงียบ)',
+    '_payment/load_receipt_address.php' => 'ตาราง `user_receipt_address` ไม่มีใน DB (query ล้มเงียบ)',
+    '_payment/save_deletereceiptaddress.php' => 'ตาราง `user_receipt_address` ไม่มีใน DB (query ล้มเงียบ)',
+    '_payment/save_deleteaddress.php' => 'ตาราง `user_address` ไม่มีใน DB (query ล้มเงียบ)',
+    '_admin/_order/load_paging.php' => 'ตาราง `caching` ไม่มีใน DB (query ล้มเงียบ)',
+    '_admin/_mall_category/index.php' => 'ตรวจ `getPermission(\'admin_mall_category\')` แต่ไม่มีโมดูลนี้ใน role_detail → ไม่มีใครเข้าได้ (แม้แอดมิน)',
+    '_admin/_mall_category/grid.php' => 'ตรวจ `getPermission(\'admin_mall_category\')` แต่ไม่มีโมดูลนี้ใน role_detail → ไม่มีใครเข้าได้ (แม้แอดมิน)',
+    '_admin/_mall_category/save.php' => 'ตรวจ `getPermission(\'admin_mall_category\')` แต่ไม่มีโมดูลนี้ใน role_detail → ไม่มีใครเข้าได้ (แม้แอดมิน)',
+    '_admin/_payment/load_select_lot.php' => 'ตรวจ `getPermission(\'admin_payment_createpayment\')` แต่ไม่มีโมดูลนี้ใน role_detail → ไม่มีใครเข้าได้ (แม้แอดมิน)',
+];
+
 function groupOfFile(string $rel, array $dirs, array $rootFiles): string
 {
     foreach ($rootFiles as $g => $files) {
@@ -116,6 +131,9 @@ foreach ($rules as $i => $r) {
     if (preg_match('/[?&]page=([a-z0-9_]+)/', $r['target'], $pm)) {
         $page = $pm[1];
         $file = $pages[$page] ?? '(ไม่มีใน content.php)';
+        if (isset($pages[$page]) && ! is_file($src.'/'.$pages[$page])) {
+            $file .= ' (**ไม่มีไฟล์นี้ในเว็บเดิม** — หน้าเดิม error/ว่าง)';
+        }
         $g = isset($pages[$page]) ? groupOfFile($pages[$page], $dirs, $rootFiles) : 'UNASSIGNED';
     } elseif (str_ends_with($r['target'], '.php') && ! str_contains($r['target'], '$')) {
         $file = $r['target'];
@@ -175,7 +193,7 @@ foreach ($order as $g) {
     $out[] = '|---|---|---|---|';
     foreach ($byGroup[$g] as $rel) {
         $url = '/'.substr($rel, 0, -4);
-        $out[] = sprintf('| `%s` | `%s` | %s | %s |', $rel, $url, $pageOf[$rel] ?? '', $g === 'foundation' ? ($foundationNote[$rel] ?? '') : '');
+        $out[] = sprintf('| `%s` | `%s` | %s | %s |', $rel, $url, $pageOf[$rel] ?? '', $g === 'foundation' ? ($foundationNote[$rel] ?? '') : ($fileNote[$rel] ?? ''));
     }
 }
 

@@ -108,14 +108,14 @@ final class Pricing
     /**
      * getPrice($user, $type, ...) เดิม: ราคาจาก member_rate หรือ product_type
      *
+     * ตาราง `member` / `member_rate` ไม่มีใน DB (เดิม mysqli ไม่โยน error → query ล้มเงียบ ได้ค่าว่าง → ใช้ product_type เสมอ)
+     * จึงอ่าน product_type อย่างเดียว ผลเท่าเดิมทุกกรณี ($user ไม่มีผล)
+     *
      * @return array{kg: float, cubic: float, amount: float}
      */
     public static function getPrice(mixed $user, mixed $type, mixed $weight, mixed $width, mixed $height, mixed $long, mixed $amount): array
     {
-        $rate = DB::table('member_rate')->where('product_type_id', $type)->where('member_id', $user)->where('is_delete', 0)->first();
-        if (! $rate) {
-            $rate = DB::table('product_type')->where('id', $type)->where('is_delete', 0)->first(['kg', 'cubic', 'per_amount']);
-        }
+        $rate = DB::table('product_type')->where('id', $type)->where('is_delete', 0)->first(); // ไม่มีคอลัมน์ per_amount (เดิม undefined index → 0)
 
         return [
             'kg' => self::n($weight) * self::n($rate->kg ?? null),

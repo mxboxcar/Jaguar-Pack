@@ -58,7 +58,13 @@ bin/wt-serve tracking --bg          # http://127.0.0.1:8201 (php8.4 -S, user sit
 bin/fix-perms . && sudo -u site_jllv php8.4 artisan optimize:clear
 bin/bench 'http://127.0.0.1:8101/index.php?page=tracking' http://127.0.0.1:8201/tracking
 bin/wt-serve tracking --stop
+bin/wt-rm tracking                  # ลบ worktree เมื่อ merge แล้ว (branch ยังอยู่; --branch ลบ branch ด้วย)
 ```
+
+- ทดลองเครื่องมือ/ลองพอร์ตทิ้ง: `bin/wt-new zz-probe` (port 8299) → `bin/wt-rm zz-probe --branch --force` (ห้าม merge `mod/zz-*`)
+- `vendor/` ของ worktree ไม่ใช่ symlink ทั้งโฟลเดอร์ (ไม่งั้นคลาส `App\*` ถูกโหลดจาก main) — `bin/wt-vendor <worktree>` สร้างให้ (wt-new เรียกเอง; รันใหม่เมื่อ `composer.lock` ของ main เปลี่ยน)
+- เทียบ HTML เดิม/ใหม่: แทน `https://portal.jlcargoth.com/` กับ `http://127.0.0.1:82xx/` เป็นค่าเดียวกันก่อน diff (ดู CONVENTIONS ข้อ 10)
+- ผลต่าง PHP 7.4 → 8.4 ที่ทำให้พอร์ตแล้วพัง (TypeError, `==`, `html_entity_decode`, SQL error) ดู CONVENTIONS ข้อ 13
 
 port ของ worktree: tracking 8201, shop 8202, order 8203, payment 8204, balance 8205, money-move 8206, points 8207, lot 8208, warehouse 8209, users 8210, messaging 8211, reports 8212, settings 8213 (`bin/wt-serve --port-of <group>`)
 

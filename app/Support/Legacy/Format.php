@@ -127,18 +127,20 @@ final class Format
         return '<strong>'.$value.'</strong>';
     }
 
-    public static function nStr(string $value): string
+    public static function nStr(mixed $value): string
     {
-        return str_replace("'", "''", $value);
+        return str_replace("'", "''", (string) $value);
     }
 
-    public static function cleanSql(string $s): string
+    public static function cleanSql(mixed $s): string
     {
+        $s = (string) $s;
         return (string) preg_replace('/[^A-Za-z0-9\-]/', '', str_replace(' ', '-', $s));
     }
 
-    public static function utf8_strlen(string $s): int
+    public static function utf8_strlen(mixed $s): int
     {
+        $s = (string) $s;
         $l = 0;
         $c = strlen($s);
         for ($i = 0; $i < $c; $i++) {
@@ -151,8 +153,9 @@ final class Format
     }
 
     /** bankformat เดิม (ทำงานระดับ byte เหมือนเดิม: เลขบัญชีเป็น ASCII) */
-    public static function bankformat(string $source, bool $isHide = true): string
+    public static function bankformat(mixed $source, bool $isHide = true): string
     {
+        $source = (string) $source; // ค่าจาก DB อาจเป็น null/int (เดิมไม่มี type)
         $str = '';
         $n = self::utf8_strlen($source);
         for ($i = 0; $i < $n; $i++) {
