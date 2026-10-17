@@ -71,16 +71,29 @@ class AdminAlipayController extends Controller
     {
         $id = $this->in($request, 'id');
         $upload = $this->in($request, 'upload_file');
-        DB::table('bill_alipay')->where('id', $id)->update([
-            'approved_remark' => $this->in($request, 'approved_remark'), 'approved_upload' => $upload, 'status' => '2',
-            'approved_date' => DB::raw('NOW()'), 'mod_date' => DB::raw('NOW()'), 'mod_by' => Legacy::userId(),
-        ]);
+        // เดิม UPDATE ทุกสถานะ (ปุ่มบันทึกแสดงทุกสถานะ): ยืนยันบิลที่ยกเลิก/คืนเงินแล้วเป็นสถานะ 2 ได้ แล้ว rollback (2 → 1 ไม่ตัดเงิน)
+        // + ลูกค้ายกเลิก = คืนเงินซ้ำ → ไม่ยอมบิลที่ยกเลิกแล้ว (-1) / ไม่มีอยู่, และล็อกแถวกันชนกับ cancel/rollback
+        $billId = DB::transaction(function () use ($request, $id, $upload) {
+            $data = DB::table('bill_alipay')->where('id', $id)->lockForUpdate()->first();
+            if ($data === null || Php74::eq((string) $data->status, -1)) {
+                return null;
+            }
+            DB::table('bill_alipay')->where('id', $data->id)->update([
+                'approved_remark' => $this->in($request, 'approved_remark'), 'approved_upload' => $upload, 'status' => '2',
+                'approved_date' => DB::raw('NOW()'), 'mod_date' => DB::raw('NOW()'), 'mod_by' => Legacy::userId(),
+            ]);
+
+            return (string) $data->id;
+        });
+        if ($billId === null) {
+            return response(Alerts::error('CloseLoading()', 'รายการนี้ถูกยกเลิกไปแล้ว'));
+        }
         $js = $upload !== '' ? TempUpload::jsIfExists($upload, "         \t\t") : '';
         if (! config('legacy.debug_mail')) {
-            PaymentMailer::alipaySuccess($id);
+            PaymentMailer::alipaySuccess($billId);
         }
 
-        return response($js.Alerts::success('window.location.href = "'.Legacy::href('admin/alipay').'";', Lang::get('success_process_no').P::prefix('alipay').$id));
+        return response($js.Alerts::success('window.location.href = "'.Legacy::href('admin/alipay').'";', Lang::get('success_process_no').P::prefix('alipay').Alerts::js(e($id))));
     }
 
     /** POST /_admin/_alipay/cancel — ยกเลิก (เฉพาะสถานะ 1) + คืนเงินให้เจ้าของบิล */
@@ -94,14 +107,14 @@ class AdminAlipayController extends Controller
                 return false;
             }
             $uid = Legacy::userId();
-            DB::table('bill_alipay')->where('id', $id)->update([
+            DB::table('bill_alipay')->where('id', $data->id)->update([
                 'status' => '-1', 'cancel_remark' => $remark.' ,ยกเลิกโดย '.(Legacy::user()->code ?? ''),
                 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
             ]);
             DB::table('balance')->insert([
                 'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
-                'user' => (string) $data->user, 'amount' => (string) $data->usecash, 'detail' => 'ยกเลิกรายการ '.P::prefix('alipay').$id,
-                'type' => 6, 'prefix' => (string) Lookup::getPrefixID('alipay'), 'prefix_ref_id' => $id,
+                'user' => (string) $data->user, 'amount' => (string) $data->usecash, 'detail' => 'ยกเลิกรายการ '.P::prefix('alipay').$data->id,
+                'type' => 6, 'prefix' => (string) Lookup::getPrefixID('alipay'), 'prefix_ref_id' => (string) $data->id,
             ]);
 
             return true;
@@ -112,7 +125,7 @@ class AdminAlipayController extends Controller
         $js = config('legacy.debug_mail') ? ''
             : "$.ajax({ type: 'POST', async: true, data : 'id=".Alerts::js($id)."', url: rooturl + '_admin/_alipay/email_cancel', success: function(data) { } });";
 
-        return response($js.Alerts::success('window.location.href = "'.Legacy::href('admin/alipay').'";', Lang::get('success_process_no').P::prefix('alipay').$id));
+        return response($js.Alerts::success('window.location.href = "'.Legacy::href('admin/alipay').'";', Lang::get('success_process_no').P::prefix('alipay').Alerts::js(e($id))));
     }
 
     /** POST /_admin/_alipay/rollback — ย้อนสถานะ -1/2 → 1 (กรณี -1: ตัดเงินคืนตามแถว balance/balance_cn เดิม) */
@@ -130,12 +143,12 @@ class AdminAlipayController extends Controller
                 $prefixId = (string) Lookup::getPrefixID('alipay');
                 foreach (['balance', 'balance_cn'] as $table) {
                     $row = DB::table($table)->where('type', 6)->where('prefix', $prefixId)->where('prefix_ref_id', (string) $data->id)
-                        ->where('is_delete', '0')->where('detail', P::prefix('alipay').$id)->orderBy('id')->first();
+                        ->where('is_delete', '0')->where('detail', P::prefix('alipay').$data->id)->orderBy('id')->first();
                     if ($row !== null) {
                         DB::table($table)->insert([
                             'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
                             'user' => (string) $row->user, 'amount' => '-'.str_replace('-', '', (string) $row->amount),
-                            'detail' => 'Rollback '.P::prefix('alipay').$id, 'type' => 6, 'prefix' => $prefixId, 'prefix_ref_id' => $id,
+                            'detail' => 'Rollback '.P::prefix('alipay').$data->id, 'type' => 6, 'prefix' => $prefixId, 'prefix_ref_id' => (string) $data->id,
                         ]);
                     }
                 }

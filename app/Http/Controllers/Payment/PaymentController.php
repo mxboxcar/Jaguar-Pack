@@ -266,7 +266,9 @@ class PaymentController extends Controller
             DB::table('user')->where('id', $uid)->lockForUpdate()->value('id');
             $items = P::strAll(self::tempTrackings($code)->where('tracking.is_delete', 0)->get(['tracking.*']));
 
-            $fees = PaymentTotals::fees($st, $senderType, Pricing::getShippingTypePrice($shippingType, $this->ownRandom($refId), $senderType));
+            // ค่าส่งตามน้ำหนักคิดจาก random ของรายการที่จ่ายจริง ($code) — เดิมใช้ ref_id ที่ส่งมาแยก (หน้าเดิมส่งค่าเดียวกัน)
+            // ส่ง ref_id ของ random อื่นที่เบากว่า = ค่าส่งถูกลง
+            $fees = PaymentTotals::fees($st, $senderType, Pricing::getShippingTypePrice($shippingType, $code, $senderType));
             $priceShipping = 0;
             foreach ($items as $item) {
                 $priceShipping = $priceShipping + P::add($item, ['price_kg', 'price_cubic', 'price_amount', 'price_qc', 'price_express', 'price_else', 'price_repack', 'price_craft']);
@@ -334,12 +336,13 @@ class PaymentController extends Controller
             DB::table('tracking')->where('payment_id', $data->id)->where('user', $uid)->update(['payment_id' => '0']);
             DB::table('balance')->insert([
                 'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
-                'user' => (string) $uid, 'amount' => (string) $data->total, 'detail' => 'คืนเงิน '.P::prefix('payment').$id,
-                'type' => 3, 'prefix' => (string) Lookup::getPrefixID('payment'), 'prefix_ref_id' => $id,
+                'user' => (string) $uid, 'amount' => (string) $data->total, 'detail' => 'คืนเงิน '.P::prefix('payment').$data->id,
+                'type' => 3, 'prefix' => (string) Lookup::getPrefixID('payment'), 'prefix_ref_id' => (string) $data->id,
             ]);
         });
 
-        return response(Alerts::success('window.location.href = "'.Legacy::href('payment').'";', Lang::get('success_process_no').P::prefix('payment').$id));
+        // id จาก POST ฝังใน JS ที่หน้าเว็บ eval() — เดิมไม่ escape
+        return response(Alerts::success('window.location.href = "'.Legacy::href('payment').'";', Lang::get('success_process_no').P::prefix('payment').Alerts::js(e($id))));
     }
 
     /** POST /_payment/save — (ไฟล์เดิมคัดลอกมาจาก _refill/save.php: สร้างรายการเติมเงิน ตรวจสิทธิ์ refill) */

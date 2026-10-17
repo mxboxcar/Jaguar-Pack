@@ -163,8 +163,8 @@ class AlipayController extends Controller
             ]);
             DB::table('balance')->insert([
                 'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
-                'user' => (string) $uid, 'amount' => (string) $data->usecash, 'detail' => 'ยกเลิกรายการ '.P::prefix('alipay').$id,
-                'type' => 6, 'prefix' => (string) Lookup::getPrefixID('alipay'), 'prefix_ref_id' => $id,
+                'user' => (string) $uid, 'amount' => (string) $data->usecash, 'detail' => 'ยกเลิกรายการ '.P::prefix('alipay').$data->id,
+                'type' => 6, 'prefix' => (string) Lookup::getPrefixID('alipay'), 'prefix_ref_id' => (string) $data->id,
             ]);
         });
 

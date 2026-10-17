@@ -39,8 +39,9 @@ class AdminPaymentCreateController extends Controller
         return view('payment.admin.create', [
             'userId' => $userId,
             'code' => $code,
-            // เดิม getCurrentCash($user_id) ด้วยตัวแปรที่ไม่ได้กำหนด → ยอดเงินของแอดมินที่ล็อกอิน (คงผลเดิม)
-            'cash' => Lookup::getCurrentCash(''),
+            // เดิม getCurrentCash($user_id): $user_id มาจาก extract($_GET) ใน system_config.php = ยอดเงินของลูกค้าใน URL
+            // (ไม่มี user_id = ว่าง → ยอดของผู้ที่ล็อกอิน)
+            'cash' => Lookup::getCurrentCash($userId),
         ]);
     }
 

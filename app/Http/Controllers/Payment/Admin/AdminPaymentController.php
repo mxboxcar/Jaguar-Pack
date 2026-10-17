@@ -94,18 +94,18 @@ class AdminPaymentController extends Controller
         $approved = DB::transaction(function () use ($id) {
             $data = DB::table('bill_payment')->where('id', $id)->lockForUpdate()->first();
             if ($data === null || ! Php74::eq((string) $data->status, 1)) {
-                return false;
+                return null;
             }
             // เดิมไม่ได้ตั้ง mod_date
-            DB::table('bill_payment')->where('id', $id)->update(['status' => '2', 'approved_date' => DB::raw('NOW()'), 'mod_by' => Legacy::userId()]);
+            DB::table('bill_payment')->where('id', $data->id)->update(['status' => '2', 'approved_date' => DB::raw('NOW()'), 'mod_by' => Legacy::userId()]);
 
-            return true;
+            return (string) $data->id;
         });
-        if ($approved && ! config('legacy.debug_mail')) {
-            PaymentMailer::paymentApproved($id);
+        if ($approved !== null && ! config('legacy.debug_mail')) {
+            PaymentMailer::paymentApproved($approved);
         }
 
-        return response(Alerts::success('window.location.href = "'.Legacy::href('admin/payment').'";', Lang::get('success_process_no').P::prefix('payment').$id));
+        return response(Alerts::success('window.location.href = "'.Legacy::href('admin/payment').'";', Lang::get('success_process_no').P::prefix('payment').Alerts::js(e($id))));
     }
 
     /** POST /_admin/_payment/save_delete — ยกเลิก (เฉพาะสถานะ 1) คืนพัสดุ + คืนเงิน */
@@ -116,22 +116,23 @@ class AdminPaymentController extends Controller
         $done = DB::transaction(function () use ($id, $remark) {
             $data = DB::table('bill_payment')->where('id', $id)->lockForUpdate()->first();
             if ($data === null || ! Php74::eq((string) $data->status, 1)) {
-                return false;
+                return null;
             }
-            DB::table('tracking')->where('payment_id', $id)->update(['payment_id' => '0']);
-            $this->cancelBill($id, $remark);
-            $this->refund($id);
+            $billId = (string) $data->id;
+            DB::table('tracking')->where('payment_id', $billId)->update(['payment_id' => '0']);
+            $this->cancelBill($billId, $remark);
+            $this->refund($billId);
 
-            return true;
+            return $billId;
         });
-        if (! $done) {
+        if ($done === null) {
             return response(Alerts::success('window.location.reload();', 'รายการถูกยืนยันไปแล้ว'));
         }
         if (! config('legacy.debug_mail')) {
-            PaymentMailer::paymentCancelled($id);
+            PaymentMailer::paymentCancelled($done);
         }
 
-        return response(Alerts::success('window.location.href = "'.Legacy::href('admin/payment').'";', Lang::get('success_process_no').P::prefix('payment').$id));
+        return response(Alerts::success('window.location.href = "'.Legacy::href('admin/payment').'";', Lang::get('success_process_no').P::prefix('payment').Alerts::js(e($id))));
     }
 
     /** POST /_admin/_payment/save_deletenopush — ยกเลิกโดยไม่คืนพัสดุ (สถานะ 0: ไม่คืนเงิน, 1/2: คืนเงิน + อีเมล) */
@@ -139,17 +140,22 @@ class AdminPaymentController extends Controller
     {
         $id = $this->in($request, 'id');
         $remark = $this->in($request, 'cancel_remark');
-        $result = DB::transaction(function () use ($id, $remark) {
+        $billId = null;
+        $result = DB::transaction(function () use ($id, $remark, &$billId) {
             $data = DB::table('bill_payment')->where('id', $id)->lockForUpdate()->first();
-            $st = $data === null ? null : (string) $data->status;
+            if ($data === null) {
+                return 'nocash'; // เดิม: ไม่พบบิล → null == 0 → UPDATE ที่ไม่โดนแถวใด + ข้อความสำเร็จ
+            }
+            $billId = (string) $data->id;
+            $st = (string) $data->status;
             if (Php74::eq($st, 0)) {
-                $this->cancelBill($id, $remark);
+                $this->cancelBill((string) $data->id, $remark);
 
                 return 'nocash';
             }
             if (Php74::eq($st, 1) || Php74::eq($st, 2)) {
-                $this->cancelBill($id, $remark);
-                $this->refund($id);
+                $this->cancelBill((string) $data->id, $remark);
+                $this->refund((string) $data->id);
 
                 return 'refund';
             }
@@ -160,10 +166,10 @@ class AdminPaymentController extends Controller
             return response(Alerts::success('window.location.reload();', 'รายการถูกยืนยันไปแล้ว'));
         }
         if ($result === 'refund' && ! config('legacy.debug_mail')) {
-            PaymentMailer::paymentCancelled($id);
+            PaymentMailer::paymentCancelled($billId);
         }
 
-        return response(Alerts::success('window.location.href = "'.Legacy::href('admin/payment').'";', Lang::get('success_process_no').P::prefix('payment').$id));
+        return response(Alerts::success('window.location.href = "'.Legacy::href('admin/payment').'";', Lang::get('success_process_no').P::prefix('payment').Alerts::js(e($id))));
     }
 
     /** POST /_admin/_payment/save_vat — เปิด/ปิด VAT แล้วคำนวณยอดใหม่ + แก้แถว balance ที่ตัดเงิน (ตอบว่าง: JS เดิม reload หน้า) */
@@ -173,6 +179,11 @@ class AdminPaymentController extends Controller
         $value = $this->in($request, 'value');
         DB::transaction(function () use ($id, $value) {
             $data = P::str(DB::table('bill_payment')->where('id', $id)->lockForUpdate()->first());
+            // เดิมเปลี่ยน VAT ได้ทุกสถานะ: บิลที่ยกเลิกแล้ว (คืนเงินไปแล้วตามยอดเดิม) ถูกแก้แถวตัดเงินตามยอดใหม่
+            // = ยอดเงินลูกค้าเพิ่ม/ลดโดยไม่มีที่มา (เช่น ยกเลิกคืน 260.50 แล้วเปิด VAT → แถวตัดเงินเหลือ -166.58) → ไม่ทำอะไร
+            if ($data === null || Php74::eq($data->status, -1)) {
+                return;
+            }
             $stp = Pricing::getShippingTypePriceEditSender($data->shipping_type ?? null, $data->id ?? null, $data->sender_type ?? null);
             $priceShipping = 0;
             foreach (P::strAll(DB::table('bill_payment_detail')->where('payment_id', $id)->where('is_delete', 0)->get()) as $item) {
@@ -256,7 +267,7 @@ class AdminPaymentController extends Controller
             ]);
         });
 
-        return response(Alerts::success('window.location.reload();', Lang::get('success_process_no').P::prefix('payment').$id));
+        return response(Alerts::success('window.location.reload();', Lang::get('success_process_no').P::prefix('payment').Alerts::js(e($id))));
     }
 
     /** email_approved.php / email_cancel.php เปิดตรง — เดิมใช้ $email_id ที่ไม่ได้กำหนด (ไม่ส่งอะไรได้จริง) */

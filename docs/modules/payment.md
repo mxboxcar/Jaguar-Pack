@@ -100,9 +100,16 @@ ajax / form post (ทุกตัว `legacy.ajax` = system_check_ajax เดิ
 - SameSite / gateway callback: กลุ่มนี้ไม่มี callback จาก payment gateway (Alipay = คำขอให้พนักงานเติมเงินให้ ไม่มี server-to-server/redirect กลับ) ทุก POST เป็น XHR same-origin → cookie `PHPSESSID` SameSite=Lax ของฐานร่วมใช้ได้ ไม่ต้องแก้
 - หน้าไม่มีสิทธิ์/ไม่พบบิล: layout เต็ม + ErrorBox (เดิม exit กลางหน้า ไม่มีท้ายหน้า)
 
+แก้เพิ่มหลัง review (adversarial review):
+- `_admin/_alipay/save`: เดิม UPDATE ทุกสถานะ (ปุ่มบันทึกแสดงทุกสถานะ) → ยืนยันบิลที่ยกเลิก/คืนเงินแล้วเป็นสถานะ 2 → `rollback` (2 → 1 ไม่ตัดเงิน) → ลูกค้ากดยกเลิก = **คืนเงินซ้ำ** (ทดสอบบน :8204 ด้วยบิล zz: ได้ +52 จากบิลเดียว) — ตอนนี้ไม่ยอมบิลสถานะ -1/ไม่มีอยู่ (`ErrorBox('รายการนี้ถูกยกเลิกไปแล้ว')`) และอยู่ใน transaction + lock แถวบิล
+- `_admin/_payment/save_vat`: เดิมเปลี่ยน VAT บิลที่ยกเลิกแล้วได้ → แถวตัดเงินเปลี่ยนตามยอดใหม่ แต่แถวคืนเงินยังเป็นยอดเดิม = ยอดลูกค้าเพิ่ม/ลดโดยไม่มีที่มา (ทดสอบ: คืน 260.50, ตัดเหลือ -166.58) → บิลสถานะ -1 ไม่ทำอะไร
+- `admin/payment/create/{user_id}` ช่อง "ยอดเงินลูกค้า": เดิม `$user_id` มาจาก `extract($_GET)` = ยอดเงินของลูกค้าใน URL (รายงานรอบแรกเข้าใจว่าเป็นยอดของแอดมิน) → แก้ให้ตรงเดิม
+- ลูกค้า `save_submit_payment`: ค่าส่งตามน้ำหนัก (`getShippingTypePrice`) คิดจาก random ของรายการที่จ่ายจริง (`id`) แทน `ref_id` ที่ส่งแยกมา (หน้าเดิมส่งค่าเดียวกัน; ส่ง ref_id ของ random อื่นที่เบากว่า = ค่าส่งถูกลง)
+- id จาก POST ที่ฝังในข้อความ `SuccessBox(...)` ผ่าน `Alerts::js(e())` (เดิมไม่ escape); แถว balance/อีเมลใช้ id ของบิลที่อ่านได้จริง (เดิมใช้ค่าที่ส่งมา เช่น `5abc`)
+
 คงพฤติกรรมเดิม (ควรให้เจ้าของตัดสินใจ):
-- หน้า `admin/payment/create` ช่อง "ยอดเงินลูกค้า" แสดงยอดเงินของแอดมินที่ล็อกอิน (`getCurrentCash($user_id)` ใช้ตัวแปรที่ไม่ได้กำหนด)
-- `_admin/_alipay/save` ไม่ตรวจสถานะ: ยืนยันบิลที่ยกเลิก (คืนเงินแล้ว) เป็นสถานะ 2 ได้โดยไม่ตัดเงินใหม่
+- `_admin/_payment/save_vat` / `getShippingTypePrice_EditSender` join `bill_payment_detail.tracking_id` (= PK ของ bill_payment_detail ไม่ใช่ tracking.id) → น้ำหนักที่ใช้คิดค่าส่งแบบ rate มาจาก tracking ผิดแถว (ฟังก์ชันของฐานร่วม)
+- ราคาที่แอดมินแก้ใน `admin/payment/create` (prices) ติดลบได้ → บิลยอดติดลบ + pay_now = เพิ่มเงินให้ลูกค้า (แอดมินเท่านั้น)
 - `_admin/_alipay/grid` ลำดับ `AND … OR user.code LIKE …` ทำให้กิ่งค้นหารหัสลูกค้าไม่กรอง is_delete
 - รหัสผ่าน taobao/alipay ของลูกค้าเก็บ plaintext ใน `bill_alipay` และแสดงในหน้าแอดมิน (ระบบเดิมออกแบบให้พนักงานล็อกอินแทน)
 - `admin_change_sender` ไม่มีใน role_detail → ฟอร์มแก้ผู้ส่ง/`save_new_sender` ไม่มีใครใช้ได้ (พอร์ตครบแต่ทดสอบผ่าน HTTP ไม่ได้)
@@ -120,6 +127,10 @@ ajax / form post (ทุกตัว `legacy.ajax` = system_check_ajax เดิ
 8. ไม่มี CSRF (เดิม) — ตอนนี้ผ่าน `LegacyCsrf`
 9. `load_shipping_price`, `load_vat`, `email_*.php` ไม่ตรวจล็อกอิน; email_* เปิดตรงได้
 10. `file_exists('../upload/temp/'.$_POST[...])` = ใช้ตรวจว่ามีไฟล์ใดบนเครื่อง (path traversal)
+11. `_admin/_alipay/grid.php` ตรวจ `getPermission('alipay')` (สิทธิ์ลูกค้า) แทน `admin_alipay` → ลูกค้าทุกคนเรียกดูรายการเติมอลีเพลของลูกค้าทุกคน (รหัสลูกค้า ยอดเงิน สถานะ) ได้ (ยืนยันแล้วด้วย GET/POST ปกติบน :8101 ด้วย session ลูกค้า 137) — ใหม่ใช้ `admin_alipay`
+12. `_admin/_alipay/save.php` ยืนยันบิลที่ยกเลิกแล้ว + `rollback` = คืนเงินซ้ำ (ดูข้อ "แก้เพิ่มหลัง review")
+13. `_admin/_payment/save_vat.php` แก้ VAT บิลที่ยกเลิกแล้ว = ยอดเงินลูกค้าผิด
+14. `extract($_GET)` ใน system_config.php: ตัวแปรที่ไม่ได้กำหนดในไฟล์ ajax ถูกกำหนดจาก query string ได้ เช่น `save_vat.php?price_thai_storage=…`, `save_new_sender.php?shipping_type=…`, และ `email_approved.php?email_id=…` / `email_cancel.php?email_id=…` (ไม่ต้องล็อกอิน) สั่งส่งอีเมลของบิลใดก็ได้ — ใหม่ไม่อ่านตัวแปรจาก GET
 
 ## 4. การตรวจสอบ
 
