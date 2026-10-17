@@ -183,15 +183,31 @@ class AdminShopCashbackController extends Controller
      */
     public function emailApproved(Request $request): Response
     {
-        CashbackMailer::approved(Grid::in($request, 'id'), Grid::in($request, 'ids'));
+        if (self::detailBelongsToHead($request)) {
+            CashbackMailer::approved(Grid::in($request, 'id'), Grid::in($request, 'ids'));
+        }
 
         return response('');
     }
 
     public function emailCancel(Request $request): Response
     {
-        CashbackMailer::cancelled(Grid::in($request, 'id'), Grid::in($request, 'ids'));
+        if (self::detailBelongsToHead($request)) {
+            CashbackMailer::cancelled(Grid::in($request, 'id'), Grid::in($request, 'ids'));
+        }
 
         return response('');
+    }
+
+    /**
+     * เดิมรับ id (หัวรายการ) กับ ids (รายการย่อย) แยกกันโดยไม่ตรวจว่าเข้าคู่กัน → อีเมลถึงลูกค้า A แต่ใส่เลขคำสั่งซื้อ/ยอดของลูกค้า B ได้
+     * → ส่งเฉพาะเมื่อรายการย่อยเป็นของหัวรายการนั้นจริง (save_approved / save_cancel ส่งคู่ที่ถูกต้องเสมอ)
+     */
+    private static function detailBelongsToHead(Request $request): bool
+    {
+        $head = DB::table('shop_cashback')->where('id', Grid::in($request, 'id'))->value('id');
+
+        return $head !== null && DB::table('shop_cashback_detail')
+            ->where('id', Grid::in($request, 'ids'))->where('shop_cashback_id', $head)->exists();
     }
 }

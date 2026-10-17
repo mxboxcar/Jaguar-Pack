@@ -81,6 +81,7 @@ branch `mod/points` · worktree `/home/admin/laravel/jl-wt/points` · port 8207
 - shop_cashback `save_approved`: transaction + lock (อนุมัติซ้อน = เติมหยวนซ้ำ); `save_cancel`: ไม่ยกเลิกรายการที่อนุมัติแล้ว (ยกเลิกแล้วอนุมัติใหม่ = เติมเงินซ้ำ) และไม่ส่งอีเมลเมื่อไม่ได้ทำอะไร
 - shop_cashback `save`: ห่อ transaction; JS `blockblob_ajax` ตอบเฉพาะไฟล์ที่ชื่อปลอดภัยและมีจริงใน `legacy.upload.temp_dir` (เดิม `file_exists('../upload/temp/'.$x)` = path traversal และชื่อว่างก็ผ่านเพราะเป็นโฟลเดอร์)
 - `email_approved` / `email_cancel` เรียกตรง: ต้องมีสิทธิ์ `admin_shop_cashback`, รับ `id`/`ids` ทาง POST (เดิมไม่ตรวจอะไรเลย รับค่าผ่าน `extract($_GET)`), ตอบว่างเหมือนเดิม
+  และส่งเฉพาะเมื่อรายการย่อย `ids` เป็นของหัวรายการ `id` จริง (เดิมจับคู่มั่วได้ → อีเมลถึงลูกค้า A พร้อมเลขคำสั่งซื้อ/ยอดของลูกค้า B)
 - withdrawpoint `save_approved`/`cancel` เดิม `include_once('email_*.php')` ไฟล์ที่ไม่มีในโฟลเดอร์นั้น → ไม่มีอีเมล (เหมือนเดิม; ไม่พิมพ์ warning)
 - หน้าไม่มีสิทธิ์: ใช้ `legacy.perm` (layout + ErrorBox → dashboard) — เดิมแสดงหัวข้อ/ปุ่มของหน้าก่อนเด้ง ErrorBox; `/shop_cashback/{id}` ของคนอื่นตอบหน้าเต็ม (เดิม exit กลาง layout)
 - ajax ที่ยังไม่ล็อกอิน: redirect `/login` (เดิม grid ตอบว่าง ฯลฯ); POST ต้องผ่าน `LegacyCsrf` (เดิมไม่มีการกัน CSRF)
@@ -110,3 +111,13 @@ branch `mod/points` · worktree `/home/admin/laravel/jl-wt/points` · port 8207
 
 - `foundation: keep raw POST values (drop TrimStrings / ConvertEmptyStringsToNull)` — cherry-pick commit เดียวกับ `mod/tracking` / `mod/balance` / `mod/payment` (diff เหมือนกันทุกบรรทัด, merge ไม่ชน): คำค้น/หมายเหตุเดิมไม่ถูก trim และ `id=''` ต้องเป็น `''`
 - ไม่ได้แก้ไฟล์ฐานร่วมอื่น
+
+## รีวิว (adversarial, HTTP จริง :8101 vs :8207)
+
+- เทียบหน้า/grid/ajax ที่อ่านอย่างเดียวด้วย session ลูกค้า (137, 380), แอดมิน (11938), role 6 และ role ทดสอบ `zz_points_rev` ที่มีสิทธิ์ครบ 5 โมดูล
+  พร้อมแถวทดสอบ zz ใน `balance_point`/`point`/`shop_cashback(_detail)`: ตรงกันหลังตัดช่องว่าง ยกเว้นการ escape ที่ตั้งใจ (ภาษา th/en/cn, หน้า 1–3, page ว่าง/abc/1.5/2e0, คำค้น, สถานะทุกค่า)
+- ต่างเล็กน้อย (ฐานร่วม `Paging::getpaging`): `page` ที่ไม่ใช่ตัวเลข (`abc`, `1.5`) ปุ่มเลขหน้าไม่เหมือนเดิม (ข้อมูลในตารางเหมือนเดิม — JS เดิมส่งตัวเลขเสมอ)
+- IDOR: ลูกค้าเปิด/แก้หมายเหตุ `shop_cashback` ของคนอื่นไม่ได้, grid แต้มเห็นเฉพาะของตัวเอง
+- SQL injection (เฉพาะฝั่งใหม่): payload ใน `txtsearch`/`page`/filter ของทุก grid ไม่เพิ่มแถว; write ด้วย id แถว zz เท่านั้น — กระทบเฉพาะแถวที่ตั้งใจ
+- CSRF: ทุก POST ที่เขียนข้อมูล 403 เมื่อ Origin/Referer ข้ามโดเมน หรือไม่มีทั้ง Origin/Referer/X-Requested-With
+- race: `save_withdraw` ซ้อน 2 ครั้ง (เกินยอด) ผ่านครั้งเดียว; อนุมัติคืนเงินร้านค้าซ้อน 2 ครั้ง = balance_cn แถวเดียว; อนุมัติ+ยกเลิกแลกแต้มพร้อมกัน = มีผลอย่างเดียว
