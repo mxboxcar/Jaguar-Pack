@@ -191,7 +191,7 @@
 			<div class="form-horizontal" role="form">
 		        <div class="form-group">
 		            <div class="col-md-12">
-						<textarea name="txtMessage" id="txtMessage" class="ckeditor " cols="45" rows="20">{!! $data->detail ?? '' !!}</textarea>
+						<textarea name="txtMessage" id="txtMessage" class="ckeditor " cols="45" rows="20">{!! preg_replace('#</(textarea)#i', '&lt;/$1', (string) ($data->detail ?? '')) !!}</textarea>
 						<input type="hidden" name="editor" id="editor" />
 					</div>
 		        </div>

@@ -106,6 +106,11 @@ class CartController extends ShopController
         $f = fn (string $k) => $this->postPhp($request, $k);
         $uploadFile = $f('upload_file');
 
+        // เดิมไม่ตรวจ: จำนวน/ราคาติดลบลงตะกร้าได้ แล้วไปเป็นยอดบิลติดลบตอน checkout
+        if (! self::positiveInt($f('search_amount')) || Php74::num($f('search_price')) < 0) {
+            return $this->out(Alerts::error('CloseLoading()', 'จำนวนหรือราคาไม่ถูกต้อง'));
+        }
+
         $cart = DB::transaction(function () use ($uid, $f, $uploadFile) {
             $cart = CartRepo::findOrCreate($uid);
             DB::table('cart_detail')->insert([
@@ -157,7 +162,18 @@ class CartController extends ShopController
     /** _cart/save_amount / save_craft / save_qc — แก้ค่าในรายการของตัวเอง (ไม่ตอบอะไร) */
     public function saveAmount(Request $request): Response
     {
+        // เดิมรับค่าอะไรก็ได้ (ติดลบ → th_price/total ของบิลติดลบตอน checkout) → ต้องเป็นจำนวนเต็มบวก ไม่งั้นไม่แก้ (ตอบว่างเหมือนเดิม)
+        if (! self::positiveInt($this->post($request, 'value'))) {
+            return $this->out('');
+        }
+
         return $this->updateField($request, 'amount');
+    }
+
+    /** จำนวนชิ้น: จำนวนเต็ม >= 1 */
+    private static function positiveInt(string $v): bool
+    {
+        return preg_match('/^\d{1,9}$/', trim($v)) === 1 && (int) trim($v) >= 1;
     }
 
     public function saveCraft(Request $request): Response

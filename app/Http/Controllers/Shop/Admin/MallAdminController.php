@@ -137,7 +137,7 @@ class MallAdminController extends ShopController
         $js .= Upload::blobJs($image);
 
         return $this->out($js.Alerts::success('window.location.href = "'.legacy_href('admin/mall').'";',
-            Lang::get('success_process_no').$prefix.$id));
+            Lang::get('success_process_no').$prefix.Alerts::js($id)));
     }
 
     /** _admin/_mall/save_sizecolor — เพิ่ม/แก้ สี-ขนาด แล้วปรับสต๊อกให้เท่าที่กรอก */

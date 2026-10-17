@@ -39,7 +39,7 @@
 	</div>
 
 	<div class="form-group text-center" id="product_details" style="margin-top:20px;">
-	    {!! html_entity_decode((string) ($data->detail ?? ''), ENT_COMPAT | ENT_HTML401) !!}
+	    {!! \App\Domain\Shop\SafeHtml::clean(html_entity_decode((string) ($data->detail ?? ''), ENT_COMPAT | ENT_HTML401)) !!}
 	</div>
 </div>
 

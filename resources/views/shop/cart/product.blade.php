@@ -34,6 +34,8 @@
     </div>
 </div>
 <script>
+    // ค่าจาก crawler (ชื่อ/รูป สี-ขนาดที่ร้านค้าตั้งเอง) ต่อเข้า HTML — เดิมไม่ escape = DOM XSS
+    function _h(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
     $.ajax({
         type: 'POST',
         async: true,
@@ -131,9 +133,9 @@
                     if (data.external_image != undefined) {
                         for (var i = 0; i < data.external_image.length; i++) {
                             if (data.external_image.indexOf('lazyload.png') == -1) {
-                                var html = '<div style="margin-top:3px;padding:0px" class="col-xs-3"><img src="' + data.external_image[i] + '" onclick="switchimage($(this))" style="cursor:pointer;max-width: 70px;max-height: 35px;"  /></div>';
+                                var html = '<div style="margin-top:3px;padding:0px" class="col-xs-3"><img src="' + _h(data.external_image[i]) + '" onclick="switchimage($(this))" style="cursor:pointer;max-width: 70px;max-height: 35px;"  /></div>';
                                 $("#search_external_image_div").append(html);
-                                html = '<input type="hidden" value="' + data.external_image[i] + '" name="search_external_image[]" />'
+                                html = '<input type="hidden" value="' + _h(data.external_image[i]) + '" name="search_external_image[]" />'
                                 $("#search_external_image").append(html);
                             }
                         }
@@ -153,16 +155,16 @@
                                     if (data.color[i].search("#") >= 0 && data.color[i].length == 7) {
                                         var html = '';
                                         if (data.url.search('alibaba') >= 0) {
-                                            html = '<div class="search_color_item " onclick="switchcolorborder($(this))" style="height:30px;width:30px;background-color:' + data.color[i] + '"></div>';
+                                            html = '<div class="search_color_item " onclick="switchcolorborder($(this))" style="height:30px;width:30px;background-color:' + _h(data.color[i]) + '"></div>';
                                         } else {
-                                            html = '<div class="search_color_item " onclick="switchcolor($(this))" >' + data.color[i] + '</div>';
+                                            html = '<div class="search_color_item " onclick="switchcolor($(this))" >' + _h(data.color[i]) + '</div>';
                                         }
                                         $("#search_color").append(html);
                                     } else if (data.color[i].search("//") >= 0) {
-                                        var html = '<div class="search_color_item col-xs-2" onclick="switchcolorimage($(this))" ><img src="' + data.color[i] + '" class="img-responsive" /></div>';
+                                        var html = '<div class="search_color_item col-xs-2" onclick="switchcolorimage($(this))" ><img src="' + _h(data.color[i]) + '" class="img-responsive" /></div>';
                                         $("#search_color").append(html);
                                     } else {
-                                        var html = '<div class="search_color_item " onclick="switchcolor($(this))" >' + data.color[i] + '</div>';
+                                        var html = '<div class="search_color_item " onclick="switchcolor($(this))" >' + _h(data.color[i]) + '</div>';
                                         $("#search_color").append(html);
                                     }
                                 }
@@ -173,16 +175,16 @@
                                     if (data.color[i].search("#") >= 0 && data.color[i].length == 7) {
                                         var html = '';
                                         if (data.url.search('alibaba') >= 0) {
-                                            html = '<div class="search_color_item " onclick="switchcolorborder($(this))" style="height:30px;width:30px;background-color:' + data.color[i] + '"></div>';
+                                            html = '<div class="search_color_item " onclick="switchcolorborder($(this))" style="height:30px;width:30px;background-color:' + _h(data.color[i]) + '"></div>';
                                         } else {
-                                            html = '<div class="search_color_item " onclick="switchcolor($(this))" >' + data.color[i] + '</div>';
+                                            html = '<div class="search_color_item " onclick="switchcolor($(this))" >' + _h(data.color[i]) + '</div>';
                                         }
                                         $("#search_color").append(html);
                                     } else if (data.color[i].search("//") >= 0) {
-                                        var html = '<div class="search_color_item col-xs-2" onclick="switchcolorimage($(this))" ><img src="' + data.color[i] + '" class="img-responsive" /></div>';
+                                        var html = '<div class="search_color_item col-xs-2" onclick="switchcolorimage($(this))" ><img src="' + _h(data.color[i]) + '" class="img-responsive" /></div>';
                                         $("#search_color").append(html);
                                     } else {
-                                        var html = '<div class="search_color_item " onclick="switchcolor($(this))" >' + data.color[i] + '</div>';
+                                        var html = '<div class="search_color_item " onclick="switchcolor($(this))" >' + _h(data.color[i]) + '</div>';
                                         $("#search_color").append(html);
                                     }
                                 }
@@ -194,10 +196,10 @@
                         if (data.size.length != 0) {
                             for (var i = 0; i < data.size.length; i++) {
                                 if (data.size[i].search("//") == -1) {
-                                    var html = '<div class="search_size_item " onclick="switchsize($(this))" >' + data.size[i] + '</div>';
+                                    var html = '<div class="search_size_item " onclick="switchsize($(this))" >' + _h(data.size[i]) + '</div>';
                                     $("#search_size").append(html);
                                 } else {
-                                    var html = '<div style="text-align: center;padding:0px;" class="search_size_item col-xs-2" onclick="switchsizeimage($(this))" ><img style="max-width: 70px;max-height: 35px;" src="' + data.size[i] + '" /></div>';
+                                    var html = '<div style="text-align: center;padding:0px;" class="search_size_item col-xs-2" onclick="switchsizeimage($(this))" ><img style="max-width: 70px;max-height: 35px;" src="' + _h(data.size[i]) + '" /></div>';
                                     $("#search_size").append(html);
                                 }
 
@@ -213,16 +215,16 @@
                                 if (spt[1].search("#") >= 0 && spt[1].length == 7) {
                                     var html = '';
                                     if (data.url.search('alibaba') >= 0) {
-                                        html = '<div class="search_color_item " a="' + spt[0] + '" onclick="switchcolorborder($(this))" style="height:50px;width:50px;background-color:' + spt[1] + '"></div>';
+                                        html = '<div class="search_color_item " a="' + _h(spt[0]) + '" onclick="switchcolorborder($(this))" style="height:50px;width:50px;background-color:' + _h(spt[1]) + '"></div>';
                                     } else {
-                                        html = '<div class="search_color_item " a="' + spt[0] + '" onclick="switchcolor($(this))" >' + spt[1] + '</div>';
+                                        html = '<div class="search_color_item " a="' + _h(spt[0]) + '" onclick="switchcolor($(this))" >' + _h(spt[1]) + '</div>';
                                     }
                                     $("#search_color").append(html);
                                 } else if (spt[1].search("//") >= 0) {
-                                    var html = '<div class="search_color_item  col-xs" a="' + spt[0] + '" onclick="switchcolorimage($(this))" ><img style="max-width: 70px;max-height: 35px;" src="' + spt[1] + '?r=' + spt[0] + '" class="" /><span> ' + spt[0] + '</span></div>';
+                                    var html = '<div class="search_color_item  col-xs" a="' + _h(spt[0]) + '" onclick="switchcolorimage($(this))" ><img style="max-width: 70px;max-height: 35px;" src="' + _h(spt[1]) + '?r=' + _h(spt[0]) + '" class="" /><span> ' + _h(spt[0]) + '</span></div>';
                                     $("#search_color").append(html);
                                 } else {
-                                    var html = '<div class="search_color_item " a="' + spt[0] + '" onclick="switchcolor($(this))" >' + spt[1] + '</div>';
+                                    var html = '<div class="search_color_item " a="' + _h(spt[0]) + '" onclick="switchcolor($(this))" >' + _h(spt[1]) + '</div>';
                                     $("#search_color").append(html);
                                 }
                             }
@@ -238,11 +240,11 @@
                                 var it = data.newsize2[i];
                                 var html = '';
                                 if (it.image != undefined && it.image != '' && it.title != undefined && it.title != '') {
-                                    html = '<div class="search_size_item" a="' + it.id + '" val="' + it.title + '" onclick="switchsizeimage($(this))" style="display:inline-flex;align-items:center;padding:2px 8px 2px 2px;"><img style="width:35px;height:35px;object-fit:cover;margin-right:6px;flex-shrink:0;" src="' + it.image + '" /><span>' + it.title + '</span></div>';
+                                    html = '<div class="search_size_item" a="' + _h(it.id) + '" val="' + _h(it.title) + '" onclick="switchsizeimage($(this))" style="display:inline-flex;align-items:center;padding:2px 8px 2px 2px;"><img style="width:35px;height:35px;object-fit:cover;margin-right:6px;flex-shrink:0;" src="' + _h(it.image) + '" /><span>' + _h(it.title) + '</span></div>';
                                 } else if (it.image != undefined && it.image != '') {
-                                    html = '<div style="text-align: center;padding:0px;" a="' + it.id + '" class="search_size_item col-xs-2" onclick="switchsizeimage($(this))" ><img style="max-width: 70px;max-height: 35px;" src="' + it.image + '" /></div>';
+                                    html = '<div style="text-align: center;padding:0px;" a="' + _h(it.id) + '" class="search_size_item col-xs-2" onclick="switchsizeimage($(this))" ><img style="max-width: 70px;max-height: 35px;" src="' + _h(it.image) + '" /></div>';
                                 } else {
-                                    html = '<div class="search_size_item " a="' + it.id + '" onclick="switchsize($(this))" >' + it.title + '</div>';
+                                    html = '<div class="search_size_item " a="' + _h(it.id) + '" onclick="switchsize($(this))" >' + _h(it.title) + '</div>';
                                 }
                                 $("#search_size").append(html);
                             }
@@ -254,10 +256,10 @@
                                 // spt[0] = รหัสตัวเลือก (ใช้จับคู่ sku) , spt[1] = ชื่อที่ต้องโชว์ให้ลูกค้าเห็น
                                 var lbl = (spt[1] == undefined || spt[1] == '') ? spt[0] : spt[1];
                                 if (lbl.search("//") == -1) {
-                                    var html = '<div class="search_size_item " a="' + spt[0] + '" onclick="switchsize($(this))" >' + lbl + '</div>';
+                                    var html = '<div class="search_size_item " a="' + _h(spt[0]) + '" onclick="switchsize($(this))" >' + _h(lbl) + '</div>';
                                     $("#search_size").append(html);
                                 } else {
-                                    var html = '<div style="text-align: center;padding:0px;" a="' + spt[0] + '" class="search_size_item col-xs-2" onclick="switchsizeimage($(this))" ><img style="max-width: 70px;max-height: 35px;" src="' + lbl + '" /></div>';
+                                    var html = '<div style="text-align: center;padding:0px;" a="' + _h(spt[0]) + '" class="search_size_item col-xs-2" onclick="switchsizeimage($(this))" ><img style="max-width: 70px;max-height: 35px;" src="' + _h(lbl) + '" /></div>';
                                     $("#search_size").append(html);
                                 }
 

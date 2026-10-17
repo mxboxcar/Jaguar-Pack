@@ -100,6 +100,12 @@ ajax (`/<ไฟล์>` ไม่มี `.php`, POST + `legacy.ajax` ถ้า�
 | secret ในโค้ด: token API, รหัส SMS (thaibulksms), บัญชี cnsthai.com, path key Azure | `_api/*.php` | token → `.env`; SMS/cnsthai ไม่ใช้แล้ว — **ควรเปลี่ยนรหัสทั้งหมดที่เคยอยู่ใน repo เดิม** |
 | อ่านไฟล์นอก upload/temp (path จาก POST) | `_admin/_mall/save`, `_cart/save_product` (`file_exists('../upload/temp/'.$x)`) | `basename()` เสมอ |
 | CSRF | ทุก POST | `LegacyCsrf` (ฐานร่วม) |
+| ราคาติดลบใน `_taobao/save` (เช่น `[1000, -1000]` = ยอด 0 → จ่ายแค่ค่าบริการ แต่ taobao_detail มีออเดอร์ ¥1000 ให้แอดมินจ่ายแทน) | `_taobao/save` | ราคาทุกช่องต้องไม่ติดลบ (review) |
+| จำนวน/ราคาติดลบหรือไม่ใช่ตัวเลขในตะกร้า → ยอดบิลติดลบตอน checkout | `_cart/save_product`, `_cart/save_amount` | จำนวนต้องเป็นจำนวนเต็ม ≥ 1, ราคาไม่ติดลบ; save_amount ค่าผิด = ไม่แก้ (ตอบว่างเหมือนเดิม) (review) |
+| JS injection: `$_POST['id']` ต่อดิบใน `SuccessBox('...TAO-'.$id)` ที่หน้าเว็บ eval | `_taobao/save` (แก้ไข), `_admin/_mall/save`, `_admin/_mall_category/save` | `Alerts::js($id)` (review) |
+| รายการเงินของคนอื่น: หน้า `taobao/create` (id 0) แสดง balance/balance_cn ที่ `prefix_ref_id = 0` ของทุกผู้ใช้ | `_taobao/form` | กรอง `user` = ผู้ใช้ (review) |
+| stored XSS: `mall.detail` (CKEditor) แสดงดิบให้ลูกค้า — staff ที่มี `admin_mall` ฝังสคริปต์ได้; textarea ฝั่งแอดมินถูกปิดด้วย `</textarea>` | `_mall/load_detail`, `_admin/_mall/form` | `SafeHtml::clean()` (HTML ปกติออกเหมือนเดิมทุกตัวอักษร; มีแท็ก/แอตทริบิวต์อันตรายจึงตัด), textarea แปลง `</textarea` เป็น `&lt;/textarea` (review) |
+| DOM XSS: ข้อมูลจาก crawler (สี/ขนาด/รูปที่ร้านค้าตั้งเอง) ต่อเข้า HTML ใน JS | `_cart/product` | `_h()` escape ใน JS (review) |
 
 ## 4. N+1 ที่แก้ (จำนวน query คงที่ต่อหน้า)
 

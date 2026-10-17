@@ -71,6 +71,8 @@ class TaobaoController extends ShopController
         foreach (['balance', 'balance_cn'] as $t) {
             foreach (DB::table($t)->leftJoin('prefix', $t.'.prefix', '=', 'prefix.id')
                 ->where($t.'.prefix', $prefixId)->where($t.'.prefix_ref_id', $id)->where($t.'.is_delete', 0)
+                // เดิมไม่กรองเจ้าของ: หน้า taobao/create (id 0) แสดงรายการเงินอ้าง prefix_ref_id = 0 ของทุกคน
+                ->where($t.'.user', $uid)
                 ->orderBy($t.'.id')->select($t.'.*', 'prefix.link as link')->get() as $row) {
                 $row->types = $t;
                 $balance[] = $row;
@@ -146,8 +148,9 @@ class TaobaoController extends ShopController
         if (! ($id == '0')) {
             DB::table('taobao')->where('id', $id)->where('user', (string) $uid)->update(['remark' => $remark]);
 
+            // $id มาจาก POST — escape ก่อนฝังใน JS string (เดิมต่อดิบ = JS injection ในผล ajax ที่หน้าเว็บ eval)
             return $this->out(Alerts::success('window.location.href = "'.legacy_href('taobao').'";',
-                Lang::get('success_process_no').$prefix.$id));
+                Lang::get('success_process_no').$prefix.Alerts::js($id)));
         }
 
         $n = fn ($v) => Php74::num($v);
@@ -159,6 +162,14 @@ class TaobaoController extends ShopController
         $password = $this->post($request, 'taobao_password');
         $rate = Lookup::getSetting('rate_transfer');
         $byOrder = Lookup::getSetting('charge_taobao');
+
+        // เดิมรับราคาติดลบได้: ใส่ [1000, -1000] = ยอดรวม 0 → จ่ายแค่ค่าบริการ แต่ taobao_detail มีออเดอร์ ¥1000 ให้แอดมินจ่ายแทน
+        // → ราคาทุกช่องต้องไม่ติดลบ (ค่าว่าง/ไม่ใช่ตัวเลข = 0 แบบเดิม)
+        foreach ($priceArr as $p) {
+            if ($n($p) < 0) {
+                return $this->out(Alerts::error('CloseLoading()', 'ราคาไม่ถูกต้อง (ติดลบ)'));
+            }
+        }
 
         return DB::transaction(function () use ($uid, $n, $orderArr, $priceArr, $name, $password, $rate, $byOrder, $remark, $prefix) {
             // ล็อกแถวเงินของผู้ใช้ระหว่างตรวจยอด/ตัดเงิน

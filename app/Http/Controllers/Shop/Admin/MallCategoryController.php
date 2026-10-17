@@ -80,7 +80,7 @@ class MallCategoryController extends ShopController
         // else: UPDATE เดิมเป็น SQL ผิดไวยากรณ์ (`name` = '$name , ...) → ไม่เคยแก้ได้ — คงไว้ (ไม่ทำอะไร)
 
         return $this->out(Alerts::success('window.location.href = "'.legacy_href('admin/mall_category').'";',
-            Lang::get('success_process_no').$prefix.$id));
+            Lang::get('success_process_no').$prefix.Alerts::js((string) $id)));
     }
 
     /**
