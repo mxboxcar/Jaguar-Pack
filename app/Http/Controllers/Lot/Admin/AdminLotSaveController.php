@@ -139,6 +139,10 @@ class AdminLotSaveController extends Controller
         $ids = Php74::idList($arr !== '' ? substr($arr, 1) : $id);
 
         $count = DB::table('tracking')->where('lot_id', $id)->count();
+        // เดิมนับเฉพาะ lot_id = '$id' แต่ลบทุก id ใน IN ($id) → id=5,6 ลบล็อต 6 ที่ยังมี tracking ได้ — ที่นี่ต้องว่างทุกล็อตที่จะลบ
+        if ($count === 0 && $ids !== null) {
+            $count = DB::table('tracking')->whereIn('lot_id', $ids)->count();
+        }
         if ($count !== 0) {
             // เดิม getError() ไม่ส่งอาร์กิวเมนต์ = ArgumentCountError (HTTP 500 ไม่มีข้อความ) → ตอบ ErrorBox ว่างแทน
             return response(Alerts::error('', ''));

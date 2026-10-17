@@ -100,9 +100,11 @@ POST ทุกตัว (ยกเว้น `_lot/_message/*`) มี `legacy.aj
 - อีเมล: ส่งผ่าน Mail ของ Laravel (dev `MAIL_MAILER=log`, และถ้า `legacy.external.enabled` = false บังคับ log mailer) — ไม่มีการส่งจริง; ข้อความ/HTML (header/center/footer + CRLF ของ email.php) เท่ากับเดิมตามโค้ด
 - LINE: `sendLine()` เดิมเป็นฟังก์ชันว่าง → ไม่ส่ง (log ไว้เท่านั้น)
 - หน้า GET ของแอดมิน (`print`, `print_receive`, `email_lot`) เมื่อไม่มีสิทธิ์: เดิมพิมพ์ข้อความ `ErrorBox(...)` เปล่าๆ ในแท็บใหม่ → หน้า no-permission มาตรฐานของ `legacy.perm`; `print_all` เดิมตอบว่าง → เช่นเดียวกัน; ไม่ล็อกอิน → `/login`
+- `print`, `print_all`, `email_lot` (GET ที่เขียนข้อมูล: `is_print`, เข้าคิวส่งเมลถึงลูกค้าทั้งล็อต): คำขอที่มาจากเว็บอื่น (`Sec-Fetch-Site: cross-site/same-site` หรือ Referer ต่าง host) → 403 — `LegacyCsrf` ตรวจแค่ POST; เดิมแค่ `<img src=".../email_lot?id=N">` ในหน้าที่แอดมินเปิดก็สั่งส่งเมลได้ (review 2026-10-18)
+- `delete` `id=5,6`: เดิมนับ tracking เฉพาะ `lot_id = '5,6'` (= 5) แต่ลบทุก id ใน `IN (5,6)` → ลบล็อตที่ยังมี tracking ได้ → ต้องไม่มี tracking ทุกล็อตที่จะลบ (JS เดิมส่ง id เดียว ผลเหมือนเดิม)
 - `print_all`: ชื่อไฟล์ใน `Content-Disposition` เหลือแค่ตัวเลขและ `,` (เดิม header injection ได้)
 - `load_check_tracking` ช่องว่าง: เดิม `LIKE '%%'` ดึง tracking ทั้งระบบ (~470k แถว) จนหน้าค้าง → ถือว่าไม่พบข้อมูล
-- `save` / `save_verified` / `email_lot` ห่อ `DB::transaction()` (เดิมไม่มี)
+- `save` / `save_verified` ห่อ `DB::transaction()` (เดิมไม่มี); `email_lot` เป็น UPDATE + INSERT IGNORE (idempotent) ไม่ได้ห่อ
 - N+1 ที่แก้: grid แอดมิน (COUNT ทั้งตาราง + 3 query ต่อแถว), grid ลูกค้า (subquery COUNT ต่อแถว), แถวลูก craft (`header = id`) ใน detail/print, autocomplete (2 query ต่อแถว), worker (ไม่เปลี่ยน — ทีละคิวแบบเดิม)
 - `save_verified` ยังเรียก `Pricing::calPriceAutoDiff()` ทีละ tracking (ตรรกะคำนวณต่อแถวของฐานร่วม)
 
@@ -115,7 +117,8 @@ POST ทุกตัว (ยกเว้น `_lot/_message/*`) มี `legacy.aj
 5. `_lot/form.php` (IDOR) แสดงหัวล็อตของ id ใดก็ได้
 6. `getUserID()` (`explode('&')[1]`) ใน `_lot/grid.php`, `_lot/load_lot_detail.php` — username ที่มี `&` ได้ id ของคนอื่น (CONVENTIONS ข้อ 3.5) → ใช้ `Legacy::userId()`
 7. `print_all.php` header injection ผ่าน `filename=$id`
-8. ไม่มี CSRF ทุก POST (ใหม่: `LegacyCsrf`)
+8. ไม่มี CSRF ทุก POST (ใหม่: `LegacyCsrf`) และ GET ที่เขียนข้อมูล (`email_lot`, `print`, `print_all`) ยิงข้ามเว็บได้ (ใหม่: ตรวจ `Sec-Fetch-Site`/Referer)
+10. `delete.php` ตรวจ tracking เฉพาะ id แรกของรายการ แต่ลบทุก id
 9. `goLog()` เขียน log ไปไฟล์ใน webroot production (`/home/admin/web/portal.jlcargoth.com/public_html/logs/`) — ไฟล์ log ที่อยู่ใต้ webroot อาจเปิดอ่านได้จากเว็บ (ไม่ได้ตรวจ production ตามกติกา) และ bench copy ชี้ path เดียวกัน
 
 ## ไม่ได้พอร์ต / ค้าง

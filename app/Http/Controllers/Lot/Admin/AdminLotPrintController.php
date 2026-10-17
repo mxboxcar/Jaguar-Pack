@@ -25,15 +25,59 @@ class AdminLotPrintController extends Controller
         return is_string($v) ? (Php74::idList($v) ?? []) : [];
     }
 
+    /**
+     * print / print_all / email_lot เป็น GET ที่เขียนข้อมูล (is_print, เข้าคิวส่งเมลถึงลูกค้าทั้งล็อต) — LegacyCsrf ไม่ตรวจ GET
+     * → ไม่ยอมคำขอที่มาจากเว็บอื่น (เช่น <img src=".../email_lot?id=N"> ในหน้าเว็บที่แอดมินเปิด)
+     * JS/ลิงก์เดิมเปิดจากหน้าเดียวกัน (window.open / <a target=_blank>) = Sec-Fetch-Site: same-origin; พิมพ์ URL เอง = none
+     */
+    public static function crossSite(Request $request): bool
+    {
+        $site = strtolower((string) $request->headers->get('Sec-Fetch-Site', ''));
+        if ($site !== '') {
+            return ! in_array($site, ['same-origin', 'none'], true);
+        }
+        $referer = (string) $request->headers->get('Referer', '');
+        if ($referer === '') {
+            return false;
+        }
+        $host = parse_url($referer, PHP_URL_HOST);
+        if (! is_string($host)) {
+            return true;
+        }
+        if (strtolower($host) === strtolower($request->getHost())) {
+            return false;
+        }
+        foreach (array_filter(array_map('trim', explode(',', (string) config('legacy.trusted_origins')))) as $t) {
+            $th = parse_url(str_contains($t, '://') ? $t : 'https://'.$t, PHP_URL_HOST);
+            if (is_string($th) && strtolower($th) === strtolower($host)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function denied(): Response
+    {
+        return response('Forbidden (cross-site request)', 403);
+    }
+
     /** GET /_admin/_lot/print — สิทธิ์ admin_lot */
     public function print(Request $request): Response
     {
+        if (self::crossSite($request)) {
+            return self::denied();
+        }
+
         return response(LotPrint::print($this->lotIds($request)));
     }
 
     /** GET /_admin/_lot/print_all — สิทธิ์ admin_lot / admin_lot_view (ดาวน์โหลด .xls) */
     public function printAll(Request $request): Response
     {
+        if (self::crossSite($request)) {
+            return self::denied();
+        }
         $name = (string) LegacyInput::query($request, 'lot');
 
         return response(LotPrint::printAll($this->lotIds($request)))
@@ -51,6 +95,9 @@ class AdminLotPrintController extends Controller
     /** GET /_admin/_lot/email_lot?id= — เข้าคิวส่งเมลแจ้งลูกค้าในล็อต (สิทธิ์ admin_lot) */
     public function emailLot(Request $request): Response
     {
+        if (self::crossSite($request)) {
+            return self::denied();
+        }
         $lotId = (int) $request->query('id');
         if ($lotId <= 0) {
             return response('ไม่พบล็อต');
