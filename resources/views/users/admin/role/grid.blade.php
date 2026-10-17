@@ -1,0 +1,101 @@
+{{-- _admin/_role/grid.php เดิม --}}
+
+<div class="row">
+	<div class="col-lg-12">
+		<div class="card-box">
+			<div class="row m-t-10 m-b-10">
+            	<div class="col-sm-6 col-lg-8">
+                    <div class="form-group contact-search m-b-30">
+                    	<input type="text" id="txtsearch" onblur="GenerateWhere();" class="form-control" placeholder="{!! res('search') !!}" value="{{ $s[0] ?? '' }}">
+                        <button type="submit" class="btn btn-white" onclick="Javascript:loadAjaxGrid('{{ $ajaxpage }}', '1',  $('#txtSearch').val());"><i class="fa fa-search"></i></button>
+                    </div> <!-- form-group -->
+            	</div>
+
+                <!-- <div class="col-sm-6 col-lg-4">
+                    <div class="h5 m-0">
+                        <span class="vertical-middle">Sort By:</span>
+                        <div class="btn-group vertical-middle" data-toggle="buttons">
+                             <label class="btn btn-white btn-md waves-effect active">
+                                <input type="radio" autocomplete="off" checked=""> Status
+                             </label>
+                             <label class="btn btn-white btn-md waves-effect">
+                                <input type="radio" autocomplete="off"> Type
+                             </label>
+                             <label class="btn btn-white btn-md waves-effect">
+                                <input type="radio" autocomplete="off"> Name
+                             </label>
+                        </div>
+                    </div>
+                </div> -->
+            </div>
+
+			<div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            <th class="text-center"  style="width: 105px;">{!! res('no_for_grid') !!}</th>
+                            <th class="text-center">{!! res('role_name') !!}</th>
+                            <th class="text-center" style="width: 80px;">{!! res('inuse') !!}</th>
+                            <th class="text-center" style="width: 60px;">{!! res('action') !!}</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                    @forelse ($items as $item)
+                        <tr>
+                            <td><a target="_blank" href="{{ legacy_href() }}admin/role/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a></td>
+                            <td>{{ $item->role_name }}</td>
+                            <td class="text-center">{!! \App\Support\Legacy\Format::numberformatzero($item->count) !!}</td>
+                            <td class="text-center">
+                            	<a href="{{ legacy_href() }}admin/role/{{ $item->id }}" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
+                            	<a type="button" href="#" onclick="Delete({{ $item->id }});return false;" class="table-action-btn"><i class="md  md-cancel text-danger"></i></a>
+                            </td>
+                        </tr>
+                    @empty
+<td class="text-center" colspan="20">{!! res('no_data') !!}</td>
+                    @endforelse
+                    </tbody>
+                </table>
+                <div class="pull-right">
+                    {!! \App\Support\Legacy\Paging::getpaging($page, $rows, 10, $ajaxpage) !!}
+                </div>
+            </div>
+		</div>
+        
+    </div> <!-- end col -->
+</div>
+
+<input type="hidden" id="Checking" />
+<input type="hidden" id="txtSearch" value="{{ $txtsearch }}">
+
+<script>
+	function keypressInBox(e) {
+		GenerateWhere();
+	    var code = (e.keyCode ? e.keyCode : e.which);
+	    if (code == 13) { //Enter keycode                        
+	        e.preventDefault();
+	        loadAjaxGrid('{{ $ajaxpage }}', '1',  $('#txtSearch').val());
+	    }
+	}
+	$("#txtsearch").bind("keypress", {}, keypressInBox);
+
+
+	function Delete(id) {
+        fn_public = "loadAjaxGrid('{{ $ajaxpage }}', '{{ $pageJs }}',  $('#txtSearch').val());";
+        ConfirmBox(function() {
+        	$.ajax({
+	            type: 'POST',
+	            async: true,
+	            data : 'id=' + id,
+	            url: rooturl + '{{ $ajaxpage }}/../delete',
+	            success: function(data) {
+	            	eval(data);
+	            }
+	        });
+        });
+	}
+
+	function GenerateWhere() {
+		$("#txtSearch").val($("#txtsearch").val());
+	}
+</script>
