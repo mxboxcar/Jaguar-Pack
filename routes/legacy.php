@@ -9,8 +9,16 @@ use Illuminate\Support\Facades\Route;
 | โหลดจาก bootstrap/app.php ใต้ middleware group "legacy" — ห้ามย้ายไป web.php (CSRF token/StartSession ของ Laravel จะตีกลับ 419)
 */
 
-// index.php เดิม: ไม่มี page = dashboard (กลุ่ม reports รับหน้า dashboard)
-Route::get('/', fn () => redirect()->to(Legacy::href(Legacy::userId() === null ? 'login' : 'dashboard')));
+// index.php เดิม: ไม่มี page = แสดงหน้า dashboard ที่ / เลย (ไม่ redirect) — กลุ่ม reports ตั้งชื่อ route หน้า dashboard ว่า "page.dashboard"
+Route::get('/', function () {
+    if (Legacy::userId() === null) {
+        return redirect()->to(Legacy::href('login'));
+    }
+
+    return Route::has('page.dashboard')
+        ? app()->call(Route::getRoutes()->getByName('page.dashboard')->getAction('uses'))
+        : redirect()->to(Legacy::href('dashboard'));
+});
 
 Route::get('/login', [LegacyLoginController::class, 'show'])->name('login');
 Route::post('/system_check_login', [LegacyLoginController::class, 'check'])->middleware('legacy.ajax');
