@@ -16,7 +16,7 @@ return [
     */
 
     'defaults' => [
-        'guard' => env('AUTH_GUARD', 'web'),
+        'guard' => env('AUTH_GUARD', 'legacy'),
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
@@ -38,8 +38,9 @@ return [
     */
 
     'guards' => [
-        'web' => [
-            'driver' => 'session',
+        // session ร่วมกับเว็บเดิม (PHPSESSID → sessions_v2) ดู App\Auth\LegacySessionGuard
+        'legacy' => [
+            'driver' => 'legacy',
             'provider' => 'users',
         ],
     ],
