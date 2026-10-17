@@ -35,8 +35,8 @@ class LegacyLoginController extends Controller
 
     public function check(Request $request): Response
     {
-        $username = (string) $request->request->get('username', '');
-        $password = (string) $request->request->get('password', '');
+        $username = self::str($request, 'username');
+        $password = self::str($request, 'password');
         $ip = Legacy::clientIp();
         $tries = ' คุณสามารถลองได้อีก 5 ครั้ง'; // เดิม (5 - $datacount) โดย $datacount ไม่เคยถูกตั้งค่า = 5 เสมอ
 
@@ -78,7 +78,8 @@ class LegacyLoginController extends Controller
 
             return $this->js(json_encode(['iserror' => false]));
         }
-        if ((string) $request->request->get('RandomStr', '') !== '') {
+        // เดิม isset($_POST['RandomStr']) != "" → true เมื่อมี key นี้ (ค่าว่างก็นับ)
+        if ($request->request->has('RandomStr')) {
             $raw = $guard instanceof \App\Auth\LegacySessionGuard ? $guard->legacyIdentity() : null;
 
             return $this->js(json_encode($raw ?? ['username' => null, 'id' => null]));
@@ -89,7 +90,7 @@ class LegacyLoginController extends Controller
 
     public function changeLanguage(Request $request): Response
     {
-        $lang = (string) $request->request->get('lang', '');
+        $lang = self::str($request, 'lang');
         $res = $this->js('');
         // เดิมรับค่าอะไรก็ได้แล้ว include('resource/'.$lang.'.php') = LFI → รับเฉพาะ th/en/cn
         if (in_array($lang, Legacy::LANGS, true)) {
@@ -97,6 +98,14 @@ class LegacyLoginController extends Controller
         }
 
         return $res;
+    }
+
+    /** ค่า POST แบบ string (ส่ง name[]=... มา = ถือว่าไม่ได้กรอก แทนที่จะตอบ 400 ซึ่ง JS เดิม eval ไม่ได้) */
+    private static function str(Request $request, string $key): string
+    {
+        $v = $request->request->all()[$key] ?? '';
+
+        return is_scalar($v) ? (string) $v : '';
     }
 
     private function js(string $body): Response

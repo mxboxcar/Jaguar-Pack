@@ -25,13 +25,39 @@ class LegacySessionGuard implements StatefulGuard
 
     private bool $resolved = false;
 
-    public function __construct(UserProvider $provider, private LegacySession $session)
+    private LegacySession $session;
+
+    public function __construct(UserProvider $provider, LegacySession $session)
     {
         $this->provider = $provider;
+        $this->session = $session;
+    }
+
+    /**
+     * AuthManager เก็บ guard ข้าม request (queue worker / Octane / test หลาย request) แต่ LegacySession เป็น scoped
+     * → ถ้า instance ของ request นี้เปลี่ยน ให้ทิ้ง user ที่ cache ไว้ ไม่งั้นจะได้ user ของ request ก่อนหน้า
+     */
+    private function syncSession(): void
+    {
+        $current = app(LegacySession::class);
+        if ($current !== $this->session) {
+            $this->session = $current;
+            $this->user = null;
+            $this->resolved = false;
+        }
+    }
+
+    /** ค่าใน session ที่ไม่ใช่ string (ข้อมูลเสีย/ถูกแก้) = ไม่มีค่า — เดิม decrypt() ของ array คืนค่าว่าง */
+    private function sessionString(string $key): string
+    {
+        $v = $this->session->get($key, '');
+
+        return is_string($v) ? $v : (is_int($v) || is_float($v) ? (string) $v : '');
     }
 
     public function user(): ?Authenticatable
     {
+        $this->syncSession();
         if ($this->resolved) {
             return $this->user;
         }
@@ -43,7 +69,8 @@ class LegacySessionGuard implements StatefulGuard
     /** id ที่ได้จาก session แบบ getUserID() เดิม (ไม่ตรวจว่า user ยังใช้งานได้) */
     public function legacyUserId(): ?string
     {
-        $enc = (string) $this->session->get('user_id', '');
+        $this->syncSession();
+        $enc = $this->sessionString('user_id');
         if ($enc === '') {
             return null;
         }
@@ -55,7 +82,8 @@ class LegacySessionGuard implements StatefulGuard
     /** decode_member_cookie() เดิม: ['username' => ..., 'id' => ...] (null = ไม่มี session) */
     public function legacyIdentity(): ?array
     {
-        $enc = (string) $this->session->get('user_id', '');
+        $this->syncSession();
+        $enc = $this->sessionString('user_id');
         if ($enc === '') {
             return null;
         }
@@ -64,16 +92,37 @@ class LegacySessionGuard implements StatefulGuard
         return ['username' => $parts[0], 'id' => $parts[1] ?? null];
     }
 
+    /**
+     * id ที่ใช้ระบุตัวผู้ใช้จริง = ส่วนหลัง & ตัวสุดท้าย (login เขียน username&id เสมอ)
+     * เดิมใช้ explode()[1] → username ที่มี & เช่น "x&5" จะได้ id = 5 (สวมสิทธิ์ user อื่นได้ในหน้าที่เรียกแค่ getUserID())
+     * ที่นี่ไม่ทำตามบั๊กนั้น
+     */
+    private function sessionUserId(): ?string
+    {
+        $enc = $this->sessionString('user_id');
+        if ($enc === '') {
+            return null;
+        }
+        $plain = LegacyCrypt::decrypt($enc);
+        $pos = strrpos($plain, '&');
+        if ($pos === false) {
+            return null;
+        }
+        $id = substr($plain, $pos + 1);
+
+        return ctype_digit($id) ? $id : null;
+    }
+
     private function resolveFromSession(): ?User
     {
-        $id = $this->legacyUserId();
+        $id = $this->sessionUserId();
         if ($id === null || $id === '') {
             return null;
         }
         /** @var User|null $user */
         $user = User::query()->whereKey((int) $id)->first();
 
-        $role = (string) $this->session->get('user_role', '');
+        $role = $this->sessionString('user_role');
         // เทียบแบบหลวม (!=) เหมือน PHP เดิม
         if ($role !== '' && LegacyCrypt::decrypt($role) != ($user?->password)) {
             $this->session->destroy();
@@ -120,6 +169,7 @@ class LegacySessionGuard implements StatefulGuard
     public function login(Authenticatable $user, $remember = false): void
     {
         /** @var User $user */
+        $this->syncSession();
         $this->session->regenerate();
         $this->session->put('user_id', LegacyCrypt::encrypt($user->username.'&'.$user->id));
         $this->session->put('user_role', LegacyCrypt::encrypt((string) $user->password));
@@ -158,6 +208,7 @@ class LegacySessionGuard implements StatefulGuard
     /** = session_destroy() ใน system_checkuser.php (action=logout) */
     public function logout(): void
     {
+        $this->syncSession();
         $this->session->destroy();
         $this->user = null;
         $this->resolved = true;
