@@ -33,9 +33,9 @@ if ss -ltn "sport = :$PORT" | grep -q LISTEN; then echo "port $PORT ถูกใ
 
 ROUTER="$WT/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
 CMD=(env PHP_CLI_SERVER_WORKERS=2 nice -n 5 php8.4 -d variables_order=EGPCS -S "127.0.0.1:$PORT" -t "$WT/public" "$ROUTER")
-cd "$WT"
+cd "$WT/public"   # server.php ของ Laravel ใช้ cwd เป็น public
 if [ "$MODE" = "--bg" ]; then
-    sudo -u site_jllv bash -c 'cd "$1"; shift; nohup "$@" >>"'"$LOG"'" 2>&1 & echo $! > "'"$PID"'"' _ "$WT" "${CMD[@]}"
+    sudo -u site_jllv bash -c 'cd "$1/public"; shift; nohup "$@" >>"'"$LOG"'" 2>&1 & echo $! > "'"$PID"'"' _ "$WT" "${CMD[@]}"
     sleep 1
     running && echo "รันเบื้องหลัง: http://127.0.0.1:$PORT (log $LOG, หยุดด้วย bin/wt-serve $G --stop)" || { echo "เริ่มไม่ได้ ดู $LOG" >&2; exit 1; }
 else
