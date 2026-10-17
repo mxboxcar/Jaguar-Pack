@@ -1,7 +1,8 @@
 #!/bin/bash
 # สร้าง git worktree สำหรับพอร์ต 1 กลุ่ม: branch mod/<group> ที่ /home/admin/laravel/jl-wt/<group>
 #   - .env   = symlink ไปที่ .env ของ repo หลัก (secret มีที่เดียว; ต้องการค่าต่างให้ใช้ --copy-env)
-#   - vendor = symlink ไปที่ vendor ของ repo หลัก (ห้าม composer require ใน worktree — แจ้งเจ้าของก่อน)
+#   - vendor = แพ็กเกจ symlink ไป vendor ของ repo หลัก + autoload ของ worktree เอง (bin/wt-vendor)
+#              ห้าม composer require ใน worktree — แจ้งเจ้าของก่อน
 #   - public/assets → mirror กลาง (bin/link-assets), storage/bootstrap/cache เป็นของ site_jllv
 # ใช้: bin/wt-new <group> [--copy-env] [--base <branch>]     (รันด้วย root)
 set -euo pipefail
@@ -16,7 +17,11 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
-case " $JL_GROUPS " in *" $G "*) ;; *) echo "ใช้: bin/wt-new <group>   group = $JL_GROUPS" >&2; exit 1 ;; esac
+# zz-<ชื่อ> = worktree ทดลอง/ทิ้งได้ (ไม่ใช่กลุ่มจริง, port 8299) — ลบด้วย bin/wt-rm zz-<ชื่อ>
+case " $JL_GROUPS " in
+    *" $G "*) ;;
+    *) [[ "$G" =~ ^zz-[a-z0-9-]{1,20}$ ]] || { echo "ใช้: bin/wt-new <group>   group = $JL_GROUPS (หรือ zz-<ชื่อ> สำหรับทดลอง)" >&2; exit 1; } ;;
+esac
 [ "$(id -u)" = 0 ] || { echo "ต้องรันด้วย root" >&2; exit 1; }
 
 REPO=$(cd "$(dirname "$0")/.." && git rev-parse --show-toplevel)
@@ -40,7 +45,8 @@ if [ "$COPY_ENV" = 1 ]; then
 else
     ln -s "$REPO/.env" "$WT/.env"
 fi
-ln -s "$REPO/vendor" "$WT/vendor"
+# vendor: แพ็กเกจ symlink ไป main แต่ autoload เป็นของ worktree (symlink ทั้งโฟลเดอร์ = App\* โหลดจาก main)
+"$REPO/bin/wt-vendor" "$WT" >/dev/null
 
 mkdir -p "$WT"/storage/{app/public,framework/{cache/data,sessions,testing,views},logs} "$WT/bootstrap/cache"
 "$REPO/bin/link-assets" "$WT" >/dev/null

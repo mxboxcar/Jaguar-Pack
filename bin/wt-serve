@@ -1,13 +1,18 @@
 #!/bin/bash
 # เสิร์ฟ worktree ด้วย PHP built-in server (ไม่แตะ nginx/systemd) ที่ 127.0.0.1 เท่านั้น
-#   port ของแต่ละกลุ่มคงที่: 8201..8213 (เรียงตามรายชื่อกลุ่ม) · main = 8100 (nginx + php-fpm อยู่แล้ว)
+#   port ของแต่ละกลุ่มคงที่: 8201..8213 (เรียงตามรายชื่อกลุ่ม) · zz-<ชื่อ> (ทดลอง) = 8299 · main = 8100 (nginx + php-fpm อยู่แล้ว)
 #   รันเป็น user site_jllv (สิทธิ์เดียวกับ php-fpm), PHP_CLI_SERVER_WORKERS=2 (พอสำหรับ ab -c2)
+#   เปิด opcache (เหมือน php-fpm) ไม่งั้นผล bench ช้ากว่าจริง ~2 เท่า · แก้ไฟล์แล้วมีผลภายใน 2 วินาที (revalidate_freq)
 #
 # ใช้: bin/wt-serve <group> [--bg|--stop|--status]
 #      bin/wt-serve --port-of <group>
 set -euo pipefail
 JL_GROUPS=(tracking shop order payment balance money-move points lot warehouse users messaging reports settings)
-port_of() { local i; for i in "${!JL_GROUPS[@]}"; do [ "${JL_GROUPS[$i]}" = "$1" ] && { echo $((8201 + i)); return 0; }; done; return 1; }
+port_of() {
+    local i; for i in "${!JL_GROUPS[@]}"; do [ "${JL_GROUPS[$i]}" = "$1" ] && { echo $((8201 + i)); return 0; }; done
+    [[ "${1:-}" =~ ^zz-[a-z0-9-]{1,20}$ ]] && { echo 8299; return 0; }   # worktree ทดลอง (ทีละอัน)
+    return 1
+}
 
 if [ "${1:-}" = "--port-of" ]; then port_of "${2:-}" || { echo "ไม่รู้จักกลุ่ม" >&2; exit 1; }; exit 0; fi
 G=${1:-}; MODE=${2:-fg}
@@ -38,7 +43,7 @@ if running; then echo "รันอยู่แล้ว: http://127.0.0.1:$PORT
 if ss -ltn "sport = :$PORT" | grep -q LISTEN; then echo "port $PORT ถูกใช้อยู่" >&2; exit 1; fi
 
 ROUTER="$WT/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
-CMD=(env PHP_CLI_SERVER_WORKERS=2 nice -n 5 php8.4 -d variables_order=EGPCS -S "127.0.0.1:$PORT" -t "$WT/public" "$ROUTER")
+CMD=(env PHP_CLI_SERVER_WORKERS=2 nice -n 5 php8.4 -d variables_order=EGPCS -d opcache.enable_cli=1 -S "127.0.0.1:$PORT" -t "$WT/public" "$ROUTER")
 cd "$WT/public"   # server.php ของ Laravel ใช้ cwd เป็น public
 if [ "$MODE" = "--bg" ]; then
     sudo -u site_jllv bash -c 'cd "$1/public"; shift; nohup "$@" >>"'"$LOG"'" 2>&1 & echo $! > "'"$PID"'"' _ "$WT" "${CMD[@]}"

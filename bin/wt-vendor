@@ -1,0 +1,50 @@
+#!/bin/bash
+# vendor ของ worktree = โฟลเดอร์จริงที่ symlink แพ็กเกจแต่ละตัวไปที่ vendor ของ repo หลัก
+# แต่ vendor/composer, vendor/autoload.php, vendor/bin เป็นสำเนาของ worktree เอง
+#
+# ทำไมห้าม symlink ทั้งโฟลเดอร์ vendor: autoloader ของ composer หา base dir จาก realpath ของ vendor/composer
+#   → ถ้า vendor เป็น symlink ไป repo หลัก คลาส App\* (controller/model/Support) และ helpers.php
+#     จะถูกโหลดจาก /home/admin/laravel/jl/app ไม่ใช่ของ worktree (คลาสใหม่ใน worktree = "Class does not exist",
+#     คลาสที่แก้ใน worktree = รันโค้ดของ main แบบเงียบๆ)
+#
+# ใช้: bin/wt-vendor <worktree>     (รันด้วย root; wt-new เรียกให้เอง — รันซ้ำเมื่อ composer.lock ของ main เปลี่ยน)
+set -euo pipefail
+[ "$(id -u)" = 0 ] || { echo "ต้องรันด้วย root" >&2; exit 1; }
+REPO=$(cd "$(dirname "$0")/.." && git rev-parse --show-toplevel)
+REPO=$(cd "$REPO" && cd "$(git rev-parse --git-common-dir)/.." && pwd)
+WT=$(cd "${1:?ใช้: bin/wt-vendor <worktree>}" && pwd)
+[ -f "$WT/artisan" ] || { echo "ไม่ใช่โปรเจกต์ Laravel: $WT" >&2; exit 1; }
+[ "$WT" != "$REPO" ] || { echo "ห้ามรันกับ repo หลัก" >&2; exit 1; }
+SRC=$REPO/vendor
+[ -f "$SRC/autoload.php" ] || { echo "repo หลักยังไม่มี vendor" >&2; exit 1; }
+
+# vendor เดิมที่เป็น symlink ทั้งโฟลเดอร์ (worktree รุ่นเก่า) → เอาออก (ลบแค่ลิงก์)
+[ -L "$WT/vendor" ] && rm -f "$WT/vendor"
+NEW=$WT/vendor.new.$$
+OLD=$WT/vendor.old.$$
+trap 'rm -rf -- "$NEW"' EXIT
+mkdir "$NEW"
+for e in "$SRC"/* "$SRC"/.[!.]*; do
+    [ -e "$e" ] || continue
+    n=$(basename "$e")
+    case "$n" in
+        composer|bin|autoload.php) cp -a "$e" "$NEW/$n" ;;
+        *) ln -s "$e" "$NEW/$n" ;;
+    esac
+done
+# สร้าง autoload ใหม่ให้ชี้ app/ ของ worktree (ไม่รัน scripts: package:discover ทำทีหลังด้วย site_jllv)
+COMPOSER_ALLOW_SUPERUSER=1 COMPOSER_VENDOR_DIR="$NEW" nice -n 10 php8.4 /opt/frankenphp/bin/composer \
+    dump-autoload -o --no-scripts --no-interaction -q -d "$WT"
+if [ -d "$WT/vendor" ]; then mv "$WT/vendor" "$OLD"; fi
+mv "$NEW" "$WT/vendor"
+[ -d "$OLD" ] && rm -rf -- "$OLD"
+trap - EXIT
+chown -h root:site_jllv "$WT/vendor" "$WT"/vendor/*
+chmod 2750 "$WT/vendor"
+find "$WT/vendor/composer" "$WT/vendor/bin" -type d -exec chmod 2750 {} + -o -type f -exec chmod 640 {} +
+chown -R root:site_jllv "$WT/vendor/composer" "$WT/vendor/bin"
+chmod 640 "$WT/vendor/autoload.php"
+
+# ตรวจ: App\ ต้องชี้ worktree
+php8.4 -r '$l = require $argv[1]."/vendor/autoload.php"; $d = $l->getPrefixesPsr4()["App\\"][0] ?? ""; if (realpath($d) !== realpath($argv[1]."/app")) { fwrite(STDERR, "autoload App\\ ชี้ผิดที่: $d\n"); exit(1); }' "$WT"
+echo "ok: $WT/vendor (แพ็กเกจ symlink ไป $SRC, autoload ของ worktree เอง)"
