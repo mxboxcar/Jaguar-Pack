@@ -18,11 +18,12 @@ use Illuminate\Support\Facades\Mail;
  */
 final class LotMailer
 {
-    private const HEADER = "<div style=\"font-family: arial,sans-serif;font-size:13px;\"><div>\n<?php require_once('system_config.php'); ?>\n";
+    // email_header.php / email_center.php / email_footer.php เดิม (อ่านด้วย file_get_contents — ข้อความดิบรวมแท็ก php ที่ไม่ถูก execute และ CRLF)
+    private const HEADER = '<div style="font-family: arial,sans-serif;font-size:13px;">';
 
-    private const CENTER = "</div>\n<br />";
+    private const CENTER = '<div>';
 
-    private const FOOTER = "\n* หากมีข้อสงสัยกรุณาติดต่อ<br />\nE-mail : jlcargoth@hotmail.com<br />\nPhone : 095-550-4009<br />\nLineID : @jlcargo\n<br />\n<br />\nขอแสดงความนับถือ<br />\nJLcargo\n</div>";
+    private const FOOTER = "<?php require_once('system_config.php'); ?>\r\n</div>\r\n<br />\r\n* หากมีข้อสงสัยกรุณาติดต่อ<br />\r\nE-mail : jlcargoth@hotmail.com<br />\r\nPhone : 095-550-4009<br />\r\nLineID : @jlcargo\r\n<br />\r\n<br />\r\nขอแสดงความนับถือ<br />\r\nJLcargo\r\n</div>";
 
     /** email_lot.php: ตั้ง is_mail แล้วเข้าคิวทุก user ในล็อต (INSERT IGNORE — UNIQUE(lot_id,user_id)) → [ลูกค้าทั้งหมด, รอส่ง] */
     public static function enqueue(int $lotId): array
@@ -109,24 +110,27 @@ final class LotMailer
     {
         $subject = 'แจ้งรายการเคลื่อนไหวรหัสพัสดุ '.Format::getthaidate(date('Y-m-d'), true, true);
         $th = 'text-align:center;font-weight:bold;border:1px #ccc solid;background-color:#e6e6e6';
-        $body = "\n\n<table style=\"text-indent:0px!important;font-size:12px;color:#3b3e42;margin-top:20px;border:1px #ccc solid;width:100%;border-collapse: collapse;\">\n<thead>\n\t<tr>\n"
+        // email.php เดิมเป็นไฟล์ CRLF → ขึ้นบรรทัดในข้อความคงที่ของเมลเป็น \r\n (ค่าจาก DB ไม่แปลง)
+        $t = fn (string $s): string => str_replace("\n", "\r\n", $s);
+        $body = $t("\n\n<table style=\"text-indent:0px!important;font-size:12px;color:#3b3e42;margin-top:20px;border:1px #ccc solid;width:100%;border-collapse: collapse;\">\n<thead>\n\t<tr>\n"
             ."\t\t<th style=\"$th\">ล๊อต/ลำดับ</th>\n\t\t<th style=\"$th\">เลขพัสดุ</th>\n\t\t<th style=\"$th\">เลขที่ใบสั่งซื้อ</th>\n\t\t<th style=\"$th\">วลีช่วยจำ</th>\n"
-            ."\t\t<th style=\"$th;width:80px;\">นน.</th>\n\t\t<th style=\"$th;width:80px;\">คิว</th>\n\t\t<th style=\"$th;width:80px;\">สถานะ</th>\n\t</tr>\n</thead>\n<tbody>\n";
+            ."\t\t<th style=\"$th;width:80px;\">นน.</th>\n\t\t<th style=\"$th;width:80px;\">คิว</th>\n\t\t<th style=\"$th;width:80px;\">สถานะ</th>\n\t</tr>\n</thead>\n<tbody>\n");
+        $n = fn ($v) => Php74::num($v);
         foreach ($items as $it) {
-            $n = fn ($v) => Php74::num($v);
-            $body .= "\n\t<tr style=\"line-height:15px;\">\n"
-                ."\t\t<td style=\"border:1px #ccc solid;text-align:center;padding:3px\">".e((string) $it->lot_name).'/'.e((string) $it->no)."</td>\n"
-                ."\t\t<td style=\"border:1px #ccc solid;padding:3px\">".e((string) $it->tracking)."</td>\n\t\t"
+            // ค่าจาก DB ถูก escape (เดิมต่อดิบ = HTML injection ในเมล)
+            $body .= $t("\n\t<tr style=\"line-height:15px;\">\n\t\t<td style=\"border:1px #ccc solid;text-align:center;padding:3px\">")
+                .e((string) $it->lot_name).'/'.e((string) $it->no)
+                .$t("</td>\n\t\t<td style=\"border:1px #ccc solid;padding:3px\">").e((string) $it->tracking).$t("</td>\n\t\t")
                 .'<td style="border:1px #ccc solid;padding:3px">-</td>'
                 .'<td style="border:1px #ccc solid;padding:3px">-</td>'
-                ."\n\t\t<td style=\"border:1px #ccc solid;padding:3px;text-align:right\">".Format::numberformatone($it->weight)."</td>\n"
-                ."\t\t<td style=\"border:1px #ccc solid;padding:3px;text-align:right\">".Format::cubicformat(($n($it->long) * $n($it->width) * $n($it->height)) / 1000000)."</td>\n"
-                ."\t\t<td style=\"border:1px #ccc solid;padding:3px;text-align:center\">".Status::getlotstatus($it->status)."</td>\n\t</tr>\n\t";
+                .$t("\n\t\t<td style=\"border:1px #ccc solid;padding:3px;text-align:right\">").Format::numberformatone($it->weight)
+                .$t("</td>\n\t\t<td style=\"border:1px #ccc solid;padding:3px;text-align:right\">").Format::cubicformat(($n($it->long) * $n($it->width) * $n($it->height)) / 1000000)
+                .$t("</td>\n\t\t<td style=\"border:1px #ccc solid;padding:3px;text-align:center\">").Status::getlotstatus($it->status).$t("</td>\n\t</tr>\n\t");
         }
         $link = Legacy::href('payment/create');
-        $body .= "\n</tbody>\n</table>\n\n\n<div style=\"height:20px\"></div>\n"
+        $body .= $t("\n</tbody>\n</table>\n\n\n<div style=\"height:20px\"></div>\n"
             ."<p style=\"width:200px;text-align:center;font-size:15px;background-color:#991b1e;padding:10px 25px;\" >\n"
-            ."<a target=\"_blank\" style=\"color:#ffffff;text-decoration:none\" href=\"".$link."\" >ดูรายละเอียด</a></p>\n";
+            .'<a target="_blank" style="color:#ffffff;text-decoration:none" href="').$link.$t("\" >ดูรายละเอียด</a></p>\n");
         $html = self::HEADER.'<strong>'.$subject.'</strong>'.self::CENTER.$body.self::FOOTER;
 
         try {
