@@ -106,9 +106,12 @@ class LineNotifyController extends Controller
         return (string) ($res->json('access_token') ?? '');
     }
 
-    /** เดิม echo "<script>window.location.href='".href."/linenotify'</script>" (มี // ซ้อน) */
+    /**
+     * เดิม echo "<script>window.location.href='".href."/linenotify'</script>" (href ลงท้าย / อยู่แล้ว → "//linenotify")
+     * Laravel ไม่ match path "//linenotify" (404) → ที่นี่ใช้ "/" เดียว
+     */
     private function back(): Response
     {
-        return response("<script>window.location.href='".Legacy::href()."/linenotify'</script>");
+        return response("<script>window.location.href='".Legacy::href('linenotify')."'</script>");
     }
 }

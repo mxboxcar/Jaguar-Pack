@@ -65,6 +65,7 @@ worktree `/home/admin/laravel/jl-wt/messaging` (branch `mod/messaging`, port 821
 12. ชิ้นส่วนอีเมล / notify_* ต้องล็อกอิน (เดิมสาธารณะ — ไม่มี JS ไหนเรียกผ่าน URL)
 13. load_user: LIKE escape `%` `_` (เดิมเป็น wildcard)
 14. ช่องว่าง/CRLF ใน HTML ของหน้า/grid ไม่ตรง byte (JSON ของแชทตรง byte เพราะ `Chat::crlf()`)
+15. `_linenotify/callback` / `revoke`: เดิม redirect ไป `href."/linenotify"` = `//linenotify` (href ลงท้าย / อยู่แล้ว) — Laravel ไม่ match path นี้ (404) → ที่นี่ redirect ไป `/linenotify`
 
 ## N+1 / query ที่ลด
 
