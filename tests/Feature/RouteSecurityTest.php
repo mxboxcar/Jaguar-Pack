@@ -22,6 +22,14 @@ class RouteSecurityTest extends TestCase
         'system_change_language' => 'ตั้ง cookie ภาษา',
         'up' => 'health check ของ Laravel',
         'dev/whoami' => 'dev เท่านั้น: บอกว่า session นี้เป็นใคร',
+        // กลุ่ม users: หน้าสาธารณะของเว็บเดิม (ยังไม่มีบัญชี / ลืมรหัสผ่าน)
+        'register' => 'หน้าสมัครสมาชิก (register.php)',
+        '_register/save' => 'ส่งฟอร์มสมัครสมาชิก (ajax, CSRF ผ่าน group legacy)',
+        'lostpassword' => 'หน้าลืมรหัสผ่าน (lost_password.php)',
+        'lost_password' => 'หน้าลืมรหัสผ่าน (path ไฟล์เดิม)',
+        '_register/lost_password' => 'ขอรหัสผ่านใหม่ทางอีเมล (ajax)',
+        'system_check_username' => 'validationEngine ตรวจ username ซ้ำตอนสมัคร',
+        'password' => 'password.php เดิม (สคริปต์ย้ายรหัส ตาราง user_copy ไม่มีแล้ว) ตอบว่างเสมอ',
     ];
 
     private const AUTH = ['legacy.auth', 'legacy.perm', 'legacy.own'];
