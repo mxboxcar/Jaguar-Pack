@@ -49,6 +49,7 @@ JS ในหน้าแอดมินเติมเงินเรียก `
   `_transfer/save` lock แถว user ก่อนเช็คยอด (เดิมกดซ้ำเร็วๆ ใช้เงินเกินยอดได้)
 - ชื่อไฟล์แนบที่รับจาก POST (`upload_file`, `upload_approved_file`, `approved_upload`) ต้องเป็นชื่อแบบที่ system_upload ออกให้ (`[A-Za-z0-9._-]`) ไม่งั้นบันทึกเป็น `''`
 - อีเมล: Mail ของ Laravel (dev = log), ข้อความที่แอดมินพิมพ์ในอีเมลถูก escape; LINE/push = no-op เหมือนเดิม (ฟังก์ชันเดิมว่าง)
+- อีเมลแจ้งผลใช้ id ของแถวที่พบ (เดิมใส่ `$_POST['id']` ดิบลงหัวเรื่อง/ลิงก์ HTML: `123<img ...>` → MySQL แปลงเป็น 123 แล้วส่งถึงลูกค้าเจ้าของรายการ 123) ไม่พบแถว = ไม่ส่ง
 - ไฟล์ email_*.php เปิดตรง: เดิมไม่ต้องล็อกอินและยิง Mailgun ด้วย `$email_id` ว่าง — ใหม่ต้องมีสิทธิ์ และไม่ส่งอะไร
 
 ## ช่องโหว่/บั๊กเดิมที่แก้
@@ -91,3 +92,12 @@ JS ในหน้าแอดมินเติมเงินเรียก `
 | `/admin/withdrawcash/3701` (แอดมิน) | 343 / 413 | 45 / 40 |
 
 N+1: grid เดิมเรียก `getPrefix()` (1 query) ทุกแถว → ใหม่ cache ต่อ request; จำนวน query ต่อหน้าคงที่
+
+## review (adversarial, 2026-10-18)
+
+- เทียบ HTML :8101 กับ :8206 ซ้ำทุกหน้า/grid (th/en/cn, UA มือถือ, ลูกค้า 137/10579/zz_fdn_cust, แอดมิน zz_fdn_admin, หน้า 1/2/3/20/0/abc/1e1/3.5, ค้นหา, สถานะ, id ของคนอื่น, id ไม่มี) ด้วยข้อมูล zz_ (refill/bill_transfer/balance_withdraw/balance) — ตรงกันทั้งหมด ยกเว้นที่ escape และ paging ด้านล่าง
+- เขียน DB (เฉพาะ :8206): refill save, transfer save/cancel (ของตัวเอง/คนอื่น/สถานะ 2/ซ้ำ), admin refill save/save_approved (ซ้ำ)/cancel, admin transfer save/cancel/rollback (-1 มีแถวตัดเงิน, 2), withdrawcash cancel (ซ้ำ, id ไม่มี)/save_approved — แถวที่เปลี่ยนตรงกับ SQL เดิม และกระทบเฉพาะแถว zz_
+- SQL injection (เฉพาะ :8206, grid อ่านอย่างเดียว + id ของแถว zz_): `txtsearch`, สถานะ, `page`, `id` — bind ทั้งหมด ไม่มี 500
+- CSRF: Origin/Referer ต่างโดเมน = 403, ไม่มี XHR = redirect 403 แบบเดิม, ไม่ล็อกอิน = /login
+- แก้: อีเมลแจ้งผลใช้ id จาก DB (ดูข้างบน)
+- ยังต่างเล็กน้อย (ฐานร่วม `Paging::getpaging`): `page` ที่ไม่ใช่จำนวนเต็ม (`abc`, `3.5`) ปุ่มหน้าก่อน/ถัดไปและหน้าที่ active ต่างจากเดิม (เดิมได้ `2.5`/`4.5`) — มาจาก input ที่แต่งเองเท่านั้น

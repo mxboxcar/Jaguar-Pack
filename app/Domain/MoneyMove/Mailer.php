@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Mail;
  * - LINE: sendLine()/sendLineImage()/push_notification() เดิมเป็นฟังก์ชันว่าง → ไม่ส่งอะไร (log ไว้ตรวจเท่านั้น)
  * - แม่แบบ email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → คัดข้อความคงที่มา
  * - ข้อความที่แอดมินพิมพ์ (approved_remark / cancel_remark) ถูก escape (เดิมใส่ดิบลง HTML)
+ * - id ที่ POST มาถูกแทนด้วย id ของแถวที่พบ (เดิมใส่ $_POST['id'] ดิบลงหัวเรื่อง/ลิงก์ HTML เช่น "123<img ...>" ที่ MySQL แปลงเป็น 123 แล้วส่งถึงลูกค้าเจ้าของรายการ 123);
+ *   ไม่พบแถว = ไม่ส่ง (เดิมส่งไปที่อยู่ว่าง = ล้มเงียบ)
  * - _admin/_withdrawcash/save_approved.php / cancel.php เดิม include email_success.php / email_cancel.php ที่ไม่มีไฟล์อยู่จริง → ไม่เคยส่ง (ไม่ทำอะไร)
  */
 final class Mailer
@@ -31,6 +33,10 @@ final class Mailer
     public static function refillApproved(int|string $id): void
     {
         $d = self::row('refill', $id);
+        if ($d === null) {
+            return;
+        }
+        $id = $d->id;
         $no = Lookups::prefix('refill').$id;
         $link = Legacy::href('refill/'.$id);
         $subject = 'แจ้งรายการเติมเงิน '.$no.' (Success)';
@@ -41,6 +47,10 @@ final class Mailer
     public static function refillCancelled(int|string $id): void
     {
         $d = self::row('refill', $id);
+        if ($d === null) {
+            return;
+        }
+        $id = $d->id;
         $no = Lookups::prefix('refill').$id;
         $link = Legacy::href('refill/'.$id);
         $subject = 'แจ้งรายการเติมเงิน '.$no.' (Cancel)';
@@ -51,6 +61,10 @@ final class Mailer
     public static function transferSuccess(int|string $id): void
     {
         $d = self::row('bill_transfer', $id);
+        if ($d === null) {
+            return;
+        }
+        $id = $d->id;
         $no = Lookups::prefix('transfer').$id;
         $link = Legacy::href('transfer/'.$id);
         $subject = 'แจ้งรายการโอนเงินไปจีน '.$no.' (Success)';
@@ -66,6 +80,10 @@ final class Mailer
     public static function transferCancelled(int|string $id): void
     {
         $d = self::row('bill_transfer', $id);
+        if ($d === null) {
+            return;
+        }
+        $id = $d->id;
         $no = Lookups::prefix('transfer').$id;
         $link = Legacy::href('transfer/'.$id);
         $subject = 'แจ้งรายการโอนเงินไปจีน '.$no.' (Cancel)';
