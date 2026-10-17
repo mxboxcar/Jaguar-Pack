@@ -12,6 +12,15 @@ class User extends UserBase
 {
     protected $hidden = ['password', 'pin'];
 
+    /**
+     * คอลัมน์ที่ห้าม mass assign (fill/create/update ด้วย array) — กันลูกค้าส่ง role=1 / is_approved=1 / commission
+     * มากับฟอร์มแก้โปรไฟล์แล้วได้สิทธิ์แอดมิน ต้องการตั้งค่าเหล่านี้ให้กำหนดทีละตัว: $user->role = ...; $user->save();
+     */
+    protected $guarded = [
+        'id', 'username', 'password', 'pin', 'code', 'role', 'type', 'is_enable', 'is_approved', 'approved_date',
+        'is_delete', 'option_price', 'diff', 'commission', 'line_uid', 'create_by', 'create_date', 'mod_by', 'mod_date',
+    ];
+
     /** เงื่อนไขเดียวกับ system_check_login.php: ไม่ถูกลบ, เปิดใช้งาน, ไม่ถูกปฏิเสธ */
     public function isActiveAccount(): bool
     {

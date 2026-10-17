@@ -1,7 +1,5 @@
 <?php
 
-use App\Http\Controllers\LegacyTrackingBenchController;
-use App\Http\Controllers\TrackingController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -10,14 +8,4 @@ use Illuminate\Support\Facades\Route;
 | (ทั้งสองแบบอยู่ใต้ group "legacy" = session เว็บเดิม)
 */
 
-// ต้นแบบเดิม: เปิดเฉพาะตอนไม่ใช่ production (vhost ฟังแค่ 127.0.0.1)
-if (! app()->isProduction()) {
-    Route::get('/dev/tracking/{userId}', [TrackingController::class, 'index'])
-        ->whereNumber('userId')
-        ->name('dev.tracking');
-
-    // วัดผลเทียบโค้ดเดิม: query ชุดเดียวกับ _tracking/grid.php ทุกตัว
-    Route::get('/dev/tracking-legacy/{userId}', [LegacyTrackingBenchController::class, 'index'])
-        ->whereNumber('userId')
-        ->name('dev.tracking-legacy');
-}
+// ต้นแบบ /dev/tracking* ย้ายไป routes/legacy.php แล้ว (ต้องมี session เว็บเดิม: ดูได้เฉพาะของตัวเอง หรือแอดมินที่มีสิทธิ์ admin_tracking)

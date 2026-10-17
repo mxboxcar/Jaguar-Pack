@@ -18,10 +18,16 @@ WT=$ROOT/$G
 PID=$WT/storage/logs/wt-serve.pid
 LOG=$WT/storage/logs/wt-serve.log
 
-running() { [ -f "$PID" ] && kill -0 "$(cat "$PID")" 2>/dev/null; }
+# pid file อยู่ใน storage (site_jllv เขียนได้) → ก่อน root จะ kill ต้องเช็คว่าเป็น php8.4 -S ของ site_jllv ที่ port นี้จริง
+running() {
+    [ -f "$PID" ] || return 1
+    local p; p=$(head -c 16 "$PID" | tr -dc 0-9)
+    [ -n "$p" ] && [ "$(ps -o user= -p "$p" 2>/dev/null | tr -d ' ')" = site_jllv ] \
+        && ps -o args= -p "$p" 2>/dev/null | grep -q -- "-S 127.0.0.1:$PORT "
+}
 case "$MODE" in
     --stop)
-        if running; then pkill -TERM -P "$(cat "$PID")" 2>/dev/null || true; kill "$(cat "$PID")" 2>/dev/null || true; rm -f "$PID"; echo "หยุดแล้ว ($G :$PORT)"; else echo "ไม่ได้รันอยู่"; fi
+        if running; then P=$(head -c 16 "$PID" | tr -dc 0-9); pkill -TERM -P "$P" 2>/dev/null || true; kill "$P" 2>/dev/null || true; rm -f "$PID"; echo "หยุดแล้ว ($G :$PORT)"; else echo "ไม่ได้รันอยู่"; fi
         exit 0 ;;
     --status)
         if running; then echo "รันอยู่: http://127.0.0.1:$PORT (pid $(cat "$PID"))"; else echo "ไม่ได้รัน ($G :$PORT)"; fi

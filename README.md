@@ -35,7 +35,7 @@
 | เข้ารหัสแบบเดิม | `app/Support/Legacy/LegacyCrypt.php` — phpseclib3 Rijndael block 256 ECB = mcrypt เดิม byte ต่อ byte (salt ใน `.env` `LEGACY_SESSION_SALT`) |
 | guard `legacy` | `app/Auth/LegacySessionGuard.php` (`Auth::user()`), `app/Auth/LegacyLogin.php` (ตรวจรหัสแบบเดิม) |
 | login / logout / ภาษา | `routes/legacy.php` → `LegacyLoginController`: `GET /login`, `POST /system_check_login`, `POST /system_checkuser`, `POST /system_change_language` |
-| middleware | group `legacy` (session เดิม + `LegacyJail` + `LegacyCsrf`), `legacy.auth`, `legacy.perm:<module>`, `legacy.ajax` |
+| middleware | group `legacy` (session เดิม + `LegacyJail` + `LegacyCsrf`), `legacy.auth`, `legacy.perm:<module>`, `legacy.own:<param>,<module>`, `legacy.ajax` |
 | สิทธิ์ | `app/Support/Legacy/Permissions.php` = `getPermission()` (โหลดทั้ง role ครั้งเดียวต่อ request), helper `perm()`, `@perm` |
 | layout | `resources/views/legacy/layout.blade.php` (+ `partials/menu*`, `login.blade.php`) แปลงจาก index.php / menu.php เดิมด้วย `tools/port-layout.php` — HTML ตรงกับเดิม (ต่างแค่ช่องว่าง) |
 | ภาษา | `lang/{th,en,cn}/legacy.php` (จาก `resource/*.php` เดิม) + `res('key')` |
@@ -44,7 +44,7 @@
 | routes ของกลุ่ม | `routes/modules/<group>.php` 13 ไฟล์ โหลดอัตโนมัติ (ดู `bootstrap/app.php`) |
 | asset เดิม | `public/assets` → symlink ไป mirror `/home/admin/laravel/legacy-assets` (ไม่ commit, `bin/link-assets`) |
 
-หน้า dev สำหรับตรวจ (ไม่เปิดใน production): `/dev/whoami` (ใครล็อกอินอยู่ + สิทธิ์), `/dev/layout` (layout ตัวอย่าง), `/dev/admin-only` (ตัวอย่าง `legacy.perm`)
+หน้า dev สำหรับตรวจ (ไม่เปิดใน production): `/dev/whoami` (ใครล็อกอินอยู่ + สิทธิ์), `/dev/layout` (layout ตัวอย่าง), `/dev/admin-only` (ตัวอย่าง `legacy.perm`), `/dev/tracking/{id}` + `/dev/tracking-legacy/{id}` (ต้องส่ง cookie PHPSESSID: ดูได้เฉพาะของตัวเองหรือแอดมิน `admin_tracking`)
 
 ## การพอร์ตโมดูล (ทีละกลุ่ม)
 

@@ -53,6 +53,9 @@ return [
     // legacy.csrf: host อื่นที่ยอมให้ POST มาได้ (คั่นด้วย ,) เช่น portal.jlcargoth.com — ปกติไม่ต้องตั้ง
     'trusted_origins' => env('LEGACY_TRUSTED_ORIGINS', ''),
 
+    // clientIp(): เชื่อ X-Real-IP เฉพาะเมื่อ REMOTE_ADDR เป็น loopback/private หรืออยู่ในรายการนี้ (คั่นด้วย ,)
+    'trusted_proxies' => env('LEGACY_TRUSTED_PROXIES', ''),
+
     // ระบบแบน IP เดิม (check_jail_ip_v3 ทำงานทุก request ของเว็บเดิม)
     'jail' => [
         'enabled' => env('LEGACY_JAIL_ENABLED', true),

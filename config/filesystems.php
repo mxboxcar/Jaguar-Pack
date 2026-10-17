@@ -33,7 +33,7 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            'serve' => false, // ปิด route storage/{path} (GET/PUT ผ่าน signed URL) — เว็บนี้ไม่ใช้ และไม่ควรมี endpoint เขียนไฟล์ที่ไม่ผ่าน legacy middleware
             'throw' => false,
             'report' => false,
         ],

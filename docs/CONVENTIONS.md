@@ -66,6 +66,11 @@ Route::middleware('legacy.perm:admin_tracking')->group(function () {
 4. Laravel ตรวจเข้มกว่าเดิม: บัญชีที่ถูกลบ/ปิด/ไม่อนุมัติ หลุดจาก session ทันที (เดิมค้างได้จนหมดอายุ)
 5. id ผู้ใช้ใน session = ส่วนหลัง `&` **ตัวสุดท้าย** ของ `decrypt(user_id)` — เดิม `getUserID()` ใช้ `explode('&')[1]` ทำให้ username ที่มี `&` (เช่น `x&5`, สมัครได้) ได้ id ของคนอื่นในไฟล์เดิมที่เรียกแค่ `getUserID()` โดยไม่ผ่าน `checkUser()`/`getPermission()` → **ห้ามพอร์ตไฟล์ใดโดยอ่าน id จาก session เอง** ใช้ `Legacy::userId()` เท่านั้น (ตรวจ `user_role` ด้วยแล้ว)
 
+6. route ที่มี id ผู้ใช้ใน URL (`/x/{userId}`) ใช้ `legacy.own:userId,<โมดูลแอดมิน>` = เป็นของตัวเอง หรือมีสิทธิ์โมดูลนั้น
+7. `tests/Feature/RouteSecurityTest.php` ล้มถ้ามี route ที่ไม่มี `legacy.auth`/`legacy.perm`/`legacy.own` หรือ route POST ที่ไม่อยู่ใต้ group `legacy` — หน้าสาธารณะจริง (register, lostpassword ฯลฯ) ให้เพิ่มใน `PUBLIC` ของ test พร้อมเหตุผล
+8. IP ผู้ใช้ = `Legacy::clientIp()` เท่านั้น (เชื่อ `X-Real-IP` เฉพาะเมื่อมาจาก proxy ในเครื่อง/วงใน หรือ `LEGACY_TRUSTED_PROXIES`)
+9. production ต้องตั้ง `LEGACY_HREF` (หรือ `APP_URL`) — ห้ามสร้าง URL/redirect จาก Host header
+
 ## 4. รับค่า (input) และ SQL
 
 - **ห้ามต่อ string เข้า SQL เด็ดขาด** — ใช้ query builder / Eloquent / `DB::select('... ?', [$v])` เท่านั้น
@@ -114,6 +119,7 @@ Route::middleware('legacy.perm:admin_tracking')->group(function () {
   - ตารางชื่อชน: `log` → `LogRecord`, `sessions` → `PhpSession`, `sessions_v2` → `SessionV2`, `_user` → `UnderscoreUser`
 - **ห้าม migration / seeder / แก้ schema** (DB เดียวกับเว็บจริง) — ถ้าต้องมี index ใหม่ ให้เขียนข้อเสนอในรายงาน ไม่ต้องสร้างเอง
 - DB dev = `admin_jl_bench` (ผ่าน .env) — ห้ามต่อ `admin_jl` ห้าม dump/import ขนาดใหญ่
+- **mass assignment**: ห้าม `fill($request->all())` / `create($request->all())` / `update($request->all())` — ใช้ `$request->only([...])` หรือ validated() เท่านั้น; `User` guard คอลัมน์สิทธิ์/สถานะ/เงิน (`role`, `is_approved`, `commission` ฯลฯ) ไว้แล้ว ต้องตั้งทีละตัว
 - ห้าม N+1: eager load (`with()`) หรือ join; หน้า list ต้องมีจำนวน query คงที่ไม่ขึ้นกับจำนวนแถว
 - connection ตั้งเหมือนเดิม: utf8mb3, time_zone +07:00, sql_mode ว่าง (non-strict) — ข้อมูลเดิมพึ่งพฤติกรรมนี้
 - ทุกคำสั่งที่ไม่ใช่ SELECT ถูกบันทึกลง `storage/logs/legacy/YYYY-MM-DD.log` อัตโนมัติ (แทน `mysqlquerys()`/`goLog()`) ไม่ต้องเรียกเอง

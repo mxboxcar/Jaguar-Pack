@@ -32,4 +32,13 @@ if (! app()->isProduction()) {
     Route::view('/dev/layout', 'legacy.dev-layout')->middleware('legacy.auth')->defaults('legacy_page', 'dashboard');
     // ตัวอย่างหน้าที่ต้องมีสิทธิ์แอดมิน
     Route::view('/dev/admin-only', 'legacy.dev-layout')->middleware('legacy.perm:admin_setting');
+
+    // ต้นแบบ tracking + ตัววัดผลเทียบ _tracking/grid.php เดิม — เดิมเปิดโดยไม่ต้องล็อกอิน (ใครก็ดูข้อมูลลูกค้าคนไหนก็ได้
+    // ผ่าน 127.0.0.1 เช่น SSRF จากเว็บอื่นในเครื่อง) → ต้องล็อกอิน และดูได้เฉพาะ {userId} ของตัวเอง หรือมีสิทธิ์ admin_tracking
+    Route::middleware('legacy.own:userId,admin_tracking')->group(function () {
+        Route::get('/dev/tracking/{userId}', [\App\Http\Controllers\TrackingController::class, 'index'])
+            ->whereNumber('userId')->name('dev.tracking');
+        Route::get('/dev/tracking-legacy/{userId}', [\App\Http\Controllers\LegacyTrackingBenchController::class, 'index'])
+            ->whereNumber('userId')->name('dev.tracking-legacy');
+    });
 }

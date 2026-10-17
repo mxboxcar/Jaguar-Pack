@@ -24,6 +24,10 @@ final class Legacy
     public static function href(string $path = ''): string
     {
         $base = (string) config('legacy.href');
+        if ($base === '' && app()->isProduction()) {
+            // production ห้ามสร้าง URL จาก Host header ของ client (host header injection → redirect ไปโดเมนอื่น)
+            $base = (string) config('app.url');
+        }
         if ($base === '') {
             $req = self::request();
             $base = $req ? $req->getSchemeAndHttpHost().$req->getBasePath() : (string) config('app.url');
@@ -92,16 +96,32 @@ final class Legacy
         if (! $s) {
             return '0.0.0.0';
         }
+        $remote = (string) $s->get('REMOTE_ADDR', '');
+        // X-Real-IP เชื่อได้เฉพาะเมื่อ request มาจาก proxy ในเครื่อง/วงใน (nginx → frankenphp ฯลฯ)
+        // เดิมเชื่อ header จาก client ตรงๆ → ปลอม IP หลบ jail / ทำให้ IP คนอื่นโดนแบนได้
         $real = (string) $s->get('HTTP_X_REAL_IP', '');
-        if ($real !== '' && filter_var($real, FILTER_VALIDATE_IP) !== false) {
+        if ($real !== '' && self::isTrustedProxy($remote) && filter_var($real, FILTER_VALIDATE_IP) !== false) {
             return $real;
         }
-        $remote = (string) $s->get('REMOTE_ADDR', '');
         if ($remote !== '' && filter_var($remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false) {
             return $remote;
         }
 
         return $remote !== '' ? $remote : '0.0.0.0';
+    }
+
+    /** REMOTE_ADDR เป็น loopback/private (proxy ในเครื่อง) หรืออยู่ใน LEGACY_TRUSTED_PROXIES (คั่นด้วย ,) */
+    private static function isTrustedProxy(string $remote): bool
+    {
+        if ($remote === '' || filter_var($remote, FILTER_VALIDATE_IP) === false) {
+            return false;
+        }
+        $extra = array_filter(array_map('trim', explode(',', (string) config('legacy.trusted_proxies', ''))));
+        if (in_array($remote, $extra, true)) {
+            return true;
+        }
+
+        return filter_var($remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
     }
 
     public static function userAgent(): string

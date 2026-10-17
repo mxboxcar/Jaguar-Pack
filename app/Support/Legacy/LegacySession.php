@@ -26,12 +26,15 @@ final class LegacySession
 
     private bool $sendCookie = false;
 
+    private bool $secureRequest = false;
+
     public function start(Request $request): void
     {
         if ($this->started) {
             return;
         }
         $this->started = true;
+        $this->secureRequest = $request->isSecure();
         $sid = (string) $request->cookies->get($this->cookieName(), '');
         if (! self::validId($sid)) {
             return;
@@ -118,7 +121,11 @@ final class LegacySession
         DB::statement('REPLACE INTO `'.$this->table().'` (id, data) VALUES (?, ?)', [$this->id, $payload]);
     }
 
-    /** cookie ที่ต้องส่งกลับ (path /, อายุ 7 วัน, ไม่ httponly — ตรงกับ php.ini เดิม) */
+    /**
+     * cookie ที่ต้องส่งกลับ (path /, อายุ 7 วัน เหมือนเดิม)
+     * HttpOnly เสมอ (JS เดิมไม่ได้อ่าน PHPSESSID) + Secure เมื่อ request เป็น HTTPS — ต่างจาก php.ini เดิมโดยตั้งใจ
+     * SameSite = config('session.same_site') (lax) — ระวังหน้าที่ payment gateway POST กลับมา: cookie จะไม่ถูกส่ง
+     */
     public function cookie(): ?\Symfony\Component\HttpFoundation\Cookie
     {
         if (! $this->sendCookie || $this->id === null) {
@@ -127,7 +134,7 @@ final class LegacySession
 
         return Cookie::make(
             $this->cookieName(), $this->id, (int) ceil($this->maxAge() / 60),
-            '/', null, null, false, false, null
+            '/', null, $this->secureRequest, true, false, null
         );
     }
 

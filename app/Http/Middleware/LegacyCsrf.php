@@ -29,7 +29,12 @@ class LegacyCsrf
     private function trusted(Request $request): bool
     {
         $origin = (string) $request->headers->get('Origin', '');
-        if ($origin !== '' && $origin !== 'null') {
+        $xhr = $request->headers->get('X-Requested-With') === 'XMLHttpRequest';
+        if ($origin === 'null') {
+            // Origin: null = sandboxed iframe / data: URL / redirect ข้ามโดเมน → ไม่เชื่อ Referer, ยอมเฉพาะ XHR (ต้องผ่าน CORS preflight)
+            return $xhr;
+        }
+        if ($origin !== '') {
             return $this->sameHost($request, $origin);
         }
         $referer = (string) $request->headers->get('Referer', '');
@@ -37,7 +42,7 @@ class LegacyCsrf
             return $this->sameHost($request, $referer);
         }
 
-        return $request->headers->get('X-Requested-With') === 'XMLHttpRequest';
+        return $xhr;
     }
 
     private function sameHost(Request $request, string $url): bool
