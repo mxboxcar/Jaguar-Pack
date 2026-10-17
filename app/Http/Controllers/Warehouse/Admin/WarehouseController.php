@@ -239,10 +239,14 @@ class WarehouseController extends Controller
     public function saveCancelWarehouseCalculate(Request $request): Response
     {
         $id = $this->in($request, 'id');
-        DB::transaction(function () use ($id) {
-            DB::table('warehouse_detail')->where('warehouse_id', $id)->update(['is_delete' => '1']);
-            DB::table('warehouse_section_detail')->where('warehouse_id', $id)->update(['is_delete' => '1']);
-        });
+        // แก้: เดิม WHERE warehouse_id = '<id>' — id ว่าง/ไม่ใช่ตัวเลข MySQL แปลงเป็น 0 แล้วลบทุกแถวที่ warehouse_id = 0 (และ SQL injection)
+        //      → ทำเฉพาะ id ที่เป็นจำนวนเต็มบวก (หน้าเดิมส่ง id ของใบรับเข้าเสมอ)
+        if (preg_match('/^[1-9]\d*$/', $id)) {
+            DB::transaction(function () use ($id) {
+                DB::table('warehouse_detail')->where('warehouse_id', (int) $id)->update(['is_delete' => '1']);
+                DB::table('warehouse_section_detail')->where('warehouse_id', (int) $id)->update(['is_delete' => '1']);
+            });
+        }
 
         return response(Alerts::success('go_init();go_init_thai();'));
     }
@@ -251,7 +255,8 @@ class WarehouseController extends Controller
     public function savePushTrack(Request $request): Response
     {
         $tracking = preg_replace('/\s+/', '', $this->in($request, 'tracking'));
-        $id = DB::table('tracking')->where('is_delete', 0)->where('tracking', $tracking)->value('id');
+        // แก้: เดิม tracking ว่าง = รับเข้าไทยให้ tracking แถวแรกที่เลขว่าง (load_tracking เดิมกันไว้แต่ไฟล์นี้ไม่กัน)
+        $id = $tracking === '' ? null : DB::table('tracking')->where('is_delete', 0)->where('tracking', $tracking)->value('id');
         if ($id === null) {
             return response("ErrorBox('".Lang::get('no_data')."', 'CloseLoading()'); ");
         }
