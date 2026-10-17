@@ -1,0 +1,68 @@
+#!/bin/bash
+# วัดความเร็ว 1:1 หน้าเดิม (PHP 7.4 :8101) เทียบหน้าใหม่ (Laravel) ด้วย cookie ล็อกอินเดียวกัน
+# กติกาเครื่อง production: concurrency <= 2, requests <= 50 ต่อรอบ
+#
+# ใช้: bin/bench <old-url> <new-url> [-n 50] [-c 1] [--user <id> | --sid <PHPSESSID>] [--post 'a=1&b=2'] [--ajax] [--rounds 2]
+#   ไม่ระบุ --user/--sid = session ของ user 137 (bench_sid)
+#   --ajax  ส่ง X-Requested-With (หน้า ajax เดิมบังคับ)   --post  ส่งเป็น POST form
+# ผลลัพธ์: ตาราง markdown (mean / p50 / p95 ms, req/s, failed, ขนาด) ใช้วางลงรายงานได้เลย
+set -euo pipefail
+[ $# -ge 2 ] || { sed -n '2,9p' "$0"; exit 1; }
+OLD=$1; NEW=$2; shift 2
+N=50; C=1; SID=""; USER_ID=""; POST=""; AJAX=0; ROUNDS=2
+BENCH_DIR=${JL_BENCH_DIR:-/root/webroot-backups/php84-install-20261017}
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -n) N=$2; shift ;; -c) C=$2; shift ;;
+        --sid) SID=$2; shift ;; --user) USER_ID=$2; shift ;;
+        --post) POST=$2; shift ;; --ajax) AJAX=1 ;; --rounds) ROUNDS=$2; shift ;;
+        *) echo "ไม่รู้จัก: $1" >&2; exit 1 ;;
+    esac
+    shift
+done
+[ "$N" -le 50 ] || { echo "requests สูงสุด 50 (เครื่อง production)" >&2; exit 1; }
+[ "$C" -le 2 ] || { echo "concurrency สูงสุด 2 (เครื่อง production)" >&2; exit 1; }
+for u in "$OLD" "$NEW"; do case "$u" in http://127.0.0.1:*|http://localhost:*) ;; *) echo "วัดได้เฉพาะ 127.0.0.1 (ไม่ยิงเว็บจริง): $u" >&2; exit 1;; esac; done
+
+if [ -z "$SID" ]; then
+    if [ -n "$USER_ID" ]; then SID=$(php7.4 "$BENCH_DIR/make_bench_session.php" "$USER_ID"); else SID=$(cat "$BENCH_DIR/bench_sid"); fi
+fi
+TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+ARGS=(-q -n "$N" -c "$C" -C "PHPSESSID=$SID" -H "Origin: http://127.0.0.1")
+[ "$AJAX" = 1 ] && ARGS+=(-H "X-Requested-With: XMLHttpRequest")
+if [ -n "$POST" ]; then printf %s "$POST" > "$TMP/post"; ARGS+=(-p "$TMP/post" -T application/x-www-form-urlencoded); fi
+
+# ตรวจก่อนวัด: status + ขนาด (ไม่ล็อกอิน/โดน redirect = วัดผิดหน้า)
+probe() {
+    local m=(-s -o "$TMP/body" -w '%{http_code} %{size_download}' -b "PHPSESSID=$SID" -H "Origin: http://127.0.0.1")
+    [ "$AJAX" = 1 ] && m+=(-H "X-Requested-With: XMLHttpRequest")
+    [ -n "$POST" ] && m+=(--data "$POST")
+    curl "${m[@]}" "$1"
+}
+read -r OS OB <<<"$(probe "$OLD")"; read -r NS NB <<<"$(probe "$NEW")"
+[ "$OS" = 200 ] && [ "$NS" = 200 ] || echo "คำเตือน: status เดิม=$OS ใหม่=$NS (ควรเป็น 200 ทั้งคู่)" >&2
+
+run() {
+    ab "${ARGS[@]}" "$1" 2>&1 | awk -v name="$2" -v size="$3" '
+        /Requests per second/ {rps=$4}
+        /Time per request:.*\(mean\)$/ {mean=$4}
+        /Failed requests/ {fail=$3}
+        /Non-2xx responses/ {non2=$3}
+        /^  50%/ {p50=$2} /^  95%/ {p95=$2}
+        END {printf "| %s | %s | %s | %s | %s | %s | %s |\n", name, mean, p50, p95, rps, fail+0 "/" non2+0, size}'
+}
+# อุ่นเครื่อง (opcache/query cache) แบบเบาๆ
+ab -q -n 5 -c 1 -C "PHPSESSID=$SID" "$OLD" >/dev/null 2>&1 || true
+ab -q -n 5 -c 1 -C "PHPSESSID=$SID" "$NEW" >/dev/null 2>&1 || true
+
+echo "1:1 bench  n=$N c=$C  $(date '+%F %T')"
+echo "- old: $OLD"
+echo "- new: $NEW"
+echo
+echo "| รอบ/หน้า | mean ms | p50 ms | p95 ms | req/s | failed/non-2xx | bytes |"
+echo "|---|---|---|---|---|---|---|"
+for r in $(seq 1 "$ROUNDS"); do
+    run "$OLD" "#$r เดิม (7.4)" "$OB"
+    run "$NEW" "#$r ใหม่ (Laravel)" "$NB"
+    sleep 1
+done

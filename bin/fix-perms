@@ -1,0 +1,30 @@
+#!/bin/bash
+# ตั้งสิทธิ์ไฟล์ตามกติกาของเครื่อง (ต้องรันด้วย root)
+#   root:site_jllv  dir 2750 / file 640 / ไฟล์รันได้ 750 · โฟลเดอร์บนสุด 2751
+#   storage/ และ bootstrap/cache เป็นของ site_jllv · public/ group www-data
+# ใช้: bin/fix-perms [โฟลเดอร์โปรเจกต์หรือ worktree]   (ไม่ใส่ = repo ของสคริปต์นี้)
+set -euo pipefail
+D=$(cd "${1:-$(dirname "$0")/..}" && pwd)
+[ -f "$D/artisan" ] || { echo "ไม่ใช่โปรเจกต์ Laravel: $D" >&2; exit 1; }
+[ "$(id -u)" = 0 ] || { echo "ต้องรันด้วย root" >&2; exit 1; }
+
+# ไม่แตะ .git และไม่ตาม symlink (vendor/.env/public/assets ของ worktree เป็น symlink)
+find "$D" -mindepth 1 \( -path "$D/.git" -o -path "$D/storage" -o -path "$D/bootstrap/cache" -o -path "$D/public" \) -prune \
+    -o \( -type d -exec chown -h root:site_jllv {} + -exec chmod 2750 {} + \) \
+    -o \( -type f -exec chown -h root:site_jllv {} + -exec chmod 640 {} + \)
+chown root:site_jllv "$D"; chmod 2751 "$D"
+chmod 750 "$D/artisan" "$D"/bin/* 2>/dev/null || true
+
+# storage + bootstrap/cache: เขียนได้โดย php-fpm (site_jllv)
+for w in storage bootstrap/cache; do
+    mkdir -p "$D/$w"
+    chown -hR site_jllv:site_jllv "$D/$w"
+    find "$D/$w" -type d -exec chmod 2750 {} +
+    find "$D/$w" -type f -exec chmod 640 {} +
+done
+
+# public: nginx (www-data) อ่านได้
+find "$D/public" \( -type d -exec chown -h root:www-data {} + -exec chmod 2750 {} + \) -o \( -type f -exec chown -h root:www-data {} + -exec chmod 640 {} + \)
+# .env (ถ้าเป็นไฟล์จริง) อ่านได้เฉพาะ root + site_jllv
+[ -f "$D/.env" ] && [ ! -L "$D/.env" ] && { chown root:site_jllv "$D/.env"; chmod 640 "$D/.env"; }
+echo "ok: ตั้งสิทธิ์ $D แล้ว"

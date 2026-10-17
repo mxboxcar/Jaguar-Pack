@@ -1,0 +1,44 @@
+#!/bin/bash
+# เสิร์ฟ worktree ด้วย PHP built-in server (ไม่แตะ nginx/systemd) ที่ 127.0.0.1 เท่านั้น
+#   port ของแต่ละกลุ่มคงที่: 8201..8213 (เรียงตามรายชื่อกลุ่ม) · main = 8100 (nginx + php-fpm อยู่แล้ว)
+#   รันเป็น user site_jllv (สิทธิ์เดียวกับ php-fpm), PHP_CLI_SERVER_WORKERS=2 (พอสำหรับ ab -c2)
+#
+# ใช้: bin/wt-serve <group> [--bg|--stop|--status]
+#      bin/wt-serve --port-of <group>
+set -euo pipefail
+JL_GROUPS=(tracking shop order payment balance money-move points lot warehouse users messaging reports settings)
+port_of() { local i; for i in "${!JL_GROUPS[@]}"; do [ "${JL_GROUPS[$i]}" = "$1" ] && { echo $((8201 + i)); return 0; }; done; return 1; }
+
+if [ "${1:-}" = "--port-of" ]; then port_of "${2:-}" || { echo "ไม่รู้จักกลุ่ม" >&2; exit 1; }; exit 0; fi
+G=${1:-}; MODE=${2:-fg}
+PORT=$(port_of "$G") || { echo "ใช้: bin/wt-serve <group> [--bg|--stop|--status]   group = ${JL_GROUPS[*]}" >&2; exit 1; }
+ROOT=${JL_WT_ROOT:-/home/admin/laravel/jl-wt}
+WT=$ROOT/$G
+[ -f "$WT/artisan" ] || { echo "ยังไม่มี worktree: $WT (สร้างด้วย bin/wt-new $G)" >&2; exit 1; }
+PID=$WT/storage/logs/wt-serve.pid
+LOG=$WT/storage/logs/wt-serve.log
+
+running() { [ -f "$PID" ] && kill -0 "$(cat "$PID")" 2>/dev/null; }
+case "$MODE" in
+    --stop)
+        if running; then pkill -TERM -P "$(cat "$PID")" 2>/dev/null || true; kill "$(cat "$PID")" 2>/dev/null || true; rm -f "$PID"; echo "หยุดแล้ว ($G :$PORT)"; else echo "ไม่ได้รันอยู่"; fi
+        exit 0 ;;
+    --status)
+        if running; then echo "รันอยู่: http://127.0.0.1:$PORT (pid $(cat "$PID"))"; else echo "ไม่ได้รัน ($G :$PORT)"; fi
+        exit 0 ;;
+esac
+
+if running; then echo "รันอยู่แล้ว: http://127.0.0.1:$PORT" >&2; exit 1; fi
+if ss -ltn "sport = :$PORT" | grep -q LISTEN; then echo "port $PORT ถูกใช้อยู่" >&2; exit 1; fi
+
+ROUTER="$WT/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
+CMD=(env PHP_CLI_SERVER_WORKERS=2 nice -n 5 php8.4 -d variables_order=EGPCS -S "127.0.0.1:$PORT" -t "$WT/public" "$ROUTER")
+cd "$WT"
+if [ "$MODE" = "--bg" ]; then
+    sudo -u site_jllv bash -c 'cd "$1"; shift; nohup "$@" >>"'"$LOG"'" 2>&1 & echo $! > "'"$PID"'"' _ "$WT" "${CMD[@]}"
+    sleep 1
+    running && echo "รันเบื้องหลัง: http://127.0.0.1:$PORT (log $LOG, หยุดด้วย bin/wt-serve $G --stop)" || { echo "เริ่มไม่ได้ ดู $LOG" >&2; exit 1; }
+else
+    echo "http://127.0.0.1:$PORT  (Ctrl+C หยุด)"
+    exec sudo -u site_jllv "${CMD[@]}"
+fi

@@ -1,0 +1,57 @@
+#!/bin/bash
+# สร้าง git worktree สำหรับพอร์ต 1 กลุ่ม: branch mod/<group> ที่ /home/admin/laravel/jl-wt/<group>
+#   - .env   = symlink ไปที่ .env ของ repo หลัก (secret มีที่เดียว; ต้องการค่าต่างให้ใช้ --copy-env)
+#   - vendor = symlink ไปที่ vendor ของ repo หลัก (ห้าม composer require ใน worktree — แจ้งเจ้าของก่อน)
+#   - public/assets → mirror กลาง (bin/link-assets), storage/bootstrap/cache เป็นของ site_jllv
+# ใช้: bin/wt-new <group> [--copy-env] [--base <branch>]     (รันด้วย root)
+set -euo pipefail
+JL_GROUPS="tracking shop order payment balance money-move points lot warehouse users messaging reports settings"
+G=${1:-}; shift || true
+COPY_ENV=0; BASE=main
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --copy-env) COPY_ENV=1 ;;
+        --base) BASE=$2; shift ;;
+        *) echo "ไม่รู้จัก: $1" >&2; exit 1 ;;
+    esac
+    shift
+done
+case " $JL_GROUPS " in *" $G "*) ;; *) echo "ใช้: bin/wt-new <group>   group = $JL_GROUPS" >&2; exit 1 ;; esac
+[ "$(id -u)" = 0 ] || { echo "ต้องรันด้วย root" >&2; exit 1; }
+
+REPO=$(cd "$(dirname "$0")/.." && git rev-parse --show-toplevel)
+# ถ้าเรียกจาก worktree ให้ใช้ repo หลักเสมอ
+REPO=$(cd "$REPO" && cd "$(git rev-parse --git-common-dir)/.." && pwd)
+ROOT=${JL_WT_ROOT:-/home/admin/laravel/jl-wt}
+WT=$ROOT/$G
+BR=mod/$G
+
+mkdir -p "$ROOT"; chown root:site_jllv "$ROOT"; chmod 2751 "$ROOT"
+if [ -e "$WT" ]; then echo "มีอยู่แล้ว: $WT" >&2; exit 1; fi
+
+if git -C "$REPO" show-ref --verify --quiet "refs/heads/$BR"; then
+    git -C "$REPO" worktree add "$WT" "$BR"
+else
+    git -C "$REPO" worktree add -b "$BR" "$WT" "$BASE"
+fi
+
+if [ "$COPY_ENV" = 1 ]; then
+    install -o root -g site_jllv -m 640 "$REPO/.env" "$WT/.env"
+else
+    ln -s "$REPO/.env" "$WT/.env"
+fi
+ln -s "$REPO/vendor" "$WT/vendor"
+
+mkdir -p "$WT"/storage/{app/public,framework/{cache/data,sessions,testing,views},logs} "$WT/bootstrap/cache"
+"$REPO/bin/link-assets" "$WT" >/dev/null
+"$REPO/bin/fix-perms" "$WT" >/dev/null
+sudo -u site_jllv php8.4 "$WT/artisan" optimize:clear >/dev/null
+
+PORT=$("$REPO/bin/wt-serve" --port-of "$G")
+cat <<MSG
+ok: worktree $WT (branch $BR จาก $BASE)
+ต่อไป:
+  cd $WT
+  bin/wt-serve $G          # เสิร์ฟที่ http://127.0.0.1:$PORT
+  bin/bench http://127.0.0.1:8101/index.php?page=... http://127.0.0.1:$PORT/...
+MSG
