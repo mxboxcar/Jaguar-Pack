@@ -57,6 +57,7 @@ load_lot_detail ช้ากว่าเดิมเล็กน้อย = over
 ## ต่างจากเดิมโดยตั้งใจ
 
 - ลูกค้า `goodsconfirm`: `save_approved` / `load_tracking_by_id` ตรวจเจ้าของ (เดิมไม่ตรวจ: เขียนทับ `user` ของรายการที่อนุมัติให้คนอื่นแล้วได้ / ดูล็อต-วันที่ของ tracking ใดก็ได้)
+  - `save_approved` ใช้เงื่อนไขเดียวกับหน้า form: ยึดได้เฉพาะรายการที่ยังไม่ถูกลบ (`is_delete = 0`) และ status 0 หรือเป็นของตัวเอง → รายการที่ยกเลิกแล้ว (status -1) หรือถูกลบ ยึดไม่ได้ (เดิมยึดได้ผ่าน POST ตรงๆ แม้หน้า form ไม่ให้เข้า)
 - `save_track_weight`: JS `go_receive()` เดิมไม่ส่ง `tracking` → เดิมเขียนเลข tracking เป็น `''` (ข้อมูลหาย) — ใหม่: ไม่ส่งมา = ไม่แก้เลข tracking
 - `save_cancel_warehouse_calculate`: ทำเฉพาะ id ที่เป็นจำนวนเต็มบวก (เดิม id ว่าง → `warehouse_id = ''` = ทุกแถวที่ warehouse_id 0)
 - `save_push_track`: tracking ว่าง = ไม่พบข้อมูล (เดิมรับเข้าไทยให้แถวแรกที่เลข tracking ว่าง)
@@ -91,3 +92,14 @@ load_lot_detail ช้ากว่าเดิมเล็กน้อย = over
 ## ไฟล์ฐานร่วมที่แก้ (commit แยก `foundation:`)
 
 - `bootstrap/app.php`: เอา `TrimStrings` / `ConvertEmptyStringsToNull` ออก — เว็บเดิมไม่ trim/ไม่แปลง `''` เป็น null (ค่าที่ลง DB/แสดงผลต้องเป็นค่าดิบ)
+
+## Review (adversarial, 2026-10-18)
+
+- เทียบ HTTP จริง :8101 vs :8209 ซ้ำ (ลูกค้า 137 / zz_fdn_cust, แอดมิน zz_fdn_admin, role 4/5/7 ที่มีสิทธิ์บางส่วน, ภาษา th/en/cn): ทุกหน้า/grid/load_* ตรงกัน
+  ต่างเฉพาะ (1) หน้าที่ไม่มีสิทธิ์: เดิมพิมพ์หัวหน้า (ชื่อ/ปุ่ม) ก่อน `getPermissionAlert_Page()` ใหม่แสดง layout + alert อย่างเดียว,
+  (2) grid ที่ส่ง `page` ไม่ใช่ตัวเลข: ลิงก์ paging/`fn_public` ต่าง (ใหม่ตัดอักขระที่ไม่ใช่ตัวเลข = กัน XSS; ส่วน `Paging::getpaging` เป็นของฐานร่วม)
+- `save_lot_detail`: เทียบการจัดชั้นวางกับโค้ดเดิมโดยรันไฟล์เดิมด้วย php7.4 CLI ใน transaction เดียวที่ ROLLBACK เสมอ (แทน `mysqlquerys` ด้วยตัวที่ใช้ connection เดียว, ไม่ผ่าน goLog)
+  กับ tracking zz 12 แถว / ลูกค้า 10 คน (ชั้น A03 เต็ม 17 รหัสแล้วย้ายไป A04, ลูกค้า ≥50 kg ไปชั้น 1): ชั้นที่ได้ทุกแถวและ HTML ที่ตอบตรงกับเดิม
+- แก้: ลูกค้า `save_approved` ยึดรายการที่ถูกลบได้ (ดูด้านบน)
+- ยังเหมือนเดิม (แอดมินเท่านั้น): `save_lot_detail` ไม่มี `id` = บันทึกด้วย warehouse_id 0; `cancel`/`save_approved`/`save_unapproved` ไม่ตรวจ `is_delete`;
+  ค่า id ที่เป็น string เช่น `5abc` ถูก MySQL แปลงเป็น 5 (bind แล้ว ไม่ใช่ injection)

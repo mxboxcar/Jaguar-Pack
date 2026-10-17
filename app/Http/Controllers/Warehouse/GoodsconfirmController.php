@@ -134,16 +134,17 @@ class GoodsconfirmController extends Controller
         $out = '';
         $denied = false;
         DB::transaction(function () use ($id, $file, &$out, &$denied) {
-            $row = W::strings(DB::table('goodsconfirm')->where('id', $id)->lockForUpdate()->first(['id', 'status', 'user']));
+            // แก้: เดิมไม่กรอง is_delete → ลูกค้ายึดรายการที่ถูกลบแล้วได้ (หน้า form ไม่แสดงรายการที่ลบ) — ไม่พบ = ไม่ทำอะไร (เดิม UPDATE ไม่ตรงแถวใด)
+            $row = W::strings(DB::table('goodsconfirm')->where('id', $id)->where('is_delete', 0)->lockForUpdate()->first(['id', 'status', 'user']));
             // เดิม: ไม่ตรวจเจ้าของ (status != 1 → เขียนทับ user ได้ แม้เป็นรายการที่อนุมัติให้คนอื่นแล้ว)
             if ($row !== null && Php74::neq($row['status'], 0) && Php74::neq($row['user'], Legacy::userId())) {
                 $denied = true;
 
                 return;
             }
-            if ($row === null || Php74::neq($row['status'], 1)) {
+            if ($row !== null && Php74::neq($row['status'], 1)) {
                 // เดิม approved_remark มาจาก extract($_GET) → ว่าง
-                DB::table('goodsconfirm')->where('id', $id)->update([
+                DB::table('goodsconfirm')->where('id', $row['id'])->where('is_delete', 0)->update([
                     'status' => '1', 'approved_upload' => $file, 'approved_remark' => '', 'user' => (int) Legacy::userId(),
                 ]);
                 if (W::tempFileExists($file)) {
