@@ -29,12 +29,12 @@ WT=$ROOT/$G
 BR=mod/$G
 
 if [ -d "$WT" ]; then
-    "$REPO/bin/wt-serve" "$G" --stop >/dev/null 2>&1 || true
     # ไฟล์ที่ git ไม่รู้จัก (symlink .env/vendor/public/assets, storage ที่ ignore) ไม่นับเป็นงานค้าง
     if [ "$FORCE" = 0 ] && [ -n "$(git -C "$WT" status --porcelain --untracked-files=normal)" ]; then
         echo "worktree มีไฟล์ที่ยังไม่ commit:" >&2; git -C "$WT" status --short >&2
         echo "commit ก่อน หรือใส่ --force (งานหาย)" >&2; exit 1
     fi
+    "$REPO/bin/wt-serve" "$G" --stop >/dev/null 2>&1 || true
     # symlink/ไฟล์ ignore ต้องลบเองก่อน (git worktree remove ไม่ยอมลบไฟล์ ignore ถ้าไม่ --force)
     # (ลบเฉพาะลิงก์ ไม่ตาม symlink เข้าไปลบของ main/mirror: rm -rf ไม่ตาม symlink ที่อยู่ข้างใน)
     rm -f "$WT/.env" "$WT/public/assets"
