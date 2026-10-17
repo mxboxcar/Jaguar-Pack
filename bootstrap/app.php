@@ -47,6 +47,12 @@ return Application::configure(basePath: dirname(__DIR__))
             SubstituteBindings::class,
         ]);
 
+        // เว็บเดิมไม่ trim / ไม่แปลง '' เป็น null — ค่าที่ LegacyInput อ่านต้องเป็นค่าดิบ (เช่น "abc " หรือ "|1|| " ต้องลง DB/แสดงผลเหมือนเดิม)
+        $middleware->remove([
+            \Illuminate\Foundation\Http\Middleware\TrimStrings::class,
+            \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+        ]);
+
         $middleware->alias([
             'legacy.auth' => LegacyAuthenticate::class,
             'legacy.perm' => LegacyPermission::class,
