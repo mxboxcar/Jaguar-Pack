@@ -111,6 +111,12 @@ return [
         'enabled' => env('LEGACY_EXTERNAL_ENABLED', false),
         'cache_api' => env('LEGACY_CACHE_API_URL'),
         'line_channel_token' => env('LEGACY_LINE_CHANNEL_TOKEN'),
+        // LINE Notify OAuth (_linenotify/*.php เดิมฝังค่าไว้ในโค้ด) — ค่าจริงอยู่ใน .env เท่านั้น
+        'line_notify' => [
+            'client_id' => env('LEGACY_LINE_NOTIFY_CLIENT_ID', ''),
+            'client_secret' => env('LEGACY_LINE_NOTIFY_CLIENT_SECRET', ''),
+            'callback_url' => env('LEGACY_LINE_NOTIFY_CALLBACK_URL', 'http://portal.jlcargoth.com/_linenotify/callback'),
+        ],
     ],
 
     // dev: ส่งต่อ URL ที่ยังไม่พอร์ตไปเว็บเดิม (เช่น http://127.0.0.1:8101) เพื่อให้เมนู/แจ้งเตือนใช้ได้
