@@ -22,6 +22,9 @@ class RouteSecurityTest extends TestCase
         'system_change_language' => 'ตั้ง cookie ภาษา',
         'up' => 'health check ของ Laravel',
         'dev/whoami' => 'dev เท่านั้น: บอกว่า session นี้เป็นใคร',
+        'gateway' => 'settings: ประกาศย้ายระบบ 2017 (ข้อความคงที่ เดิมสาธารณะ)',
+        'index_close' => 'settings: หน้าปิดปรับปรุง (ข้อความคงที่ เดิมสาธารณะ)',
+        'get_resource' => 'settings: ข้อความภาษาของระบบ (lang/*, เดิมสาธารณะ)',
     ];
 
     private const AUTH = ['legacy.auth', 'legacy.perm', 'legacy.own'];
