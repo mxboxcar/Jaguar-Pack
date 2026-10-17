@@ -40,7 +40,9 @@ class AdminBalanceController extends Controller
             ->leftJoin('user', 'user.id', '=', 'balance.user')
             ->where('balance.is_delete', '0');
         if ($s['term'] !== '') {
-            $q->whereIn('balance.id', $this->searchIds($s['term']));
+            // whereIntegerInRaw: ids เป็น int ทั้งหมด (cast ใน searchIds) — whereIn ปกติ bind ทีละตัว
+            // แล้วพังเมื่อเกิน 65,535 placeholder (MySQL 1390) เช่นค้น "JL" บน production ได้ ~600k แถว
+            $q->whereIntegerInRaw('balance.id', $this->searchIds($s['term']));
         }
         if (Ledger::typeFilterApplies($s['type'])) {
             $q->where('balance.type', $s['type']);

@@ -58,7 +58,7 @@ grid ทั้ง 5 (หน้า 1–3, ค้นหาด้วยรหัส
 - ค่าจาก DB/ผู้ใช้ escape ทั้งหมด (`detail`, ชื่อประเภท, รหัสลูกค้า, คำค้นใน `value=`) — เดิม echo ดิบ (stored/reflected XSS); `'` ในคำค้นแสดงเป็น `&#039;`
 - `$_POST['page']` ที่เดิมฝังลง JS (`fn_public = "...'<page>'..."`) ผ่าน `Alerts::js()` + `e()`
 - LIKE ของ grid ลูกค้า/แอดมินหยวน/บริษัท escape `%` `_` (CONVENTIONS ข้อ 4) — เดิม `%`/`_` ที่ผู้ใช้พิมพ์เป็น wildcard
-- N+1: ยอดคงเหลือ (SUM ต่อแถว), รูปสลิปถอน (`balance_withdraw` ต่อแถว), ผู้ทำรายการ (`user` ต่อแถว) → subquery/LEFT JOIN ในคำสั่งเดียว; ค้นหาแอดมินบาทยังเป็น 2 ขั้น (UNION หา id แล้ว `IN`) เหมือนเดิมเพื่อใช้ index
+- N+1: ยอดคงเหลือ (SUM ต่อแถว), รูปสลิปถอน (`balance_withdraw` ต่อแถว), ผู้ทำรายการ (`user` ต่อแถว) → subquery/LEFT JOIN ในคำสั่งเดียว; ค้นหาแอดมินบาทยังเป็น 2 ขั้น (UNION หา id แล้ว `IN`) เหมือนเดิมเพื่อใช้ index — `IN` ใส่ id (int) ลง SQL ด้วย `whereIntegerInRaw` เพราะ bind ทีละตัวพังเมื่อเกิน 65,535 placeholder (ค้น `JL` บน production ได้ ~600k แถว; DB bench ตาราง `balance` ว่าง จึงไม่เห็นตอนเทียบ)
 - `save_withdraw` (บาท/หยวน): ห่อ `DB::transaction()` + `SELECT … FOR UPDATE` แถว user แล้วตรวจยอดใน transaction — เดิมตรวจยอดกับ INSERT แยกกัน กดซ้อนกันถอนเกินยอดได้
 - `save_withdraw` บาท: ไม่รัน query นับรายการถอนในสัปดาห์ + `bypass_withdraw` (เดิมคำนวณแล้วไม่ได้ใช้ — โค้ดที่ใช้ถูก comment)
 - `save_withdraw` หยวน: `branch_no/branch_bank/branch_name` = `''` เสมอ (เดิมเป็นตัวแปรที่ไม่ได้กำหนด แต่ตั้งได้ผ่าน `?bank_no=` เพราะ `extract($_GET)`)
