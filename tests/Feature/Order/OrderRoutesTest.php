@@ -167,4 +167,30 @@ class OrderRoutesTest extends TestCase
     {
         $this->assertSame('%50\%\_x%', OrderQueries::like('50%_x'));
     }
+
+    public function test_js_inside_html_attribute_re_encodes_entities(): void
+    {
+        // h() ไม่ encode entity ซ้ำ: "&#39;" ใน attribute จะถูก browser ถอดเป็น ' ก่อนรัน JS → jsAttr ต้อง encode ซ้ำ
+        $this->assertSame('1&amp;#39;);alert(1);//', Html::jsAttr('1&#39;);alert(1);//'));
+        $this->assertSame("a\\&#039;b\\x22", Html::jsAttr("a'b\""));
+        $this->assertSame('12', Html::jsAttr('12'));
+    }
+
+    public function test_js_nested_in_double_quoted_eval_string(): void
+    {
+        // fn_public = "loadAjaxGrid('x', '<page>')" แล้ว eval() → ต้อง escape 2 ชั้น
+        $this->assertSame("1\\\\\\');alert(1);//", Html::jsNested("1');alert(1);//"));
+        $this->assertSame('1\\\\x22+alert(1)+\\\\x22', Html::jsNested('1"+alert(1)+"'));
+        $this->assertSame('3', Html::jsNested('3'));
+    }
+
+    public function test_url_drops_script_schemes(): void
+    {
+        $this->assertSame('http://x/?a=1&amp;b', Html::url('http://x/?a=1&amp;b'));
+        $this->assertSame('//item.taobao.com/item.htm?id=1', Html::url('//item.taobao.com/item.htm?id=1'));
+        $this->assertSame('#', Html::url('javascript:alert(1)'));
+        $this->assertSame('#', Html::url(' JaVa&#x09;script&#58;alert(1)'));
+        $this->assertSame('#', Html::url('data:text/html,<script>x</script>'));
+        $this->assertSame('', Html::url(null));
+    }
 }

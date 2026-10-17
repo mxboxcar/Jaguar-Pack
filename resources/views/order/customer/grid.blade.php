@@ -161,7 +161,7 @@
     $("#txtsearch").bind("keypress", {}, keypressInBox);
 
     function Delete(id) {
-        fn_public = "loadAjaxGrid('{{ $ajaxpage }}', '{!! Alerts::js($page) !!}',  $('#txtSearch').val());";
+        fn_public = "loadAjaxGrid('{{ $ajaxpage }}', '{!! Html::jsNested($page) !!}',  $('#txtSearch').val());";
         ConfirmBox(function() {
             $.ajax({
                 type: 'POST',
@@ -179,7 +179,7 @@
         if($("#Checking").val() == "") {
             ErrorBox('{!! res("add_more_then_one") !!}');
         } else {
-            fn_public = "loadAjaxGrid('{{ $ajaxpage }}', '{!! Alerts::js($page) !!}',  $('#txtSearch').val());";
+            fn_public = "loadAjaxGrid('{{ $ajaxpage }}', '{!! Html::jsNested($page) !!}',  $('#txtSearch').val());";
             ConfirmBox(function() {
                 $.ajax({
                     type: 'POST',

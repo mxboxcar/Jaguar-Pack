@@ -140,24 +140,26 @@ class AdminOrderDetailController extends Controller
         $item = $this->in($request, 'cashback_item');
         $color = $this->in($request, 'color');
         $uid = Legacy::userId();
-        $data = DB::table('bill_product_detail')->where('id', $id)->first();
-        $newId = '';
-        if ($data !== null) {
-            $newId = DB::transaction(function () use ($data, $id, $cashback, $remark, $item, $color, $uid) {
-                $pid = OrderLookups::prefixId('order');
-                DB::table('balance')->where('prefix', $pid)->where('prefix_ref_id', $data->bill_product_id)
-                    ->where('ref_id_2', $data->id)->update(['is_delete' => '1']);
-                DB::table('bill_product_detail')->where('id', $id)->update(['color_tr' => $color, 'cashback_remark' => $remark]);
-
-                return DB::table('balance')->insertGetId([
-                    'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
-                    'is_delete' => 0, 'user' => $data->user, 'amount' => $cashback, 'detail' => 'ยกเลิกรายการ '.$item,
-                    'type' => 2, 'prefix' => $pid, 'prefix_ref_id' => $data->bill_product_id, 'ref_id_2' => $data->id,
-                ]);
-            });
-            if (! config('legacy.debug_mail')) {
-                OrderMailer::orderCashback((int) $data->bill_product_id, (int) $data->id, $cashback, $item);
+        // ล็อกแถวรายการก่อน: กดซ้ำพร้อมกัน 2 ครั้ง (เดิมและก่อนแก้) = ทั้งคู่ "ลบของเก่า" แล้ว INSERT คนละแถว → คืนเงินซ้ำ
+        [$data, $newId] = DB::transaction(function () use ($id, $cashback, $remark, $item, $color, $uid) {
+            $data = DB::table('bill_product_detail')->where('id', $id)->lockForUpdate()->first();
+            if ($data === null) {
+                return [null, ''];
             }
+            $pid = OrderLookups::prefixId('order');
+            DB::table('balance')->where('prefix', $pid)->where('prefix_ref_id', $data->bill_product_id)
+                ->where('ref_id_2', $data->id)->update(['is_delete' => '1']);
+            DB::table('bill_product_detail')->where('id', $id)->update(['color_tr' => $color, 'cashback_remark' => $remark]);
+            $newId = DB::table('balance')->insertGetId([
+                'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
+                'is_delete' => 0, 'user' => $data->user, 'amount' => $cashback, 'detail' => 'ยกเลิกรายการ '.$item,
+                'type' => 2, 'prefix' => $pid, 'prefix_ref_id' => $data->bill_product_id, 'ref_id_2' => $data->id,
+            ]);
+
+            return [$data, $newId];
+        });
+        if ($data !== null && ! config('legacy.debug_mail')) {
+            OrderMailer::orderCashback((int) $data->bill_product_id, (int) $data->id, $cashback, $item);
         }
 
         return response(Alerts::success('LoadDetail();', Lang::get('success_process_no').OrderLookups::prefix('balance').$newId));
@@ -335,7 +337,7 @@ class AdminOrderDetailController extends Controller
         });
 
         $r = fn ($k) => Lang::get($k);
-        $js = Html::h(str_replace(['\\', "'"], ['\\\\', "\\'"], $order));
+        $js = htmlspecialchars(str_replace(['\\', "'"], ['\\\\', "\\'"], $order), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401, 'UTF-8', true);
 
         return response('<tr class="tracking_list">
 		<td class="bxr_form_left" style="vertical-align: top;padding-top: 15px;">'.$r('tracking').' : </td>

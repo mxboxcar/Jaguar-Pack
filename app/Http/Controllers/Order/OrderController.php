@@ -156,7 +156,7 @@ class OrderController extends Controller
         $remark = $this->in($request, 'submit_remark');
         $done = function () use ($idRaw) {
             return response(Alerts::success('window.location.href = "'.Legacy::href('order').'";',
-                Lang::get('success_process_no').OrderLookups::prefix('order').Alerts::js($idRaw)));
+                Lang::get('success_process_no').OrderLookups::prefix('order').Alerts::js(e($idRaw))));
         };
 
         $result = DB::transaction(function () use ($uid, $idRaw, $remark) {

@@ -169,10 +169,10 @@ final class OrderDetailRenderer
         $color = (string) ($item['color'] ?? '');
         if (str_contains($size, '//')) {
             $s .= $admin
-                ? '<a class="fancybox" target="_blank" href="'.Html::h($size).'">
+                ? '<a class="fancybox" target="_blank" href="'.Html::url($size).'">
 	                        <img src="'.Html::h($size).'" style="border:1px solid #a0a0a0;max-width: 26px;max-height: 26px;margin-right: 10px;">
 	                    </a>'
-                : '<a class="fancybox" target="_blank" href="'.Html::h($size).'">
+                : '<a class="fancybox" target="_blank" href="'.Html::url($size).'">
                             <img src="'.Html::h($size).'" style="border:1px solid #a0a0a0;max-width: 26px;max-height: 26px;margin-right: 10px;">
                         </a>';
         } elseif ($size !== '') {
@@ -181,10 +181,10 @@ final class OrderDetailRenderer
         }
         if (str_contains($color, '//')) {
             $s .= $admin
-                ? '<a class="fancybox" target="_blank" href="'.Html::h($color).'">
+                ? '<a class="fancybox" target="_blank" href="'.Html::url($color).'">
 	                        <img src="'.Html::h($color).'" style="border:1px solid #a0a0a0;max-width: 26px;max-height: 26px;margin-right: 10px;"> <span>'.Html::h(explode('?r=', $color)[1] ?? '').'</span>
 	                    </a>'
-                : '<a class="fancybox" target="_blank" href="'.Html::h($color).'">
+                : '<a class="fancybox" target="_blank" href="'.Html::url($color).'">
                             <img src="'.Html::h($color).'" style="border:1px solid #a0a0a0;max-width: 26px;max-height: 26px;margin-right: 10px;">
                         </a>';
         } else {
@@ -343,10 +343,10 @@ final class OrderDetailRenderer
                 $color = self::trColor($item);
                 $html .= '<tr>';
                 $html .= '<td style="width:50px;'.$color.'">'.$mainNo.'.'.$no.'.</td>';
-                $html .= '<td style="width:70px;'.$colors.'" class="text-center"><a class="fancybox" target="_blank" href="'.Html::h($item['main_image']).'">
+                $html .= '<td style="width:70px;'.$colors.'" class="text-center"><a class="fancybox" target="_blank" href="'.Html::url($item['main_image']).'">
                 <img src="'.Html::h($item['main_image']).'" style="max-width: 46px;max-height: 46px;">
             </a></td>';
-                $html .= '<td style="'.$color.'" ><a target="_blank" href="'.Html::h($item['url']).'">'.Html::h($pname).'</a>';
+                $html .= '<td style="'.$color.'" ><a target="_blank" href="'.Html::url($item['url']).'">'.Html::h($pname).'</a>';
                 if ($second !== '') {
                     $html .= '<div class="cd-price">'.$second.'</div>';
                 }
@@ -632,10 +632,10 @@ final class OrderDetailRenderer
                 $color = self::trColor($item);
                 $html .= '<tr>';
                 $html .= '<td style="width:50px;'.$color.'">'.$mainNo.'.'.$no.'.</td>';
-                $html .= '<td style="width:70px;'.$colors.'" class="text-center"><a class="fancybox" target="_blank" href="'.Html::h($item['main_image']).'">
+                $html .= '<td style="width:70px;'.$colors.'" class="text-center"><a class="fancybox" target="_blank" href="'.Html::url($item['main_image']).'">
                 <img src="'.Html::h($item['main_image']).'" style="max-width: 46px;max-height: 46px;">
             </a></td>';
-                $html .= '<td style="'.$color.'" ><a target="_blank" href="'.Html::h($item['url']).'">'.Html::h($pname).'</a>';
+                $html .= '<td style="'.$color.'" ><a target="_blank" href="'.Html::url($item['url']).'">'.Html::h($pname).'</a>';
                 if ($second !== '') {
                     $html .= '<div class="cd-price">'.$second.'</div>';
                 }
@@ -665,7 +665,8 @@ final class OrderDetailRenderer
                 $html .= '<td style="width: 80px;'.$color.'" class="text-right">'.Format::numberformat($amount * $price, true, true, true).'</td>';
                 $html .= '<td style="width: 80px;'.$color.'" class="text-right">'.Format::numberformat($amount * ($price * $rate)).'</td>';
                 // ค่าที่เดิมฝังใน string JS '...' ของ onclick: escape แบบ JS ก่อนแล้วค่อย escape แบบ HTML (เดิมไม่ escape)
-                $js = fn ($v) => Html::h(str_replace(['\\', "'"], ['\\\\', "\\'"], (string) $v));
+                // (encode entity ซ้ำเสมอ: ค่า "&#39;" ใน DB จะถูกถอดเป็น ' ใน attribute ก่อนรัน JS)
+                $js = fn ($v) => htmlspecialchars(str_replace(['\\', "'"], ['\\\\', "\\'"], (string) $v), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401, 'UTF-8', true);
                 $remark = implode('\n\r', array_map($js, preg_split('#\R+#', (string) ($item['cashback_remark'] ?? ''))));
                 $itemLabel = $orderPrefix.($head['id'] ?? '').' ลำดับ '.$mainNo.'.'.$no;
                 $html .= '<td style="width: 40px;'.$color.'" class="text-center"><button class="btn-warning" onclick="cashback_form('.$item['id'].', \''.$js($item['amount']).'\', \''.$js($item['exchange_rate']).'\', \''.$js($item['price']).'\', \''.$js($item['amount_before']).'\', \''.$remark.'\', \''.$js($itemLabel).'\')" ><i class="md md-attach-money"></i></button>

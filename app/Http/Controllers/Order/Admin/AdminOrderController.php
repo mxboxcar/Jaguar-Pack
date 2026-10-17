@@ -162,7 +162,7 @@ class AdminOrderController extends Controller
         }
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/order').'";',
-            Lang::get('success_process_no').OrderLookups::prefix('order').Alerts::js($idRaw)));
+            Lang::get('success_process_no').OrderLookups::prefix('order').Alerts::js(e($idRaw))));
     }
 
     /** POST /_admin/_order/save_approved — ยืนยันใบ (status 1) แล้วแจ้งลูกค้า */
@@ -181,7 +181,7 @@ class AdminOrderController extends Controller
         }
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/order').'";',
-            Lang::get('success_process_no').OrderLookups::prefix('order').Alerts::js($idRaw)));
+            Lang::get('success_process_no').OrderLookups::prefix('order').Alerts::js(e($idRaw))));
     }
 
     /** POST /_admin/_order/save_finish — ปิดใบ (2 → 3) เมื่อมีรายการชำระเงินแล้ว */
@@ -204,7 +204,7 @@ class AdminOrderController extends Controller
         }
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/order').'";',
-            Lang::get('success_process_no').OrderLookups::prefix('order').Alerts::js($idRaw)));
+            Lang::get('success_process_no').OrderLookups::prefix('order').Alerts::js(e($idRaw))));
     }
 
     /** POST /_admin/_order/save_lock */

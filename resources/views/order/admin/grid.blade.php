@@ -21,7 +21,7 @@
                 </div>
 
                 <div class="col-xs-2 col-sm-2 col-lg-2">
-                    <select name="ship" class="form-control " id="ship" onchange="GenerateWhere();loadAjaxGrid('{{ $ajaxpage }}', '{!! Alerts::js($page) !!}',  $('#txtSearch').val());">
+                    <select name="ship" class="form-control " id="ship" onchange="GenerateWhere();loadAjaxGrid('{{ $ajaxpage }}', '{!! Html::jsAttr($page) !!}',  $('#txtSearch').val());">
                         <option {!! $sel($ship, '-2') !!} value="-2">- {!! res('all') !!} -</option>  
                         <option {!! $sel($ship, '0') !!} value="0">{!! res('car') !!}</option>
                         <option {!! $sel($ship, '1') !!} value="1">{!! res('ship') !!}</option>
@@ -29,7 +29,7 @@
                 </div>
 
                 <div class="col-xs-2 col-sm-2 col-lg-2">
-                    <select name="status" class="form-control " id="status" onchange="GenerateWhere();loadAjaxGrid('{{ $ajaxpage }}', '{!! Alerts::js($page) !!}',  $('#txtSearch').val());">
+                    <select name="status" class="form-control " id="status" onchange="GenerateWhere();loadAjaxGrid('{{ $ajaxpage }}', '{!! Html::jsAttr($page) !!}',  $('#txtSearch').val());">
                         <option {!! $sel($status, '-2') !!} value="-2">- {!! res('all') !!} -</option>  
                         <option {!! $sel($status, '-1') !!} value="-1">{!! res('order_status_4') !!}</option>    
                         <option {!! $sel($status, '0') !!} value="0">{!! res('order_status_0') !!}</option>    
@@ -168,7 +168,7 @@
     $("#txtsearch").bind("keypress", {}, keypressInBox);
 
     function Delete(id) {
-        fn_public = "loadAjaxGrid('{{ $ajaxpage }}', '{!! Alerts::js($page) !!}',  $('#txtSearch').val());";
+        fn_public = "loadAjaxGrid('{{ $ajaxpage }}', '{!! Html::jsNested($page) !!}',  $('#txtSearch').val());";
         ConfirmBox(function() {
             $.ajax({
                 type: 'POST',
@@ -186,7 +186,7 @@
         if($("#Checking").val() == "") {
             ErrorBox('{!! res("add_more_then_one") !!}');
         } else {
-            fn_public = "loadAjaxGrid('{{ $ajaxpage }}', '{!! Alerts::js($page) !!}',  $('#txtSearch').val());";
+            fn_public = "loadAjaxGrid('{{ $ajaxpage }}', '{!! Html::jsNested($page) !!}',  $('#txtSearch').val());";
             ConfirmBox(function() {
                 $.ajax({
                     type: 'POST',

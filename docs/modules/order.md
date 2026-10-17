@@ -36,7 +36,7 @@ worktree: `/home/admin/laravel/jl-wt/order` (branch `mod/order`, port 8203) · �
 | `_admin/_order/{load_paging, delete, save_approved, save_finish, save_lock, save_remark, save_quote_admin, save_vat, load_detail, load_calculate_cashback, load_color_form, load_remark_product, load_remark_shop, save_price, save_shipping, save_cashback, save_cashback_cancel, save_color, save_craft, save_qc, save_remark_product, save_remark_shop, save_product_type, save_order_number, save_tracking, save_quote, save_valid_track, save_add_new_track, save_remove_track}` | admin_order | ตรงกับ getPermission เดิม |
 | `_admin/_order/load_total_order` | admin_order | **เดิมไม่ตรวจสิทธิ์** |
 | `_admin/_order/save_amount` | admin_order | **เดิมไม่ตรวจสิทธิ์และไม่ตรวจล็อกอิน** |
-| `_admin/_order/email_{approved,cancel,cashback}` | admin_order (GET/POST, ตอบว่าง) | เดิมเป็นไฟล์ที่ `include` จาก save_*; เรียกตรงไม่มี `$email_id` = ไม่ได้ทำอะไรที่ใช้ได้ → ตัวส่งจริงอยู่ใน `OrderMailer` |
+| `_admin/_order/email_{approved,cancel,cashback}` | admin_order (GET/POST, ตอบว่าง) | เดิมเป็นไฟล์ที่ `include` จาก save_*; เรียกตรงได้โดยไม่ล็อกอิน และ `extract($_GET)` ทำให้ `?email_id=` ส่งอีเมลจริงได้ (ดูข้อ 3) → ใหม่ไม่ทำอะไร ตัวส่งจริงอยู่ใน `OrderMailer` |
 | `_admin/_taobao/grid` | legacy.auth + ตรวจ `admin_taobao` | ไม่มีสิทธิ์ = ตอบว่าง |
 | `_admin/_taobao/{save, save_remark, save_cancel}` | admin_taobao | |
 | `_admin/_taobao/save_approved` | legacy.auth + ตรวจ `admin_taobao` ใน controller | เดิมแจ้งเตือนด้วยชื่อโมดูล `admin_shop_cashback` — คงข้อความเดิม |
@@ -93,7 +93,7 @@ worktree: `/home/admin/laravel/jl-wt/order` (branch `mod/order`, port 8203) · �
 | `_order/delete.php` | ลูกค้ายกเลิกใบได้ทุกสถานะด้วย POST ตรง (ใบที่จ่ายแล้ว/แอดมินล็อก — ไม่มีการคืนเงิน) | เฉพาะ status 0 และไม่ถูกล็อก (ตามปุ่มในหน้า) |
 | `_admin/_order/save_amount.php` | ไม่ตรวจล็อกอิน/สิทธิ์ — ใครก็แก้จำนวนสินค้าและยอดรวมใบสั่งซื้อได้ | admin_order |
 | `_admin/_order/load_total_order.php` | ไม่ตรวจสิทธิ์ (รั่วจำนวนใบทั้งระบบ) | admin_order |
-| `_admin/_order/email_*.php`, `_admin/_taobao/email_*.php` | เรียกตรงได้โดยไม่ตรวจอะไร | admin_order / admin_taobao, ไม่ทำอะไร |
+| `_admin/_order/email_*.php`, `_admin/_taobao/email_*.php` | เรียกตรงได้โดยไม่ตรวจอะไร — `GET ?email_id=<id>&ids=<id>` (ผ่าน `extract($_GET)`) ส่งอีเมล/LINE แจ้งลูกค้าจริงโดยไม่ต้องล็อกอิน | admin_order / admin_taobao, ไม่ทำอะไร |
 | `_admin/_order/delete.php`, `_admin/_taobao/save_cancel.php`, `rollback.php` | race: กดซ้ำ/ยิงพร้อมกัน = คืนเงิน/หักเงินซ้ำ | transaction + ล็อกแถว + พลิกสถานะแบบ atomic |
 | `_order/form.php`, `_admin/_order/form.php` | XSS ผ่าน URL: `var freagment = '<?php echo $div ?>'` (strip_tags ไม่กัน `'`) | escape แบบ JS |
 | grid/form/print ทุกตัว | stored XSS: ชื่อสินค้า/ร้าน/หมายเหตุ/tracking/quote/cancel_remark ฯลฯ echo ดิบ (ลูกค้าเขียนเองได้ → แอดมินเปิดดู) | escape |
@@ -101,6 +101,18 @@ worktree: `/home/admin/laravel/jl-wt/order` (branch `mod/order`, port 8203) · �
 | `_admin/_order/save_remove_track.php` | echo SQL กลับ | ตอบว่าง |
 | ทุก POST | ไม่มี CSRF | `LegacyCsrf` (Origin/Referer หรือ XHR) — JS เดิมใช้ได้ (ทดสอบ origin อื่น = 403) |
 | `system_status_function.php` (readRedis) | รหัส Redis ภายนอกฝังในโค้ดเดิม | ไม่ใช้/ไม่คัดลอก — ใช้ Cache ของ Laravel |
+
+### ช่องโหว่ที่พบจากการ review (แก้แล้วใน branch นี้)
+
+| ที่ | ปัญหา | แก้ |
+|---|---|---|
+| `load_detail` (ปุ่ม `cashback_form`) และ `save_add_new_track` (ค่า `order`) | ค่าที่ฝังใน string JS ใน `onclick=`/`onblur=` ใช้ `Html::h()` ซึ่ง **ไม่ encode entity ซ้ำ** → ค่าใน DB/POST อย่าง `1&#39;);alert(1);//` (amount, amount_before, price, cashback_remark) ถูก browser ถอดเป็น `'` ก่อนรัน JS = stored XSS ในหน้าแอดมิน | escape JS แล้ว `htmlspecialchars` แบบ encode ซ้ำเสมอ (`Html::jsAttr()` / ใน renderer) |
+| grid ทั้ง 3 ตัว (`page`) | `fn_public = "loadAjaxGrid('..', '<page>')"` (string `"..."` ที่ถูก eval ภายหลัง) และ `onchange="...'<page>'..."` ของ grid แอดมิน ใช้ `Alerts::js()` ที่ไม่ escape `"` และไม่รองรับการ eval ชั้นที่สอง → `page=1"+alert(1)+"` หรือ `1');alert(1);//` รัน JS ได้ | `Html::jsNested()` (escape 2 ชั้น) / `Html::jsAttr()` |
+| ลิงก์สินค้า/รูป (`url`, `main_image`, `size`, `color`) | `href` จากค่าที่ลูกค้ากรอก ไม่กัน `javascript:` (และ `javascript&#58;` ผ่าน `h()` ได้) | `Html::url()` → `#` เมื่อ scheme เป็น javascript/vbscript/data (ข้อมูลใน bench ไม่มีแถวแบบนี้ = ผลเท่าเดิม) |
+| ข้อความ SuccessBox (`id` ใน save_payment / delete / save_approved / save_finish) | swal `html:true` → `id` ที่ส่งมาเป็น HTML | `e()` ก่อน `Alerts::js()` |
+| `_admin/_order/save_cashback` | กดซ้ำพร้อมกัน: ทั้งสอง request "ลบรายการคืนเงินเดิม" แล้ว INSERT คนละแถว → คืนเงินซ้ำ (เดิมก็เป็น) | ล็อกแถว `bill_product_detail` (FOR UPDATE) ใน transaction — ทดสอบยิงพร้อมกัน 2 ครั้ง เหลือแถวคืนเงินที่ใช้งาน 1 แถว |
+
+ช่องโหว่เดิมเพิ่มเติม (อ่านจากโค้ด ไม่ได้ยิงเว็บเดิม): `_admin/_order/email_*.php`, `_admin/_taobao/email_*.php` ไม่ตรวจล็อกอิน และ `system_config.php` ทำ `extract($_GET)` → `GET /_admin/_order/email_cancel?email_id=<ใบใดก็ได้>` (และ `email_approved`, `email_cashback`, `_taobao/email_*?email_id=&ids=`) **ส่งอีเมล/LINE แจ้งลูกค้าจริงได้โดยไม่ต้องล็อกอิน** (แจ้งยกเลิก/อนุมัติปลอม) — ไม่ใช่ "เรียกตรงแล้วไม่มี id" อย่างที่เขียนไว้เดิม; ใหม่ = ต้องมีสิทธิ์แอดมินและไม่ทำอะไร
 
 ## 4. การทดสอบ
 
