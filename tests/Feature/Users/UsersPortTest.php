@@ -79,7 +79,10 @@ class UsersPortTest extends TestCase
         $this->assertNull($o->off('0'));
         $this->assertSame(5, $o->off('1.5'));
         $this->assertNull($o->off('1.25'));
-        $this->assertSame('12', AdminUserController::pageJs("1'2</script>"));
+        $this->assertSame('12script', AdminUserController::pageJs("1'2</script>"));
+        $this->assertSame('1.5', AdminUserController::pageJs('1.5'));
+        $this->assertSame('2abc', AdminUserController::pageJs('2abc'));
+        $this->assertSame('1alert1', AdminUserController::pageJs("1');alert(1);//"));
     }
 
     public function test_rate_history_diff(): void

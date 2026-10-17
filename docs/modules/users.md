@@ -85,6 +85,16 @@ user_type grid ยังใช้ subquery นับผู้ใช้ต่อ�
 9. unbanned/reset: `ips.username LIKE '%code%'` / `text LIKE '%ip%'` จับคู่หลวม (JL01 ตรงกับ JL0123, 1.2.3.4 ตรงกับ 11.2.3.45) → ปลด/ลบประวัติของคนอื่น; IP ว่าง = ลบทั้งตาราง (แก้เฉพาะกรณี IP ว่าง)
 10. รหัสลูกค้าซ้ำได้เมื่อสมัครพร้อมกัน (แก้: lock), `system_check_username` เปิดให้เดา username ได้ (คงไว้)
 11. log: PIN ที่พิมพ์ผิดถูกเขียนลง log เป็น plaintext (แก้: `***`)
+12. **สมัครเข้ากลุ่มราคาของคนอื่น**: `_register/save.php` ตรวจ `user_type` แค่ `is_show` → แก้ POST `user_type` เป็นกลุ่มราคาตั้งเองของลูกค้าอื่น (`child <> 0`, is_show = 1 ทั้ง ~1,690 กลุ่ม) หรือกลุ่มที่ลบแล้ว ได้เรตพิเศษทันที (แก้: รับเฉพาะ child = 0, is_delete = 0 แบบที่หน้าสมัครแสดง)
+13. unbanned/reset ของลูกค้าที่ `code` ว่าง (แอดมินแก้ code เป็นว่างได้): `username LIKE '%%'` = ทุกแถว → ลบ ips/ips_ban ของทุก IP (แก้: code ว่าง = ไม่ลบ ips/ips_ban, unbanned ยังปลด ips_ban_user/is_enable ให้)
+14. `_profile/pin` (method=verified) เดา PIN 6 หลักได้ไม่จำกัด (มีแค่แถว ips ที่ jail นับ) — คงไว้ ขึ้นกับ jail ของฐานร่วม
+
+## 5.1 รีวิวรอบ 2 (adversarial) — เทียบ HTTP เดิม/ใหม่อีกรอบ
+
+- หน้า/grid/ajax ~120 คำขอ (ลูกค้า 137, zz_fdn_cust, แอดมิน zz_fdn_admin/1, role 5 = admin_user_view, ไม่ล็อกอิน, th/en/cn) เหมือนเดิมหลังยุบช่องว่าง
+- แก้: `pageJs()` คืน `1.5` / `2abc` แบบเดิม (เดิมตัดเหลือตัวเลข → JS ลบแล้วโหลดหน้าผิด), `system_check_username` ไม่ส่ง fieldId → `null` แบบเดิม, ข้อ 12–13 ข้างบน
+- ยังต่าง (ฐานร่วม): ajax ที่ยังไม่ล็อกอินได้ 302 → /login (เดิม 200 ว่าง); pager ของ `page=1.5` (Paging::getpaging ปัดเป็นจำนวนเต็ม) — ไม่มี UI ส่งค่านี้
+- route ajax/หน้า index ของแอดมินที่เดิม `exit()` เงียบ/พิมพ์หัวก่อน ตรวจสิทธิ์ใน controller/view (ไม่ใช่ `legacy.perm`) เพื่อให้ผลเหมือนเดิม — ทดสอบด้วย session ลูกค้าแล้วได้ว่างทุกตัว
 
 ## 6. ไฟล์ร่วม / สำเนา
 

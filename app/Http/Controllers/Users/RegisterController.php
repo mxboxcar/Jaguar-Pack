@@ -90,8 +90,10 @@ class RegisterController extends Controller
             }
             $commission = (string) $ref->id;
         }
-        $type = DB::table('user_type')->where('id', $userType)->orderBy('id')->first(['is_show']);
-        if (! $type || Php74::eq($type->is_show, 0)) {
+        $type = DB::table('user_type')->where('id', $userType)->orderBy('id')->first(['is_show', 'child', 'is_delete']);
+        // เดิมตรวจแค่ is_show → ส่ง user_type เป็นกลุ่มราคาตั้งเองของลูกค้าคนอื่น (child <> 0, is_show = 1 ทั้งหมด ~1,690 กลุ่ม) หรือกลุ่มที่ลบแล้วได้
+        //   → รับเฉพาะกลุ่มที่หน้าสมัครแสดงให้เลือก (child = 0, is_delete = 0, is_show <> 0)
+        if (! $type || Php74::eq($type->is_show, 0) || Php74::neq($type->child, 0) || Php74::neq($type->is_delete, 0)) {
             return $this->js("ErrorBox('".Lang::get('invalid_user_type')."', 'CloseLoading()'); ");
         }
         $err = SignupGuard::check($request, $email, $phone);
@@ -176,7 +178,8 @@ class RegisterController extends Controller
     {
         $value = $this->get($request, 'fieldValue');
         // เดิม $_GET ผ่าน addslashes() แล้วถูก echo กลับใน JSON
-        $fieldId = addslashes($this->get($request, 'fieldId'));
+        // ไม่ส่ง fieldId มา = เดิม null ใน JSON
+        $fieldId = $request->query->has('fieldId') ? addslashes($this->get($request, 'fieldId')) : null;
         $exists = DB::table('user')->where('username', $value)->exists();
 
         return response(json_encode(['fieldId' => $fieldId, 'Result' => ! $exists]));

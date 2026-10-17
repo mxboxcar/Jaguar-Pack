@@ -140,10 +140,11 @@ class AdminUserController extends Controller
         ])->render());
     }
 
-    /** เดิม echo $Page (POST) ดิบลงใน JS → เหลือเฉพาะตัวเลข */
+    /** เดิม echo $Page (POST) ดิบลงใน JS → เหลือเฉพาะตัวอักษร/ตัวเลข/จุด/ขีด */
     public static function pageJs(string $page): string
     {
-        return (string) preg_replace('/[^0-9]/', '', $page);
+        // ค่าที่ปลอดภัยใน JS string ('...' ใน "...") ส่งกลับเหมือนเดิม ("1.5", "2abc") — ตัวอื่นตัดทิ้ง
+        return (string) preg_replace('/[^0-9A-Za-z.\-]/', '', $page);
     }
 
     /** POST /_admin/_user/load_role_detail (สิทธิ์ admin_user) */
@@ -502,6 +503,15 @@ class AdminUserController extends Controller
      */
     private function clearIps(string $code, bool $unban, ?int $userId): bool
     {
+        // รหัสลูกค้าว่าง: เดิม username LIKE '%%' = ทุกแถวของ ips → ลบ ips/ips_ban ของทุก IP → ข้ามการลบ (ยังปลดผู้ใช้แบบกรณี IP ว่าง)
+        if (trim($code) === '') {
+            if ($unban) {
+                DB::table('ips_ban_user')->where('user', $userId)->delete();
+                DB::table('user')->where('id', $userId)->update(['is_enable' => '1']);
+            }
+
+            return $unban;
+        }
         $texts = DB::table('ips')->where('username', 'like', '%'.addcslashes($code, '%_\\').'%')->pluck('text');
         if ($texts->isEmpty()) {
             return false;
