@@ -1,0 +1,41 @@
+#!/bin/bash
+# ทำให้ public/assets ใช้ไฟล์ CSS/JS/รูป ของเว็บเดิม (68MB — ห้าม commit)
+#
+# nginx (www-data) อ่านโฟลเดอร์ bench เดิมไม่ได้ (group site_jlbench) และในนั้นมีไฟล์ .php ปนอยู่
+# (nginx ของ dev ส่ง *.php ทุกไฟล์ใต้ public ไป php-fpm) → คัดลอกเฉพาะไฟล์ static (ไม่เอา .php)
+# ไปไว้ที่ mirror กลางนอก repo แล้ว symlink public/assets → mirror (ใช้ร่วมกันทุก worktree)
+#
+# ใช้: bin/link-assets [--sync] [โฟลเดอร์โปรเจกต์]
+#   --sync  คัดลอกจากต้นทางใหม่ (ครั้งแรกทำให้อัตโนมัติ)
+# env: LEGACY_ASSETS_SRC (ค่าเริ่มต้น /home/admin/bench/jl-old), LEGACY_ASSETS_MIRROR (/home/admin/laravel/legacy-assets)
+set -euo pipefail
+SYNC=0
+[ "${1:-}" = "--sync" ] && { SYNC=1; shift; }
+D=$(cd "${1:-$(dirname "$0")/..}" && pwd)
+SRC=${LEGACY_ASSETS_SRC:-/home/admin/bench/jl-old}
+MIRROR=${LEGACY_ASSETS_MIRROR:-/home/admin/laravel/legacy-assets}
+
+case "$SRC" in /home/admin/web/*) echo "ห้ามใช้ webroot production เป็นต้นทาง" >&2; exit 1;; esac
+
+if [ "$SYNC" = 1 ] || [ ! -d "$MIRROR/assets" ]; then
+    [ "$(id -u)" = 0 ] || { echo "การ sync ต้องรันด้วย root" >&2; exit 1; }
+    mkdir -p "$MIRROR"
+    nice -n 15 ionice -c3 rsync -a --delete \
+        --exclude='*.php' --exclude='*.php[0-9]' --exclude='*.phtml' --exclude='*.phar' --exclude='.htaccess' \
+        "$SRC/assets/" "$MIRROR/assets/"
+    chown -R root:www-data "$MIRROR"
+    find "$MIRROR" -type d -exec chmod 2750 {} +
+    find "$MIRROR" -type f -exec chmod 640 {} +
+    chmod 2751 "$MIRROR"
+    echo "sync: $(du -sh "$MIRROR/assets" | cut -f1) จาก $SRC/assets (ไม่รวมไฟล์ .php)"
+fi
+
+ln -sfn "$MIRROR/assets" "$D/public/assets"
+chown -h root:www-data "$D/public/assets" 2>/dev/null || true
+
+# บัญชีดำ (system_blocklist.php) — php-fpm มี open_basedir = โปรเจกต์ จึงต้องมีสำเนาใน storage
+if [ -r "$SRC/system_blocklist.php" ]; then
+    mkdir -p "$D/storage/app/legacy"
+    install -o site_jllv -g site_jllv -m 640 "$SRC/system_blocklist.php" "$D/storage/app/legacy/system_blocklist.php"
+fi
+echo "ok: $D/public/assets -> $MIRROR/assets"
