@@ -1,0 +1,102 @@
+<?php
+
+namespace App\Http\Controllers\Settings;
+
+use App\Domain\Settings\ImageShrink;
+use App\Http\Controllers\Controller;
+use App\Support\Legacy\Format;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Http\UploadedFile;
+
+/**
+ * อัปโหลดไฟล์ชั่วคราว (dropper ของ getupload*()): system_upload.php / system_upload_2.php เดิม
+ *
+ * เก็บที่ config('legacy.upload.temp_dir') (= upload/temp เดิม; dev = storage/app/legacy-upload/temp)
+ * ไม่ส่งขึ้น Azure ที่นี่ (เดิมก็ไม่ส่ง — ส่งตอนกดบันทึกฟอร์มของแต่ละกลุ่ม)
+ *
+ * ต่างจากเดิม: ต้องล็อกอิน (เดิมเช็คแค่ X-Requested-With = ใครก็อัปโหลดไฟล์ลง webroot ได้)
+ * ผลตอบเป็น text/plain (dropper อ่าน responseText เท่านั้น) — ชื่อไฟล์เดิมใน system_upload_2 จึงไม่ถูกตีความเป็น HTML
+ */
+class UploadController extends Controller
+{
+    /** ชนิดจริงของไฟล์ → นามสกุลที่บันทึก (system_upload.php) */
+    private const MIME_TO_EXT = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'application/pdf' => 'pdf',
+    ];
+
+    /** system_upload_2.php: นามสกุลที่ยอม (ตรงตัวพิมพ์แบบเดิม — .Jpg ไม่ผ่าน) */
+    private const EXT_2 = ['jpg', 'png', 'jpeg', 'JPG', 'pdf', 'PDF', 'JPEG', 'PNG', 'xls', 'xlsx', 'XLS', 'XLSX'];
+
+    /** POST /system_upload — รูปภาพ/PDF เท่านั้น, ตรวจชนิดจากเนื้อไฟล์, ย่อรูป, ตอบชื่อไฟล์ใหม่ */
+    public function upload(Request $request): Response
+    {
+        $file = $request->file('file');
+        if (! $file instanceof UploadedFile || $file->getError() !== UPLOAD_ERR_OK) {
+            return $this->text('error: อัพโหลดไฟล์ไม่สำเร็จ ไฟล์อาจใหญ่เกินกำหนด');
+        }
+        $ext = strtolower(pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
+        if (! in_array($ext, Format::uploadAllowedExtensions(), true)) {
+            return $this->text('error : รองรับ .jpg, .jpeg, .png, .pdf เท่านั้น');
+        }
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($file->getPathname());
+        if (! is_string($mime) || ! isset(self::MIME_TO_EXT[$mime])) {
+            return $this->text('error : ไฟล์นี้ไม่ใช่รูปภาพหรือ PDF รองรับ .jpg, .jpeg, .png, .pdf เท่านั้น');
+        }
+        $name = $this->store($file, self::MIME_TO_EXT[$mime]);
+        if ($name === null) {
+            return $this->text('error: เกิดข้อผิดพลาดในการอัพโหลดไฟล์');
+        }
+        ImageShrink::shrink($this->tempDir().'/'.$name);
+
+        return $this->text($name);
+    }
+
+    /**
+     * POST /system_upload_2 — แชท/ไฟล์ lot: รูป, PDF, Excel ตามนามสกุล ตอบ "<ชื่อใหม่>[NIDA]<ชื่อเดิม>"
+     * เดิมไม่ตรวจเนื้อไฟล์ (คงไว้ — ชนิด Excel ตรวจด้วย finfo ไม่แน่นอน) แต่ต้องล็อกอินและชื่อไฟล์ใหม่สุ่มเสมอ
+     */
+    public function upload2(Request $request): Response
+    {
+        $file = $request->file('file');
+        $orig = $file instanceof UploadedFile ? $file->getClientOriginalName() : '';
+        $ext = pathinfo($orig, PATHINFO_EXTENSION);
+        if (! in_array($ext, self::EXT_2, true)) {
+            return $this->text('error: สกุล .png, .jpg, .jpeg, .pdf เท่านั้น');
+        }
+        $name = $file->getError() === UPLOAD_ERR_OK ? $this->store($file, $ext) : null;
+        if ($name === null) {
+            return $this->text('error: ไม่ทราบสาเหตุ');
+        }
+
+        return $this->text($name.'[NIDA]'.$orig);
+    }
+
+    private function store(UploadedFile $file, string $ext): ?string
+    {
+        $dir = $this->tempDir();
+        if (! is_dir($dir) && ! @mkdir($dir, 0770, true) && ! is_dir($dir)) {
+            return null;
+        }
+        $name = Format::randd().'.'.$ext;
+        try {
+            $file->move($dir, $name);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $name;
+    }
+
+    private function tempDir(): string
+    {
+        return rtrim((string) config('legacy.upload.temp_dir'), '/');
+    }
+
+    private function text(string $s): Response
+    {
+        return response($s, 200, ['Content-Type' => 'text/plain; charset=UTF-8', 'X-Content-Type-Options' => 'nosniff']);
+    }
+}
