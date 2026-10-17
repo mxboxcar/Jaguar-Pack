@@ -2,24 +2,15 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
+/**
+ * ห้าม seed — โปรเจกต์นี้ใช้ DB เดิมของเว็บจริง (ไม่มี migration/seed ของ Laravel)
+ */
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $this->command?->error('jl ใช้ DB เดิม — ไม่มี seeder (ดู docs/CONVENTIONS.md)');
     }
 }

@@ -53,11 +53,15 @@ return [
             'username' => env('DB_USERNAME', 'root'),
             'password' => env('DB_PASSWORD', ''),
             'unix_socket' => env('DB_SOCKET', ''),
-            'charset' => env('DB_CHARSET', 'utf8mb4'),
-            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            // ให้ตรงกับ connectdb() เดิม: SET NAMES utf8, time_zone +7:00, sql_mode ว่าง (ค่า global ของเซิร์ฟเวอร์)
+            // ตารางเดิมเป็น utf8mb3 ทั้งหมด และหลายตารางพึ่ง '0000-00-00' → ห้ามเปิด strict
+            'charset' => env('DB_CHARSET', 'utf8mb3'),
+            'collation' => env('DB_COLLATION', 'utf8mb3_general_ci'),
+            'timezone' => env('DB_TIMEZONE', '+07:00'),
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => env('DB_STRICT', false),
+            'modes' => [],
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),

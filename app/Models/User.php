@@ -2,31 +2,25 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
+use App\Models\Base\UserBase;
 
-#[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+/**
+ * ตาราง `user` — เพิ่ม relation / scope ของโมดูลได้ที่นี่ (คอลัมน์/ค่าพื้นฐานอยู่ใน Base ห้ามแก้)
+ * รหัสผ่านเก็บเป็น LegacyCrypt::encrypt(รหัส) (ไม่ใช่ hash) — ห้ามส่ง password ออกไปใน JSON/View
+ */
+class User extends UserBase
 {
-    /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    protected $hidden = ['password', 'pin'];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    /** เงื่อนไขเดียวกับ system_check_login.php: ไม่ถูกลบ, เปิดใช้งาน, ไม่ถูกปฏิเสธ */
+    public function isActiveAccount(): bool
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return (int) $this->is_delete === 0 && (int) $this->is_enable === 1 && (int) $this->is_approved !== -1;
+    }
+
+    /** ตาราง user ไม่มี remember_token */
+    public function getRememberTokenName()
+    {
+        return '';
     }
 }

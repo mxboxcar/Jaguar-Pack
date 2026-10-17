@@ -2,26 +2,26 @@
 
 namespace App\Models;
 
+use App\Casts\LegacyDateTime;
+use App\Models\Base\TrackingBase;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * ตาราง tracking เดิมของ jl (ใช้ร่วมกับโค้ดเก่า ห้ามเปลี่ยน schema จากฝั่งนี้)
+ * ตาราง `tracking` — เพิ่ม relation / scope ของโมดูลได้ที่นี่ (คอลัมน์/ค่าพื้นฐานอยู่ใน Base ห้ามแก้)
  */
-class Tracking extends Model
+class Tracking extends TrackingBase
 {
-    protected $table = 'tracking';
-
-    public $timestamps = false;
-
     /** ค่าวันที่ว่างในระบบเดิม */
-    public const ZERO_DATE = '0000-00-00 00:00:00';
+    public const ZERO_DATE = LegacyDateTime::ZERO_DATETIME;
 
     /** ตัวกรองสถานะในหน้า list (ค่าเดียวกับ select เดิม) */
     public const STATUS_IN_WAREHOUSE = 0;
+
     public const STATUS_OUT_OF_CHINA = 1;
+
     public const STATUS_ARRIVED_THAI = 2;
+
     public const STATUS_UNPAID = 3;
 
     public function lot(): BelongsTo
@@ -70,8 +70,13 @@ class Tracking extends Model
         };
     }
 
-    public static function hasDate(?string $value): bool
+    /** รับได้ทั้งค่าที่ cast แล้ว (Carbon|null) และ string ดิบ */
+    public static function hasDate(mixed $value): bool
     {
-        return $value !== null && $value !== '' && $value !== self::ZERO_DATE;
+        if ($value instanceof \DateTimeInterface) {
+            return true;
+        }
+
+        return $value !== null && $value !== '' && ! str_starts_with((string) $value, '0000-00-00');
     }
 }

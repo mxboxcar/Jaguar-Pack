@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Base\ProductTypeBase;
 
-class ProductType extends Model
+/**
+ * ตาราง `product_type` — เพิ่ม relation / scope ของโมดูลได้ที่นี่ (คอลัมน์/ค่าพื้นฐานอยู่ใน Base ห้ามแก้)
+ */
+class ProductType extends ProductTypeBase
 {
-    protected $table = 'product_type';
-
-    public $timestamps = false;
 }

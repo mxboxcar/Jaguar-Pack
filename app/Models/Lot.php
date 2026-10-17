@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Base\LotBase;
 
-class Lot extends Model
+/**
+ * ตาราง `lot` — เพิ่ม relation / scope ของโมดูลได้ที่นี่ (คอลัมน์/ค่าพื้นฐานอยู่ใน Base ห้ามแก้)
+ */
+class Lot extends LotBase
 {
-    protected $table = 'lot';
-
-    public $timestamps = false;
 }
