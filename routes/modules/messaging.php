@@ -67,7 +67,9 @@ Route::middleware('legacy.perm:admin_notice')->group(function () {
     });
 });
 // เดิม delete.php ตรวจสิทธิ์ admin_product_type (คัดลอกมาจาก _admin/_product_type) — คงสิทธิ์เดิม
-Route::post('/_admin/_notice/delete', [AdminNoticeController::class, 'delete'])->middleware(['legacy.perm:admin_product_type', 'legacy.ajax']);
+// และต้องมี admin_notice ด้วย (ตอนนี้ลบประกาศจริง ไม่ใช่ product_type) — ไม่กว้างกว่าเดิม
+Route::post('/_admin/_notice/delete', [AdminNoticeController::class, 'delete'])
+    ->middleware(['legacy.perm:admin_product_type', 'legacy.perm:admin_notice', 'legacy.ajax']);
 
 // ---- แอดมิน: รายการรอส่ง (_admin/_send) ----
 Route::middleware('legacy.perm:admin_export')->group(function () {

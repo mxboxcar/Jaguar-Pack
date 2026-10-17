@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Messaging;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Messaging\Concerns\RejectsCrossSiteGet;
 use App\Support\Legacy\Legacy;
 use App\Support\Legacy\LegacyCrypt;
 use App\Support\Legacy\LegacyLog;
@@ -24,6 +25,8 @@ use Illuminate\View\View;
  */
 class LineNotifyController extends Controller
 {
+    use RejectsCrossSiteGet;
+
     /** GET /linenotify — _linenotify/index.php */
     public function index(): View
     {
@@ -49,9 +52,10 @@ class LineNotifyController extends Controller
         $state = (string) (is_scalar($s = $request->query('state')) ? $s : '');
         $uid = Legacy::userId();
 
-        $token = $this->exchange($code);
+        // ตรวจ state ก่อนแลก token (ไม่ยิง LINE ด้วย code ของคนอื่นเมื่อ state ไม่ใช่ของผู้ที่ล็อกอิน)
         $stateUser = $state === '' ? '' : (string) LegacyCrypt::decrypt($state);
         if ($stateUser !== '' && $stateUser === (string) $uid) {
+            $token = $this->exchange($code);
             DB::table('user')->where('id', $uid)->update(['line_uid' => (string) $token]);
         }
 
@@ -59,8 +63,11 @@ class LineNotifyController extends Controller
     }
 
     /** GET /_linenotify/revoke */
-    public function revoke(): Response
+    public function revoke(Request $request): Response
     {
+        if ($this->isCrossSite($request)) {
+            return $this->crossSiteResponse();
+        }
         $uid = Legacy::userId();
         $row = DB::table('user')->where('id', $uid)->first(['id', 'line_uid']);
         if ($row !== null) {

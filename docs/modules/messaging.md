@@ -21,7 +21,7 @@ worktree `/home/admin/laravel/jl-wt/messaging` (branch `mod/messaging`, port 821
 | `_notice/grid.php` | `POST /_notice/grid` | legacy.auth + ajax |
 | `admin/notice`, `admin/notice/create`, `admin/notice/{id}` | `GET` เดียวกัน | admin_notice |
 | `_admin/_notice/grid.php`, `save.php`, `save_isshow.php` | `POST` | admin_notice + ajax |
-| `_admin/_notice/delete.php` | `POST /_admin/_notice/delete` | admin_product_type + ajax (สิทธิ์เดิม — ดูด้านล่าง) |
+| `_admin/_notice/delete.php` | `POST /_admin/_notice/delete` | admin_product_type **และ** admin_notice + ajax (ดูด้านล่าง) |
 | `_admin/_notice/email.php`, `email_notice.php` | `GET` | admin_notice |
 | `_admin/_notice/cron_notice_mail.php` | `GET /_admin/_notice/cron_notice_mail` + `php8.4 artisan messaging:notice-mail` | admin_notice (เดิมเปิดได้โดยไม่ล็อกอิน) |
 | `admin/send` → `_admin/_send/index.php` | `GET /admin/send` | admin_export |
@@ -44,7 +44,8 @@ worktree `/home/admin/laravel/jl-wt/messaging` (branch `mod/messaging`, port 821
 ## สิ่งที่ต่างจากเดิมโดยตั้งใจ
 
 1. **`_admin/_notice/delete`**: เดิมเป็นสำเนาของ `_admin/_product_type/delete.php` — กดลบประกาศแล้ว **ไปลบ product_type ที่ id ตรงกัน** (และฉีด SQL ได้ผ่าน `IN (".$id.")`)
-   ที่นี่ลบ (is_delete = 1) **ประกาศ** ตามที่ปุ่มตั้งใจ, id ต้องเป็นตัวเลขล้วน, คงสิทธิ์ `admin_product_type` เดิม → เจ้าของควรยืนยัน (และอาจเปลี่ยนเป็น admin_notice)
+   ที่นี่ลบ (is_delete = 1) **ประกาศ** ตามที่ปุ่มตั้งใจ, id ต้องเป็นตัวเลขล้วน, ต้องมีทั้ง `admin_product_type` (เดิม) และ `admin_notice`
+   (ไม่กว้างกว่าเดิม: ถ้าคงแค่ admin_product_type แอดมินประเภทสินค้าที่ไม่มีสิทธิ์ประกาศจะลบประกาศได้ — role 5 ใน bench) → เจ้าของควรยืนยัน
 2. ข้อความแชท: escape HTML ยกเว้นรูปแบบ `<a class="fancybox" ...><img ...></a>` ที่ปุ่มแนบรูปสร้าง (URL http/https เท่านั้น) — เดิม stored XSS ลูกค้า → แอดมิน
 3. ค่าจาก DB ใน HTML ของแชท (ชื่อแผนก, icon, รหัสลูกค้า) ถูก escape; `txtSearch` ใน grid ถูก escape (เดิม reflected XSS); เลขหน้าที่ฝังใน JS ของ admin grid กรองเหลือแต่ตัวเลข
 4. JSON ของแอดมินเดิม `urldecode(json_encode(...))` → ที่นี่ urldecode ทีละค่าก่อน escape/encode (ผลเท่ากันปกติ แต่ไม่ได้ JSON พังเมื่อข้อความมี `%22`)
@@ -57,6 +58,10 @@ worktree `/home/admin/laravel/jl-wt/messaging` (branch `mod/messaging`, port 821
 9. `admin/send`: ผู้ไม่มีสิทธิ์ไม่ได้ตารางข้อมูล (เดิม alert แล้วไม่ exit = ข้อมูลอยู่ใน HTML ครบ)
 10. `_admin/_send/index_self`: เดิมเปิดตรงๆ = fatal error (ไม่ได้ include system_config) — ที่นี่ตอบชิ้น HTML
 11. `cron_notice_mail`: เดิมใครก็เปิดผ่านเว็บได้ (สั่งส่งอีเมลได้) → ต้องมีสิทธิ์ admin_notice; cron จริงใช้ artisan
+12. GET ที่เปลี่ยนข้อมูล (`_admin/_notice/email`, `email_notice`, `cron_notice_mail`, `_linenotify/revoke`) ตอบ 403 เมื่อมาจากเว็บอื่น
+    (`Sec-Fetch-Site` = cross-site/same-site หรือ Referer ต่าง host) — LegacyCsrf ปล่อย GET ทั้งหมด เดิม `<img src=…email_notice?id=1>` บนเว็บอื่น
+    ทำให้แอดมินที่ล็อกอินอยู่เข้าคิวอีเมลถึงลูกค้าทุกคน (~11,900 ราย) ได้; ปุ่มในหน้า (window.open / ลิงก์) ยังใช้ได้ตามเดิม
+    `_linenotify/callback` ยกเว้น (LINE redirect กลับมาแบบ cross-site) — ป้องกันด้วยการตรวจ state และตรวจ state ก่อนแลก token
 12. ชิ้นส่วนอีเมล / notify_* ต้องล็อกอิน (เดิมสาธารณะ — ไม่มี JS ไหนเรียกผ่าน URL)
 13. load_user: LIKE escape `%` `_` (เดิมเป็น wildcard)
 14. ช่องว่าง/CRLF ใน HTML ของหน้า/grid ไม่ตรง byte (JSON ของแชทตรง byte เพราะ `Chat::crlf()`)

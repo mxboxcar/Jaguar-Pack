@@ -8,6 +8,7 @@ use App\Domain\Messaging\NoticeText;
 use App\Domain\Messaging\Php74;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Messaging\Concerns\ReadsLegacyInput;
+use App\Http\Controllers\Messaging\Concerns\RejectsCrossSiteGet;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
@@ -21,6 +22,7 @@ use Illuminate\View\View;
 class AdminNoticeController extends Controller
 {
     use ReadsLegacyInput;
+    use RejectsCrossSiteGet;
 
     private const AJAX = '_admin/_notice/grid';
 
@@ -121,6 +123,9 @@ class AdminNoticeController extends Controller
      */
     public function email(Request $request): Response
     {
+        if ($this->isCrossSite($request)) {
+            return $this->crossSiteResponse();
+        }
         $id = (int) LegacyInput::query($request, 'id', 0);
         $to = (string) (is_scalar($v = LegacyInput::query($request, 'email_to', '')) ? $v : '');
         $row = DB::table('notice')->where('id', $id)->first();
@@ -138,6 +143,9 @@ class AdminNoticeController extends Controller
     /** GET /_admin/_notice/email_notice?id= — เข้าคิวส่งประกาศให้ทุกคนที่มีอีเมล */
     public function emailNotice(Request $request): Response
     {
+        if ($this->isCrossSite($request)) {
+            return $this->crossSiteResponse();
+        }
         $notiId = (int) LegacyInput::query($request, 'id', 0);
         if ($notiId <= 0) {
             return response('ไม่พบประกาศ');
@@ -157,8 +165,11 @@ class AdminNoticeController extends Controller
      * GET /_admin/_notice/cron_notice_mail — worker ส่งคิว (เดิมเป็นไฟล์ cron ที่เปิดผ่านเว็บได้โดยไม่ต้องล็อกอิน)
      * ที่นี่ต้องมีสิทธิ์ admin_notice; cron จริงควรใช้ `php8.4 artisan messaging:notice-mail`
      */
-    public function cron(): Response
+    public function cron(Request $request): Response
     {
+        if ($this->isCrossSite($request)) {
+            return $this->crossSiteResponse();
+        }
         $lines = NoticeMail::work(25, 2, getenv('NOTICEMAIL_TEST') === '1');
 
         return response($lines === [] ? '' : implode("\n", $lines)."\n");

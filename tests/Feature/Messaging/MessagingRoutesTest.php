@@ -75,6 +75,42 @@ class MessagingRoutesTest extends TestCase
         }
     }
 
+    public function test_notice_delete_also_requires_admin_notice(): void
+    {
+        $route = Route::getRoutes()->match(\Illuminate\Http\Request::create('/_admin/_notice/delete', 'POST'));
+        $mw = $route->gatherMiddleware();
+        $this->assertContains('legacy.perm:admin_product_type', $mw);
+        $this->assertContains('legacy.perm:admin_notice', $mw);
+    }
+
+    public function test_state_changing_get_routes_reject_cross_site_requests(): void
+    {
+        $guard = new class
+        {
+            use \App\Http\Controllers\Messaging\Concerns\RejectsCrossSiteGet;
+
+            public function check(\Illuminate\Http\Request $r): bool
+            {
+                return $this->isCrossSite($r);
+            }
+        };
+        $make = function (array $headers) {
+            $r = \Illuminate\Http\Request::create('http://portal.example/_admin/_notice/email_notice?id=1', 'GET');
+            foreach ($headers as $k => $v) {
+                $r->headers->set($k, $v);
+            }
+
+            return $r;
+        };
+        $this->assertTrue($guard->check($make(['Sec-Fetch-Site' => 'cross-site'])));
+        $this->assertTrue($guard->check($make(['Sec-Fetch-Site' => 'same-site'])));
+        $this->assertTrue($guard->check($make(['Referer' => 'https://evil.example/x'])));
+        $this->assertFalse($guard->check($make(['Sec-Fetch-Site' => 'same-origin'])));
+        $this->assertFalse($guard->check($make(['Sec-Fetch-Site' => 'none'])));
+        $this->assertFalse($guard->check($make(['Referer' => 'https://portal.example/admin/notice'])));
+        $this->assertFalse($guard->check($make([])));
+    }
+
     public function test_page_routes_set_legacy_page(): void
     {
         $pages = [
