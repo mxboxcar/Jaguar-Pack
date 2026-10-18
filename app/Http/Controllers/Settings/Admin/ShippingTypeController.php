@@ -71,6 +71,10 @@ class ShippingTypeController extends Controller
      */
     public function save(Request $request): Response
     {
+        // ตั้งใจต่างจากเดิม: POST ที่ไม่มีช่อง name เลย (ไม่ใช่ฟอร์มจริง) เดิม INSERT แถวว่าง / ล้างทุกคอลัมน์ของ id นั้น → ปฏิเสธ
+        if (! Input::has($request, 'name')) {
+            return response(Alerts::error('CloseLoading()', 'ไม่มีข้อมูลที่จะบันทึก'));
+        }
         $id = Input::in($request, 'id');
         $isUseRate = Input::in($request, 'is_use_rate');
         $useRate = ! Php74::eq($isUseRate, 0);

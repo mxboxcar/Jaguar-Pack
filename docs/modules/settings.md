@@ -42,6 +42,10 @@ helper ที่ใช้ร่วม (CONVENTIONS ข้อ 8 "ยังไม�
 - อีเมลแจ้งผลแลกเงิน: เดิม `include_once('email_success.php' / 'email_cancel.php')` แต่ไม่มีไฟล์ในโฟลเดอร์ = ไม่เคยส่ง → ไม่ส่งเหมือนเดิม
 - `delete.php` (product_type, shipping_type, delete_cal): รับเฉพาะรายการเลขจำนวนเต็ม; รูปแบบอื่นไม่ทำอะไร (เดิม SQL syntax error) แต่ตอบ SuccessBox เหมือนเดิม
 - `system_upload*`: ต้องล็อกอิน, ตอบ `text/plain` + `nosniff`, เก็บที่ `legacy.upload.temp_dir` (dev = `storage/app/legacy-upload/temp`, ไม่ขึ้น Azure)
+- `_admin/_setting/save` (review 2026-10-18): เดิมคีย์ที่ไม่ส่งมาถูกเขียน `''` ทับทั้ง 16 คีย์ (POST ว่างครั้งเดียว = ล้างเลขบัญชี/อัตราแลกเปลี่ยน — เคยล้าง bench จริง) → ใหม่อัปเดตเฉพาะคีย์ที่อยู่ใน POST body เป็นค่า scalar; ไม่มีเลย = `ErrorBox('ไม่มีข้อมูลที่จะบันทึก')` ไม่แก้อะไร (ฟอร์มจริงส่งครบทุกช่อง → ผลเหมือนเดิม; ช่องที่ส่งมาว่างยังบันทึก `''`)
+- `_admin/_product_type/save`, `_admin/_shipping_type/save`: POST ที่ไม่มีช่อง `name` เลย เดิม INSERT แถวว่าง (id ว่าง) หรือล้างทุกคอลัมน์ของ id นั้น → ใหม่ ErrorBox ไม่แก้อะไร
+- `system_upload_2`: เดิมไม่ตรวจเนื้อไฟล์ → ใหม่นามสกุลรูป/PDF ต้องเป็นรูป/PDF จริง (finfo) ไม่ใช่ = error แบบเดิม; ชนิดจริงไม่ตรงนามสกุลใช้นามสกุลตามชนิดจริง (เหมือน `system_upload`); xls/xlsx ยังไม่ตรวจเนื้อไฟล์
+- `fn_public = "loadAjaxGrid(..., '<page>')"` ใน grid ทั้ง 3: ค่า `page` escape 2 ชั้น (`Input::jsEval`) เพราะ string ถูก `eval()` อีกรอบ (เดิมรอดเพราะ `'`→`''` เท่านั้น)
 - grid: ค่า `page` ที่ฝังใน JS ผ่าน `Input::js()` (เดิม echo ดิบ)
 - หน้าแอดมินที่ไม่มีสิทธิ์: ได้หน้า `legacy.no-permission` ของ foundation (เดิมแสดงหัวหน้า + ErrorBox แล้วหน้าถูกตัดกลาง)
 
@@ -75,3 +79,15 @@ SQL injection ทดสอบเฉพาะฝั่ง Laravel บน endpoint
 | `/_admin/_shipping_type/grid` | 36 | 37 |
 
 หน้า setting เร็วขึ้นเพราะ getKey() เดิม 1 query ต่อช่อง (16 ครั้ง) + layout เดิม; grid เล็กเท่าเดิม (overhead คงที่ของ Laravel)
+
+## Review รอบ 2 (2026-10-18)
+
+- เทียบเดิม/ใหม่ (normalize href+ช่องว่าง) ด้วย zz_fdn_admin: หน้า setting/exchange(+status, id)/product_type/shipping_type (list, create, id) ทั้ง th/en/cn, grid 3 ตัว (หน้า 1/2/16/99/ว่าง, คำค้นไม่พบ, สถานะ -1/2), load_cal_1/2 (มี/ไม่มีแถว, id ว่าง) → 0 บรรทัดต่าง
+- สิทธิ์: ไม่ล็อกอิน → /login; ลูกค้า (zz_fdn_cust) → ErrorBox สิทธิ์ทุก route แอดมิน, grid ตอบว่าง; ชื่อสิทธิ์ตรง `getPermission()` เดิมทุกไฟล์
+- CSRF: Origin/Referer ต่างโดเมน → 403 ทุก route เขียน 13 ตัว; ไม่มี `X-Requested-With` → /403
+- SQLi (เฉพาะ Laravel): quote/UNION/`1) OR (1=1`/`\`/`%`/`_` ใน txtsearch, id ของ load_cal, code ของ quick search, ค่า setting, id/arr_id ของ delete → bind ทั้งหมด ไม่มีแถวรั่ว ไม่มี error ใน log
+- เขียนจริง (แถว zz_ แล้วลบตาม id): product_type เพิ่ม/แก้/ลบ (arr_id), shipping_type เพิ่ม/แก้ (is_use_rate 0/1 + rate_id[]), save_listno, save_new_price_by_kg/cubic (+ error max<=min, ช่องว่าง), delete_cal (id, arr_id), delete; exchange อนุมัติ (balance +10×4.95 = 49.50 ครั้งเดียว, อนุมัติซ้ำไม่เพิ่ม, รายการยกเลิกแล้ว → ErrorBox); cancel = ไม่มี role ใดมี `admin_withdrawpoint` (ปฏิเสธแม้ role 1 เหมือนเดิม); setting บันทึกทั้งฟอร์มด้วยค่าเดิม → ทุกแถวเหมือนเดิม, บันทึกคีย์เดียว → แถวเดียวเปลี่ยน
+- upload: png/jpg/jpeg/pdf ผ่าน; .php/.phtml/.php.jpg/รูปปลอม/`x.png%00.php` ถูกปฏิเสธ; ชื่อ `../../x.png` ไม่ใช้เป็น path (ชื่อสุ่ม 10 ตัวใน temp_dir เท่านั้น)
+- test: `tests/Feature/Settings/SettingsSaveTest.php`, `SettingsUploadTest.php` (ไม่แตะ DB: DB facade เป็นตัวบันทึก)
+- ยังเหลือ: `UploadBox` มีสำเนาใน 7 กลุ่ม และ `ImageShrink` 2 ชุด (Settings/Shop) — รวมเป็นตัวเดียวภายหลัง; ชื่อไฟล์เดิมที่ `system_upload_2` ตอบกลับ (`[NIDA]<ชื่อเดิม>`) ไม่ escape (text/plain; JS ฝั่งผู้ใช้ต้อง escape เอง)
+- bench รอบ 2 (`bin/bench -n 30 -c 1`, zz_fdn_admin, artisan optimize, เฉลี่ย 2 รอบ เดิม → ใหม่): `/admin/setting` 381 → 51 ms, `/admin/exchange` 333 → 49 ms, `/_admin/_product_type/grid` 30.5 → 28.1 ms

@@ -41,12 +41,20 @@ class SettingController extends Controller
     /**
      * POST /_admin/_setting/save — _admin/_setting/save.php
      * เดิมไม่ตรวจสิทธิ์เลย (ใครก็แก้เลขบัญชีรับเงินได้) → ที่นี่ legacy.perm:admin_setting
-     * ช่องที่ไม่ส่งมา เดิมเขียน '' ทับ — คงไว้
+     *
+     * ตั้งใจต่างจากเดิม: เดิมช่องที่ไม่ส่งมาถูกเขียน '' ทับ (POST ว่างครั้งเดียว = ล้างเลขบัญชี/อัตราแลกเปลี่ยนทั้ง 16 ค่า)
+     * ที่นี่อัปเดตเฉพาะคีย์ที่อยู่ใน POST body (ค่า string/ตัวเลข) — ไม่มีคีย์ใดเลย = ErrorBox ไม่แก้อะไร
+     * (ฟอร์มจริงส่งครบทุกช่องเสมอ ผลจึงเหมือนเดิม; ช่องที่ส่งมาเป็นค่าว่างยังบันทึก '' แบบเดิม)
      */
     public function save(Request $request): Response
     {
-        DB::transaction(function () use ($request) {
-            foreach (self::KEYS as $key) {
+        $keys = array_values(array_filter(self::KEYS, fn (string $k) => Input::has($request, $k)));
+        if ($keys === []) {
+            return response(Alerts::error('CloseLoading()', 'ไม่มีข้อมูลที่จะบันทึก'));
+        }
+
+        DB::transaction(function () use ($request, $keys) {
+            foreach ($keys as $key) {
                 DB::table('setting')->where('key', $key)->update(['value' => Input::in($request, $key)]);
             }
         });

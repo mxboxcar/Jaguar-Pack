@@ -21,6 +21,14 @@ final class Input
         return is_scalar($v) ? (string) $v : '';
     }
 
+    /** มีคีย์นี้ใน POST body เป็นค่า string/ตัวเลข (ไม่ใช่ array) — ใช้แยก request ว่าง/ผิดรูปออกจากฟอร์มจริง */
+    public static function has(Request $request, string $key): bool
+    {
+        $post = $request->request->all();
+
+        return array_key_exists($key, $post) && is_scalar($post[$key]);
+    }
+
     /** ค่า POST ในตัวแปร PHP เดิม (' เป็น '') — ใช้แสดงผล/เทียบแบบเดิม */
     public static function php(Request $request, string $key): string
     {
@@ -33,6 +41,15 @@ final class Input
     public static function js(mixed $v): string
     {
         return str_replace('"', '\\"', Alerts::js($v));
+    }
+
+    /**
+     * ค่าที่ฝังใน '...' ซึ่งอยู่ใน "..." อีกชั้นแล้วถูก eval() ภายหลัง (fn_public = "loadAjaxGrid('x', '<v>')")
+     * escape 2 ชั้น: ชั้นใน (string ที่ eval) แล้วชั้นนอก (string "...") — js() ชั้นเดียว \' จะกลายเป็น ' ก่อนถึง eval
+     */
+    public static function jsEval(mixed $v): string
+    {
+        return self::js(Alerts::js($v));
     }
 
     /** '%term%' — เดิมต่อ LIKE ตรงๆ (% _ ของผู้ใช้เป็น wildcard) ที่นี่ escape ตาม CONVENTIONS ข้อ 4 */
