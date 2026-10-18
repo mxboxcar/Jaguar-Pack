@@ -28,6 +28,14 @@ class RouteSecurityTest extends TestCase
         '_api/submit_order_number_v2' => 'token API: crawler ส่งเลข tracking กลับมา',
         '_api/updateImagePrefix' => 'token API: งาน cron แก้ prefix รูป',
         '_api/unban' => 'token API: cron ปลดแบน IP',
+        // กลุ่ม users: หน้าสาธารณะของเว็บเดิม (ยังไม่มีบัญชี / ลืมรหัสผ่าน)
+        'register' => 'หน้าสมัครสมาชิก (register.php)',
+        '_register/save' => 'ส่งฟอร์มสมัครสมาชิก (ajax, CSRF ผ่าน group legacy)',
+        'lostpassword' => 'หน้าลืมรหัสผ่าน (lost_password.php)',
+        'lost_password' => 'หน้าลืมรหัสผ่าน (path ไฟล์เดิม)',
+        '_register/lost_password' => 'ขอรหัสผ่านใหม่ทางอีเมล (ajax)',
+        'system_check_username' => 'validationEngine ตรวจ username ซ้ำตอนสมัคร',
+        'password' => 'password.php เดิม (สคริปต์ย้ายรหัส ตาราง user_copy ไม่มีแล้ว) ตอบว่างเสมอ',
     ];
 
     private const AUTH = ['legacy.auth', 'legacy.perm', 'legacy.own'];
