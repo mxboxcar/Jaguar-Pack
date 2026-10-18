@@ -46,7 +46,7 @@ ajax (`/<ไฟล์>` ไม่มี `.php`, POST + `legacy.ajax` ถ้า�
 | `_admin/_mall_category/grid`, `save` | POST | `admin_mall_category` |
 | `_admin/_mall_category/delete` | POST | `admin_user_type` (ตามไฟล์เดิม) |
 | `_admin/_mallstock/grid` | POST | `admin_mall_stock` |
-| `_admin/_mallstock/load_amount`, `save_amount` | POST | `admin_balance` (ตามไฟล์เดิม) |
+| `_admin/_mallstock/load_amount`, `save_amount` | POST | `admin_mall_stock` (เดิม `admin_balance` — แก้ 2026-10-18) |
 | `_api/load_product` | POST | `order` |
 | `_api/load_product_v2` | POST | `order` (เดิมไม่ต้องล็อกอิน) |
 | `_api/blockblob_ajax` | POST | login (เดิมไม่ต้องล็อกอิน) |
@@ -61,6 +61,17 @@ ajax (`/<ไฟล์>` ไม่มี `.php`, POST + `legacy.ajax` ถ้า�
 
 ## 2. ต่างจากเดิมโดยตั้งใจ / ข้อสังเกต
 
+- **ราคาในตะกร้า (`_cart/save_product`) — ลูกค้ากำหนดเองไม่ได้** (เจ้าของอนุมัติ 2026-10-18 "ให้แอดมินแก้ไขก็พอ", รายงานข้อ 4.16): เดิมเชื่อ `search_price` จาก browser (ช่องราคาในฟอร์มแก้ได้ และยิง POST ตรงได้ เช่น 0.01)
+  - `_api/load_product` จำชุดราคาที่ crawler ตอบ (`price`, ราคาทุก SKU `skus[*].price.priceText`, `priceRange[*][1]`) ต่อ ผู้ใช้ + URL (ทั้ง URL ที่ส่งมาและ `url` ที่ crawler ตอบ) ใน cache 2 ชม. (`App\Domain\Shop\CrawlPrices`)
+  - `save_product`: ราคาที่ส่งมาตรงกับชุดนั้น (เทียบทศนิยม 2 ตำแหน่ง) = ลง DB ตามค่าที่ส่ง (เหมือนเดิม — JS เลือกราคาตาม SKU/จำนวนจากชุดเดียวกัน) · ไม่ตรง = ใช้ราคาหลักของ crawler · ไม่มีข้อมูล crawler ของผู้ใช้/URL นี้ (ไม่ได้โหลดผ่าน load_product หรือเกิน 2 ชม.) = `ErrorBox('ไม่พบข้อมูลราคาสินค้า กรุณาค้นหาสินค้าใหม่อีกครั้ง')` ไม่เขียนอะไร
+  - ผู้ถือ `admin_mall` (role 1, 6) ใส่ราคาเองได้แบบเดิม · ราคาในบิลหลัง checkout แก้ได้ที่ฝั่งแอดมินออเดอร์ตามเดิม
+  - ชื่อสินค้า/ร้าน/รูป ยังมาจาก browser แบบเดิม (ไม่กระทบยอดเงิน — พนักงานตรวจบิลเหมือนเดิม)
+  - ตรวจสด :8298 (zz_fdn_cust): ส่ง 0.01 ก่อนโหลดสินค้า = ErrorBox; โหลดสินค้า (DEV STUB ราคา 10.00) แล้วส่ง 0.01 → `cart_detail.price = 10.00` (ลบแถวทดสอบ cart/cart_detail/crawl_guard_log ตาม id แล้ว)
+- **`_admin/_mallstock/load_amount`, `save_amount`** (รายงานข้อ 4.16): เดิมเป็นสำเนาของ `_admin/_balance/*` → ผู้ถือ `admin_balance` INSERT/UPDATE แถว `balance` (ยอดเงินลูกค้า) ใดก็ได้ผ่าน URL นี้ → ใหม่: สิทธิ์ `admin_mall_stock` และแตะเฉพาะตาราง `mall_stock`
+  - `load_amount`: แถว `mall_stock` (is_delete = 0) + `user.code` ในรูป JSON เดิม (key ตัวเลข+ชื่อ), ไม่พบ = `null`
+  - `save_amount`: `id` = แถว mall_stock ที่มีอยู่ → แก้ `amount` (จำนวนเต็มเท่านั้น), `detail`, `user` (ถ้าส่ง `code` — ไม่พบ = ErrorBox no_user เดิม); `id` ว่าง = เพิ่มแถวใหม่ต้องส่ง `mall_detail_id` ที่มีอยู่จริง (mall_id เอาจาก mall_detail); `type` ไม่ใช้; id ไม่ใช่ตัวเลข/ไม่มีจริง = ErrorBox no_data
+  - หน้า `admin/mall_stock` ยังเรียก `_admin/_balance/*` ตัวจริงแบบเดิม (กลุ่ม balance — ไม่ได้แก้)
+- สิทธิ์ `admin_mall_category` (เดิมไม่มี role ใดถือ): ใช้งานได้แล้วผ่าน fallback ← `admin_mall` (role 1, 6) — ดู CONVENTIONS ข้อ 3.1
 - **ภายนอก (dev ไม่ยิงจริง)**: `_api/load_product` เรียก crawler (`setting.apiurls`) เฉพาะเมื่อ `LEGACY_EXTERNAL_ENABLED=true`; dev ตอบสินค้าปลอม `[DEV STUB]` (ยังบันทึก crawl_guard_log และ log แบบเดิม). `load_product_v2` (vcanbuy) ก็ปิดใน dev
 - **อัปโหลด**: `_api/blockblob_ajax` driver `local` คัดลอกจาก `legacy.upload.temp_dir` ไป `local_dir` (ผล `temp empty`/`exists`/`` เหมือนเดิม); **driver `azure` ยังไม่พอร์ต** (ไม่มี SDK ใน vendor และห้ามยิง Azure จาก dev) → ตอบ error + log — ต้องทำร่วมกับกลุ่ม settings ก่อนสลับ production
 - **`_api/submit_order_number_v2`** ต้องใช้ `CombineTrack()` ของกลุ่ม tracking (ยังไม่พอร์ต): เรียก `App\Domain\Tracking\CombineTrack::run($tracking, $order)` ถ้ามี ไม่มี = 501 ไม่เขียนอะไร

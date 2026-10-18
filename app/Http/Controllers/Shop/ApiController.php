@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Shop;
 
 use App\Domain\Shop\BlobStore;
 use App\Domain\Shop\CrawlGuard;
+use App\Domain\Shop\CrawlPrices;
 use App\Domain\Shop\ProductCrawler;
 use App\Domain\Shop\Unjail;
 use Illuminate\Http\Request;
@@ -32,7 +33,12 @@ class ApiController extends ShopController
             return response($blocked)->header('Content-Type', 'application/json; charset=utf-8');
         }
 
-        return $this->out(ProductCrawler::load($this->post($request, 'url'), $uid, $request->getRequestUri()));
+        $url = $this->post($request, 'url');
+        $body = ProductCrawler::load($url, $uid, $request->getRequestUri());
+        // จำราคาที่ crawler ให้ — _cart/save_product ใช้ราคานี้แทนราคาที่ browser ส่งมา (CrawlPrices)
+        CrawlPrices::remember($uid, $url, $body);
+
+        return $this->out($body);
     }
 
     /**

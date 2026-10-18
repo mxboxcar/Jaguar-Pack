@@ -15,8 +15,8 @@ use Illuminate\View\View;
 
 /**
  * _admin/_mallstock/*.php เดิม — ประวัติสต๊อกร้านค้า (สิทธิ์ admin_mall_stock)
- * load_amount / save_amount เป็นสำเนาของ _admin/_balance (สิทธิ์ admin_balance, แก้ตาราง balance) — หน้าเว็บเรียก
- * _admin/_balance/* ตัวจริง ไฟล์ของกลุ่มนี้ไม่มีใครเรียก แต่เปิดตรงได้ จึงพอร์ตตามเดิม
+ * load_amount / save_amount เดิมเป็นสำเนาของ _admin/_balance (สิทธิ์ admin_balance, แก้ตาราง balance) — หน้าเว็บเรียก
+ * _admin/_balance/* ตัวจริง ไฟล์ของกลุ่มนี้ไม่มีใครเรียก แต่เปิดตรงได้ → แก้แล้วให้ใช้สิทธิ์ admin_mall_stock และแตะเฉพาะ mall_stock
  */
 class MallStockController extends ShopController
 {
@@ -66,11 +66,17 @@ class MallStockController extends ShopController
         ])->render());
     }
 
-    /** _admin/_mallstock/load_amount — แถว balance + รหัสลูกค้า (JSON แบบ mysqli_fetch_array: มีทั้ง key ตัวเลขและชื่อ) */
+    /**
+     * _admin/_mallstock/load_amount — แถว mall_stock + รหัสลูกค้า (JSON แบบ mysqli_fetch_array: มีทั้ง key ตัวเลขและชื่อ)
+     * แก้จากเดิม (เจ้าของอนุมัติ 2026-10-18): เดิมเป็นสำเนาของ _admin/_balance (สิทธิ์ admin_balance) อ่านแถว `balance` ใดก็ได้
+     * → สิทธิ์ admin_mall_stock และอ่านเฉพาะแถว `mall_stock` ที่ยังไม่ถูกลบ
+     */
     public function loadAmount(Request $request): Response
     {
-        $row = DB::table('balance')->leftJoin('user', 'user.id', '=', 'balance.user')
-            ->where('balance.id', $this->post($request, 'id'))->select('balance.*', 'user.code')->first();
+        $id = $this->post($request, 'id');
+        $row = ctype_digit($id) ? DB::table('mall_stock')->leftJoin('user', 'user.id', '=', 'mall_stock.user')
+            ->where('mall_stock.id', (int) $id)->where('mall_stock.is_delete', 0)
+            ->select('mall_stock.*', 'user.code')->first() : null;
         if ($row === null) {
             return $this->out('null');
         }
@@ -86,27 +92,60 @@ class MallStockController extends ShopController
         return $this->out(json_encode($out));
     }
 
-    /** _admin/_mallstock/save_amount — เพิ่ม/แก้รายการ balance ของลูกค้าตามรหัส */
+    /**
+     * _admin/_mallstock/save_amount — แก้/เพิ่มรายการเคลื่อนไหวสต๊อก (mall_stock)
+     * แก้จากเดิม (เจ้าของอนุมัติ 2026-10-18): เดิมเป็นสำเนาของ _admin/_balance/save_amount → ผู้ถือ admin_balance
+     * INSERT/UPDATE แถว `balance` (ยอดเงินลูกค้า) ใดก็ได้ผ่าน URL นี้ → ที่นี่:
+     *   - สิทธิ์ admin_mall_stock (route) และไม่แตะตาราง balance เลย
+     *   - id = แถว mall_stock ที่มีอยู่ (is_delete = 0) → แก้ได้เฉพาะ amount (จำนวนเต็ม), detail และลูกค้าอ้างอิง (code)
+     *   - id ว่าง = เพิ่มแถวใหม่ ต้องส่ง mall_detail_id ของสินค้าในร้านที่มีอยู่จริง (mall_id เอาจาก mall_detail)
+     *   - `type` (ประเภทรายการ balance) ไม่ถูกใช้
+     */
     public function saveAmount(Request $request): Response
     {
         $uid = $this->uid();
-        $user = DB::table('user')->where('code', $this->post($request, 'code'))->first(['id']);
-        if ($user === null) {
-            return $this->out("ErrorBox('".Lang::get('no_user')."', 'CloseLoading()'); ");
+        $noData = "ErrorBox('".Lang::get('no_data')."', 'CloseLoading()'); ";
+        $amount = trim($this->post($request, 'amount'));
+        if (preg_match('/^-?\d{1,9}$/', $amount) !== 1) {
+            return $this->out("ErrorBox('จำนวนไม่ถูกต้อง', 'CloseLoading()'); ");
+        }
+        $code = $this->post($request, 'code');
+        $userId = null;
+        if ($code !== '') {
+            $user = DB::table('user')->where('code', $code)->first(['id']);
+            if ($user === null) {
+                return $this->out("ErrorBox('".Lang::get('no_user')."', 'CloseLoading()'); ");
+            }
+            $userId = (int) $user->id;
         }
         $id = $this->post($request, 'id');
-        $vals = [
-            'user' => $user->id, 'detail' => $this->post($request, 'detail'),
-            'type' => $this->post($request, 'type'), 'amount' => $this->post($request, 'amount'),
-        ];
+        $now = DB::raw('NOW()');
+        $vals = ['amount' => (int) $amount, 'detail' => $this->post($request, 'detail'), 'mod_date' => $now, 'mod_by' => $uid];
+        if ($userId !== null) {
+            $vals['user'] = $userId;
+        }
+
         if ($id === '') {
-            $now = DB::raw('NOW()');
-            DB::table('balance')->insert($vals + [
-                'create_date' => $now, 'create_by' => $uid, 'mod_date' => $now, 'mod_by' => $uid, 'is_delete' => 0,
-                'prefix' => '', 'prefix_ref_id' => '',
+            $detailId = $this->post($request, 'mall_detail_id');
+            $detail = ctype_digit($detailId)
+                ? DB::table('mall_detail')->where('id', (int) $detailId)->where('is_delete', 0)->first(['id', 'mall_id'])
+                : null;
+            if ($detail === null) {
+                return $this->out($noData);
+            }
+            DB::table('mall_stock')->insert($vals + [
+                'create_date' => $now, 'create_by' => $uid, 'is_delete' => 0,
+                'mall_id' => (int) $detail->mall_id, 'mall_detail_id' => (int) $detail->id, 'date' => $now,
+                'user' => $userId ?? 0, 'pay_type' => 0,
             ]);
         } else {
-            DB::table('balance')->where('id', $id)->update($vals);
+            if (! ctype_digit($id)) {
+                return $this->out($noData);
+            }
+            $n = DB::table('mall_stock')->where('id', (int) $id)->where('is_delete', 0)->update($vals);
+            if ($n === 0 && ! DB::table('mall_stock')->where('id', (int) $id)->where('is_delete', 0)->exists()) {
+                return $this->out($noData);
+            }
         }
 
         return $this->out(Alerts::success());

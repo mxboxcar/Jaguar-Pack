@@ -45,8 +45,8 @@ class ShopRoutesTest extends TestCase
         ['POST', '_admin/_mall_category/grid', 'legacy.perm:admin_mall_category', null],
         ['POST', '_admin/_mall_category/save', 'legacy.perm:admin_mall_category', null],
         ['POST', '_admin/_mallstock/grid', 'legacy.perm:admin_mall_stock', null],
-        ['POST', '_admin/_mallstock/load_amount', 'legacy.perm:admin_balance', null],
-        ['POST', '_admin/_mallstock/save_amount', 'legacy.perm:admin_balance', null],
+        ['POST', '_admin/_mallstock/load_amount', 'legacy.perm:admin_mall_stock', null], // แก้จากเดิม (admin_balance)
+        ['POST', '_admin/_mallstock/save_amount', 'legacy.perm:admin_mall_stock', null], // แก้จากเดิม (admin_balance)
         ['POST', '_api/blockblob', 'legacy.auth', null],
         ['POST', '_api/blockblob_ajax', 'legacy.auth', null],
         ['POST', '_api/crawl_guard', 'legacy.auth', null],
