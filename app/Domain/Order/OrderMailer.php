@@ -2,6 +2,7 @@
 
 namespace App\Domain\Order;
 
+use App\Domain\Money\Money;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Legacy;
 use Illuminate\Support\Facades\DB;
@@ -84,7 +85,8 @@ final class OrderMailer
     }
 
     /** _admin/_taobao/email_cancel.php */
-    public static function taobaoCancelled(int $taobaoId, int $detailId): void
+    /** @param  array{cny: float, thb: float, charge: float}|null  $refund  ยอดที่คืนจริง (null = ข้อความแบบเดิม: ค่าบริการเป็นบาท + ราคาเป็นหยวน) */
+    public static function taobaoCancelled(int $taobaoId, int $detailId, ?array $refund = null): void
     {
         [$data, $detail] = self::taobaoRows($taobaoId, $detailId);
         $no = OrderLookups::prefix('taobao').$taobaoId;
@@ -93,8 +95,8 @@ final class OrderMailer
             ."มีเหตุขัดข้องบางประการที่ไม่สามารถดำเนินการได้ </p>\n"
             .'<p>- '.Html::h($detail->cancel_remark ?? '')."</p>\n"
             .'<p>รายการสั่งซื้อ : '.Html::h($detail->order ?? '')."</p>\n"
-            .'<p>คืนเงินไทย : '.($data->charge ?? '')."฿</p>\n"
-            .'<p>คืนเงินหยวน : ¥'.($detail->price ?? '')."</p>\n";
+            .'<p>คืนเงินไทย : '.($refund === null ? ($data->charge ?? '') : Money::fmt($refund['charge'] + $refund['thb']))."฿</p>\n"
+            .'<p>คืนเงินหยวน : ¥'.($refund === null ? ($detail->price ?? '') : Money::fmt($refund['cny']))."</p>\n";
         $body .= sprintf(self::BUTTON, Legacy::href('taobao/'.$taobaoId));
         self::send('taobao cancel', $taobaoId, $subject, $body, (string) ($data->email ?? ''));
     }

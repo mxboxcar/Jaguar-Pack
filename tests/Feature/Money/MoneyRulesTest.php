@@ -3,6 +3,7 @@
 namespace Tests\Feature\Money;
 
 use App\Domain\Money\Money;
+use App\Domain\Order\TaobaoRefund;
 use Tests\TestCase;
 
 /**
@@ -48,6 +49,21 @@ class MoneyRulesTest extends TestCase
         $this->assertSame('1234.50', Money::fmt(1234.5));
         $this->assertSame('0.10', Money::fmt(0.1 + 0.0000001));
         $this->assertSame('-3.00', Money::fmt(-3));
+    }
+
+    public function test_taobao_refund_uses_the_currency_actually_paid(): void
+    {
+        // จ่ายหยวนทั้งหมด (ใบถูกตัดหยวน 150 บาท 20 = ค่าบริการ 2 ออเดอร์)
+        $this->assertSame(['cny' => 100.0, 'thb' => 0.0, 'charge' => 10.0], TaobaoRefund::forCancel(100, 10, 5, -150, -20));
+        // จ่ายบาททั้งหมด: ราคา × rate ของใบ + ค่าบริการ
+        $this->assertSame(['cny' => 0.0, 'thb' => 500.0, 'charge' => 10.0], TaobaoRefund::forCancel(100, 10, 5, 0, -1020));
+        // ผสม: หยวนค้าง 20 → หยวน 20 + บาท (30 × 5)
+        $this->assertSame(['cny' => 20.0, 'thb' => 150.0, 'charge' => 10.0], TaobaoRefund::forCancel(50, 10, 5, -20, -170));
+        // ไม่คืนเกินที่ใบนี้ยังถูกตัดอยู่ (เช่น เว็บเดิมคืนไปแล้วบางส่วน)
+        $this->assertSame(['cny' => 0.0, 'thb' => 5.0, 'charge' => 10.0], TaobaoRefund::forCancel(50, 10, 5, 10, -15));
+        $this->assertSame(['cny' => 0.0, 'thb' => 0.0, 'charge' => 0.0], TaobaoRefund::forCancel(50, 10, 5, 0, 0));
+        // ราคา/ค่าบริการติดลบจากข้อมูลเก่า = ไม่คืนติดลบ (ไม่หักเงินตอนยกเลิก)
+        $this->assertSame(['cny' => 0.0, 'thb' => 0.0, 'charge' => 0.0], TaobaoRefund::forCancel(-50, -10, 5, -100, -100));
     }
 
     public function test_refuse_is_legacy_error_box(): void

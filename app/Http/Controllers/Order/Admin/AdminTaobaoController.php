@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Order\Admin;
 
+use App\Domain\Money\Money;
 use App\Domain\Order\OrderLookups;
 use App\Domain\Order\OrderMailer;
 use App\Domain\Order\Php74;
+use App\Domain\Order\TaobaoRefund;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Order\Concerns\ReadsLegacyInput;
 use App\Support\Legacy\Alerts;
@@ -88,7 +90,8 @@ class AdminTaobaoController extends Controller
         $q = DB::table('taobao')->leftJoin('user', 'user.id', '=', 'taobao.user')->where('taobao.is_delete', 0)
             ->where(fn ($w) => $w->where('taobao.id', 'like', $like)->orWhere('user.code', 'like', $like));
         $s = $p[1] ?? null;
-        // HAVING เดิม (derived table = NULL เมื่อไม่มีแถว): "-1" = wait = 0 AND complete = 0 → ไม่มีแถวผ่านเลย
+        // HAVING เดิม "-1" = wait = 0 AND complete = 0 กับ derived table (= NULL เมื่อไม่มีแถว) → ไม่มีแถวผ่านเลย
+        // แก้ (เจ้าของสั่ง 2026-10-18): นับด้วย correlated COUNT (0 แทน NULL) → "ยกเลิก" = ไม่มีรายการรอ/สำเร็จเหลือ
         $having = null;
         if (Php74::eq($s, '1')) {
             $having = 'wait != 0';
@@ -97,7 +100,7 @@ class AdminTaobaoController extends Controller
             $having = 'complete != 0';
         }
         if (Php74::eq($s, '-1')) {
-            $having = '1 = 0';
+            $having = 'wait = 0 AND complete = 0';
         }
         if ($having !== null) {
             $q->selectRaw('taobao.id')->selectRaw(self::WAIT.' AS wait')->selectRaw(self::COMPLETE.' AS complete')->havingRaw($having);
@@ -183,25 +186,48 @@ class AdminTaobaoController extends Controller
         return response(Alerts::success());
     }
 
-    /** POST /_admin/_taobao/save_approved — เดิมตรวจ admin_taobao แต่แจ้งเตือนด้วยชื่อ admin_shop_cashback */
+    /**
+     * POST /_admin/_taobao/save_approved — เดิมตรวจ admin_taobao แต่แจ้งเตือนด้วยชื่อ admin_shop_cashback
+     * เดิมไม่ตรวจสถานะ: อนุมัติรายการที่ยกเลิก (คืนเงินแล้ว) → rollback 2 → 1 (ไม่หักเงิน) → ยกเลิกซ้ำ = คืนเงินซ้ำ
+     * ใหม่ (เจ้าของสั่งแก้): ล็อกแถว, เฉพาะ status 1 (= ปุ่มในหน้า)
+     */
     public function saveApproved(Request $request): Response
     {
         if (! perm('admin_taobao')) {
             return response(Alerts::permission('admin_shop_cashback'));
         }
         $id = $this->in($request, 'id');
-        $data = DB::table('taobao_detail')->where('id', $id)->first();
-        DB::table('taobao_detail')->where('id', $id)->update(['status' => '2', 'mod_date' => DB::raw('NOW()'), 'mod_by' => Legacy::userId()]);
-        if ($data !== null && ! config('legacy.debug_mail')) {
-            OrderMailer::taobaoApproved((int) $data->taobao_id, (int) $data->id);
+        $result = DB::transaction(function () use ($id) {
+            $data = DB::table('taobao_detail')->where('id', $id)->lockForUpdate()->first();
+            if ($data === null) {
+                return 'ไม่พบรายการ';
+            }
+            if (! Money::statusIn($data->status, [1])) {
+                return self::notPending($data->status);
+            }
+            DB::table('taobao_detail')->where('id', $data->id)->update(['status' => '2', 'mod_date' => DB::raw('NOW()'), 'mod_by' => Legacy::userId()]);
+
+            return $data;
+        });
+        if (is_string($result)) {
+            return response(Money::refuse($result));
+        }
+        if (! config('legacy.debug_mail')) {
+            OrderMailer::taobaoApproved((int) $result->taobao_id, (int) $result->id);
         }
 
         return response(Alerts::success('window.location.reload();'));
     }
 
     /**
-     * POST /_admin/_taobao/save_cancel — ยกเลิกรายการ + คืนค่าบริการ (balance) และยอดหยวน (balance_cn) + อีเมล
-     * เดิมอ่านสถานะแล้วค่อย UPDATE → กดซ้ำพร้อมกันคืนเงินซ้ำได้ → transaction + ล็อกแถว
+     * POST /_admin/_taobao/save_cancel — ยกเลิกรายการ + คืนเงิน + อีเมล
+     * เดิม: ยกเลิกได้ทุกสถานะที่ไม่ใช่ -1 (รวมรายการที่จ่ายร้านแล้ว), คืนราคาเป็นหยวน (balance_cn) เสมอไม่ว่าลูกค้าจ่ายด้วยอะไร
+     *       + คืนค่าบริการ (charge = ค่าบริการต่อ 1 ออเดอร์) — ไม่ผูกแถวคืนเงินกับรายการ ทำให้ rollback หักคืนไม่ตรง
+     * ใหม่ (เจ้าของสั่งแก้):
+     *  - เฉพาะ status 1 (= ปุ่มในหน้า), ล็อกแถวรายการ + ใบ + user
+     *  - คืนในสกุลที่ลูกค้าจ่ายจริง: ส่วนที่จ่ายด้วยหยวน (usecash_cn ที่ยังไม่ถูกคืน) คืนเป็นหยวน ที่เหลือคืนเป็นบาท × rate ของใบ
+     *  - ค่าบริการคืน 1 ออเดอร์ (charge ของใบ) — รวมทุกยอดที่คืนไม่เกินยอดที่ใบนี้ถูกตัดไว้ในแต่ละสกุล
+     *  - แถวคืนเงินมี ref_id_2 = id ของรายการ (taobao_detail) เพื่อให้ rollback หักคืนตรงตามที่คืนจริง
      */
     public function saveCancel(Request $request): Response
     {
@@ -211,36 +237,45 @@ class AdminTaobaoController extends Controller
         $code = (string) (Legacy::user()->code ?? '');
         $done = DB::transaction(function () use ($id, $remark, $uid, $code) {
             $data = DB::table('taobao_detail')->where('id', $id)->lockForUpdate()->first();
-            $head = DB::table('taobao')->where('id', $data->taobao_id ?? '')->first();
-            if ($data !== null && Php74::eq($data->status, -1)) {
-                return null;
+            if ($data === null) {
+                return 'ไม่พบรายการ';
             }
-            DB::table('taobao_detail')->where('id', $id)->update([
+            if (! Money::statusIn($data->status, [1])) {
+                return self::notPending($data->status);
+            }
+            $head = DB::table('taobao')->where('id', $data->taobao_id)->lockForUpdate()->first();
+            if ($head === null) {
+                return 'ไม่พบรายการ';
+            }
+            Money::lockUser($head->user);
+            DB::table('taobao_detail')->where('id', $data->id)->update([
                 'status' => '-1', 'cancel_remark' => $remark.' ,ยกเลิกโดย '.$code, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
             ]);
             $pre = OrderLookups::prefix('taobao');
             $pid = OrderLookups::prefixId('taobao');
-            $charge = $head->charge ?? null;
-            if (Php74::neq($charge, '') && Php74::neq($charge, '0.00') && Php74::neq($charge, '0')) {
-                DB::table('balance')->insert([
-                    'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
-                    'user' => $head->user ?? '', 'amount' => $charge, 'detail' => $pre.($head->id ?? '').', คืนเงินค่าบริการ',
-                    'type' => '7', 'prefix' => $pid, 'prefix_ref_id' => $head->id ?? '',
-                ]);
+            $r = TaobaoRefund::forCancel(
+                (float) Php74::num($data->price), (float) Php74::num($head->charge), (float) Php74::num($head->rate),
+                Money::net('balance_cn', $pid, $head->id), Money::net('balance', $pid, $head->id),
+            );
+            $row = ['create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
+                'user' => $head->user, 'type' => '7', 'prefix' => $pid, 'prefix_ref_id' => $head->id, 'ref_id_2' => $data->id];
+            if ($r['charge'] > 0) {
+                DB::table('balance')->insert($row + ['amount' => Money::fmt($r['charge']), 'detail' => $pre.$head->id.', คืนเงินค่าบริการ']);
             }
-            $price = $data->price ?? null;
-            if (Php74::neq($price, '') && Php74::neq($price, '0.00') && Php74::neq($price, '0')) {
-                DB::table('balance_cn')->insert([
-                    'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
-                    'user' => $head->user ?? '', 'amount' => $price, 'detail' => $pre.($head->id ?? '').', รายการสั่งซื้อ : '.($data->order ?? ''),
-                    'type' => '7', 'prefix' => $pid, 'prefix_ref_id' => $head->id ?? '',
-                ]);
+            if ($r['cny'] > 0) {
+                DB::table('balance_cn')->insert($row + ['amount' => Money::fmt($r['cny']), 'detail' => $pre.$head->id.', รายการสั่งซื้อ : '.$data->order]);
+            }
+            if ($r['thb'] > 0) {
+                DB::table('balance')->insert($row + ['amount' => Money::fmt($r['thb']), 'detail' => $pre.$head->id.', รายการสั่งซื้อ : '.$data->order.' (คืนเป็นเงินบาท)']);
             }
 
-            return $data;
+            return [$data, $r];
         });
-        if ($done !== null && ! config('legacy.debug_mail')) {
-            OrderMailer::taobaoCancelled((int) $done->taobao_id, (int) $done->id);
+        if (is_string($done)) {
+            return response(Money::refuse($done));
+        }
+        if (! config('legacy.debug_mail')) {
+            OrderMailer::taobaoCancelled((int) $done[0]->taobao_id, (int) $done[0]->id, $done[1]);
         }
 
         return response(Alerts::success('window.location.reload();'));
@@ -248,41 +283,72 @@ class AdminTaobaoController extends Controller
 
     /**
      * POST /_admin/_taobao/rollback (สิทธิ์ admin_alipay) — ยกเลิก (-1) หรือ จ่ายแล้ว (2) → กลับเป็นรอดำเนินการ (1)
-     * คงพฤติกรรมเดิม: ตอนยกเลิกคืนเงินเป็น "หยวน" (balance_cn) แต่ rollback หักคืนจาก "บาท" (balance) = rate × price
+     * เดิม: ตอนยกเลิกคืนเป็นหยวน แต่ rollback หักจากบาท (rate × price) + หักค่าบริการแม้ไม่ได้คืน, ไม่ตรวจยอดคงเหลือ
+     * ใหม่ (เจ้าของสั่งแก้): หักคืนตามแถวคืนเงินของรายการนี้ (ref_id_2) ในสกุลเดียวกับที่คืน; รายการที่ยกเลิกจากเว็บเดิม
+     * (ไม่มี ref_id_2) = เว็บเดิมคืนราคาเป็นหยวน + ค่าบริการเป็นบาท → หักคืนแบบนั้น; ยอดคงเหลือไม่พอ = ปฏิเสธ
      */
     public function rollback(Request $request): Response
     {
         $id = $this->in($request, 'id');
         $uid = Legacy::userId();
-        DB::transaction(function () use ($id, $uid) {
-            $data = DB::table('taobao_detail')->leftJoin('taobao', 'taobao.id', '=', 'taobao_detail.taobao_id')
-                ->where('taobao_detail.id', $id)->lockForUpdate()
-                ->first(['taobao_detail.*', 'taobao.rate', 'taobao.charge', 'taobao.user', 'taobao.id as taobao_ids']);
+        $error = DB::transaction(function () use ($id, $uid) {
+            $data = DB::table('taobao_detail')->where('id', $id)->lockForUpdate()->first();
             if ($data === null) {
-                return;
+                return null;
             }
             $reset = ['status' => '1', 'cancel_remark' => '', 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid];
-            if (Php74::eq($data->status, '-1')) {
-                $n = DB::table('taobao_detail')->where('id', $data->id)->where('status', -1)->update($reset);
-                if ($n !== 1) {
-                    return;
-                }
-                $pre = OrderLookups::prefix('taobao');
-                $pid = OrderLookups::prefixId('taobao');
-                $newprice = Php74::num($data->rate) * Php74::num($data->price);
-                $row = ['create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
-                    'is_delete' => 0, 'user' => $data->user ?? '', 'type' => 7, 'prefix' => $pid, 'prefix_ref_id' => $data->taobao_ids ?? ''];
-                DB::table('balance')->insert($row + ['amount' => '-'.Php74::str($newprice), 'detail' => 'Rollback '.$pre.($data->taobao_ids ?? '')]);
-                DB::table('balance')->insert($row + ['amount' => '-'.($data->charge ?? ''), 'detail' => 'Rollback คืนเงินค่าบริการ '.$pre.($data->taobao_ids ?? '')]);
-
-                return;
-            }
-            if (Php74::eq($data->status, 2)) {
+            if (Money::statusIn($data->status, [2])) {
                 DB::table('taobao_detail')->where('id', $data->id)->update($reset);
+
+                return null;
             }
+            if (! Money::statusIn($data->status, [-1])) {
+                return null;
+            }
+            $head = DB::table('taobao')->where('id', $data->taobao_id)->lockForUpdate()->first();
+            if ($head === null) {
+                return null;
+            }
+            Money::lockUser($head->user);
+            $pre = OrderLookups::prefix('taobao');
+            $pid = OrderLookups::prefixId('taobao');
+            $item = fn ($q) => $q->where('ref_id_2', $data->id);
+            $tracked = DB::table('balance')->where('prefix', $pid)->where('prefix_ref_id', $head->id)->where('ref_id_2', $data->id)->exists()
+                || DB::table('balance_cn')->where('prefix', $pid)->where('prefix_ref_id', $head->id)->where('ref_id_2', $data->id)->exists();
+            if ($tracked) {
+                $thb = max(0.0, Money::net('balance', $pid, $head->id, $item));
+                $cny = max(0.0, Money::net('balance_cn', $pid, $head->id, $item));
+                $thbText = 'Rollback '.$pre.$head->id;
+            } else {
+                $thb = max(0.0, round((float) Php74::num($head->charge), 2));
+                $cny = max(0.0, round((float) Php74::num($data->price), 2));
+                $thbText = 'Rollback คืนเงินค่าบริการ '.$pre.$head->id;
+            }
+            if (Money::cash($head->user) < $thb || Money::cash($head->user, 'balance_cn') < $cny) {
+                return 'ยอดเงินคงเหลือของลูกค้าไม่พอสำหรับ RollBack (ต้องการ '.Money::fmt($thb).' บาท / '.Money::fmt($cny).' หยวน)';
+            }
+            DB::table('taobao_detail')->where('id', $data->id)->update($reset);
+            $row = ['create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
+                'is_delete' => 0, 'user' => $head->user, 'type' => 7, 'prefix' => $pid, 'prefix_ref_id' => $head->id, 'ref_id_2' => $data->id];
+            if ($cny > 0) {
+                DB::table('balance_cn')->insert($row + ['amount' => '-'.Money::fmt($cny), 'detail' => 'Rollback '.$pre.$head->id]);
+            }
+            if ($thb > 0) {
+                DB::table('balance')->insert($row + ['amount' => '-'.Money::fmt($thb), 'detail' => $thbText]);
+            }
+
+            return null;
         });
+        if ($error !== null) {
+            return response(Money::refuse($error));
+        }
 
         return response(Alerts::success('window.location.reload(); '));
+    }
+
+    private static function notPending(mixed $status): string
+    {
+        return Money::statusIn($status, [-1]) ? 'รายการนี้ถูกยกเลิกไปแล้ว' : 'รายการนี้ดำเนินการ (จ่ายร้านค้า) แล้ว กรุณา RollBack ก่อน';
     }
 
     /** GET|POST /_admin/_taobao/email_* — เรียกตรงแบบเดิมไม่มี id → ไม่ทำอะไร */

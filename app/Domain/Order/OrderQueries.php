@@ -25,8 +25,6 @@ final class OrderQueries
         '3' => 'no_track != 0 AND no_warehouse != 0',
         '5' => 'no_track = 0 AND no_warehouse != 0',
         '6' => 'no_warehouse = 0',
-        // load_paging ของลูกค้าเดิมเขียน "no_track = 0" กับ derived table (ค่าเป็น NULL) → ไม่มีแถวผ่านเลย
-        'never' => '1 = 0',
     ];
 
     public static function base(): Builder
@@ -36,10 +34,10 @@ final class OrderQueries
 
     /**
      * ตัวกรอง ship/status ของ grid เดิม ($txtSearch[1], $txtSearch[2]) — คืน key ของ HAVING หรือ null
-     *
-     * @param  bool  $brokenHaving  true = load_paging ของลูกค้า (5/6 เดิมไม่มีแถวผ่าน)
+     * (load_paging ของลูกค้าเดิมเขียน "no_track = 0" กับ derived table ที่เป็น NULL → สถานะ 5/6 ไม่มีหน้า paging;
+     *  แก้แล้ว: ใช้ HAVING เดียวกับ grid — เจ้าของสั่งแก้ 2026-10-18)
      */
-    public static function applyShipStatus(Builder $q, mixed $ship, mixed $status, bool $brokenHaving = false): ?string
+    public static function applyShipStatus(Builder $q, mixed $ship, mixed $status): ?string
     {
         if ($ship !== null && Php74::neq($ship, '-2') && Php74::neq($ship, '')) {
             $q->where('bill_product.ship', $ship);
@@ -58,11 +56,11 @@ final class OrderQueries
         }
         if ($notAll && Php74::eq($status, '5')) {
             $q->where('bill_product.status', '!=', '-1');
-            $having = $brokenHaving ? 'never' : '5';
+            $having = '5';
         }
         if ($notAll && Php74::eq($status, '6')) {
             $q->where('bill_product.status', '!=', '-1');
-            $having = $brokenHaving ? 'never' : '6';
+            $having = '6';
         }
 
         return $having;
@@ -106,9 +104,6 @@ final class OrderQueries
     /** จำนวนแถว (mysqli_num_rows ของ query เดิม) */
     public static function count(Builder $q, ?string $having): int
     {
-        if ($having === 'never') {
-            return 0;
-        }
         if ($having === null) {
             return (clone $q)->count();
         }
@@ -133,9 +128,6 @@ final class OrderQueries
     public static function page(Builder $q, ?string $having, int $offset): array
     {
         $q = (clone $q)->select('bill_product.*', 'user.code');
-        if ($having === 'never') {
-            return [];
-        }
         if ($having !== null) {
             self::withHaving($q, $having);
         }

@@ -109,7 +109,7 @@ class OrderController extends Controller
             ->where(fn ($w) => $w->where('user.code', 'like', OrderQueries::like($term))
                 ->orWhere('bill_product.id', 'like', OrderQueries::like(str_replace(OrderLookups::prefix('order'), '', $term))))
             ->where('user.id', $uid);
-        $having = OrderQueries::applyShipStatus($q, $p[1] ?? null, $p[2] ?? null, true);
+        $having = OrderQueries::applyShipStatus($q, $p[1] ?? null, $p[2] ?? null);
         $rows = OrderQueries::cachedCount('c-paging', $q, $having);
 
         return response(Paging::getpaging($this->php($request, 'page'), $rows, 10, self::AJAX));
