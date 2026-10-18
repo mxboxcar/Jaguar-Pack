@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Points;
 
 use App\Domain\Points\Grid;
-use App\Domain\Points\PinBox;
+use App\Domain\Payment\PinBox;
 use App\Domain\Points\Rules;
 use App\Http\Controllers\Controller;
 use App\Support\Legacy\Alerts;

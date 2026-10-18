@@ -26,7 +26,7 @@ class PermissionFallbackTest extends TestCase
         foreach ([
             'admin_point', 'admin_withdrawpoint', 'admin_nobilling', 'admin_balance_company',
             'admin_balance_company_add', 'admin_balance_company_delete', 'admin_change_sender',
-            'admin_mall_category', 'view_bol',
+            'admin_mall_category',
         ] as $orphan) {
             $this->assertArrayHasKey($orphan, $map, $orphan);
             $this->assertNotEmpty($map[$orphan], $orphan);
@@ -102,7 +102,7 @@ class PermissionFallbackTest extends TestCase
         $expected = [
             'admin_point' => [1, 5], 'admin_withdrawpoint' => [1, 5], 'admin_nobilling' => [1, 5, 7],
             'admin_balance_company' => [1, 5], 'admin_balance_company_add' => [1], 'admin_balance_company_delete' => [1],
-            'admin_change_sender' => [1, 5, 7], 'admin_mall_category' => [1, 6], 'view_bol' => [1, 4, 5, 6, 7],
+            'admin_change_sender' => [1, 5, 7], 'admin_mall_category' => [1, 6],
         ];
         foreach ($expected as $orphan => $want) {
             $got = [];
@@ -114,6 +114,15 @@ class PermissionFallbackTest extends TestCase
             }
             $this->assertSame($want, $got, $orphan);
         }
+    }
+
+    /** เจ้าของไม่เปิด /get_price (2026-10-18) → view_bol ไม่อยู่ใน map: แอดมิน tracking ก็ไม่ได้ (endpoint ปิดเหมือนเดิม) */
+    public function test_view_bol_is_not_granted_by_fallback(): void
+    {
+        $this->assertArrayNotHasKey('view_bol', config('legacy.permission_fallbacks'));
+        $this->actAs(904, ['admin_tracking', 'admin_lot_view', 'admin_payment', 'admin_mall', 'admin_report']);
+        $this->assertFalse($this->app->make(Permissions::class)->has('view_bol'));
+        $this->assertFalse(perm('view_bol'));
     }
 
     public function test_logged_out_has_no_permissions(): void

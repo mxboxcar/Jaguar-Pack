@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Lot\Admin;
 
 use App\Domain\Lot\Php74;
+use App\Domain\Money\Money;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Lot\Concerns\ReadsLegacyInput;
 use App\Support\Legacy\Alerts;
@@ -157,8 +158,13 @@ class AdminLotSaveController extends Controller
     /** POST /_admin/_lot/cancel — _admin/_lot/cancel.php (ยกเลิก refill — สิทธิ์ admin_refill) */
     public function cancel(Request $request): Response
     {
-        DB::table('refill')->where('id', $this->in($request, 'id'))
-            ->update(['status' => '-1', 'mod_date' => DB::raw('NOW()'), 'mod_by' => (int) Legacy::userId()]);
+        // แก้ (เจ้าของอนุมัติ): เดิมยกเลิกได้ทุกสถานะ (รวมที่อนุมัติ/เติมเงินแล้ว) → กติกาเดียวกับ _admin/_refill/cancel (Money::cancelPendingRefill)
+        // คอลัมน์ที่เขียนเท่าไฟล์เดิมของ lot (ไม่มี cancel_remark / อีเมล)
+        $result = Money::cancelPendingRefill($this->in($request, 'id'),
+            ['mod_date' => DB::raw('NOW()'), 'mod_by' => (int) Legacy::userId()]);
+        if (is_string($result)) {
+            return response(Money::refuse($result));
+        }
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/refill').'";'));
     }

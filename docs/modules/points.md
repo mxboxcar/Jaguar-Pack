@@ -33,12 +33,12 @@ branch `mod/points` · worktree `/home/admin/laravel/jl-wt/points` · port 8207
 
 - `routes/modules/points.php`
 - `app/Http/Controllers/Points/{PointController,ShopCashbackController}.php`, `Admin/{AdminPointController,AdminWithdrawPointController,AdminShopCashbackController}.php`
-- `app/Domain/Points/`: `Grid` (input/ค้นหา/หน้า), `Cashback` (รายการย่อย/บัญชีอ้างอิง), `Rules` (เงื่อนไขแบบ 7.4), `CashbackMailer`, `Php74`, `PinBox`, `UploadInline`, `TempUpload`
+- `app/Domain/Points/`: `Grid` (input/ค้นหา/หน้า), `Cashback` (รายการย่อย/บัญชีอ้างอิง), `Rules` (เงื่อนไขแบบ 7.4), `CashbackMailer`, `Php74`, `UploadInline`, `TempUpload`
 - `resources/views/points/{point,admin_point,admin_withdrawpoint,shop_cashback,admin_shop_cashback,partials}/*`
 - `tests/Feature/Points/PointsLogicTest.php` + `tests/fixtures/points-php74-cases.json` (สร้างจากนิพจน์เดิมด้วย php7.4)
 
 สำเนาจากกลุ่มอื่น (ยังไม่มีในฐานร่วม — ตอน merge ควรรวมเป็นของกลาง):
-`Php74` = `App\Domain\Balance\Php74`, `PinBox` = `App\Domain\Payment\PinBox` (JS เดิม), `TempUpload` ≈ `App\Domain\MoneyMove\TempUpload` (indent ต่างตามไฟล์เดิม),
+`Php74` = `App\Domain\Balance\Php74`, (PinBox รวมแล้ว: `save_withdraw` ใช้ `App\Domain\Payment\PinBox` + PinThrottle), `TempUpload` ≈ `App\Domain\MoneyMove\TempUpload` (indent ต่างตามไฟล์เดิม),
 `UploadInline` = `getupload_inline()` (เจ้าของ settings), `CashbackMailer` ใช้แม่แบบเดียวกับ `App\Domain\Payment\PaymentMailer`
 
 ## ผลเทียบกับเว็บเดิม (:8101 vs :8207, cookie เดียวกัน, ตัดช่องว่าง + แทน href)

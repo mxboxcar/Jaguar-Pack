@@ -99,6 +99,10 @@ class AdminRefillController extends Controller
         if ($member === null) {
             return response("ErrorBox('".Lang::get('no_user')."', 'CloseLoading()'); ");
         }
+        // แก้จากเดิม (เจ้าของอนุมัติ): เดิมรับยอดติดลบ/0/ไม่ใช่ตัวเลข (= หักเงินลูกค้า หรือรายการ 0 บาท) → ตัวเลขบวก ทศนิยมไม่เกิน 2 ตำแหน่ง
+        if (! Money::validRefillAmount($this->in($request, 'amount'))) {
+            return response(Money::refuse('กรุณาระบุจำนวนเงินให้ถูกต้อง (ต้องมากกว่า 0)'));
+        }
         $amount = Format::numformat($this->in($request, 'amount'));
         $exp = explode('|', $this->in($request, 'date'));
         $date = Format::getdatesubmit($exp[0]).' '.($exp[1] ?? '');
@@ -182,24 +186,10 @@ class AdminRefillController extends Controller
     {
         $u = Legacy::user();
         $id = $this->in($request, 'id');
-        $result = DB::transaction(function () use ($u, $id, $request) {
-            $data = DB::table('refill')->where('id', $id)->lockForUpdate()->first();
-            if ($data === null) {
-                return 'ไม่พบรายการ';
-            }
-            if (Money::statusIn($data->status, [Money::DONE])) {
-                return 'รายการนี้อนุมัติ (เติมเงินเข้าบัญชี) แล้ว ไม่สามารถยกเลิกได้';
-            }
-            if (! Money::statusIn($data->status, [Money::PENDING])) {
-                return 'รายการนี้ถูกยกเลิกไปแล้ว';
-            }
-            DB::table('refill')->where('id', $data->id)->update([
-                'status' => '-1', 'cancel_remark' => $this->in($request, 'cancel_remark').' ,ยกเลิกโดย '.$u->code,
-                'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id,
-            ]);
-
-            return (int) $data->id;
-        });
+        $result = Money::cancelPendingRefill($id, [
+            'cancel_remark' => $this->in($request, 'cancel_remark').' ,ยกเลิกโดย '.$u->code,
+            'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id,
+        ]);
         if (is_string($result)) {
             return response(Money::refuse($result));
         }

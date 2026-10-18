@@ -74,7 +74,7 @@ Route::middleware('legacy.perm:admin_tracking')->group(function () {
 8. IP ผู้ใช้ = `Legacy::clientIp()` เท่านั้น (เชื่อ `X-Real-IP` เฉพาะเมื่อมาจาก proxy ในเครื่อง/วงใน หรือ `LEGACY_TRUSTED_PROXIES`)
 9. production ต้องตั้ง `LEGACY_HREF` (หรือ `APP_URL`) — ห้ามสร้าง URL/redirect จาก Host header
 10. สิทธิ์ `*_view` (เช่น `admin_lot_view`, `admin_user_view`) = **อ่านอย่างเดียว**: route ที่เขียนข้อมูลใช้สิทธิ์เต็มอย่างเดียว (`legacy.perm:admin_lot`) แม้ไฟล์เดิมจะยอม `_view` (แก้ใน lot แล้ว 2026-10-18 — ดู docs/modules/lot.md) และ endpoint อ่านที่มีผลข้างเคียง (เช่น ทำเครื่องหมายพิมพ์/ตรวจแล้ว) ไม่เขียนเมื่อมีแค่ `_view`
-11. `_profile/pin` จำกัดการเดา PIN (`App\Domain\Users\PinThrottle`, config `legacy.pin_throttle`) — endpoint อื่นที่รับ PIN ควรใช้ตัวเดียวกัน
+11. จำกัดการเดา PIN (`App\Domain\Users\PinThrottle`, config `legacy.pin_throttle`): `_profile/pin` และทุก endpoint ที่ตรวจ `paymentpin` ผ่าน `App\Domain\Payment\PinBox::guard()` (ตัวนับร่วมกัน) — endpoint ใหม่ที่รับ PIN ต้องใช้ `PinBox::guard()` ห้ามเทียบ PIN เอง
 
 ### 3.1 สิทธิ์กำพร้า → fallback (`config/legacy.php` `permission_fallbacks`)
 
@@ -91,9 +91,9 @@ Route::middleware('legacy.perm:admin_tracking')->group(function () {
 | `admin_balance_company_add` | (ไม่มีโค้ดตรวจ — ใส่ไว้ให้ครบชุด) | `admin_balance_cn_add` | 1 | เหมือนข้างบน |
 | `admin_change_sender` | ฟอร์มแก้ผู้ส่ง/ประเภทส่งในบิล + `_admin/_payment/save_new_sender` | `admin_payment` | 1, 5, 7 | ผู้ที่แก้บิลได้อยู่แล้ว |
 | `admin_mall_category` | `/admin/mall_category`, `_admin/_mall_category/{grid,save}` | `admin_mall` | 1, 6 คนกดออเดอร์ | หมวดหมู่ของร้านค้า |
-| `view_bol` | `POST /get_price` (คำนวณราคาตามเรตลูกค้า — ไม่มี JS ใดเรียก) | `admin_tracking` | 1, 4 โกดังจีน, 5, 6, 7 | แอดมิน tracking เห็น/คำนวณราคาในฟอร์ม tracking อยู่แล้ว |
 
-ไม่ได้ map (ไม่มีหน้า/route ให้ใช้): `admin_coupon`, `admin_iden` (เมนูเดิมเท่านั้น — ลิงก์ไปหน้าที่ไม่มี), `admin_payment_createpayment` (เป็นแค่ชื่อในข้อความแจ้งเตือน — โค้ดตรวจ `admin_payment_create`)
+ไม่ได้ map: `view_bol` (`POST /get_price` — เจ้าของไม่อนุมัติให้เปิด 2026-10-18 → ยังปฏิเสธทุกคนเหมือนเดิม; ห้ามเพิ่มกลับโดยไม่ถามเจ้าของ) ·
+ไม่มีหน้า/route ให้ใช้: `admin_coupon`, `admin_iden` (เมนูเดิมเท่านั้น — ลิงก์ไปหน้าที่ไม่มี), `admin_payment_createpayment` (เป็นแค่ชื่อในข้อความแจ้งเตือน — โค้ดตรวจ `admin_payment_create`)
 
 กติกา:
 - ชั้นเดียว: ต้นทางต้องเป็นสิทธิ์ที่ role ถือใน DB (สิทธิ์ที่ได้จาก fallback ไม่ส่งต่อ) · เพิ่มอย่างเดียว ไม่ถอนสิทธิ์ที่ DB ให้ — ถ้าเจ้าของติ๊กสิทธิ์กำพร้าให้ role ใดใน DB ภายหลัง ก็ใช้ได้ตามปกติ

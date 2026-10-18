@@ -2,9 +2,12 @@
 
 namespace App\Domain\Payment;
 
+use App\Domain\Users\PinThrottle;
 use App\Models\User;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Lang;
+use App\Support\Legacy\Legacy;
+use App\Support\Legacy\LegacyLog;
 use Illuminate\Http\Request;
 
 /**
@@ -12,7 +15,7 @@ use Illuminate\Http\Request;
  * คืน JS ที่หน้าเว็บ eval() (สร้าง modal แล้วส่ง PIN ไป _profile/pin) — ข้อความ/JS เหมือนเดิมทุกตัวอักษร
  *
  * ต่างจากเดิม: $div / $callback ถูกฝังใน string JS แบบ "..." → escape (เดิมต่อดิบ) — ค่าคงที่จากโค้ดได้ผลเท่าเดิม
- * กลุ่มอื่นที่ต้องถาม PIN (balance/point/taobao/order/transfer/users) ใช้ PinBox::guard() แทนบล็อก
+ * กลุ่มอื่นที่ต้องถาม PIN ใช้ PinBox::guard() ตัวนี้ตัวเดียว (ตอนนี้: _point/save_withdraw, _admin/_user/btn_*) แทนบล็อก
  *   if($u['pin']=="") getNewPinBox(); elseif(paymentpin=="") getPinBox(); elseif(paymentpin!=pin) getError(...)
  * ในกลุ่ม payment เอง ไฟล์เดิม (_payment/save_submit_payment.php, _alipay/save.php) comment การถาม PIN ไว้ → ไม่ถาม PIN เหมือนเดิม
  */
@@ -117,6 +120,8 @@ final class PinBox
     /**
      * บล็อกตรวจ PIN แบบเดิม — คืน JS ที่ต้องตอบ (ยังไม่มี PIN / ยังไม่ได้กรอก / ผิด) หรือ null = ผ่าน
      * PIN ผิด → getError("CloseLoading()", "PIN จ่ายเงินไม่ถูกต้อง") (Alerts::error นับเป็นความพยายามผิดใน ips เหมือนเดิม)
+     * แก้จากเดิม (เจ้าของอนุมัติ 2026-10-18): จำกัดการเดาด้วย PinThrottle ตัวนับเดียวกับ _profile/pin
+     *   (ผิด 5 ครั้ง / 15 นาที ต่อผู้ใช้+IP หรือ 10 ครั้งต่อผู้ใช้ → ล็อก แม้ PIN ถูก; PIN ถูกก่อนล็อก = ล้างตัวนับ)
      */
     public static function guard(Request $request, ?User $user, string $div = 'form', int $eq = 0, string $callback = ''): ?string
     {
@@ -129,9 +134,20 @@ final class PinBox
         if ($sent === '' || $sent === 'undefined') {
             return self::getPinBox($eq, $div, $callback);
         }
+        $uid = (int) $user->getAttribute('id');
+        $ip = Legacy::clientIp();
+        $wait = PinThrottle::lockedFor($uid, $ip);
+        if ($wait > 0) {
+            LegacyLog::goLog($request->getRequestUri(), 'paymentpin: locked ('.$wait.'s)');
+
+            return Alerts::error('CloseLoading()', PinThrottle::message($wait));
+        }
         if (! hash_equals($pin, $sent)) {
+            PinThrottle::fail($uid, $ip);
+
             return Alerts::error('CloseLoading()', 'PIN จ่ายเงินไม่ถูกต้อง');
         }
+        PinThrottle::clear($uid, $ip);
 
         return null;
     }

@@ -61,7 +61,7 @@ user_type grid ยังใช้ subquery นับผู้ใช้ต่อ�
 - **`_profile/pin` จำกัดการเดา PIN** (เจ้าของอนุมัติ 2026-10-18, รายงานข้อ 4.21): `method=verified` ใส่ผิดครบ 5 ครั้งภายใน 15 นาที ต่อ (ผู้ใช้ + IP) หรือ 10 ครั้งต่อผู้ใช้ (ทุก IP รวม — กันเปลี่ยน IP) → ล็อกจนครบเวลา แม้ใส่ PIN ถูก: `ErrorBox('ใส่ PIN ผิดเกินจำนวนครั้งที่กำหนด<br />กรุณาลองใหม่อีกครั้งใน N นาที', 'CloseLoading()')`
   - ระหว่างยังไม่ล็อก ข้อความผิดยังเป็น `ErrorBox('PIN จ่ายเงินไม่ถูกต้อง', 'CloseLoading()')` และยังบันทึกแถว `ips` ให้ jail เหมือนเดิม; ใส่ถูก = ล้างตัวนับ
   - `App\Domain\Users\PinThrottle` (Laravel `RateLimiter`, cache store ปกติ — production `file`), ค่าตั้ง `config/legacy.php` `pin_throttle` / `.env` `LEGACY_PIN_MAX_ATTEMPTS`, `LEGACY_PIN_MAX_ATTEMPTS_PER_USER`, `LEGACY_PIN_DECAY_MINUTES`
-  - ยังไม่ครอบ: endpoint อื่นที่รับ `paymentpin` แล้วตรวจ PIN เอง (payment/money-move/points ฯลฯ — นอกขอบเขตกลุ่มนี้) ควรเรียก PinThrottle ด้วย
+  - endpoint อื่นที่ตรวจ `paymentpin` เอง ผ่าน `App\Domain\Payment\PinBox::guard()` ตัวเดียว (`_point/save_withdraw`, `_admin/_user/btn_*`) ใช้ตัวนับเดียวกัน (fix/followups) — สลับ endpoint ไม่ได้เดาเพิ่ม; payment/alipay/money-move/balance ไม่มีการตรวจ PIN ฝั่ง server (เดิม comment ไว้) · test: `tests/Feature/Users/PinBoxThrottleTest.php`
   - test: `tests/Feature/Users/ProfilePinThrottleTest.php` · ตรวจสด :8298 (zz_fdn_cust, X-Real-IP 10.250.77.21–31 สลับ IP): 10 ครั้งแรก "PIN จ่ายเงินไม่ถูกต้อง", ครั้งที่ 11 ล็อก (ลบแถว ips ทดสอบ 10 แถวตาม id แล้ว, ไม่เกิด ips_ban)
 - SQL ทั้งหมด bind ค่า, LIKE escape `% _ \` (เดิมผู้ใช้พิมพ์ `_` = wildcard)
 - N+1: ฟอร์มผู้ใช้/กลุ่มราคา (product_type × user_type_detail ต่อแถว → 2 query), grid ผู้ใช้ (ชื่อกลุ่มแม่ต่อแถว → join), role detail (วนเทียบ → map), INSERT user_type_detail / role_on_detail ทีละแถว → insert ครั้งเดียว
@@ -104,5 +104,5 @@ user_type grid ยังใช้ subquery นับผู้ใช้ต่อ�
 ## 6. ไฟล์ร่วม / สำเนา
 
 - foundation (commit แยก): `bootstrap/app.php` ไม่ trim/แปลง '' (patch เดียวกับกลุ่มอื่น), `tests/Feature/RouteSecurityTest.php` เพิ่ม route สาธารณะ 7 ตัวใน `PUBLIC`
-- สำเนาในกลุ่ม (รวมเป็นของกลางตอน merge): `App\Domain\Users\Php74` (= Tracking/Payment), `PinBox` (เจ้าของ payment), `UploadBox` (เจ้าของ settings)
+- สำเนาในกลุ่ม (รวมเป็นของกลางตอน merge): `App\Domain\Users\Php74` (= Tracking/Payment), (PinBox รวมแล้ว → `App\Domain\Payment\PinBox`), `UploadBox` (เจ้าของ settings)
 - test: `tests/Feature/Users/UsersPortTest.php` (route + middleware ครบ, ตัวแยก id, paging, diff ประวัติราคา, Php74)

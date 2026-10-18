@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Users\Admin;
 
 use App\Domain\Users\Php74;
-use App\Domain\Users\PinBox;
+use App\Domain\Payment\PinBox;
 use App\Domain\Users\PricingMatrix;
 use App\Domain\Users\RateHistory;
 use App\Domain\Users\UsersMailer;
@@ -420,7 +420,7 @@ class AdminUserController extends Controller
         }
         $js = PinBox::guard($request, Legacy::user(), '', 0, $callback);
         if ($js !== null) {
-            if (str_starts_with($js, 'ErrorBox(')) {
+            if (str_starts_with($js, 'ErrorBox(') && str_contains($js, 'PIN จ่ายเงินไม่ถูกต้อง')) {
                 LegacyLog::goLog($request->getRequestUri(), "paymentpin: '***', PIN จ่ายเงินไม่ถูกต้อง");
             }
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Money;
 
+use App\Http\Controllers\Lot\Admin\AdminLotSaveController;
 use App\Http\Controllers\MoneyMove\Admin\AdminRefillController;
 use App\Http\Controllers\MoneyMove\Admin\AdminTransferController;
 use App\Http\Controllers\MoneyMove\Admin\AdminWithdrawCashController;
@@ -200,5 +201,57 @@ class MoneyMoveDbTest extends BenchDbTestCase
         $this->assertStringContainsString('ErrorBox(', $this->act(AdminRefillController::class, 'saveApproved', ['id' => $id]));
         $this->assertSame('1', (string) DB::table('refill')->where('id', $id)->value('status'));
         $this->assertSame(0.0, $this->cash($cust));
+    }
+
+    /** _admin/_lot/cancel (สำเนาเดิมของ refill cancel): กติกาเดียวกับ _admin/_refill/cancel — เฉพาะ status 1, ซ้ำไม่เขียน */
+    public function test_lot_cancel_only_cancels_pending_refill_and_is_idempotent(): void
+    {
+        $cust = $this->zzUser();
+        $admin = $this->zzUser(1);
+        $row = fn (int $status) => $this->insertRow('refill', ['status' => $status, 'user' => $cust->id, 'amount' => 100, 'date' => DB::raw('NOW()'), 'attachment' => '', 'remark' => 'zz_test', 'approved_remark' => '']);
+        $done = $row(2);
+        $pending = $row(1);
+        $this->actAs($admin);
+
+        $out = $this->act(AdminLotSaveController::class, 'cancel', ['id' => $done]);
+        $this->assertStringContainsString('ErrorBox(', $out);
+        $this->assertStringContainsString('อนุมัติ', $out);
+        $this->assertSame('2', (string) DB::table('refill')->where('id', $done)->value('status'));
+
+        $out = $this->act(AdminLotSaveController::class, 'cancel', ['id' => $pending]);
+        $this->assertStringContainsString('SuccessBox', $out);
+        $this->assertStringContainsString('admin/refill', $out);
+        $r = DB::table('refill')->where('id', $pending)->first();
+        $this->assertSame('-1', (string) $r->status);
+        $this->assertSame((string) $admin->id, (string) $r->mod_by);
+
+        DB::table('refill')->where('id', $pending)->update(['mod_by' => 0]);
+        $this->assertStringContainsString('ErrorBox(', $this->act(AdminLotSaveController::class, 'cancel', ['id' => $pending]), 'ยกเลิกซ้ำ');
+        $this->assertSame('0', (string) DB::table('refill')->where('id', $pending)->value('mod_by'), 'ยกเลิกซ้ำไม่เขียนแถว');
+        $this->assertStringContainsString('ErrorBox(', $this->act(AdminLotSaveController::class, 'cancel', ['id' => 0]), 'ไม่พบ');
+
+        // _admin/_refill/cancel ยังทำงานผ่าน helper เดียวกัน (ซ้ำ = ErrorBox)
+        $this->assertStringContainsString('ErrorBox(', $this->act(AdminRefillController::class, 'cancel', ['id' => $pending]));
+        $this->assertSame(0.0, $this->cash($cust), 'ไม่มีเงินเคลื่อน');
+    }
+
+    /** _admin/_refill/save (แอดมินเติมเงินให้ลูกค้าโดยตรง): ยอดต้องเป็นตัวเลขบวก ทศนิยมไม่เกิน 2 ตำแหน่ง */
+    public function test_admin_refill_save_rejects_non_positive_and_bad_amounts(): void
+    {
+        $cust = $this->zzUser();
+        $this->actAs($this->zzUser(1));
+        foreach (['-100', '0', '0.00', 'abc', '', '1e3', '10.123', '-0.5', '5abc'] as $bad) {
+            $out = $this->act(AdminRefillController::class, 'save', ['id' => '', 'code' => $cust->code, 'amount' => $bad, 'date' => '', 'remark' => 'zz_test', 'upload_file' => '']);
+            $this->assertStringContainsString("ErrorBox('กรุณาระบุจำนวนเงินให้ถูกต้อง", $out, $bad);
+        }
+        $this->assertSame(0, DB::table('refill')->where('user', $cust->id)->count());
+        $this->assertSame(0.0, $this->cash($cust));
+
+        $out = $this->act(AdminRefillController::class, 'save', ['id' => '', 'code' => $cust->code, 'amount' => '1,250.75', 'date' => '', 'remark' => 'zz_test', 'upload_file' => '']);
+        $this->assertStringContainsString('SuccessBox', $out);
+        $r = DB::table('refill')->where('user', $cust->id)->first();
+        $this->assertSame('2', (string) $r->status);
+        $this->assertSame('1250.75', (string) $r->amount);
+        $this->assertSame(1250.75, $this->cash($cust));
     }
 }
