@@ -27,6 +27,22 @@ class AdminPaymentCreateController extends Controller
 {
     use ReadsLegacyInput;
 
+    private const PRICE_KEYS = ['price_kg', 'price_cubic', 'price_amount', 'price_qc', 'price_express', 'price_else', 'price_repack', 'price_craft'];
+
+    private const NEGATIVE_PRICE = 'ราคาไม่ถูกต้อง (ห้ามติดลบ) กรุณาตรวจสอบราคาอีกครั้ง';
+
+    /** มีค่าราคาที่ติดลบ (อ่านแบบตัวเลขของ PHP 7.4 หลังตัด , — ค่าว่าง/ไม่ใช่ตัวเลข = 0 แบบเดิม) */
+    private static function hasNegative(array $values): bool
+    {
+        foreach ($values as $v) {
+            if (Php74::num(str_replace(',', '', (string) ($v ?? ''))) < 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** GET /admin/payment/create[/{user_id}] — _admin/_payment/create.php */
     public function create(Request $request): View
     {
@@ -128,6 +144,12 @@ class AdminPaymentCreateController extends Controller
         }
         $prices = substr($this->in($request, 'prices'), 1);
         $spt = explode('|', $prices);
+        // เดิมรับราคาติดลบได้ (บิลยอดติดลบ + pay_now = เพิ่มเงินให้ลูกค้า) — ใหม่ (เจ้าของสั่งแก้): บล็อกการบันทึก + แจ้งเตือน
+        foreach ($ids as $i => $id) {
+            if (self::hasNegative(explode('*', (string) ($spt[$i] ?? '')))) {
+                return response(Alerts::error('CloseLoading()', self::NEGATIVE_PRICE));
+            }
+        }
         $ran = Format::randd(15);
         $uid = Legacy::userId();
         foreach ($ids as $i => $id) {
@@ -192,9 +214,18 @@ class AdminPaymentCreateController extends Controller
             $fees = PaymentTotals::fees($st, $senderType, Pricing::getShippingTypePrice($shippingType, $code, $senderType));
             $priceShipping = 0;
             foreach ($items as $item) {
-                $priceShipping = $priceShipping + P::add($item, ['price_kg', 'price_cubic', 'price_amount', 'price_qc', 'price_express', 'price_else', 'price_repack', 'price_craft']);
+                $priceShipping = $priceShipping + P::add($item, self::PRICE_KEYS);
             }
             $total = PaymentTotals::plain($fees['storage'], $priceShipping, $fees['extened'], $fees['shipping']);
+            // กันซ้ำฝั่งสร้างบิล (temp ที่บันทึกไว้ก่อนแก้ / ยิงตรง): ราคารายการหรือยอดรวมติดลบ = ไม่สร้างบิล
+            foreach ($items as $item) {
+                if (self::hasNegative(array_map(fn ($k) => $item->{$k} ?? null, self::PRICE_KEYS))) {
+                    return response(Alerts::error('CloseLoading()', self::NEGATIVE_PRICE));
+                }
+            }
+            if (Php74::num($total) < 0) {
+                return response(Alerts::error('CloseLoading()', self::NEGATIVE_PRICE));
+            }
             $status = 0;
             if (Php74::eq($payNow, 1)) {
                 $status = 1;
