@@ -64,6 +64,10 @@ class ProductTypeController extends Controller
     /** POST /_admin/_product_type/save — save.php (id ว่าง = เพิ่ม, ไม่ว่าง = แก้) */
     public function save(Request $request): Response
     {
+        // ตั้งใจต่างจากเดิม: POST ที่ไม่มีช่อง name เลย (ไม่ใช่ฟอร์มจริง) เดิม INSERT แถวว่าง / ล้างทุกคอลัมน์ของ id นั้น → ปฏิเสธ
+        if (! Input::has($request, 'name')) {
+            return response(Alerts::error('CloseLoading()', 'ไม่มีข้อมูลที่จะบันทึก'));
+        }
         $id = Input::in($request, 'id');
         $uid = Legacy::userId();
         $values = [
