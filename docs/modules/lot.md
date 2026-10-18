@@ -113,6 +113,8 @@ POST ทุกตัว (ยกเว้น `_lot/_message/*`) มี `legacy.aj
 - `load_check_tracking` ช่องว่าง: เดิม `LIKE '%%'` ดึง tracking ทั้งระบบ (~470k แถว) จนหน้าค้าง → ถือว่าไม่พบข้อมูล
 - `save` / `save_verified` ห่อ `DB::transaction()` (เดิมไม่มี); `email_lot` เป็น UPDATE + INSERT IGNORE (idempotent) ไม่ได้ห่อ
 - N+1 ที่แก้: grid แอดมิน (COUNT ทั้งตาราง + 3 query ต่อแถว), grid ลูกค้า (subquery COUNT ต่อแถว), แถวลูก craft (`header = id`) ใน detail/print, autocomplete (2 query ต่อแถว), worker (ไม่เปลี่ยน — ทีละคิวแบบเดิม)
+- `print` / `print_all`: `header_count` เดิมเป็น subquery ต่อแถว `t2.header = tracking.id` (TEXT เทียบ int → ใช้ index ไม่ได้ = สแกน tracking ทั้งตารางต่อแถว; ล็อต 102 tracking ≈ 75 วินาที → 504) → นับครั้งเดียวด้วย `header IN ('id', ...)` (ค่า header เป็นตัวเลขล้วน → ผลเท่าเดิม, เทียบหน้าพิมพ์ล็อต 5437/4795/6 กับเว็บเดิมแล้วตรงกัน — acceptance A 2026-10-18)
+- `print_receive` ไม่มี `id` / `id=0`: เดิม `lot_id = ''` = ดึง tracking ที่ยังไม่เข้าล็อตทั้งระบบ (~69k แถว, หน้า ~48MB) → ตารางว่าง (UI เปิดพร้อม id ล็อตเสมอ)
 - `save_verified` ยังเรียก `Pricing::calPriceAutoDiff()` ทีละ tracking (ตรรกะคำนวณต่อแถวของฐานร่วม)
 
 ## ช่องโหว่เดิมที่เจอ (แก้ในพอร์ตแล้ว)
