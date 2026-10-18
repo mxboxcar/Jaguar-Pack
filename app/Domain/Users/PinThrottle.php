@@ -5,7 +5,7 @@ namespace App\Domain\Users;
 use Illuminate\Support\Facades\RateLimiter;
 
 /**
- * จำกัดการเดา PIN ที่ _profile/pin (method=verified)
+ * จำกัดการเดา PIN ที่ _profile/pin (method=verified) และ App\Domain\Payment\PinBox::guard() (ตัวนับเดียวกัน)
  *
  * แก้จากเดิม (เจ้าของอนุมัติ 2026-10-18): เดิมเดา PIN 6 หลักได้ไม่จำกัด (มีแค่แถว ips ที่ jail นับ)
  *   - ผิดครบ max_attempts ครั้ง ภายใน decay_minutes นาที ต่อ (ผู้ใช้ + IP) → ล็อกจนครบเวลา (ใส่ PIN ถูกก็ไม่ผ่าน)

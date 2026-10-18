@@ -85,8 +85,8 @@ test: `tests/Feature/Money/MoneyMoveDbTest.php` (รันกับ admin_jl_ben
 ## พฤติกรรมเดิมที่คงไว้
 
 - หัวเรื่อง `/transfer/{id}` ใช้ prefix ของ alipay (`ALI-`) ตามเดิม; ข้อความสำเร็จของ withdrawcash ใช้ prefix `WPOINT-` ตามเดิม
-- แอดมิน `_admin/_refill/save` (เติมเงินให้ลูกค้าตรง) ยังรับยอดติดลบได้ (ใช้ปรับยอดลง) — ไม่อยู่ในรายการที่เจ้าของสั่ง
-- **ยังไม่แก้ (อยู่นอกขอบเขต branch นี้)**: `_admin/_lot/cancel` ของกลุ่ม lot เป็นสำเนาของ `_admin/_refill/cancel.php` เดิม (ยกเลิก refill ได้ทุกสถานะ) — ควรแก้แบบเดียวกันใน branch ของ lot
+- แอดมิน `_admin/_refill/save` (เติมเงินให้ลูกค้าตรง): **แก้แล้ว (fix/followups, เจ้าของอนุมัติ)** เดิมรับยอดติดลบ/0/`abc` → `Money::validRefillAmount()` เดียวกับ `_refill/save` (ตัวเลขบวก ทศนิยมไม่เกิน 2 ตำแหน่ง) ไม่งั้น `ErrorBox('กรุณาระบุจำนวนเงินให้ถูกต้อง (ต้องมากกว่า 0)', 'CloseLoading()')` — ถ้าต้องปรับยอดลง ใช้ทางปรับยอดของ balance แทน
+- `_admin/_refill/cancel` และ `_admin/_lot/cancel` (สำเนาเดิมในกลุ่ม lot) ใช้ `Money::cancelPendingRefill()` ตัวเดียวกัน (transaction + lockForUpdate, เฉพาะ status 1, ซ้ำ = ErrorBox ไม่เขียนแถว) · test: `tests/Feature/Money/MoneyMoveDbTest.php`
 
 ## การตรวจ
 

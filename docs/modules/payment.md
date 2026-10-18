@@ -172,4 +172,4 @@ ajax / form post (ทุกตัว `legacy.ajax` = system_check_ajax เดิ
 
 - `Php74`, `UploadBox` เป็นสำเนาจากกลุ่ม tracking (namespace ของกลุ่มตัวเอง) — ควรย้ายเป็นของกลางทีเดียวตอน merge
 - commit `foundation: keep raw POST values` = cherry-pick ตัวเดียวกับของ mod/tracking (ไม่มีการแก้ฐานร่วมอื่น)
-- `PinBox::guard()` พร้อมให้กลุ่ม balance / points / shop(taobao) / order / money-move(transfer) / users ใช้แทนบล็อก PIN เดิม
+- `PinBox::guard()` = ด่าน PIN ตัวเดียวของทุกกลุ่ม (ตอนนี้ `_point/save_withdraw`, `_admin/_user/btn_*`; สำเนาใน Points/Users ลบแล้ว) + PinThrottle ตัวนับเดียวกับ `_profile/pin` (ผิด 5/15 นาที ต่อผู้ใช้+IP, 10 ต่อผู้ใช้; ถูก = ล้าง)

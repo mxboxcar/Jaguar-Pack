@@ -75,6 +75,33 @@ final class Money
         return preg_match('/^[0-9]+(\.[0-9]{1,2})?$/', $a) === 1 && (float) $a > 0;
     }
 
+    /**
+     * ยกเลิกรายการแจ้งเติมเงิน (refill) — ใช้ร่วม _admin/_refill/cancel และ _admin/_lot/cancel (สำเนาเดิมของกัน)
+     * เดิมทั้งสองไม่ตรวจ status: ยกเลิกรายการที่อนุมัติ (เติมเงินแล้ว) ได้ → ที่นี่เฉพาะ status 1 ใน transaction + lockForUpdate
+     * กดซ้ำ/ส่งพร้อมกัน: ครั้งหลังเห็น status -1 แล้ว → ไม่เขียนซ้ำ (idempotent)
+     *
+     * @param  array<string, mixed>  $update  คอลัมน์ที่เขียนเพิ่มจาก status = '-1' (mod_date/mod_by/cancel_remark ตามไฟล์เดิมของแต่ละ endpoint)
+     * @return int|string id ที่ยกเลิก หรือข้อความ error (ใช้กับ Money::refuse())
+     */
+    public static function cancelPendingRefill(mixed $id, array $update): int|string
+    {
+        return DB::transaction(function () use ($id, $update) {
+            $data = DB::table('refill')->where('id', $id)->lockForUpdate()->first(['id', 'status']);
+            if ($data === null) {
+                return 'ไม่พบรายการ';
+            }
+            if (self::statusIn($data->status, [self::DONE])) {
+                return 'รายการนี้อนุมัติ (เติมเงินเข้าบัญชี) แล้ว ไม่สามารถยกเลิกได้';
+            }
+            if (! self::statusIn($data->status, [self::PENDING])) {
+                return 'รายการนี้ถูกยกเลิกไปแล้ว';
+            }
+            DB::table('refill')->where('id', $data->id)->update(['status' => self::CANCELLED] + $update);
+
+            return (int) $data->id;
+        });
+    }
+
     /** ErrorBox แบบเดิมของหน้าแอดมิน/ลูกค้า (ปิด loading แล้วแจ้ง) */
     public static function refuse(string $text): string
     {

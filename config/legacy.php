@@ -160,6 +160,5 @@ return [
         'admin_balance_company_delete' => ['admin_balance_cn_add'], // บัญชีบริษัท ยอดบวก/แก้ไข ← เพิ่มยอดหยวน (role 1)
         'admin_change_sender' => ['admin_payment'],            // แก้ผู้ส่ง/ประเภทส่งในบิล ← แอดมินบิล (role 1, 5, 7)
         'admin_mall_category' => ['admin_mall'],               // หมวดหมู่ร้านค้า ← แอดมินร้านค้า (role 1, 6)
-        'view_bol' => ['admin_tracking'],                      // POST /get_price (คำนวณราคาตามเรตลูกค้า) ← แอดมิน tracking (role 1, 4, 5, 6, 7)
     ],
 ];
