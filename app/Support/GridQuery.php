@@ -39,6 +39,39 @@ final class GridQuery
     }
 
     /**
+     * จำนวนแถว + id ของหน้าที่ต้องแสดง จากการอ่านตารางรอบเดียว (แทน COUNT(*) แล้ว ORDER BY id DESC LIMIT แยกอีกรอบ)
+     *
+     * ทำไม: ตารางที่ไม่มี index ของคอลัมน์ที่กรอง (เช่น bill_payment ไม่มี index `user`, ค้นหา id LIKE '%x%')
+     * MySQL ต้องสแกนทั้งตารางทั้งตอนนับและตอนหาแถวของหน้า (ผลน้อย/ไม่มีผล = สแกนเต็มสองรอบ)
+     * ที่นี่ SELECT เฉพาะ id ที่ตรง (เรียง id DESC — id เป็น PK ไม่ซ้ำ ลำดับเท่ากับ ORDER BY id DESC LIMIT เดิม)
+     * แล้วตัดหน้าใน PHP; ผู้เรียกโหลดแถวเต็มเฉพาะ id ของหน้า
+     *
+     * $filter ต้อง select ได้แถวละ 1 แถวต่อ id (join แบบ 1:1 เท่านั้น)
+     *
+     * @return array{0: int, 1: list<int>} [จำนวนทั้งหมด, id ของหน้า (เรียงตามที่แสดง)] — $offset null = ไม่มีแถวในหน้า
+     */
+    public static function idPage(Builder $filter, string $idColumn, ?int $offset, int $perPage = 10): array
+    {
+        $ids = $filter->orderByDesc($idColumn)->pluck($idColumn)->map(fn ($v) => (int) $v)->all();
+        $page = $offset === null ? [] : array_slice($ids, $offset, $perPage);
+
+        return [count($ids), $page];
+    }
+
+    /**
+     * โหลดแถวเต็มของ id ในหน้า ($query = select/join ของการแสดงผล) แล้วเรียงตามลำดับ $ids
+     */
+    public static function rowsInOrder(Builder $query, string $idColumn, array $ids, array $columns): Collection
+    {
+        if ($ids === []) {
+            return collect();
+        }
+        $rows = $query->whereIn($idColumn, $ids)->get($columns)->keyBy(fn ($r) => (int) $r->id);
+
+        return collect($ids)->map(fn ($id) => $rows[$id] ?? null)->filter()->values();
+    }
+
+    /**
      * ยอดสะสมก่อนหน้าของแถวในหน้า ($item->prev_sum) — แทน dependent subquery ต่อแถวเดิม
      *   (SELECT SUM(b2.amount) FROM $table b2 WHERE b2.id < row.id AND b2.user = <เจ้าของ> AND b2.is_delete = 0)
      * ซึ่ง MySQL รันใหม่ทุกแถว = อ่านประวัติทั้งหมดของลูกค้า 10 รอบต่อหน้า

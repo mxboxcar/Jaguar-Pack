@@ -12,6 +12,7 @@ use App\Domain\Reports\UploadBox;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Reports\Concerns\ReadsLegacyInput;
 use App\Http\Controllers\Reports\Concerns\RejectsCrossSiteGet;
+use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
@@ -52,22 +53,24 @@ class AdminExportController extends Controller
         $s = strtolower($parts[0]);
         $like = fn (string $v) => '%'.addcslashes($v, '%_\\').'%';
 
+        // เดิม LEFT JOIN user/shipping_type แล้ว OR user.code LIKE → join ทุกแถวของตาราง 2 รอบ (นับ + หน้า)
+        // ที่นี่ user.code กรองด้วย subquery (ผลเท่ากัน: join 1:1 ด้วย PK, ไม่มี user = code NULL ไม่ตรง)
+        // และอ่าน bill_payment รอบเดียว (GridQuery::idPage) แล้วโหลดเฉพาะ 10 แถวพร้อม join
         $q = DB::table('bill_payment')
-            ->leftJoin('shipping_type', 'bill_payment.shipping_type', '=', 'shipping_type.id')
-            ->leftJoin('user', 'bill_payment.user', '=', 'user.id')
             ->where('bill_payment.is_delete', 0)
             ->where(fn ($w) => $w->where('bill_payment.id', 'like', $like(str_replace(strtolower(Rows::prefix('payment')), '', $s)))
-                ->orWhere('user.code', 'like', $like($s))
+                ->orWhereIn('bill_payment.user', DB::table('user')->select('user.id')->where('user.code', 'like', $like($s)))
                 ->orWhere('bill_payment.send_name', 'like', $like($s)))
             ->where(fn ($w) => $w->where('bill_payment.status', '>=', 2)->orWhere('bill_payment.status', -2));
         if (Php74::neq($status, '-2') && Php74::neq($status, '')) {
             $q->where('bill_payment.status', $status);
         }
-        $total = (clone $q)->count();
         $page = $this->php($request, 'page');
-        $offset = Rows::offset($page);
-        $items = $offset === null ? collect() : Rows::strAll($q->orderByDesc('bill_payment.id')->offset($offset)->limit(10)
-            ->get(['bill_payment.*', 'user.code', 'shipping_type.name as ship_name']));
+        [$total, $ids] = GridQuery::idPage($q, 'bill_payment.id', Rows::offset($page));
+        $items = Rows::strAll(GridQuery::rowsInOrder(DB::table('bill_payment')
+            ->leftJoin('shipping_type', 'bill_payment.shipping_type', '=', 'shipping_type.id')
+            ->leftJoin('user', 'bill_payment.user', '=', 'user.id'),
+            'bill_payment.id', $ids, ['bill_payment.*', 'user.code', 'shipping_type.name as ship_name']));
 
         return response(view('reports.admin_export.grid', [
             'ajaxpage' => self::AJAX,

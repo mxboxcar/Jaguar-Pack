@@ -8,6 +8,7 @@ use App\Domain\Reports\Php74;
 use App\Domain\Reports\Rows;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Reports\Concerns\ReadsLegacyInput;
+use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
@@ -44,19 +45,19 @@ class ExportController extends Controller
         $php = explode('|', $this->php($request, 'txtsearch'));
         $status = $parts[1] ?? null;
 
+        // bill_payment ไม่มี index `user` → อ่านตารางรอบเดียว (นับ + id ของหน้า) แล้วโหลดเฉพาะ 10 แถว (GridQuery::idPage)
         $q = DB::table('bill_payment')
-            ->leftJoin('shipping_type', 'bill_payment.shipping_type', '=', 'shipping_type.id')
             ->where('bill_payment.is_delete', 0)
             ->where('bill_payment.id', 'like', '%'.addcslashes($parts[0], '%_\\').'%')
             ->where('bill_payment.user', Legacy::userId());
         if (Php74::neq($status, '-2') && Php74::neq($status, '')) {
             $q->where('bill_payment.status', $status);
         }
-        $total = (clone $q)->count();
         $page = $this->php($request, 'page');
-        $offset = Rows::offset($page);
-        $items = $offset === null ? collect() : Rows::strAll($q->orderByDesc('bill_payment.id')->offset($offset)->limit(10)
-            ->get(['bill_payment.*', 'shipping_type.name as ship_name']));
+        [$total, $ids] = GridQuery::idPage($q, 'bill_payment.id', Rows::offset($page));
+        $items = Rows::strAll(GridQuery::rowsInOrder(DB::table('bill_payment')
+            ->leftJoin('shipping_type', 'bill_payment.shipping_type', '=', 'shipping_type.id'),
+            'bill_payment.id', $ids, ['bill_payment.*', 'shipping_type.name as ship_name']));
 
         return response(view('reports.export.grid', [
             'ajaxpage' => self::AJAX,
