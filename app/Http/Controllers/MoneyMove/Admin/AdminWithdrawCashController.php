@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\MoneyMove\Admin;
 
 use App\Domain\MoneyMove\Lookups;
+use App\Domain\Money\Money;
 use App\Domain\MoneyMove\Php74;
 use App\Domain\MoneyMove\TempUpload;
 use App\Http\Controllers\Controller;
@@ -86,7 +87,11 @@ class AdminWithdrawCashController extends Controller
         ])->render());
     }
 
-    /** POST /_admin/_withdrawcash/save_approved — บันทึกหลักฐานทุกครั้ง; status != 2 → 2 */
+    /**
+     * POST /_admin/_withdrawcash/save_approved — บันทึกหลักฐาน; status 1 → 2 (2 = บันทึกหลักฐานซ้ำได้ ปุ่มแสดงทุกสถานะ)
+     * เดิมไม่ตรวจ status -1: อนุมัติ (จ่ายเงินออก) รายการที่ยกเลิกและคืนเงินแล้วได้
+     * ใหม่ (เจ้าของสั่งแก้): ไม่พบรายการ / status -1 / สถานะอื่น = ปฏิเสธ ไม่บันทึกอะไร
+     */
     public function saveApproved(Request $request): Response
     {
         $id = $this->in($request, 'id');
@@ -94,16 +99,26 @@ class AdminWithdrawCashController extends Controller
         if ($file !== '' && ! TempUpload::safeName($file)) {
             $file = '';
         }
-        DB::transaction(function () use ($id, $file, $request) {
+        $error = DB::transaction(function () use ($id, $file, $request) {
             $data = DB::table('balance_withdraw')->where('id', $id)->lockForUpdate()->first();
-            DB::table('balance_withdraw')->where('id', $id)->update([
+            if ($data === null) {
+                return 'ไม่พบรายการ';
+            }
+            if (! Money::statusIn($data->status, [Money::PENDING, Money::DONE])) {
+                return 'รายการนี้ถูกยกเลิกและคืนเงินแล้ว ไม่สามารถอนุมัติได้';
+            }
+            DB::table('balance_withdraw')->where('id', $data->id)->update([
                 'approved_remark' => $this->in($request, 'approved_remark'), 'approved_upload' => $file, 'approved_date' => DB::raw('NOW()'),
             ]);
-            // เดิม $data['status'] != 2 (ไม่พบแถว = null != 2 → UPDATE ที่ไม่มีผล)
-            if ($data !== null && Php74::neq($data->status, 2)) {
+            if (Php74::neq($data->status, 2)) {
                 DB::table('balance_withdraw')->where('id', $data->id)->update(['status' => '2', 'approved_date' => DB::raw('NOW()')]);
             }
+
+            return null;
         });
+        if ($error !== null) {
+            return response(Money::refuse($error));
+        }
 
         return response(TempUpload::jsIfExists($file, '	         		')
             .Alerts::success('window.location.href = "'.Legacy::href('admin/withdrawcash').'";', Lang::get('success_process_no').Lookups::prefix('withdrawpoint').Alerts::js(e($id))));
@@ -112,26 +127,42 @@ class AdminWithdrawCashController extends Controller
     /**
      * POST /_admin/_withdrawcash/cancel — ยกเลิก + คืนเงิน
      * เดิมเช็ค $data['status'] != -1 ก่อนอ่าน $data (ตัวแปรว่าง → จริงเสมอ) = กดยกเลิกซ้ำได้เงินคืนซ้ำทุกครั้ง, id ที่ไม่มี = แถว balance ขยะ
-     * ที่นี่: ต้องมีรายการและ status != -1 (ตามที่โค้ดเดิมตั้งใจ)
+     * และยกเลิก+คืนเงินรายการที่จ่ายออกไปแล้ว (status 2) ได้
+     * ใหม่ (เจ้าของสั่งแก้): เฉพาะ status 1 (= ปุ่มยกเลิกในหน้า), ล็อกแถวรายการ + user, คืนเท่าที่ถูกตัดไว้จริง (กดซ้ำไม่คืนซ้ำ)
      */
     public function cancel(Request $request): Response
     {
         $u = Legacy::user();
         $id = $this->in($request, 'id');
-        DB::transaction(function () use ($u, $id, $request) {
+        $error = DB::transaction(function () use ($u, $id, $request) {
             $data = DB::table('balance_withdraw')->where('id', $id)->lockForUpdate()->first();
-            if ($data === null || Php74::eq($data->status, -1)) {
-                return;
+            if ($data === null) {
+                return 'ไม่พบรายการ';
             }
+            if (Money::statusIn($data->status, [Money::DONE])) {
+                return 'รายการนี้จ่ายเงินไปแล้ว ไม่สามารถยกเลิกได้';
+            }
+            if (! Money::statusIn($data->status, [Money::PENDING])) {
+                return 'รายการนี้ถูกยกเลิกไปแล้ว';
+            }
+            Money::lockUser($data->user);
             DB::table('balance_withdraw')->where('id', $data->id)->update([
                 'status' => '-1', 'cancel_remark' => $this->in($request, 'cancel_remark').' ,ยกเลิกโดย '.$u->code, 'approved_date' => DB::raw('NOW()'),
             ]);
-            DB::table('balance')->insert([
-                'create_date' => DB::raw('NOW()'), 'create_by' => $u->id, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id, 'is_delete' => 0,
-                'user' => $data->user, 'amount' => $data->amount, 'detail' => 'ยกเลิก รายการถอนเงินออกจากระบบ '.Lookups::prefix('withdrawcash').$data->id,
-                'type' => 1, 'prefix' => (string) (Lookups::prefixId('withdrawcash') ?? ''), 'prefix_ref_id' => $data->id,
-            ]);
+            $refund = Money::refundable((float) $data->amount, Money::net('balance', Lookups::prefixId('withdrawcash'), $data->id));
+            if ($refund > 0) {
+                DB::table('balance')->insert([
+                    'create_date' => DB::raw('NOW()'), 'create_by' => $u->id, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id, 'is_delete' => 0,
+                    'user' => $data->user, 'amount' => Money::fmt($refund), 'detail' => 'ยกเลิก รายการถอนเงินออกจากระบบ '.Lookups::prefix('withdrawcash').$data->id,
+                    'type' => 1, 'prefix' => (string) (Lookups::prefixId('withdrawcash') ?? ''), 'prefix_ref_id' => $data->id,
+                ]);
+            }
+
+            return null;
         });
+        if ($error !== null) {
+            return response(Money::refuse($error));
+        }
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/withdrawcash').'";'));
     }

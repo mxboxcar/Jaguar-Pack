@@ -4,6 +4,7 @@ namespace App\Http\Controllers\MoneyMove\Admin;
 
 use App\Domain\MoneyMove\Lookups;
 use App\Domain\MoneyMove\Mailer;
+use App\Domain\Money\Money;
 use App\Domain\MoneyMove\Php74;
 use App\Domain\MoneyMove\TempUpload;
 use App\Http\Controllers\Controller;
@@ -86,7 +87,11 @@ class AdminTransferController extends Controller
         ])->render());
     }
 
-    /** POST /_admin/_transfer/save — บันทึกหลักฐาน + status 2 + อีเมล (เดิมไม่ตรวจ status — คงไว้) */
+    /**
+     * POST /_admin/_transfer/save — บันทึกหลักฐาน + status 2 + อีเมล
+     * เดิมไม่ตรวจ status: บันทึกรายการที่ยกเลิก (คืนเงินแล้ว) เป็น 2 ได้ → ลูกค้าได้ทั้งเงินคืนและการโอน
+     * ใหม่ (เจ้าของสั่งแก้): ล็อกแถวใน transaction; status 1 → 2, status 2 = บันทึกหลักฐานซ้ำ (ไม่แตะเงิน), อื่นๆ (-1/ไม่พบ) ปฏิเสธ
+     */
     public function save(Request $request): Response
     {
         $uid = Legacy::userId();
@@ -95,12 +100,29 @@ class AdminTransferController extends Controller
         if ($file !== '' && ! TempUpload::safeName($file)) {
             $file = '';
         }
-        DB::table('bill_transfer')->where('id', $id)->update([
-            'approved_remark' => $this->in($request, 'approved_remark'), 'approved_upload' => $file, 'status' => '2',
-            'approved_date' => DB::raw('NOW()'), 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
-        ]);
+        $result = DB::transaction(function () use ($uid, $id, $file, $request) {
+            $data = DB::table('bill_transfer')->where('id', $id)->lockForUpdate()->first();
+            if ($data === null) {
+                return 'missing';
+            }
+            if (! Money::statusIn($data->status, [Money::PENDING, Money::DONE])) {
+                return 'cancelled';
+            }
+            DB::table('bill_transfer')->where('id', $data->id)->update([
+                'approved_remark' => $this->in($request, 'approved_remark'), 'approved_upload' => $file, 'status' => '2',
+                'approved_date' => DB::raw('NOW()'), 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
+            ]);
+
+            return $data->id;
+        });
+        if ($result === 'missing') {
+            return response(Money::refuse('ไม่พบรายการ'));
+        }
+        if ($result === 'cancelled') {
+            return response(Money::refuse('รายการนี้ถูกยกเลิกและคืนเงินแล้ว ไม่สามารถบันทึกการโอนได้ (ต้อง RollBack ก่อน)'));
+        }
         $out = TempUpload::jsIfExists($file);
-        Mailer::transferSuccess($id);
+        Mailer::transferSuccess($result);
 
         return response($out.Alerts::success('window.location.href = "'.Legacy::href('admin/transfer').'";', Lang::get('success_process_no').Lookups::prefix('transfer').Alerts::js(e($id))));
     }
@@ -115,15 +137,20 @@ class AdminTransferController extends Controller
             if ($data === null || ! Php74::eq($data->status, 1)) {
                 return null;
             }
+            Money::lockUser($data->user);
             DB::table('bill_transfer')->where('id', $data->id)->update([
                 'status' => '-1', 'cancel_remark' => $this->in($request, 'cancel_remark').' ,ยกเลิกโดย '.$u->code,
                 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id,
             ]);
-            DB::table('balance')->insert([
-                'create_date' => DB::raw('NOW()'), 'create_by' => $u->id, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id, 'is_delete' => 0,
-                'user' => $data->user, 'amount' => $data->usecash, 'detail' => 'ยกเลิกรายการ '.Lookups::prefix('transfer').$data->id, 'type' => 5,
-                'prefix' => (string) (Lookups::prefixId('transfer') ?? ''), 'prefix_ref_id' => $data->id,
-            ]);
+            // คืนเท่าที่รายการถูกตัดไว้จริง (ไม่เกิน usecash) — กันคืนเงินรายการที่ไม่เคยถูกตัด/คืนไปแล้ว
+            $refund = Money::refundable((float) $data->usecash, Money::net('balance', Lookups::prefixId('transfer'), $data->id));
+            if ($refund > 0) {
+                DB::table('balance')->insert([
+                    'create_date' => DB::raw('NOW()'), 'create_by' => $u->id, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id, 'is_delete' => 0,
+                    'user' => $data->user, 'amount' => Money::fmt($refund), 'detail' => 'ยกเลิกรายการ '.Lookups::prefix('transfer').$data->id, 'type' => 5,
+                    'prefix' => (string) (Lookups::prefixId('transfer') ?? ''), 'prefix_ref_id' => $data->id,
+                ]);
+            }
 
             return $data->id;
         });
@@ -137,39 +164,48 @@ class AdminTransferController extends Controller
 
     /**
      * POST /_admin/_transfer/rollback — กลับเป็น status 1
-     *  status -1: หักเงินคืน (ถ้ามีแถวตัดเงินเดิม detail = TRF-<id>) ทั้ง balance และ balance_cn แล้วล้างหมายเหตุ
-     *  status 2 : ล้างหลักฐาน/หมายเหตุ (ไม่แตะเงิน)
+     *  status 2 : ล้างหลักฐาน/หมายเหตุ (ไม่แตะเงิน — ลูกค้ายังถูกตัดเงินอยู่)
+     *  status -1: ตัดเงินคืนให้ยอดสุทธิของรายการกลับเป็น -usecash แล้วล้างหมายเหตุ
+     * เดิม: หักเงินจากแถวตัดเงินแรก (detail = TRF-<id>) ทั้ง balance และ balance_cn โดยไม่ตรวจยอดคงเหลือ
+     *       (การยกเลิกคืนเงินเข้า balance เท่านั้น → แถว balance_cn ถ้ามีจะเป็นการหักซ้ำ) และไม่ล็อกแถว (กดซ้ำ = หักซ้ำ)
+     * ใหม่ (เจ้าของสั่งแก้): ล็อกแถวรายการ + user; หักเท่าที่ยอดสุทธิขาด (ไม่หักซ้ำ), ยอดคงเหลือไม่พอ = ปฏิเสธ, ไม่แตะ balance_cn
      */
     public function rollback(Request $request): Response
     {
         $uid = Legacy::userId();
         $id = $this->in($request, 'id');
-        DB::transaction(function () use ($uid, $id) {
+        $error = DB::transaction(function () use ($uid, $id) {
             $data = DB::table('bill_transfer')->where('id', $id)->lockForUpdate()->first();
             if ($data === null) {
-                return;
+                return null;
             }
             $no = Lookups::prefix('transfer');
+            $pid = Lookups::prefixId('transfer');
             $reset = ['status' => '1', 'cancel_remark' => '', 'approved_remark' => '', 'approved_upload' => '', 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid];
-            if (Php74::eq($data->status, '-1')) {
-                foreach (['balance', 'balance_cn'] as $table) {
-                    // เดิม: prefix = 20 (ตายตัว), detail = getPrefix('transfer').$id
-                    $b = DB::table($table)->where('type', 5)->where('prefix', 20)->where('prefix_ref_id', $data->id)
-                        ->where('is_delete', '0')->where('detail', $no.$id)->orderBy('id')->first();
-                    if ($b !== null) {
-                        DB::table($table)->insert([
-                            'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
-                            'user' => $b->user, 'amount' => '-'.str_replace('-', '', (string) $b->amount), 'detail' => 'Rollback '.$no.$data->id, 'type' => 5,
-                            'prefix' => (string) (Lookups::prefixId('transfer') ?? ''), 'prefix_ref_id' => $data->id,
-                        ]);
+            if (Money::statusIn($data->status, [Money::CANCELLED])) {
+                Money::lockUser($data->user);
+                // ยอดที่ต้องถูกตัดไว้สำหรับรายการรอโอน = usecash; ตัดเฉพาะส่วนที่ขาด (สุทธิ -usecash แล้ว = ไม่ตัดอีก)
+                $due = round((float) $data->usecash + Money::net('balance', $pid, $data->id), 2);
+                if ($due > 0) {
+                    if (Money::cash($data->user) < $due) {
+                        return 'ยอดเงินคงเหลือของลูกค้าไม่พอสำหรับ RollBack (ต้องการ '.Money::fmt($due).')';
                     }
+                    DB::table('balance')->insert([
+                        'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
+                        'user' => $data->user, 'amount' => '-'.Money::fmt($due), 'detail' => 'Rollback '.$no.$data->id, 'type' => 5,
+                        'prefix' => (string) ($pid ?? ''), 'prefix_ref_id' => $data->id,
+                    ]);
                 }
                 DB::table('bill_transfer')->where('id', $data->id)->update($reset);
-            }
-            if (Php74::eq($data->status, 2)) {
+            } elseif (Money::statusIn($data->status, [Money::DONE])) {
                 DB::table('bill_transfer')->where('id', $data->id)->update($reset);
             }
+
+            return null;
         });
+        if ($error !== null) {
+            return response(Money::refuse($error));
+        }
 
         return response(Alerts::success('window.location.reload(); '));
     }
