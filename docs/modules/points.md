@@ -101,7 +101,7 @@ branch `mod/points` · worktree `/home/admin/laravel/jl-wt/points` · port 8207
 
 ## ให้เจ้าของตัดสินใจ
 
-- `admin_point`, `admin_withdrawpoint` ไม่มี role ใดได้รับใน DB → หน้าแต้มแอดมินและหน้าอนุมัติแลกแต้มเข้าไม่ได้แม้แอดมิน (เหมือนเดิม);
+- `admin_point`, `admin_withdrawpoint` ไม่มี role ใดได้รับใน DB → เดิมเข้าไม่ได้แม้แอดมิน — **Laravel ใช้ได้แล้ว (2026-10-18)** ผ่าน fallback: `admin_point` ← `admin_shop_cashback`, `admin_withdrawpoint` ← `admin_exchange` (role 1, 5) — CONVENTIONS ข้อ 3.1;
   `point` มีเฉพาะ role 6 (คนกดออเดอร์) — ลูกค้า (role 3) เปิด `/point` ไม่ได้ (เหมือนเดิม)
 - withdrawpoint form ที่ id 0 (`/admin/withdrawpoint/0`) แสดงฟอร์มที่ submit ไป `_admin/_refill/save` (กลุ่ม money-move) — คงไว้เหมือนเดิม
 - ปุ่ม Delete/DeleteAll ใน JS ของ grid ทั้งหมดเรียก `<grid>/../delete` ซึ่งไม่มีไฟล์จริง (โค้ดตาย) — คงไว้; หน้า admin shop_cashback เรียก `CalculatePrice()` ที่ไม่มีเมื่อเปิด `/create` (JS error เดิม) — คงไว้

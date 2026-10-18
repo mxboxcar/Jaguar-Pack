@@ -79,6 +79,7 @@ grid ทั้ง 5 (หน้า 1–3, ค้นหาด้วยรหัส
 ## ให้เจ้าของตัดสินใจ
 
 - `admin_balance_company`, `admin_balance_company_delete` (และ `admin_balance_company_add` ใน role_detail) ไม่มี role ใดได้รับใน DB → หน้าบัญชีบริษัทเข้าไม่ได้แม้แอดมิน (เหมือนเดิม) — ทดสอบโดยเพิ่มสิทธิ์ให้ role 1 ชั่วคราวแล้วลบออก
+  - **Laravel ใช้ได้แล้ว (2026-10-18)** ผ่าน fallback: `admin_balance_company` ← `admin_balance` (role 1, 5), `admin_balance_company_delete`/`_add` ← `admin_balance_cn_add` (role 1) — CONVENTIONS ข้อ 3.1
 - ปุ่ม "เพิ่มรายการ" ของบัญชีบริษัทใช้ไม่ได้ในเว็บเดิม (`load_amount(0)` ได้ `null` แล้ว JS อ่าน `data.id` → error) — คงไว้เหมือนเดิม
 - ปุ่ม Delete/DeleteAll ใน JS ของ grid ทั้งหมดเรียก `<grid>/../delete` ซึ่งไม่มีไฟล์จริง (โค้ดตาย) — คงไว้
 - typeahead รหัสลูกค้าในแอดมินเรียก `/_admin/_lot/load_autocomplete_user` (กลุ่ม lot)

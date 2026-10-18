@@ -49,7 +49,7 @@ Route::middleware(['legacy.ajax', 'legacy.perm:admin_balance_cn'])->group(functi
     Route::post('/_admin/_balance_cn/save_amount', [AdminBalanceCnController::class, 'saveAmount']);
 });
 
-// ---------- แอดมิน: บัญชีบริษัท (สิทธิ์ admin_balance_company ยังไม่มี role ใดได้รับ = เข้าไม่ได้เหมือนเดิม) ----------
+// ---------- แอดมิน: บัญชีบริษัท (admin_balance_company ไม่มี role ใดถือใน DB → ได้จาก fallback ← admin_balance, CONVENTIONS 3.1) ----------
 Route::get('/admin/balance_company', [AdminBalanceCompanyController::class, 'index'])->middleware('legacy.perm:admin_balance_company')->defaults('legacy_page', 'admin_balance_company');
 Route::post('/_admin/_balance_company/grid', [AdminBalanceCompanyController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 Route::middleware(['legacy.ajax', 'legacy.perm:admin_balance_company'])->group(function () {

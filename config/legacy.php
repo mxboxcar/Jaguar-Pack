@@ -133,4 +133,25 @@ return [
 
     // ค่าที่ debug_mail เดิมใช้ (false = ทำงานจริง)
     'debug_mail' => false,
+
+    /*
+    | สิทธิ์ "กำพร้า" (ไม่มี role ใดถือใน role_on_detail ของ DB จริง → เดิมไม่มีใครเข้าได้แม้แอดมิน)
+    | Laravel ให้สิทธิ์นั้นเพิ่มแก่ผู้ที่ถือสิทธิ์จริงที่ใกล้ที่สุดของงานเดียวกัน — ไม่แก้แถว role/permission ใน DB
+    |   'สิทธิ์กำพร้า' => ['สิทธิ์ต้นทาง', ...]   (มีต้นทางอย่างน้อย 1 ตัว = ได้สิทธิ์กำพร้า)
+    | - ทำงานชั้นเดียว: ต้นทางต้องเป็นสิทธิ์ที่ role ถือจริงใน DB (สิทธิ์ที่ได้จาก fallback ไม่ถูกส่งต่อ)
+    | - role ที่ได้ติ๊กสิทธิ์กำพร้าจริงใน DB ภายหลัง ใช้ค่าใน DB (fallback แค่เพิ่ม ไม่เคยถอน)
+    | - ปิดทั้งหมด: LEGACY_PERMISSION_FALLBACKS=false · เปลี่ยน/ลบรายการ: แก้ array นี้ (เหตุผลและ role ที่ได้ ดู docs/CONVENTIONS.md ข้อ 3.1)
+    */
+    'permission_fallbacks_enabled' => env('LEGACY_PERMISSION_FALLBACKS', true),
+    'permission_fallbacks' => [
+        'admin_point' => ['admin_shop_cashback'],              // ดูแต้มลูกค้าทุกคน ← แอดมินคืนเงินร้านค้า/รางวัล (role 1, 5)
+        'admin_withdrawpoint' => ['admin_exchange'],           // อนุมัติ/ยกเลิกแลกแต้ม + ยกเลิก exchange ← ผู้อนุมัติ exchange (role 1, 5)
+        'admin_nobilling' => ['admin_report'],                 // รายงานพัสดุค้างไม่ออกบิล ← รายงาน (role 1, 5, 7)
+        'admin_balance_company' => ['admin_balance'],          // บัญชีบริษัท (ดู/บันทึกยอดติดลบ) ← แอดมินยอดเงิน (role 1, 5)
+        'admin_balance_company_add' => ['admin_balance_cn_add'],    // (ยังไม่มีโค้ดตรวจ) ← เพิ่มยอดหยวน (role 1)
+        'admin_balance_company_delete' => ['admin_balance_cn_add'], // บัญชีบริษัท ยอดบวก/แก้ไข ← เพิ่มยอดหยวน (role 1)
+        'admin_change_sender' => ['admin_payment'],            // แก้ผู้ส่ง/ประเภทส่งในบิล ← แอดมินบิล (role 1, 5, 7)
+        'admin_mall_category' => ['admin_mall'],               // หมวดหมู่ร้านค้า ← แอดมินร้านค้า (role 1, 6)
+        'view_bol' => ['admin_tracking'],                      // POST /get_price (คำนวณราคาตามเรตลูกค้า) ← แอดมิน tracking (role 1, 4, 5, 6, 7)
+    ],
 ];
