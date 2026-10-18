@@ -10,7 +10,18 @@ use Illuminate\Support\Facades\Route;
 */
 
 // index.php เดิม: ไม่มี page = dashboard (กลุ่ม reports รับหน้า dashboard)
-Route::get('/', fn () => redirect()->to(Legacy::href(Legacy::userId() === null ? 'login' : 'dashboard')));
+// ?page=<page> (JS เดิมบางจุดเปิด index.php?page=... ตรงๆ เช่น searchlink() ใน layout → ?l=...&page=checkout_product)
+// → ส่งต่อไป route ที่กลุ่มตั้งชื่อ "page.<page>" (พร้อม query ที่เหลือ) ถ้ามี
+Route::get('/', function (\Illuminate\Http\Request $request) {
+    $page = $request->query('page');
+    if (is_string($page) && preg_match('/^[a-z0-9_]+$/', $page) && Route::has('page.'.$page)) {
+        $query = $request->except('page');
+
+        return redirect()->to(Legacy::href(ltrim(route('page.'.$page, [], false), '/')).($query === [] ? '' : '?'.http_build_query($query)));
+    }
+
+    return redirect()->to(Legacy::href(Legacy::userId() === null ? 'login' : 'dashboard'));
+});
 
 Route::get('/login', [LegacyLoginController::class, 'show'])->name('login');
 Route::post('/system_check_login', [LegacyLoginController::class, 'check'])->middleware('legacy.ajax');

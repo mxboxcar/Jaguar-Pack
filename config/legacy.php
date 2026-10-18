@@ -113,6 +113,14 @@ return [
         'line_channel_token' => env('LEGACY_LINE_CHANNEL_TOKEN'),
     ],
 
+    // กลุ่ม shop: endpoint ที่ crawler/cron เรียกด้วย token (_api/*) — เดิมฝัง token ในโค้ด ที่นี่อ่านจาก .env เท่านั้น
+    // ว่าง = ปิด endpoint (ตอบว่างเหมือนส่ง token ผิด)
+    'shop' => [
+        'order_api_token' => env('LEGACY_SHOP_ORDER_API_TOKEN'),          // get_order_number_v2/v3, submit_order_number_v2
+        'image_prefix_token' => env('LEGACY_SHOP_IMAGE_PREFIX_TOKEN'),    // updateImagePrefix
+        'unban_token' => env('LEGACY_SHOP_UNBAN_TOKEN'),                  // unban
+    ],
+
     // dev: ส่งต่อ URL ที่ยังไม่พอร์ตไปเว็บเดิม (เช่น http://127.0.0.1:8101) เพื่อให้เมนู/แจ้งเตือนใช้ได้
     // production ไม่ใช้ — nginx เป็นคนเลือกว่า URL ไหนไป Laravel
     'proxy_url' => env('LEGACY_PROXY_URL'),
