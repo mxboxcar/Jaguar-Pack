@@ -20,7 +20,8 @@ worktree `/home/admin/laravel/jl-wt/messaging` (branch `mod/messaging`, port 821
 | `?page=notice` / `notice/{id}` | `GET /notice`, `GET /notice/{id}` | legacy.auth |
 | `_notice/grid.php` | `POST /_notice/grid` | legacy.auth + ajax |
 | `admin/notice`, `admin/notice/create`, `admin/notice/{id}` | `GET` เดียวกัน | admin_notice |
-| `_admin/_notice/grid.php`, `save.php`, `save_isshow.php` | `POST` | admin_notice + ajax |
+| `_admin/_notice/grid.php` | `POST` | login + ajax (ไม่มีสิทธิ์ admin_notice = ตอบว่างแบบเดิม ตรวจใน controller) |
+| `_admin/_notice/save.php`, `save_isshow.php` | `POST` | admin_notice + ajax |
 | `_admin/_notice/delete.php` | `POST /_admin/_notice/delete` | admin_product_type **และ** admin_notice + ajax (ดูด้านล่าง) |
 | `_admin/_notice/email.php`, `email_notice.php` | `GET` | admin_notice |
 | `_admin/_notice/cron_notice_mail.php` | `GET /_admin/_notice/cron_notice_mail` + `php8.4 artisan messaging:notice-mail` | admin_notice (เดิมเปิดได้โดยไม่ล็อกอิน) |

@@ -61,11 +61,12 @@ Route::middleware('legacy.perm:admin_notice')->group(function () {
     Route::get('/_admin/_notice/email_notice', [AdminNoticeController::class, 'emailNotice']);
     Route::get('/_admin/_notice/cron_notice_mail', [AdminNoticeController::class, 'cron']);
     Route::middleware('legacy.ajax')->group(function () {
-        Route::post('/_admin/_notice/grid', [AdminNoticeController::class, 'grid']);
         Route::post('/_admin/_notice/save', [AdminNoticeController::class, 'save']);
         Route::post('/_admin/_notice/save_isshow', [AdminNoticeController::class, 'saveIsshow']);
     });
 });
+// grid.php เดิมไม่มีสิทธิ์ admin_notice → exit() ตอบว่าง (ไม่ใช่ ErrorBox) → ตรวจใน controller
+Route::post('/_admin/_notice/grid', [AdminNoticeController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 // เดิม delete.php ตรวจสิทธิ์ admin_product_type (คัดลอกมาจาก _admin/_product_type) — คงสิทธิ์เดิม
 // และต้องมี admin_notice ด้วย (ตอนนี้ลบประกาศจริง ไม่ใช่ product_type) — ไม่กว้างกว่าเดิม
 Route::post('/_admin/_notice/delete', [AdminNoticeController::class, 'delete'])

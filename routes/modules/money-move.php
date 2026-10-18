@@ -59,11 +59,6 @@ Route::post('/_admin/_refill/grid', [AdminRefillController::class, 'grid'])->mid
 Route::middleware('legacy.perm:admin_transfer')->group(function () {
     Route::get('/admin/transfer', [AdminTransferController::class, 'index'])->defaults('legacy_page', 'admin_transfer');
     Route::get('/admin/transfer/status/{status}', [AdminTransferController::class, 'index'])->whereNumber('status')->defaults('legacy_page', 'admin_transfer');
-    // form.php เดิมตรวจแค่ getPermission('transfer') (ลูกค้ามีทุกคน = IDOR) → ต้องมีทั้ง admin_transfer และ transfer
-    Route::middleware('legacy.perm:transfer')->group(function () {
-        Route::get('/admin/transfer/create', [AdminTransferController::class, 'form'])->defaults('legacy_page', 'admin_transfer_detail');
-        Route::get('/admin/transfer/{id}', [AdminTransferController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_transfer_detail');
-    });
     Route::middleware('legacy.ajax')->group(function () {
         Route::post('/_admin/_transfer/save', [AdminTransferController::class, 'save']);
         Route::post('/_admin/_transfer/cancel', [AdminTransferController::class, 'cancel']);
@@ -71,6 +66,13 @@ Route::middleware('legacy.perm:admin_transfer')->group(function () {
     });
     Route::match(['GET', 'POST'], '/_admin/_transfer/email_success', [AdminTransferController::class, 'emailDirect']);
     Route::match(['GET', 'POST'], '/_admin/_transfer/email_cancel', [AdminTransferController::class, 'emailDirect']);
+});
+// form.php เดิมตรวจแค่ getPermission('transfer') (ลูกค้ามีทุกคน = IDOR) → ต้องมีทั้ง transfer และ admin_transfer
+// ตรวจ transfer ก่อน: ผู้ไม่มี transfer ได้ ErrorBox โมดูล "โอนเงินไปจีน" เหมือนเดิม (role 0/4/7);
+// ผู้มี transfer แต่ไม่มี admin_transfer (ลูกค้า, role 6) ได้ ErrorBox "ผู้ดูแล - โอนเงินไปจีน" (ต่างจากเดิมโดยตั้งใจ)
+Route::middleware(['legacy.perm:transfer', 'legacy.perm:admin_transfer'])->group(function () {
+    Route::get('/admin/transfer/create', [AdminTransferController::class, 'form'])->defaults('legacy_page', 'admin_transfer_detail');
+    Route::get('/admin/transfer/{id}', [AdminTransferController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_transfer_detail');
 });
 Route::post('/_admin/_transfer/grid', [AdminTransferController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 
