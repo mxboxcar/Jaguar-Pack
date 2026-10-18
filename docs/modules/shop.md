@@ -155,3 +155,8 @@ ajax (`/<ไฟล์>` ไม่มี `.php`, POST + `legacy.ajax` ถ้า�
 - ตั้ง `LEGACY_SHOP_ORDER_API_TOKEN`, `LEGACY_SHOP_IMAGE_PREFIX_TOKEN`, `LEGACY_SHOP_UNBAN_TOKEN` ใน `.env` production (ค่าใหม่ — ค่าเดิมหลุดอยู่ในโค้ด) และแจ้ง crawler/cron
 - เจ้าของตัดสินใจ: สิทธิ์ `admin_mall_category`, ไฟล์ mall_category ที่เป็นสำเนา user_type, `getPayType()` ใน load_stock, `bill_product_on_tracking.bill_product_id`
 - index ที่ควรมี (ตอนนี้มีแค่ PRIMARY): `cart(user)`, `cart_detail(cart_id)`, `mall_stock(mall_id, mall_detail_id)` — `crawl_guard_log` มีครบแล้ว (ยังไม่ได้สร้าง — ห้ามแก้ schema)
+
+## 8. E2E write-flow (2026-10-18, fix/e2e)
+
+- `_cart/save_checkout` กดซ้ำ (รายการถูกตัดออกจากตะกร้าแล้ว) เดิมสร้างใบสั่งซื้อเปล่ายอด 0 ทุกครั้ง → ไม่มีรายการ = `ErrorBox(order_error)` ไม่สร้างใบ/tracking;
+  ล็อกแถว cart ก่อนอ่านรายการ (คำขอพร้อมกันคำขอที่สองเห็นตะกร้าที่ถูกตัดแล้ว) · test: `tests/Feature/Money/CartCheckoutDbTest.php`

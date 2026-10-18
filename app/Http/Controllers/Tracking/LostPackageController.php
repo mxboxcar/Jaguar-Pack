@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tracking;
 
+use App\Domain\Money\Money;
 use App\Domain\Tracking\Php74;
 use App\Domain\Tracking\TrackingLookups;
 use App\Domain\Tracking\UploadBox;
@@ -147,9 +148,25 @@ class LostPackageController extends Controller
     public function cancel(Request $request): Response
     {
         $u = Legacy::user();
-        DB::table('lost_package')->where('id', $this->in($request, 'id'))->where('user', $u->id)->update([
-            'status' => '-1', 'cancel_remark' => 'ยกเลิกโดย '.$u->code, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id,
-        ]);
+        // เดิมยกเลิกได้ทุกสถานะ (ปุ่มแสดงเฉพาะสถานะ 1): ลูกค้ายกเลิกรายการที่อนุมัติ+คืนเงินแล้ว → แอดมิน RollBack (-1 → 1 ไม่หักเงิน)
+        // → อนุมัติอีกครั้ง = ได้เงินคืนซ้ำ — ยกเลิกได้เฉพาะรายการของตัวเองที่รอ (1); ไม่พบ = ไม่ทำอะไรแบบเดิม
+        $refused = DB::transaction(function () use ($request, $u) {
+            $cur = DB::table('lost_package')->where('id', $this->in($request, 'id'))->where('user', $u->id)->lockForUpdate()->first(['id', 'status']);
+            if ($cur === null) {
+                return null;
+            }
+            if (! Money::statusIn($cur->status, [Money::PENDING])) {
+                return Php74::eq($cur->status, 2) ? 'รายการนี้อนุมัติแล้ว ไม่สามารถยกเลิกได้' : 'รายการนี้ถูกยกเลิกไปแล้ว';
+            }
+            DB::table('lost_package')->where('id', $cur->id)->where('user', $u->id)->update([
+                'status' => '-1', 'cancel_remark' => 'ยกเลิกโดย '.$u->code, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id,
+            ]);
+
+            return null;
+        });
+        if ($refused !== null) {
+            return response(Money::refuse($refused));
+        }
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('lost_package').'";'));
     }
