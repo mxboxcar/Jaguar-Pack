@@ -2,18 +2,20 @@
 
 namespace App\Http\Controllers\MoneyMove\Admin;
 
+use App\Domain\Money\Money;
 use App\Domain\MoneyMove\Lookups;
 use App\Domain\MoneyMove\Mailer;
-use App\Domain\Money\Money;
 use App\Domain\MoneyMove\Php74;
 use App\Domain\MoneyMove\TempUpload;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\MoneyMove\Concerns\ReadsLegacyInput;
+use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
 use App\Support\Legacy\LegacyInput;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -63,14 +65,26 @@ class AdminRefillController extends Controller
         $s = explode('|', $this->in($request, 'txtsearch'));
         $sp = explode('|', $this->php($request, 'txtsearch'));
         $like = '%'.addcslashes($s[0], '%_\\').'%';
-        $q = DB::table('refill')->leftJoin('user', 'refill.user', '=', 'user.id')
-            ->where('refill.is_delete', 0)
-            ->where(fn ($w) => $w->where('refill.id', 'like', $like)->orWhere('user.code', 'like', $like));
         $st = $s[1] ?? null;
-        if (Php74::neq($st, '-2') && Php74::neq($st, '')) {
-            $q->where('refill.status', $st);
-        }
-        $total = (clone $q)->count();
+        // ช่องค้นว่าง: `refill.id LIKE '%%'` จริงทุกแถว (id int NOT NULL) → ทั้งเงื่อนไข OR จริง = ไม่ต้องใส่
+        // ค้นด้วยคำ: user.code LIKE ผ่าน LEFT JOIN (user.id = PK) ≡ refill.user IN (SELECT id FROM user WHERE code LIKE …)
+        //   → นับได้โดยไม่ join ทุกแถว (เดิม COUNT ผ่าน join ≈ 330 ms)
+        $filter = function (Builder $q) use ($s, $st, $like) {
+            if ($s[0] !== '') {
+                $q->where(fn ($w) => $w->where('refill.id', 'like', $like)
+                    ->orWhereIn('refill.user', DB::table('user')->select('id')->where('code', 'like', $like)));
+            }
+            if (Php74::neq($st, '-2') && Php74::neq($st, '')) {
+                $q->where('refill.status', $st);
+            }
+        };
+        $q = DB::table('refill')->leftJoin('user', 'refill.user', '=', 'user.id')
+            ->where('refill.is_delete', 0);
+        $filter($q);
+        // ไม่มีสถานะ: นับจาก idx_refill_user (user, id) อย่างเดียว · มีสถานะ: idx_notif (is_delete, status) อยู่แล้ว
+        $total = Php74::neq($st, '-2') && Php74::neq($st, '')
+            ? DB::table('refill')->where('refill.is_delete', 0)->where($filter)->count()
+            : GridQuery::liveCount('refill', $filter);
         $page = $this->php($request, 'page');
         $offset = Lookups::offset($page);
         $items = $offset === null ? collect() : $q->orderByDesc('refill.id')->offset($offset)->limit(10)->get(['refill.*', 'user.code']);

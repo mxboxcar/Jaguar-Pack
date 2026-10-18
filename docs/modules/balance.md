@@ -53,6 +53,25 @@ grid ทั้ง 5 (หน้า 1–3, ค้นหาด้วยรหัส
 | `/_admin/_balance/grid` | 59–70 | 32–41 |
 | `/_admin/_balance_cn/grid` | 87–96 | 52–53 |
 
+### ความเร็วกับข้อมูลจริง (2026-10-18, fix/grid-perf — bench มี balance 170k แถว, ลูกค้า 137 = 37k แถว)
+
+ตาราง bench ข้างบนวัดตอน `balance` ว่าง — พอมีข้อมูลจริง grid ช้าเกือบเท่าเดิม (`_balance/grid` 1.6 s, `_admin/_balance/grid` 2.3 s) เพราะ
+1. ยอดคงเหลือเป็น dependent subquery `SUM(b2.amount) … b2.id < balance.id` ต่อแถว → MySQL อ่านประวัติทั้งหมดของลูกค้า 10 รอบต่อหน้า
+2. `COUNT(*)` ทำบน query ที่ LEFT JOIN ตารางแสดงผล 5 ตาราง (แอดมิน: 2.0 s) และต้องเปิดทุกแถวเพื่อดู `is_delete` (ลูกค้า: 150 ms)
+
+แก้ (`app/Support/GridQuery.php`, ผลเท่าเดิมทุกค่า — ตรวจ diff กับ :8101):
+- `attachPrevSums()`: ยอดก่อนหน้าทั้งหน้าใน statement เดียว = `SUM` ยอดยกมา (id < แถวแรกของหน้า) + `SUM` ช่วงระหว่างแถวในหน้า + window `SUM() OVER`
+  — อ่านประวัติของลูกค้าแต่ละคนรอบเดียว ค่าเป็น DECIMAL ใน MySQL ทั้งหมด
+- `liveCount()`: นับ = `COUNT(ตรงเงื่อนไข)` (จาก index อย่างเดียว) − `COUNT(ตรงเงื่อนไขและถูกลบ/NULL)` (แถวลบมีน้อย) ไม่มี join
+- `_balance_cn`, `_admin/_balance_cn`, `_admin/_balance_company` ใช้ `attachPrevSums()` ด้วย (ตารางเล็ก)
+
+| grid (หน้า 1, `bin/bench` c=1) | เดิม 7.4 | ใหม่ก่อนแก้ | ใหม่หลังแก้ | + index ที่เสนอ |
+|---|---|---|---|---|
+| `_balance/grid` ลูกค้า 137 | 2,049–2,110 | 1,550–1,614 | 218 | 111 |
+| `_admin/_balance/grid` | 2,173–2,405 | 2,277–2,298 | 284 | 163 |
+
+ลูกค้า 137 ยังเกิน 150 ms เล็กน้อยโดยไม่มี index ใหม่ (`SUM` ประวัติ 37k แถวต้องเปิดแถวจริง ≈ 120–150 ms) → ข้อเสนอ index ใน `docs/db-index-proposal.md`
+
 ## ต่างจากเดิมโดยตั้งใจ
 
 - ค่าจาก DB/ผู้ใช้ escape ทั้งหมด (`detail`, ชื่อประเภท, รหัสลูกค้า, คำค้นใน `value=`) — เดิม echo ดิบ (stored/reflected XSS); `'` ในคำค้นแสดงเป็น `&#039;`

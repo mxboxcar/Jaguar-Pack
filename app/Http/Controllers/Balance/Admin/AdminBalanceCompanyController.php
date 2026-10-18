@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Balance\Admin;
 use App\Domain\Balance\Ledger;
 use App\Domain\Balance\Php74;
 use App\Http\Controllers\Controller;
+use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Legacy;
 use Illuminate\Http\Request;
@@ -47,8 +48,9 @@ class AdminBalanceCompanyController extends Controller
         $page = Ledger::php($request, 'page');
         [$total, $items] = Ledger::page($q, 'balance_company', $page, [
             'balance_company.*', 'user.code', 'user.id as user_id',
-            DB::raw('(SELECT SUM(b2.amount) FROM `balance_company` b2 WHERE b2.id < balance_company.id AND b2.is_delete = 0) as prev_sum'),
         ]);
+        // ยอดสะสมก่อนหน้า (เดิม SUM ต่อแถว, ทั้งบริษัทไม่แยก user) → query เดียว
+        GridQuery::attachPrevSums('balance_company', $items, null);
 
         return response(view('balance.company.grid', [
             'ajaxpage' => self::AJAX,

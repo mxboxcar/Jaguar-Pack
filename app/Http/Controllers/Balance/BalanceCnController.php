@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Balance;
 use App\Domain\Balance\Ledger;
 use App\Domain\Balance\Withdraw;
 use App\Http\Controllers\Controller;
+use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
@@ -52,8 +53,9 @@ class BalanceCnController extends Controller
         $page = Ledger::php($request, 'page');
         [$total, $items] = Ledger::page($q, 'balance_cn', $page, [
             'balance_cn.*', 'balance_type.name', 'prefix.link',
-            DB::raw('(SELECT SUM(b2.amount) FROM `balance_cn` b2 WHERE b2.id < balance_cn.id AND b2.`user` = '.(int) $uid.' AND b2.is_delete = 0) as prev_sum'),
         ]);
+        // ยอดสะสมก่อนหน้า (เดิม SUM ต่อแถว) → query เดียว
+        GridQuery::attachPrevSums('balance_cn', $items, fn () => (int) $uid);
 
         return response(view('balance.cn.grid', [
             'ajaxpage' => self::AJAX,
