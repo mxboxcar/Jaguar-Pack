@@ -28,6 +28,8 @@ class AdminTrackingController extends Controller
 {
     use ReadsLegacyInput;
 
+    public const LOCK_REFUSED = 'tracking นี้อยู่ในบิลแล้ว หรือถูกลบแล้ว ไม่สามารถล็อกได้';
+
     private const AJAX = '_admin/_tracking/grid';
 
     /** GET /admin/tracking, /admin/tracking/status/{status} — _admin/_tracking/index.php (status ไม่ถูกใช้ในหน้าเดิม) */
@@ -163,12 +165,26 @@ class AdminTrackingController extends Controller
 
     /**
      * POST /_admin/_tracking/save_lock — เดิมไม่ตรวจสิทธิ์เลย (ใส่ admin_tracking)
-     * เดิมไม่สนค่า value ที่ส่งมา (ปุ่มล็อก -2 / ปลดล็อก 0) ตั้ง payment_id = -3 (claim) เสมอ — คงไว้
+     * เดิมไม่สนค่า value ที่ส่งมา (ปุ่มล็อก -2 / ปลดล็อก 0) ตั้ง payment_id = -3 (claim) เสมอ — คงไว้ (เจ้าของยืนยันว่าตั้งใจ)
+     * ต่างจากเดิม (เจ้าของอนุมัติ): เดิมเขียนทับ tracking ที่อยู่ในบิลแล้ว (payment_id > 0 = หลุดจากบิล) หรือที่ลบแล้วได้
+     * → เฉพาะแถวที่ยังไม่ลบและ payment_id <= 0 (0 / -2 / -3) ใน transaction + lock แถว; ไม่เข้าเงื่อนไข = ErrorBox ไม่เปลี่ยนอะไร
      */
     public function saveLock(Request $request): Response
     {
-        DB::table('tracking')->where('id', $this->in($request, 'id'))
-            ->update(['payment_id' => '-3', 'date_thai' => '0000-00-00 00:00:00']);
+        $id = $this->in($request, 'id');
+        $ok = DB::transaction(function () use ($id) {
+            $row = DB::table('tracking')->where('id', $id)->lockForUpdate()->first(['id', 'is_delete', 'payment_id']);
+            if ($row === null || (int) ($row->is_delete ?? 0) !== 0 || (int) ($row->payment_id ?? 0) > 0) {
+                return false;
+            }
+            DB::table('tracking')->where('id', $row->id)
+                ->update(['payment_id' => '-3', 'date_thai' => '0000-00-00 00:00:00']);
+
+            return true;
+        });
+        if (! $ok) {
+            return response(Alerts::error('CloseLoading()', self::LOCK_REFUSED));
+        }
 
         return response('');
     }

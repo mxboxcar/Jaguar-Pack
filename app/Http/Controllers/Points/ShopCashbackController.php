@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Points;
 
+use App\Domain\Money\Money;
 use App\Domain\Points\Cashback;
 use App\Domain\Points\Grid;
 use App\Domain\Points\Php74;
@@ -23,6 +24,8 @@ use Illuminate\View\View;
 class ShopCashbackController extends Controller
 {
     private const AJAX = '_shop_cashback/grid';
+
+    public const BAD_PRICE = 'กรุณาระบุจำนวนเงินที่ขอคืนให้ถูกต้อง (ตัวเลขมากกว่า 0 ทศนิยมไม่เกิน 2 ตำแหน่ง)';
 
     /** GET /shop_cashback — _shop_cashback/index.php */
     public function index(): View
@@ -105,15 +108,30 @@ class ShopCashbackController extends Controller
         $prices = Grid::inArray($request, 'price');
         $remark = Grid::in($request, 'remark');
 
-        $total = null;
-        foreach ($prices as $p) {
-            $total = Php74::num($total) + Php74::num(is_scalar($p) ? (string) $p : '');
+        // เดิมรับยอดอะไรก็ได้ (ติดลบ / 0 / "abc") แล้วแอดมินกดอนุมัติ = INSERT balance_cn ติดลบ (หักเงินหยวนลูกค้า)
+        // ใหม่ (เจ้าของอนุมัติ): ทุกแถวต้องเป็นตัวเลขบวก ทศนิยมไม่เกิน 2 ตำแหน่ง (Money::validRefillAmount) ไม่งั้นไม่บันทึกอะไร
+        if ($orders === []) {
+            return response(Money::refuse(self::BAD_PRICE));
         }
+        $clean = [];
+        foreach (array_keys($orders) as $i) {
+            $p = $prices[$i] ?? null;
+            if (! is_scalar($p) || ! Money::validRefillAmount((string) $p)) {
+                return response(Money::refuse(self::BAD_PRICE));
+            }
+            $clean[$i] = str_replace(',', '', trim((string) $p));
+        }
+        $prices = $clean;
+        $total = 0.0;
+        foreach ($prices as $p) {
+            $total += (float) $p;
+        }
+        $total = Money::fmt($total);
 
         $id = DB::transaction(function () use ($uid, $orders, $dates, $prices, $remark, $total, $request) {
             $id = DB::table('shop_cashback')->insertGetId([
                 'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
-                'is_delete' => 0, 'user' => $uid, 'total' => $total === null ? '' : Php74::str($total), 'remark' => $remark,
+                'is_delete' => 0, 'user' => $uid, 'total' => $total, 'remark' => $remark,
             ]);
             foreach ($orders as $i => $order) {
                 $exp = explode('|', is_scalar($dates[$i] ?? null) ? (string) $dates[$i] : '');
@@ -121,7 +139,7 @@ class ShopCashbackController extends Controller
                     'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
                     'is_delete' => 0, 'shop_cashback_id' => $id,
                     'order' => is_scalar($order) ? (string) $order : '',
-                    'price' => is_scalar($prices[$i] ?? null) ? (string) $prices[$i] : '',
+                    'price' => $prices[$i],
                     'status' => '1',
                     'attachment' => Grid::in($request, 'upload_file_'.$i),
                     'submit_date' => Format::getdatesubmit($exp[0]).' '.($exp[1] ?? ''),

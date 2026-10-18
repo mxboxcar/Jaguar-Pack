@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Payment\Admin;
 
+use App\Domain\Money\Money;
 use App\Domain\Payment\PaymentLookups as P;
 use App\Domain\Payment\PaymentMailer;
 use App\Domain\Payment\PaymentTotals;
@@ -30,6 +31,8 @@ class AdminPaymentController extends Controller
     private const AJAX = '_admin/_payment/grid';
 
     public const SENDER_CANCELLED = 'บิลนี้ถูกยกเลิกแล้ว ไม่สามารถแก้ไขผู้ส่ง/ประเภทการส่งได้';
+
+    public const SENDER_NO_BALANCE = 'ยอดเงินคงเหลือของลูกค้าไม่พอสำหรับค่าส่งที่เพิ่มขึ้น';
 
     /** GET /admin/payment, /admin/payment/status/{status} */
     public function index(Request $request): View
@@ -266,6 +269,16 @@ class AdminPaymentController extends Controller
             $balanceId = DB::table('balance')->where('type', '3')->where('prefix_ref_id', $id)
                 ->where('prefix', (string) Lookup::getPrefixID('payment'))->orderBy('id')->value('id');
             if ($balanceId !== null) {
+                // เดิมแก้แถวตัดเงินเป็นยอดใหม่โดยไม่ดูยอดคงเหลือ → เปลี่ยนเป็นประเภทส่งที่แพงกว่า = ยอดเงินลูกค้าติดลบได้
+                // ใหม่ (เจ้าของอนุมัติ): ล็อกแถว user แล้วตรวจว่าส่วนที่ต้องตัดเพิ่มไม่เกินยอดคงเหลือ (ถูกลง = คืนส่วนต่างเหมือนเดิม)
+                $row = DB::table('balance')->where('id', $balanceId)->first(['user', 'amount', 'is_delete']);
+                if ($row !== null && Php74::eq($row->is_delete, 0)) {
+                    Money::lockUser($row->user);
+                    $extra = round((float) Php74::num(P::s($total)) + (float) $row->amount, 2);
+                    if ($extra > 0 && $extra > Money::cash($row->user)) {
+                        return self::SENDER_NO_BALANCE;
+                    }
+                }
                 DB::table('balance')->where('id', $balanceId)->update(['amount' => '-'.P::s($total), 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid]);
             }
             DB::table('bill_payment')->where('id', $id)->update([

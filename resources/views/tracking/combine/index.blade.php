@@ -100,6 +100,7 @@ function do_combine() {
 		        data :  'tracking=' + str ,
 		        url: rooturl + '_admin/_combine_track/save_combine',
 		        success: function(data) {
+		        	if(data.search("ErrorBox") != -1) { eval(data); return; }
 		        	on_search();
 		        	CloseLoading();
 		        }

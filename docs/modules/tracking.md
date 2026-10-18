@@ -80,8 +80,13 @@ ajax / form post (ทุกตัว `legacy.ajax` = system_check_ajax เดิ
 
 ผลต่างที่ตั้งใจ:
 - **save_combine.php**: เดิม `INSERT INTO tracking VALUES(...)` 42 ค่า แต่ตารางมี 43 คอลัมน์ (มี `date_section`) → INSERT ล้มทุกครั้ง แต่ยัง `DELETE` tracking ทั้ง 2 แถว และย้าย `bill_product_on_tracking` ไป `tracking_id = 0` (ข้อมูลหาย) → ใหม่: INSERT ครบคอลัมน์ (รวม date_section ตามกติกาเดียวกับ `CombineTrack()`), ลบ/ย้าย/คิดราคาใน `DB::transaction()`
+  - **(2026-10-18, fix/legacy-risks, เจ้าของอนุมัติ — แก้เฉพาะ Laravel)** เดิมรวม tracking ของลูกค้าต่างคน / ที่ลบแล้ว / อยู่ในบิลแล้ว (`payment_id > 0`) / ล็อก (`-2`) / claim (`-3`) ได้
+    → ทั้ง 2 แถว (lock ใน transaction) ต้อง `is_delete = 0`, `payment_id = 0` (ยังไม่ชำระ ไม่ล็อก) และ `user` เดียวกัน ไม่งั้น `ErrorBox` (`CombineTrack::ERR_STATE` / `ERR_USER`) ไม่เปลี่ยนอะไร;
+    JS หน้า `admin/combine_track` eval คำตอบที่เป็น `ErrorBox` (เดิมไม่ eval คำตอบเลย) · `CombineTrack::run()` (จาก `_api/submit_order_number_v2`) ยังเหมือนเดิม
 - `CombineTrack()`: loop ตรวจ `WHERE lot = ...` (คอลัมน์ไม่มีจริง → SQL error → ไม่ทำอะไร) ตัดทิ้ง; `exit(0)` เมื่อ order ว่าง → คืน flag ให้ผู้เรียกหยุดเอง; ไม่ `echo` แต่คืนข้อความ
-- `save_lock.php`: เดิมไม่สนค่า `value` (ปุ่มล็อก -2 / ปลดล็อก 0) ตั้ง `payment_id = -3` เสมอ — **คงพฤติกรรมเดิม** (บั๊กเดิม แจ้งเจ้าของ)
+- `save_lock.php`: เดิมไม่สนค่า `value` (ปุ่มล็อก -2 / ปลดล็อก 0) ตั้ง `payment_id = -3` เสมอ — **คงพฤติกรรมเดิม** (เจ้าของยืนยันว่าตั้งใจ)
+  - **(2026-10-18, fix/legacy-risks, เจ้าของอนุมัติ)** แต่เดิมเขียนทับ tracking ที่อยู่ในบิลแล้ว (`payment_id > 0` → หลุดจากบิล) หรือที่ลบแล้วได้ → ใหม่: lock แถวใน transaction, แก้เฉพาะแถวที่ `is_delete = 0` และ `payment_id <= 0`;
+    ไม่เข้าเงื่อนไข/ไม่พบ = `ErrorBox('tracking นี้อยู่ในบิลแล้ว หรือถูกลบแล้ว ไม่สามารถล็อกได้')` ไม่เปลี่ยนอะไร (สำเร็จตอบว่างเหมือนเดิม) · test: tests/Feature/Money/LegacyRisksDbTest.php
 - `save_approved.php`: เดิม id ที่ไม่มีจริงก็ INSERT balance ขยะ (user = 0, amount 0) → ข้าม
 - `_lost_package/save.php`: รับชื่อรูปเฉพาะชื่อไฟล์ธรรมดา (`[A-Za-z0-9._-]`); เดิมบันทึกทุกค่าและ `file_exists('../upload/temp/'.$img)` ตรงๆ (path traversal)
 - `_lost_package/upload.php`: เก็บไฟล์ที่ `config('legacy.upload.temp_dir')` (dev = `storage/app/legacy-upload/temp`) — เดิมเขียน `upload/temp/` แบบ relative
