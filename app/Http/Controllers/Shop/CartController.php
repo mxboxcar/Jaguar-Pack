@@ -226,11 +226,16 @@ class CartController extends ShopController
         }
 
         $billId = DB::transaction(function () use ($uid, $id, $idsB64, $rate, $quote, $ship) {
-            $cart = DB::table('cart')->where('random', $id)->where('user', $uid)->orderBy('id')->first(['id']);
+            $cart = DB::table('cart')->where('random', $id)->where('user', $uid)->orderBy('id')->lockForUpdate()->first(['id']); // กดซ้ำพร้อมกัน: คำขอที่สองรอ แล้วเห็นตะกร้าที่ถูกตัดรายการแล้ว
             $ids = CartRepo::decodeIds($idsB64);
             $details = ($cart !== null && $ids !== null)
                 ? DB::table('cart_detail')->where('cart_id', $cart->id)->whereIn('id', $ids)->orderBy('id')->get()->all()
                 : [];
+            // เดิมไม่มีรายการ (กดสั่งซื้อซ้ำ = รายการถูกลบออกจากตะกร้าไปแล้ว / ids ไม่ใช่ของตะกร้านี้) ก็ยังสร้างใบสั่งซื้อเปล่ายอด 0
+            // → ไม่สร้างอะไร (ตรวจภายใน transaction หลังอ่านตะกร้า)
+            if ($details === []) {
+                return null;
+            }
 
             $total = 0;
             foreach ($details as $it) {
@@ -282,6 +287,9 @@ class CartController extends ShopController
 
             return $billId;
         });
+        if ($billId === null) {
+            return $this->out(Alerts::error('CloseLoading()', Lang::get('order_error')));
+        }
 
         // clearcookie(cookiename_cart): ลบเฉพาะเมื่อมี cookie (path / และ /cargo แบบเดิม)
         $name = (string) config('legacy.cookies.cart');

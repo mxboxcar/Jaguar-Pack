@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tracking\Admin;
 
+use App\Domain\Money\Money;
 use App\Domain\Tracking\LostPackageMailer;
 use App\Domain\Tracking\Php74;
 use App\Domain\Tracking\TrackingLookups;
@@ -26,11 +27,31 @@ class AdminLostPackageController extends LostPackageController
     {
         $id = $this->in($request, 'id');
         $u = Legacy::user();
-        DB::table('lost_package')->where('id', $id)->update([
-            'status' => '-1', 'cancel_remark' => $this->in($request, 'cancel_remark').' ,ยกเลิกโดย '.$u->code,
-            'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id,
-        ]);
-        LostPackageMailer::cancelled($id);
+        // เดิมยกเลิกได้ทุกสถานะ: ยกเลิกรายการที่อนุมัติ (คืนเงิน) แล้วไม่หักเงินคืน → RollBack → อนุมัติซ้ำ = คืนเงินซ้ำ
+        // → ยกเลิกได้เฉพาะรายการที่รอ (1) = ปุ่มในหน้า (ไม่พบรายการ = ไม่ทำอะไรแบบเดิม)
+        $result = DB::transaction(function () use ($id, $request, $u) {
+            $cur = DB::table('lost_package')->where('id', $id)->lockForUpdate()->first(['id', 'status']);
+            if ($cur === null) {
+                return null;
+            }
+            if (! Money::statusIn($cur->status, [Money::PENDING])) {
+                return Php74::eq($cur->status, 2)
+                    ? 'รายการนี้อนุมัติ (คืนเงิน) แล้ว ยกเลิกไม่ได้ (ต้อง RollBack ก่อน)'
+                    : 'รายการนี้ถูกยกเลิกไปแล้ว';
+            }
+            DB::table('lost_package')->where('id', $cur->id)->update([
+                'status' => '-1', 'cancel_remark' => $this->in($request, 'cancel_remark').' ,ยกเลิกโดย '.$u->code,
+                'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id,
+            ]);
+
+            return true;
+        });
+        if (is_string($result)) {
+            return response(Money::refuse($result));
+        }
+        if ($result === true) {
+            LostPackageMailer::cancelled($id);
+        }
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/lost_package').'";'));
     }
@@ -79,11 +100,20 @@ class AdminLostPackageController extends LostPackageController
         $id = $this->in($request, 'id');
         $uid = Legacy::userId();
         $prefix = TrackingLookups::prefix('lost_package');
+        // ยอดคืนติดลบ = หักเงินลูกค้า (เดิมรับได้) → ไม่ยอม
+        if (Php74::num($this->php($request, 'cashback')) < 0) {
+            return response(Money::refuse('ยอดคืนเงินไม่ถูกต้อง (ห้ามติดลบ)'));
+        }
         $approved = DB::transaction(function () use ($id, $uid, $request, $prefix) {
             $cur = DB::table('lost_package')->where('id', $id)->lockForUpdate()->first();
             // เดิม: ไม่พบรายการ (null != 2) ก็ยัง INSERT balance ขยะ user = '' → ที่นี่ข้าม
             if ($cur === null || Php74::eq($cur->status, 2)) {
                 return false;
+            }
+            // เดิม status != 2 = อนุมัติได้ รวมรายการที่ยกเลิกแล้ว (-1): ยกเลิกหลังอนุมัติ (ไม่หักคืน) → RollBack (-1 → 1 ไม่หัก)
+            // → อนุมัติซ้ำ = คืนเงินซ้ำ (ทดสอบ e2e 2026-10-18) — อนุมัติได้เฉพาะรายการที่รอ (1)
+            if (! Money::statusIn($cur->status, [Money::PENDING])) {
+                return 'not_pending';
             }
             DB::table('lost_package')->where('id', $id)->update([
                 'status' => '2', 'approved_remark' => $this->in($request, 'approved_remark'),
@@ -102,7 +132,10 @@ class AdminLostPackageController extends LostPackageController
 
             return true;
         });
-        if ($approved) {
+        if ($approved === 'not_pending') {
+            return response(Money::refuse('รายการนี้ถูกยกเลิกแล้ว อนุมัติไม่ได้ (ต้อง RollBack ก่อน)'));
+        }
+        if ($approved === true) {
             LostPackageMailer::approved($id);
         }
 
