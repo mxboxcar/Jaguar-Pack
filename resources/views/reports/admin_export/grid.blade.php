@@ -1,0 +1,99 @@
+{{-- _admin/_export/grid.php เดิม --}}
+@php
+    use App\Domain\Reports\Php74;
+    use App\Domain\Reports\Rows;
+    use App\Support\Legacy\Format;
+    use App\Support\Legacy\Paging;
+    use App\Support\Legacy\Status;
+    $sel = fn ($v) => Php74::eq($status, $v) ? "selected='selected'" : '';
+@endphp
+
+<div class="row">
+	<div class="col-lg-12">
+		<div class="card-box">
+			<div class="row m-t-10 m-b-10">
+            	<div class="col-sm-6 col-lg-8">
+                    <div class="form-group contact-search m-b-30">
+                    	<input type="text" id="txtsearch" onblur="GenerateWhere();" class="form-control" placeholder="{!! res('search') !!}" value="{{ $search }}">
+                        <button type="submit" class="btn btn-white" onclick="Javascript:loadAjaxGrid('{{ $ajaxpage }}', '1',  $('#txtSearch').val());"><i class="fa fa-search"></i></button>
+                    </div> <!-- form-group -->
+            	</div>
+
+                <div class="col-xs-2 col-sm-4 col-lg-4">
+                    <select name="role" class="form-control" id="status" onchange="GenerateWhere()">
+                        <option {!! $sel('-2') !!} value="-2">- {!! res('all') !!} -</option>   
+                        <option {!! $sel('2') !!} value="2">{!! res('wait_for_export') !!}</option>   
+                        <option {!! $sel('3') !!} value="3">{!! res('export_complete') !!}</option>  
+                    </select>
+                </div>
+            </div>
+
+			<div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width:105px;">{!! res('no_for_grid') !!}</th>
+                            <th class="text-center" style="width:100px;">{!! res('customer_code') !!}</th>
+                            <th class="text-center" >{!! res('name_lastname') !!}</th>
+                            <th class="text-center" style="width: 65px;">{!! res('create_date') !!}</th>
+                            <th class="text-center" style="width: 65px;">{!! res('export_date') !!}</th>
+                            <!-- <th class="text-center">{!! res('export_track') !!}</th> -->
+                            <th class="text-center">{!! res('shipping_type') !!}</th>
+                            <th class="text-center" style="width:73px;">{!! res('sender') !!}</th>
+                            <th class="text-center">{!! res('approved_proof') !!}</th>
+                            <th class="text-center">{!! res('amount') !!}<div class="text-danger">{!! res('export_price') !!}</div></th>
+                            <th class="text-center" style="width: 92px;">{!! res('status') !!}</th>
+                            <th class="text-center" style="width: 60px;">{!! res('action') !!}</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                    @forelse ($items as $item)
+                        <tr>
+                            <td><a target="_blank" href="{{ legacy_href() }}admin/export/{{ $item->id }}">{{ $prefix.$item->id }}</a></td>
+                            <td class="text-center">{{ $item->code }}</td>
+                            <td class="text-center">{{ $item->send_name }}</td>
+                            <td class="text-center">
+                                {!! Rows::dateCell($item->create_date) !!}
+                            </td>
+                            <td class="text-center">
+                                {!! Rows::dateCell($item->export_date) !!}
+                            </td>
+                            <!-- <td class="text-center">
+                                {!! Php74::eq($item->export_tracking, '') ? '-<br />-' : e($item->ship_name.'/'.$item->export_tracking) !!}
+                            </td> -->
+                            <td class="text-center">{{ $item->ship_name }}</td>
+                            <td class="text-center">{!! Status::getsender($item->sender_type) !!}</td>
+                            <td class="text-center">{!! Rows::fancy($item->export_attachment) !!}</td>
+                            <td class="text-right">{!! Format::numberformat($item->total) !!}
+                                <div class="text-danger">{!! Format::numberformat($item->export_price) !!}</div>
+                            </td>
+                            <td class="text-center">
+                                {!! Status::getstatusexport($item->status) !!}
+                                @if (Php74::eq($item->is_vat, 1))<br/><span class='label label-danger'>VAT</span>@endif
+                            </td>
+                            <td class="text-center">
+                            	<a href="{{ legacy_href() }}admin/export/{{ $item->id }}" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
+                                
+                                @if (Php74::eq($item->is_print, 0))
+                                <a target="_blank"  href="{{ legacy_href() }}_admin/_export/print/?id={{ $item->id }}" class="table-action-btn"><i class="fa fa-print text-primary"></i></a>
+                                @else
+                                <a target="_blank"  href="{{ legacy_href() }}_admin/_export/print/?id={{ $item->id }}" class="table-action-btn"><i class="fa fa-print text-danger"></i></a>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <td class="text-center" colspan="20">{!! res('no_data') !!}</td>
+                    @endforelse
+                    </tbody>
+                </table>
+                <div class="pull-right">
+                    {!! Paging::getpaging($page, $total, 10, $ajaxpage) !!}
+                </div>
+            </div>
+		</div>
+        
+    </div> <!-- end col -->
+</div>
+
+@include('reports.partials.grid_script')

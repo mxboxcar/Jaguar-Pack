@@ -9,18 +9,26 @@ use Illuminate\Support\Facades\Route;
 | โหลดจาก bootstrap/app.php ใต้ middleware group "legacy" — ห้ามย้ายไป web.php (CSRF token/StartSession ของ Laravel จะตีกลับ 419)
 */
 
-// index.php เดิม: ไม่มี page = dashboard (กลุ่ม reports รับหน้า dashboard)
+// index.php เดิม: ไม่มี page = แสดงหน้า dashboard ที่ / เลย (ไม่ redirect) — กลุ่ม reports ตั้งชื่อ route หน้า dashboard ว่า "page.dashboard"
 // ?page=<page> (JS เดิมบางจุดเปิด index.php?page=... ตรงๆ เช่น searchlink() ใน layout → ?l=...&page=checkout_product)
-// → ส่งต่อไป route ที่กลุ่มตั้งชื่อ "page.<page>" (พร้อม query ที่เหลือ) ถ้ามี
+// → ส่งต่อไป route ที่กลุ่มตั้งชื่อ "page.<page>" (query ที่เหลือเติม parameter ของ route เช่น {id} ส่วนที่เกินเป็น query string) ถ้ามี
 Route::get('/', function (\Illuminate\Http\Request $request) {
     $page = $request->query('page');
     if (is_string($page) && preg_match('/^[a-z0-9_]+$/', $page) && Route::has('page.'.$page)) {
-        $query = $request->except('page');
-
-        return redirect()->to(Legacy::href(ltrim(route('page.'.$page, [], false), '/')).($query === [] ? '' : '?'.http_build_query($query)));
+        try {
+            return redirect()->to(Legacy::href(ltrim(route('page.'.$page, $request->except('page'), false), '/')));
+        } catch (\Illuminate\Routing\Exceptions\UrlGenerationException) {
+            // ขาด parameter ที่ route ต้องใช้ (เช่น ?page=export_detail ไม่มี id) → ทำเหมือนไม่มี page
+        }
     }
 
-    return redirect()->to(Legacy::href(Legacy::userId() === null ? 'login' : 'dashboard'));
+    if (Legacy::userId() === null) {
+        return redirect()->to(Legacy::href('login'));
+    }
+
+    return Route::has('page.dashboard')
+        ? app()->call(Route::getRoutes()->getByName('page.dashboard')->getAction('uses'))
+        : redirect()->to(Legacy::href('dashboard'));
 });
 
 Route::get('/login', [LegacyLoginController::class, 'show'])->name('login');
