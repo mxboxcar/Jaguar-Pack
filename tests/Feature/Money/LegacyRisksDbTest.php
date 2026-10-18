@@ -67,23 +67,20 @@ class LegacyRisksDbTest extends BenchDbTestCase
             ->where('prefix_ref_id', $billId)->orderBy('id')->value('amount');
     }
 
-    public function test_sender_change_to_more_expensive_refused_when_balance_short(): void
+    public function test_sender_change_to_more_expensive_may_go_negative(): void
     {
+        // เจ้าของยืนยัน 2026-10-18: เปลี่ยนประเภทการส่งแล้วยอดติดลบได้ (เหมือนเว็บเดิม)
         $cust = $this->cust();
         $this->admin();
         $billId = $this->paidBill($cust, self::SHIP_FREE, 500);
-        // ยอดคงเหลือหลังจ่ายบิล = 50 แต่ค่าส่งเพิ่ม 110
         $this->credit($cust, 50 - $this->cash($cust));
         $this->assertSame(50.0, $this->cash($cust));
-        $before = (array) DB::table('bill_payment')->where('id', $billId)->first();
 
         $out = $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost($billId, self::SHIP_110));
 
-        $this->assertStringContainsString('ErrorBox(', $out);
-        $this->assertStringContainsString(AdminPaymentController::SENDER_NO_BALANCE, $out);
-        $this->assertSame(50.0, $this->cash($cust), 'ยอดเงินลูกค้าต้องไม่เปลี่ยน');
-        $this->assertSame(-500.0, $this->deduction($billId));
-        $this->assertSame($before, (array) DB::table('bill_payment')->where('id', $billId)->first(), 'บิลต้องไม่ถูกแก้');
+        $this->assertStringContainsString('SuccessBox(', $out);
+        $this->assertSame(-610.0, $this->deduction($billId));
+        $this->assertSame(-60.0, $this->cash($cust));
     }
 
     public function test_sender_change_to_more_expensive_allowed_when_balance_covers(): void
