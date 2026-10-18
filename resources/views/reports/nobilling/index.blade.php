@@ -32,6 +32,18 @@
 <div class="col-sm-12">
 	<div class="card-box"    >
 		<div id="result">
+		@if ($pages > 1 || $totalRows)
+		<div class="row" style="margin-bottom:10px;">
+		    <div class="col-sm-6" style="padding-top:8px;">ลูกค้า {{ number_format($totalGroups) }} ราย · พัสดุ {{ number_format($totalRows) }} รายการ · หน้า {{ $page }}/{{ $pages }}</div>
+		    <div class="col-sm-6 text-right">@if ($pages > 1)<ul class="pagination" style="margin:0;">
+		        <li class="{{ $page <= 1 ? 'disabled' : '' }}"><a href="{{ legacy_href() }}admin/nobilling?page={{ max(1, $page - 1) }}">&laquo;</a></li>
+		        @for ($i = max(1, $page - 4); $i <= min($pages, $page + 4); $i++)
+		        <li class="{{ $i === $page ? 'active' : '' }}"><a href="{{ legacy_href() }}admin/nobilling?page={{ $i }}">{{ $i }}</a></li>
+		        @endfor
+		        <li class="{{ $page >= $pages ? 'disabled' : '' }}"><a href="{{ legacy_href() }}admin/nobilling?page={{ min($pages, $page + 1) }}">&raquo;</a></li>
+		    </ul>@endif</div>
+		</div>
+		@endif
 		@if (count($groups))@foreach ($groups as $code => $rows)
 		        <div class="row">
 		            <h3>{{ $code }}</h3>
@@ -58,6 +70,18 @@
 		                
 		                @endforeach</tbody></table></div>@endforeach
 		@else<h3 class='text-center'>{!! res('no_data') !!}</h3>@endif
+		@if ($pages > 1 || $totalRows)
+		<div class="row" style="margin-bottom:10px;">
+		    <div class="col-sm-6" style="padding-top:8px;">ลูกค้า {{ number_format($totalGroups) }} ราย · พัสดุ {{ number_format($totalRows) }} รายการ · หน้า {{ $page }}/{{ $pages }}</div>
+		    <div class="col-sm-6 text-right">@if ($pages > 1)<ul class="pagination" style="margin:0;">
+		        <li class="{{ $page <= 1 ? 'disabled' : '' }}"><a href="{{ legacy_href() }}admin/nobilling?page={{ max(1, $page - 1) }}">&laquo;</a></li>
+		        @for ($i = max(1, $page - 4); $i <= min($pages, $page + 4); $i++)
+		        <li class="{{ $i === $page ? 'active' : '' }}"><a href="{{ legacy_href() }}admin/nobilling?page={{ $i }}">{{ $i }}</a></li>
+		        @endfor
+		        <li class="{{ $page >= $pages ? 'disabled' : '' }}"><a href="{{ legacy_href() }}admin/nobilling?page={{ min($pages, $page + 1) }}">&raquo;</a></li>
+		    </ul>@endif</div>
+		</div>
+		@endif
 	</div>
 </div>
 
