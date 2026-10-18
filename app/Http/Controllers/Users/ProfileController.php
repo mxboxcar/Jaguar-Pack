@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Users;
 
 use App\Domain\Users\Php74;
+use App\Domain\Users\PinThrottle;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Users\Concerns\ReadsLegacyInput;
 use App\Support\Legacy\Alerts;
@@ -189,14 +190,25 @@ class ProfileController extends Controller
             if ($eq === '') {
                 $eq = '0';
             }
+            // แก้จากเดิม: เดา PIN ได้ไม่จำกัด → ผิดครบ 5 ครั้ง / 15 นาที ต่อ (ผู้ใช้ + IP) = ล็อก (PinThrottle)
+            $uid = (int) Legacy::userId();
+            $ip = Legacy::clientIp();
+            $wait = PinThrottle::lockedFor($uid, $ip);
+            if ($wait > 0) {
+                LegacyLog::goLog($request->getRequestUri(), 'paymentpin: locked ('.$wait.'s)');
+
+                return response(Alerts::error('CloseLoading()', PinThrottle::message($wait)));
+            }
             // PIN ทั้งสองฝั่งเป็นตัวเลขล้วน → == ของ 7.4 เทียบแบบตัวเลข ("0123" == "123")
             if (Php74::neq($pin, $userPin)) {
+                PinThrottle::fail($uid, $ip);
                 $out = Alerts::error('CloseLoading()', 'PIN จ่ายเงินไม่ถูกต้อง');
                 // เดิม log PIN ที่พิมพ์ผิดเป็น plaintext → ปิดค่า
                 LegacyLog::goLog($request->getRequestUri(), "paymentpin: '***', PIN จ่ายเงินไม่ถูกต้อง");
 
                 return response($out);
             }
+            PinThrottle::clear($uid, $ip);
             $out = '$("#divpin").html("<input type=\'hidden\' name=\'paymentpin\' value=\''.$pin.'\' />"); CloseLoading();  ';
             // callback / eq มาจาก POST แล้วถูกฝังใน JS string "..." (เดิมต่อดิบ) → escape เฉพาะตัวที่ปิด string ได้
             if ($callback !== '') {

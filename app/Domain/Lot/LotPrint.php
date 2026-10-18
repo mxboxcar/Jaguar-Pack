@@ -24,13 +24,18 @@ final class LotPrint
         return Php74::num($v);
     }
 
-    /** UPDATE is_print + หัวล็อต + tracking + memo ของล็อตใน $ids (ลำดับ ORDER BY ตาม $orderByUser) */
-    private static function load(array $ids, bool $orderByUser): array
+    /**
+     * UPDATE is_print + หัวล็อต + tracking + memo ของล็อตใน $ids (ลำดับ ORDER BY ตาม $orderByUser)
+     * $markPrinted = false: อ่านอย่างเดียว (print_all ของผู้ถือ admin_lot_view — ไม่เขียน is_print)
+     */
+    private static function load(array $ids, bool $orderByUser, bool $markPrinted = true): array
     {
         if ($ids === []) {
             return [[], '', collect(), collect(), []];
         }
-        DB::table('lot')->whereIn('id', $ids)->update(['is_print' => '1']);
+        if ($markPrinted) {
+            DB::table('lot')->whereIn('id', $ids)->update(['is_print' => '1']);
+        }
         $head = DB::table('lot')->whereIn('id', $ids)->get();
         $strHead = '';
         foreach ($head as $row) {
@@ -208,9 +213,9 @@ window.print();
     }
 
     /** print_all.php — ตารางเดียวทั้งล็อต (ส่งเป็นไฟล์ .xls แบบ HTML) */
-    public static function printAll(array $ids): string
+    public static function printAll(array $ids, bool $markPrinted = true): string
     {
-        [, $head, $detail, $memo, $children] = self::load($ids, false);
+        [, $head, $detail, $memo, $children] = self::load($ids, false, $markPrinted);
         $e = fn ($v) => e((string) $v);
 
         $html = view('lot.print.header')->render();

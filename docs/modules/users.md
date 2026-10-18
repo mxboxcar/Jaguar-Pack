@@ -58,6 +58,11 @@ user_type grid ยังใช้ subquery นับผู้ใช้ต่อ�
 
 ## 4. ต่างจากเดิมโดยตั้งใจ
 
+- **`_profile/pin` จำกัดการเดา PIN** (เจ้าของอนุมัติ 2026-10-18, รายงานข้อ 4.21): `method=verified` ใส่ผิดครบ 5 ครั้งภายใน 15 นาที ต่อ (ผู้ใช้ + IP) หรือ 10 ครั้งต่อผู้ใช้ (ทุก IP รวม — กันเปลี่ยน IP) → ล็อกจนครบเวลา แม้ใส่ PIN ถูก: `ErrorBox('ใส่ PIN ผิดเกินจำนวนครั้งที่กำหนด<br />กรุณาลองใหม่อีกครั้งใน N นาที', 'CloseLoading()')`
+  - ระหว่างยังไม่ล็อก ข้อความผิดยังเป็น `ErrorBox('PIN จ่ายเงินไม่ถูกต้อง', 'CloseLoading()')` และยังบันทึกแถว `ips` ให้ jail เหมือนเดิม; ใส่ถูก = ล้างตัวนับ
+  - `App\Domain\Users\PinThrottle` (Laravel `RateLimiter`, cache store ปกติ — production `file`), ค่าตั้ง `config/legacy.php` `pin_throttle` / `.env` `LEGACY_PIN_MAX_ATTEMPTS`, `LEGACY_PIN_MAX_ATTEMPTS_PER_USER`, `LEGACY_PIN_DECAY_MINUTES`
+  - ยังไม่ครอบ: endpoint อื่นที่รับ `paymentpin` แล้วตรวจ PIN เอง (payment/money-move/points ฯลฯ — นอกขอบเขตกลุ่มนี้) ควรเรียก PinThrottle ด้วย
+  - test: `tests/Feature/Users/ProfilePinThrottleTest.php` · ตรวจสด :8298 (zz_fdn_cust, X-Real-IP 10.250.77.21–31 สลับ IP): 10 ครั้งแรก "PIN จ่ายเงินไม่ถูกต้อง", ครั้งที่ 11 ล็อก (ลบแถว ips ทดสอบ 10 แถวตาม id แล้ว, ไม่เกิด ips_ban)
 - SQL ทั้งหมด bind ค่า, LIKE escape `% _ \` (เดิมผู้ใช้พิมพ์ `_` = wildcard)
 - N+1: ฟอร์มผู้ใช้/กลุ่มราคา (product_type × user_type_detail ต่อแถว → 2 query), grid ผู้ใช้ (ชื่อกลุ่มแม่ต่อแถว → join), role detail (วนเทียบ → map), INSERT user_type_detail / role_on_detail ทีละแถว → insert ครั้งเดียว
 - งานหลายตารางอยู่ใน transaction (สมัคร, save ผู้ใช้, user_type, role, unbanned); สมัครล็อกแถว `user_count` (เดิมรหัสลูกค้าซ้ำได้เมื่อสมัครพร้อมกัน)
@@ -87,7 +92,7 @@ user_type grid ยังใช้ subquery นับผู้ใช้ต่อ�
 11. log: PIN ที่พิมพ์ผิดถูกเขียนลง log เป็น plaintext (แก้: `***`)
 12. **สมัครเข้ากลุ่มราคาของคนอื่น**: `_register/save.php` ตรวจ `user_type` แค่ `is_show` → แก้ POST `user_type` เป็นกลุ่มราคาตั้งเองของลูกค้าอื่น (`child <> 0`, is_show = 1 ทั้ง ~1,690 กลุ่ม) หรือกลุ่มที่ลบแล้ว ได้เรตพิเศษทันที (แก้: รับเฉพาะ child = 0, is_delete = 0 แบบที่หน้าสมัครแสดง)
 13. unbanned/reset ของลูกค้าที่ `code` ว่าง (แอดมินแก้ code เป็นว่างได้): `username LIKE '%%'` = ทุกแถว → ลบ ips/ips_ban ของทุก IP (แก้: code ว่าง = ไม่ลบ ips/ips_ban, unbanned ยังปลด ips_ban_user/is_enable ให้)
-14. `_profile/pin` (method=verified) เดา PIN 6 หลักได้ไม่จำกัด (มีแค่แถว ips ที่ jail นับ) — คงไว้ ขึ้นกับ jail ของฐานร่วม
+14. `_profile/pin` (method=verified) เดา PIN 6 หลักได้ไม่จำกัด (มีแค่แถว ips ที่ jail นับ) — **แก้แล้ว 2026-10-18** (ดูข้อ 4: PinThrottle)
 
 ## 5.1 รีวิวรอบ 2 (adversarial) — เทียบ HTTP เดิม/ใหม่อีกรอบ
 

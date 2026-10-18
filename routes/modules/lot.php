@@ -11,8 +11,10 @@ use Illuminate\Support\Facades\Route;
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 |
 | สิทธิ์ = getPermission() ของไฟล์เดิม:
-|   ไฟล์แอดมินส่วนใหญ่: admin_lot_view || admin_lot   → legacy.perm:admin_lot,admin_lot_view
-|   delete, save_verified, print, print_receive, email_lot: admin_lot เท่านั้น
+|   หน้า/ajax ที่อ่านอย่างเดียว: admin_lot_view || admin_lot   → legacy.perm:admin_lot,admin_lot_view
+|   ทุก endpoint ที่เขียนข้อมูล (save*, delete, save_verified, print, print_receive, email_lot): admin_lot เท่านั้น
+|     (แก้จากเดิมที่ save* ยอม admin_lot_view — admin_lot_view = ดูอย่างเดียว; load_check_tracking / print_all
+|      ของผู้ถือ admin_lot_view แสดงผลได้แต่ไม่เขียน is_checked / is_print — ดู docs/modules/lot.md)
 |   cancel.php (ยกเลิก refill ที่อยู่ในโฟลเดอร์นี้): admin_refill
 | ไฟล์เดิมที่ไม่มีสิทธิ์แล้ว exit() เงียบ จะได้ ErrorBox ของ legacy.perm แทน (เฉพาะผู้ไม่มีสิทธิ์)
 */
@@ -53,7 +55,20 @@ Route::middleware('legacy.perm:admin_lot,admin_lot_view')->group(function () {
         Route::post('/_admin/_lot/load_ref_print', [AdminLotController::class, 'loadRefPrint']);
         Route::post('/_admin/_lot/load_tracking', [AdminLotController::class, 'loadTracking']);
         Route::post('/_admin/_lot/load_user_rate', [AdminLotController::class, 'loadUserRate']);
+    });
+});
 
+Route::middleware('legacy.perm:admin_lot')->group(function () {
+    Route::get('/_admin/_lot/print', [AdminLotPrintController::class, 'print']);
+    Route::get('/_admin/_lot/print_receive', [AdminLotPrintController::class, 'printReceive']);
+    Route::get('/_admin/_lot/email_lot', [AdminLotPrintController::class, 'emailLot']);
+    // เดิมเปิดผ่านเว็บได้โดยไม่ล็อกอิน → ต้องมีสิทธิ์ และไม่ทำงาน (worker = php artisan lot:mail-worker)
+    Route::match(['GET', 'POST'], '/_admin/_lot/cron_lot_mail', [AdminLotPrintController::class, 'cliOnly']);
+    Route::match(['GET', 'POST'], '/_admin/_lot/email', [AdminLotPrintController::class, 'cliOnly']);
+
+    Route::middleware('legacy.ajax')->group(function () {
+        // แก้จากเดิม (เจ้าของอนุมัติ 2026-10-18): admin_lot_view = ดูอย่างเดียว → endpoint เขียนทุกตัวต้องมี admin_lot
+        // (เดิมทุกไฟล์ save_* ยอม admin_lot_view || admin_lot) — ผู้ถือ admin_lot_view ได้ ErrorBox สิทธิ์แบบ getPermissionAlert เดิม
         Route::post('/_admin/_lot/save', [AdminLotSaveController::class, 'save']);
         Route::post('/_admin/_lot/save_delete_lot_memo', [AdminLotSaveController::class, 'saveDeleteLotMemo']);
         Route::post('/_admin/_lot/save_file_lot', [AdminLotSaveController::class, 'saveFileLot']);
@@ -68,18 +83,6 @@ Route::middleware('legacy.perm:admin_lot,admin_lot_view')->group(function () {
         Route::post('/_admin/_lot/save_status_lot_date', [AdminLotSaveController::class, 'saveStatusLotDate']);
         Route::post('/_admin/_lot/save_status_reset_tracking', [AdminLotSaveController::class, 'saveStatusResetTracking']);
         Route::post('/_admin/_lot/save_status_tracking', [AdminLotSaveController::class, 'saveStatusTracking']);
-    });
-});
-
-Route::middleware('legacy.perm:admin_lot')->group(function () {
-    Route::get('/_admin/_lot/print', [AdminLotPrintController::class, 'print']);
-    Route::get('/_admin/_lot/print_receive', [AdminLotPrintController::class, 'printReceive']);
-    Route::get('/_admin/_lot/email_lot', [AdminLotPrintController::class, 'emailLot']);
-    // เดิมเปิดผ่านเว็บได้โดยไม่ล็อกอิน → ต้องมีสิทธิ์ และไม่ทำงาน (worker = php artisan lot:mail-worker)
-    Route::match(['GET', 'POST'], '/_admin/_lot/cron_lot_mail', [AdminLotPrintController::class, 'cliOnly']);
-    Route::match(['GET', 'POST'], '/_admin/_lot/email', [AdminLotPrintController::class, 'cliOnly']);
-
-    Route::middleware('legacy.ajax')->group(function () {
         Route::post('/_admin/_lot/delete', [AdminLotSaveController::class, 'delete']);
         Route::post('/_admin/_lot/save_verified', [AdminLotSaveController::class, 'saveVerified']);
     });

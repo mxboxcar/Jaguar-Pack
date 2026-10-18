@@ -33,28 +33,28 @@ POST ทุกตัว (ยกเว้น `_lot/_message/*`) มี `legacy.aj
 | `_admin/_lot/grid.php` | `POST /_admin/_lot/grid` | VIEW |
 | `_admin/_lot/load_autocomplete_tracking.php` | `POST /_admin/_lot/load_autocomplete_tracking` | VIEW |
 | `_admin/_lot/load_autocomplete_user.php` | `POST /_admin/_lot/load_autocomplete_user` (JS ของ load_lot_memo เดิมเรียกแบบมี `.php` — view ใหม่เรียกแบบไม่มี `.php` เพราะ nginx ไม่ส่ง `*.php` มา Laravel) | VIEW |
-| `_admin/_lot/load_check_tracking.php` | `POST /_admin/_lot/load_check_tracking` | VIEW |
+| `_admin/_lot/load_check_tracking.php` | `POST /_admin/_lot/load_check_tracking` | VIEW (เขียน `is_checked` เฉพาะ admin_lot) |
 | `_admin/_lot/load_lastest_lot.php` | `POST /_admin/_lot/load_lastest_lot` | VIEW |
 | `_admin/_lot/load_lot_detail.php` | `POST /_admin/_lot/load_lot_detail` | VIEW |
 | `_admin/_lot/load_lot_memo.php` | `POST /_admin/_lot/load_lot_memo` | VIEW |
 | `_admin/_lot/load_ref_print.php` | `POST /_admin/_lot/load_ref_print` | VIEW |
 | `_admin/_lot/load_tracking.php` | `POST /_admin/_lot/load_tracking` | VIEW |
 | `_admin/_lot/load_user_rate.php` | `POST /_admin/_lot/load_user_rate` | VIEW |
-| `_admin/_lot/save.php` | `POST /_admin/_lot/save` | VIEW |
-| `_admin/_lot/save_delete_lot_memo.php` | `POST /_admin/_lot/save_delete_lot_memo` | VIEW |
-| `_admin/_lot/save_file_lot.php` | `POST /_admin/_lot/save_file_lot` | VIEW |
-| `_admin/_lot/save_lot_memo.php` | `POST /_admin/_lot/save_lot_memo` | VIEW |
-| `_admin/_lot/save_lot_name.php` | `POST /_admin/_lot/save_lot_name` | VIEW |
-| `_admin/_lot/save_lot_name_admin.php` | `POST /_admin/_lot/save_lot_name_admin` | VIEW |
-| `_admin/_lot/save_lot_ship_amount.php` | `POST /_admin/_lot/save_lot_ship_amount` | VIEW |
-| `_admin/_lot/save_new_lot.php` | `POST /_admin/_lot/save_new_lot` | VIEW |
-| `_admin/_lot/save_print.php` | `POST /_admin/_lot/save_print` | VIEW |
-| `_admin/_lot/save_remove_tracking.php` | `POST /_admin/_lot/save_remove_tracking` | VIEW |
-| `_admin/_lot/save_status_lot.php` | `POST /_admin/_lot/save_status_lot` | VIEW |
-| `_admin/_lot/save_status_lot_date.php` | `POST /_admin/_lot/save_status_lot_date` | VIEW |
-| `_admin/_lot/save_status_reset_tracking.php` | `POST /_admin/_lot/save_status_reset_tracking` | VIEW |
-| `_admin/_lot/save_status_tracking.php` | `POST /_admin/_lot/save_status_tracking` | VIEW |
-| `_admin/_lot/print_all.php` | `GET /_admin/_lot/print_all?lot=` (.xls) | VIEW |
+| `_admin/_lot/save.php` | `POST /_admin/_lot/save` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/save_delete_lot_memo.php` | `POST /_admin/_lot/save_delete_lot_memo` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/save_file_lot.php` | `POST /_admin/_lot/save_file_lot` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/save_lot_memo.php` | `POST /_admin/_lot/save_lot_memo` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/save_lot_name.php` | `POST /_admin/_lot/save_lot_name` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/save_lot_name_admin.php` | `POST /_admin/_lot/save_lot_name_admin` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/save_lot_ship_amount.php` | `POST /_admin/_lot/save_lot_ship_amount` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/save_new_lot.php` | `POST /_admin/_lot/save_new_lot` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/save_print.php` | `POST /_admin/_lot/save_print` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/save_remove_tracking.php` | `POST /_admin/_lot/save_remove_tracking` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/save_status_lot.php` | `POST /_admin/_lot/save_status_lot` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/save_status_lot_date.php` | `POST /_admin/_lot/save_status_lot_date` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/save_status_reset_tracking.php` | `POST /_admin/_lot/save_status_reset_tracking` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/save_status_tracking.php` | `POST /_admin/_lot/save_status_tracking` | LOT (เดิม VIEW — แก้ 2026-10-18) |
+| `_admin/_lot/print_all.php` | `GET /_admin/_lot/print_all?lot=` (.xls) | VIEW (เขียน `is_print` เฉพาะ admin_lot) |
 | `_admin/_lot/print.php` | `GET /_admin/_lot/print?lot=` | LOT |
 | `_admin/_lot/print_receive.php` | `GET /_admin/_lot/print_receive?id=` | LOT |
 | `_admin/_lot/email_lot.php` | `GET /_admin/_lot/email_lot?id=` (เข้าคิว `lot_mail_queue`) | LOT |
@@ -90,6 +90,10 @@ POST ทุกตัว (ยกเว้น `_lot/_message/*`) มี `legacy.aj
 
 ## ต่างจากเดิมโดยตั้งใจ
 
+- **admin_lot_view = ดูอย่างเดียว** (เจ้าของอนุมัติ 2026-10-18, รายงานข้อ 4.2 — เช่น user 74 role 4 โกดังจีน เคยสร้าง lot/memo ได้): endpoint เขียนทุกตัว (`save`, `save_new_lot`, `save_lot_memo`, `save_delete_lot_memo`, `save_lot_name*`, `save_lot_ship_amount`, `save_status_*`, `save_remove_tracking`, `save_file_lot`, `save_print`, `delete`, `save_verified`, `print`, `print_receive`, `email_lot`) ต้องมี `admin_lot` — ผู้ถือ `admin_lot_view` อย่างเดียวได้ `ErrorBox('ไม่มีสิทธิ์...admin_lot')` แบบ `getPermissionAlert` เดิม (header `X-Legacy-Denied: 1`) ไม่มีการเขียน DB
+  - endpoint อ่านที่เดิมมีผลข้างเคียง: `load_check_tracking` (ทำเครื่องหมาย `tracking.is_checked`) และ `print_all` (`lot.is_print = 1`) — ผู้ถือ `admin_lot_view` เห็นผลเหมือนเดิมแต่ไม่เขียน
+  - หน้า `/admin/lot/create` และปุ่มต่างๆ ยังแสดงเหมือนเดิม (กดแล้วได้ ErrorBox สิทธิ์) — ไม่ได้ซ่อนปุ่มใน view
+  - เว็บเดิมไม่เปลี่ยน · test: `tests/Feature/Lot/LotViewOnlyTest.php`, `LotRoutesTest.php` · ตรวจสดบน :8298 ด้วย session user 74: save_new_lot/save_lot_memo/save/delete/... = ErrorBox, grid/หน้า admin/lot อ่านได้, `load_check_tracking` ไม่เปลี่ยน is_checked, `print_all` ไม่เปลี่ยน is_print
 - ทุก query bind ค่า; รายการ id ที่เดิมฝังลง `IN (...)` ตรงๆ (`delete`, `save_remove_tracking`, `save_status_*`, `print`, `print_all`) รับเฉพาะตัวเลขล้วน — ไม่ใช่ตัวเลข = ไม่แก้อะไร (เดิมเป็น SQL error หรือ injection) แต่ตอบข้อความสำเร็จเหมือนเดิม
 - ค่าจาก DB/ผู้ใช้ใน HTML/JS/อีเมล ถูก escape (เดิม echo ดิบ)
 - `/lot/{id}` ลูกค้า: แสดงหัวล็อตเฉพาะล็อตที่มี tracking ของตัวเอง (เดิมเปิดหัวล็อตของ id ใดก็ได้); รายการ tracking กรอง `user = Legacy::userId()` เหมือนเดิม

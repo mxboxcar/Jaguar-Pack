@@ -74,13 +74,55 @@ final class Permissions
             ->where('role_on_detail.is_delete', 0)
             ->orderBy('role_on_detail.id')
             ->get(['role_detail.role_detail_name as name', 'role_on_detail.permission']);
+
+        return $this->map = self::build($rows);
+    }
+
+    /**
+     * แถว role_on_detail ของ role (เรียงตาม id) → map สิทธิ์ (+ fallback ของสิทธิ์กำพร้า)
+     *
+     * @param  iterable<object{name: ?string, permission: mixed}>  $rows
+     * @return array<string, bool>
+     */
+    public static function build(iterable $rows): array
+    {
+        $map = [];
         foreach ($rows as $r) {
-            if ($r->name === null || array_key_exists(self::key($r->name), $this->map)) {
+            if ($r->name === null || array_key_exists(self::key($r->name), $map)) {
                 continue; // แถวแรกเท่านั้น (mysqli_fetch_array ครั้งเดียว)
             }
-            $this->map[self::key($r->name)] = (string) $r->permission === '1';
+            $map[self::key($r->name)] = (string) $r->permission === '1';
         }
 
-        return $this->map;
+        return self::applyFallbacks($map);
+    }
+
+    /**
+     * config legacy.permission_fallbacks: สิทธิ์ที่ไม่มี role ใดถือ → ให้ผู้ที่ถือสิทธิ์ต้นทาง (ต่างจากเว็บเดิมโดยตั้งใจ)
+     * ชั้นเดียว: ตรวจต้นทางจากสิทธิ์ใน DB เท่านั้น ไม่ใช่สิทธิ์ที่ได้จาก fallback ตัวอื่น · เพิ่มอย่างเดียว ไม่ถอนสิทธิ์ที่ DB ให้
+     *
+     * @param  array<string, bool>  $held
+     * @return array<string, bool>
+     */
+    public static function applyFallbacks(array $held): array
+    {
+        if (! config('legacy.permission_fallbacks_enabled', true)) {
+            return $held;
+        }
+        $out = $held;
+        foreach ((array) config('legacy.permission_fallbacks', []) as $orphan => $sources) {
+            $k = self::key((string) $orphan);
+            if ($out[$k] ?? false) {
+                continue;
+            }
+            foreach ((array) $sources as $src) {
+                if ($held[self::key((string) $src)] ?? false) {
+                    $out[$k] = true;
+                    break;
+                }
+            }
+        }
+
+        return $out;
     }
 }

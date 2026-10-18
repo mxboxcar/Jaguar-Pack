@@ -104,7 +104,8 @@ Route::middleware('legacy.perm:admin_mall')->group(function () {
 Route::post('/_admin/_mall/delete', [MallAdminController::class, 'delete'])->middleware(['legacy.perm:admin_product_type', 'legacy.ajax']);
 
 // ================================================================ แอดมิน: หมวดหมู่ร้านค้า (_admin/_mall_category)
-// admin_mall_category ไม่มีใน role_detail → ไม่มีใครเข้าได้ (เหมือนเดิม) ; form/delete เดิมเป็นสำเนาของ user_type (admin_user_type)
+// admin_mall_category ไม่มี role ใดถือ (เว็บเดิมไม่มีใครเข้าได้) → Laravel ได้จาก fallback ← admin_mall (CONVENTIONS 3.1)
+// form/delete เดิมเป็นสำเนาของ user_type (admin_user_type)
 Route::middleware('legacy.perm:admin_mall_category')->group(function () {
     Route::get('/admin/mall_category', [MallCategoryController::class, 'index'])->defaults('legacy_page', 'admin_mall_category');
     Route::post('/_admin/_mall_category/grid', [MallCategoryController::class, 'grid'])->middleware('legacy.ajax');
@@ -121,8 +122,9 @@ Route::middleware('legacy.perm:admin_mall_stock')->group(function () {
     Route::get('/admin/mall_stock', [MallStockController::class, 'index'])->defaults('legacy_page', 'admin_mall_stock');
     Route::post('/_admin/_mallstock/grid', [MallStockController::class, 'grid'])->middleware('legacy.ajax');
 });
-// load_amount / save_amount เดิมเป็นสำเนาของ _admin/_balance (สิทธิ์ admin_balance)
-Route::middleware(['legacy.perm:admin_balance', 'legacy.ajax'])->group(function () {
+// load_amount / save_amount เดิมเป็นสำเนาของ _admin/_balance (สิทธิ์ admin_balance, เขียนแถว balance ใดก็ได้)
+// แก้จากเดิม (เจ้าของอนุมัติ 2026-10-18): สิทธิ์ admin_mall_stock และแตะเฉพาะตาราง mall_stock (ดู MallStockController)
+Route::middleware(['legacy.perm:admin_mall_stock', 'legacy.ajax'])->group(function () {
     Route::post('/_admin/_mallstock/load_amount', [MallStockController::class, 'loadAmount']);
     Route::post('/_admin/_mallstock/save_amount', [MallStockController::class, 'saveAmount']);
 });

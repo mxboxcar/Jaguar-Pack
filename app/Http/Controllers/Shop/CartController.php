@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Shop;
 
 use App\Domain\Shop\CartHtml;
 use App\Domain\Shop\CartRepo;
+use App\Domain\Shop\CrawlPrices;
 use App\Domain\Shop\Php74;
 use App\Domain\Shop\Upload;
 use App\Support\Legacy\Alerts;
@@ -111,13 +112,24 @@ class CartController extends ShopController
             return $this->out(Alerts::error('CloseLoading()', 'จำนวนหรือราคาไม่ถูกต้อง'));
         }
 
-        $cart = DB::transaction(function () use ($uid, $f, $uploadFile) {
+        // แก้จากเดิม (เจ้าของอนุมัติ 2026-10-18 "ให้แอดมินแก้ไขก็พอ"): ลูกค้ากำหนดราคาเองไม่ได้
+        // ราคา = ราคาที่ crawler ให้ตอนโหลดสินค้า (_api/load_product) — ราคาที่ส่งมาใช้ได้เฉพาะเมื่อตรงกับราคาของ SKU/ช่วงจำนวน
+        // ผู้ถือ admin_mall (แอดมินร้านค้า) ใส่ราคาเองได้แบบเดิม
+        $price = $f('search_price');
+        if (! perm('admin_mall')) {
+            $price = CrawlPrices::resolve($uid, $this->post($request, 'search_url'), $price);
+            if ($price === null) {
+                return $this->out(Alerts::error('CloseLoading()', 'ไม่พบข้อมูลราคาสินค้า กรุณาค้นหาสินค้าใหม่อีกครั้ง'));
+            }
+        }
+
+        $cart = DB::transaction(function () use ($uid, $f, $uploadFile, $price) {
             $cart = CartRepo::findOrCreate($uid);
             DB::table('cart_detail')->insert([
                 'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
                 'is_delete' => 0, 'cart_id' => $cart->id,
                 'url' => $f('search_url'), 'product_name' => $f('search_product_name'), 'shop_name' => $f('search_shop_name'),
-                'main_image' => $f('search_main_image'), 'price' => $f('search_price'), 'color' => $f('search_color'),
+                'main_image' => $f('search_main_image'), 'price' => $price, 'color' => $f('search_color'),
                 'amount' => $f('search_amount'), 'remark' => $f('search_remark'), 'upload_file' => $uploadFile,
                 'size' => $f('search_size'), 'user' => (string) $uid,
             ]);

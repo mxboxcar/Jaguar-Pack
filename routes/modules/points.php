@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\Route;
 | สิทธิ์ = getPermission() ของไฟล์เดิม
 |   grid / load_withdraw / save_withdraw ตรวจสิทธิ์ใน controller เพราะเดิม exit() เงียบๆ (ไม่ใช่ ErrorBox)
 |   ajax อื่นเดิมตอบ getPermissionAlert() = สิ่งที่ legacy.perm ตอบให้อยู่แล้ว
-| admin_point / admin_withdrawpoint ไม่มี role ใดได้รับใน DB = เข้าไม่ได้แม้แอดมิน (เหมือนเดิม)
+| admin_point / admin_withdrawpoint ไม่มี role ใดได้รับใน DB (เว็บเดิมเข้าไม่ได้แม้แอดมิน)
+|   Laravel: ได้จาก fallback ← admin_shop_cashback / admin_exchange (config legacy.permission_fallbacks, CONVENTIONS 3.1)
 */
 
 // ---------- ลูกค้า: แต้ม ----------
