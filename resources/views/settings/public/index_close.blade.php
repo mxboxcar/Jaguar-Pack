@@ -1,0 +1,223 @@
+{{-- index_close.php เดิม (หน้าปิดปรับปรุง — สาธารณะ ไม่มีข้อมูล) --}}
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="A fully featured admin theme which can be used to build CRM, CMS, etc.">
+        <meta name="author" content="Coderthemes">
+
+        <link rel="shortcut icon" href="{{ legacy_href() }}assets/images/logo_mini.png">
+
+        <title>{{ config('legacy.project_name') }}</title>
+
+        <link href="{{ legacy_href() }}assets/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
+        <link href="{{ legacy_href() }}assets/css/core.css" rel="stylesheet" type="text/css" />
+        <link href="{{ legacy_href() }}assets/css/components.css" rel="stylesheet" type="text/css" />
+        <link href="{{ legacy_href() }}assets/css/icons.css" rel="stylesheet" type="text/css" />
+        <link href="{{ legacy_href() }}assets/css/pages.css" rel="stylesheet" type="text/css" />
+        <link href="{{ legacy_href() }}assets/css/responsive.css" rel="stylesheet" type="text/css" />
+
+        <link href="{{ legacy_href() }}assets/plugins/ladda-buttons/css/ladda-themeless.min.css" rel="stylesheet" type="text/css" />
+        <link href="{{ legacy_href() }}assets/plugins/sweetalert/dist/sweetalert.css" rel="stylesheet" type="text/css">
+        <!-- HTML5 Shiv and Respond.js IE8 support of HTML5 elements and media queries -->
+        <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+        <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+        <![endif]-->
+
+        <script src="assets/js/modernizr.min.js"></script>
+        
+
+        <script>window.FastClick=window.FastClick||{attach:function(){}};/* no-op shim (2026-08-30): fastclick.js ถูกถอด กัน jquery.app.js เรียก FastClick แล้ว throw */</script>
+    </head>
+    <body>
+
+        <div class="account-pages"></div>
+        <div class="clearfix"></div>
+        <div class="wrapper-page">
+            <div class=" card-box">
+            <div class="panel-heading text-center"> 
+               <!--  <h3 class="text-center"> {!! res('sign_in') !!} <strong class="text-custom">UBold</strong> </h3> -->
+                <img style="width: 270px;" src="{{ legacy_href() }}assets/images/logo.png" />
+            </div> 
+
+
+            <div class="panel-body">
+            <div class="form-horizontal m-t-20 text-center">
+                
+                ปิดปรับปรุงชั่วคราว จะเปิดให้บริการเวลา 04:00 น.
+            </div> 
+
+            </div> 
+
+            </div>                              
+                <div class="row">
+                <div class="col-sm-12 text-center">
+                    © 2017-{{ date("Y") }} {{ config('legacy.project_name') }} All rights reserved.    
+                </div>
+            </div>
+            
+        </div>
+        
+        
+
+        <!-- jQuery  -->
+        <script src="{{ legacy_href() }}assets/js/jquery.min.js"></script>
+        <script src="{{ legacy_href() }}assets/js/bootstrap.min.js"></script>
+        <script src="{{ legacy_href() }}assets/js/detect.js"></script>
+        <script src="{{ legacy_href() }}assets/js/jquery.slimscroll.js"></script>
+        <script src="{{ legacy_href() }}assets/js/jquery.blockUI.js"></script>
+        <script src="{{ legacy_href() }}assets/js/waves.js"></script>
+        <script src="{{ legacy_href() }}assets/js/wow.min.js"></script>
+        <script src="{{ legacy_href() }}assets/js/jquery.nicescroll.js"></script>
+        <script src="{{ legacy_href() }}assets/js/jquery.scrollTo.min.js"></script>
+
+
+        <script src="{{ legacy_href() }}assets/js/jquery.core.js"></script>
+        <script src="{{ legacy_href() }}assets/js/jquery.app.js"></script>
+
+
+        <script src="{{ legacy_href() }}assets/validate/jquery.validationEngine.js"></script>
+        <script src="{{ legacy_href() }}assets/js/jquery.form.min.js"></script>
+        @include('legacy.partials.validationengine')
+
+        <script src="{{ legacy_href() }}assets/plugins/ladda-buttons/js/spin.min.js"></script>
+        <script src="{{ legacy_href() }}assets/plugins/ladda-buttons/js/ladda.min.js"></script>
+        <script src="{{ legacy_href() }}assets/plugins/ladda-buttons/js/ladda.jquery.min.js"></script>
+
+        <script src="{{ legacy_href() }}assets/plugins/sweetalert/dist/sweetalert.min.js"></script>
+        <script src="{{ legacy_href() }}assets/pages/jquery.sweet-alert.init.js"></script>
+
+        <script>
+            var resizefunc = [];
+            var rooturl = '{{ legacy_href() }}';
+            var rooturl_blob = '{{ legacy_blob() }}';
+            var fn_public = '';
+
+            $.fn.enterKey = function (fnc) {
+                return this.each(function () {
+                    $(this).keypress(function (ev) {
+                        var keycode = (ev.keyCode ? ev.keyCode : ev.which);
+                        if (keycode == '13') {
+                            fnc.call(this, ev);
+                        }
+                    })
+                })
+            }
+
+            $("#username, #password").enterKey(function () {
+                doCheckLogin();
+            });
+
+            function doLostPassword() {
+                OpenLoading();
+                $.ajax({
+                    type: 'POST',
+                    async: true,
+                    data : 'username=' + $("#username").val() + '&password=' + $("#password").val(),
+                    url: rooturl + '_register/lost_password',
+                    success: function(data) {
+                        eval(data);
+                    }
+                });
+            }
+
+
+            $(document).ready(function () {
+                $('.ladda-button').ladda('bind', {timeout: 999999});
+            });
+
+            function OpenLoading() {
+                var html = "<div class='loadingelement' style='width:" + $('body').width() + "px;height:" + $('body').height() + "px;position: absolute;z-index:77777777;' >";
+                html += "<div style='margin:automargin: auto;text-align: center;font-size: 30px;font-weight: bold;color: #a94442;'><div>";
+                html += "</div>";
+                $('.content-page .content').fadeTo("fast", 0.5, function () { });
+                $('.content-page .content').prepend(html);
+            }
+            function CloseLoading() {
+                $(".loadingelement").remove();
+                $('.content-page .content').fadeTo("fast", 1, function () { });
+                
+                Ladda.stopAll();
+                swal.close();
+            }
+            function ErrorBox(text, fn) {
+              swal({   
+                title: "{!! res('alert') !!}",   
+                text: text,   
+                html:true,
+                type: "error",   showCancelButton: false,   
+                confirmButtonColor: "#81C868",   
+                confirmButtonText: "{!! res('close') !!}",   
+                cancelButtonText: "{!! res('cancel') !!}",   
+                closeOnConfirm: false,   closeOnCancel: true }, 
+                function(isConfirm){   
+                  if (isConfirm) {
+                    if(fn_public != undefined && fn_public != "" && fn_public != null) {
+                      eval(fn_public);
+                      fn_public = '';
+                    }
+                    if(fn != undefined && fn != "" && fn != null)  {
+                      eval(fn);
+                    } else {
+                      CloseLoading();
+                    }
+                  } else {
+                    CloseLoading();
+                  }
+                });
+            }
+            function SuccessBox(customtext ,text, fn) {
+                $(".sweet-alert p").eq(0).text('');
+                if(customtext != "" || customtext != undefined) {
+                    text = customtext;
+                }
+              swal({   
+                title: "{!! res('done') !!}",   
+                text: text, 
+                html:true,  
+                type: "success",   showCancelButton: false,   
+                confirmButtonColor: "#81C868",   
+                confirmButtonText: "{!! res('close') !!}",   
+                cancelButtonText: "{!! res('cancel') !!}",   
+                closeOnConfirm: false,   closeOnCancel: true }, 
+                function(isConfirm){   
+                  if (isConfirm) {
+                    if(fn_public != undefined && fn_public != "" && fn_public != null) {
+                      eval(fn_public);
+                      fn_public = '';
+                    }
+                    if(fn != undefined && fn != "" && fn != null)  {
+                      eval(fn);
+                    } else {
+                      CloseLoading();
+                    }
+                  } else {
+                    CloseLoading();
+                  }
+                });
+            }
+            function ConfirmBox(fn) {
+              swal({   
+                title: "{!! res('approve_question') !!}?",   
+                text: "{!! res('approve_question_desc') !!}",   
+                type: "warning",   showCancelButton: true,   
+                html:true,
+                confirmButtonColor: "#81C868",   
+                confirmButtonText: "{!! res('ok') !!}",   
+                cancelButtonText: "{!! res('cancel') !!}",   
+                closeOnConfirm: false,   closeOnCancel: true }, 
+                function(isConfirm){   
+                  if (isConfirm) {    
+                    fn();
+                  } else {
+                    CloseLoading();
+                  }
+                });
+            }
+        </script>
+    
+    </body>
+</html>

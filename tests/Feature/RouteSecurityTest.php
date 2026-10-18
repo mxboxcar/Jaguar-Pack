@@ -36,6 +36,9 @@ class RouteSecurityTest extends TestCase
         '_register/lost_password' => 'ขอรหัสผ่านใหม่ทางอีเมล (ajax)',
         'system_check_username' => 'validationEngine ตรวจ username ซ้ำตอนสมัคร',
         'password' => 'password.php เดิม (สคริปต์ย้ายรหัส ตาราง user_copy ไม่มีแล้ว) ตอบว่างเสมอ',
+        'gateway' => 'settings: ประกาศย้ายระบบ 2017 (ข้อความคงที่ เดิมสาธารณะ)',
+        'index_close' => 'settings: หน้าปิดปรับปรุง (ข้อความคงที่ เดิมสาธารณะ)',
+        'get_resource' => 'settings: ข้อความภาษาของระบบ (lang/*, เดิมสาธารณะ)',
     ];
 
     private const AUTH = ['legacy.auth', 'legacy.perm', 'legacy.own'];
