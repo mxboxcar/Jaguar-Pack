@@ -89,8 +89,16 @@ final class CombineTrack
         Pricing::calPriceAutoDiff($newId);
     }
 
-    /** save_combine.php: รวมได้เฉพาะเมื่อ id ที่ส่งมาตรงกับ 2 แถวพอดี — คืน id ใหม่ (null = ไม่ได้รวม) */
-    public static function mergeIds(array $ids): ?int
+    public const ERR_USER = 'รวมได้เฉพาะ tracking ของลูกค้าคนเดียวกันเท่านั้น';
+
+    public const ERR_STATE = 'รวมได้เฉพาะ tracking ที่ยังไม่ถูกลบ ยังไม่อยู่ในบิล และไม่ถูกล็อก/claim';
+
+    /**
+     * save_combine.php: รวมได้เฉพาะเมื่อ id ที่ส่งมาตรงกับ 2 แถวพอดี — คืน id ใหม่ (null = ไม่ได้รวม, string = ข้อความ error ไม่เปลี่ยนอะไร)
+     * ต่างจากเดิม (เจ้าของอนุมัติ): เดิมรวม tracking ของลูกค้าต่างคน / ที่ลบแล้ว / อยู่ในบิลแล้ว (payment_id > 0) / ล็อก (-2) / claim (-3) ได้
+     * → ทุกแถวต้องเป็นของ user เดียวกัน, is_delete = 0, payment_id = 0 (ยังไม่ชำระ/ไม่ล็อก)
+     */
+    public static function mergeIds(array $ids): int|string|null
     {
         if ($ids === []) {
             return null;
@@ -100,6 +108,14 @@ final class CombineTrack
             $rows = DB::table('tracking')->whereIn('id', $ids)->orderBy('lot_id')->orderBy('id')->lockForUpdate()->get();
             if ($rows->count() !== 2) {
                 return null;
+            }
+            foreach ($rows as $r) {
+                if ((int) ($r->is_delete ?? 0) !== 0 || (int) ($r->payment_id ?? 0) !== 0) {
+                    return self::ERR_STATE;
+                }
+            }
+            if ($rows->pluck('user')->map(fn ($u) => (string) $u)->unique()->count() !== 1) {
+                return self::ERR_USER;
             }
             $newId = self::insertMerged(self::merge($rows, ''));
             self::replace($rows->pluck('id')->all(), $newId);

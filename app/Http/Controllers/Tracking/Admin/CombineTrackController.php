@@ -53,8 +53,9 @@ class CombineTrackController extends Controller
     public function saveCombine(Request $request): Response
     {
         $ids = Php74::idList(substr($this->in($request, 'tracking'), 1));
-        if ($ids !== null) {
-            CombineTrack::mergeIds($ids);
+        $result = $ids === null ? null : CombineTrack::mergeIds($ids);
+        if (is_string($result)) {
+            return response(Alerts::error('CloseLoading()', $result));
         }
 
         return response(Alerts::success());

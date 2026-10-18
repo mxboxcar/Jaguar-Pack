@@ -83,6 +83,9 @@ branch `mod/points` · worktree `/home/admin/laravel/jl-wt/points` · port 8207
 - `save_withdraw`: ห่อ `DB::transaction()` + `SELECT … FOR UPDATE` แถว user แล้วตรวจยอดใน transaction (เดิมกดซ้อนกันแลกเกินยอดได้); PIN เทียบแบบ `hash_equals` (เดิม `!=` หลวม)
 - withdrawpoint `save_approved` / `cancel`: ทำเฉพาะรายการที่ "รออนุมัติ" (status 1) ใน transaction + lock — ดูช่องโหว่ข้อ 4–5; id ที่ไม่มีจริงไม่ INSERT แถวขยะ
 - shop_cashback `save_approved`: transaction + lock (อนุมัติซ้อน = เติมหยวนซ้ำ); `save_cancel`: ไม่ยกเลิกรายการที่อนุมัติแล้ว (ยกเลิกแล้วอนุมัติใหม่ = เติมเงินซ้ำ) และไม่ส่งอีเมลเมื่อไม่ได้ทำอะไร
+- **shop_cashback ยอด <= 0 (แก้ 2026-10-18, fix/legacy-risks, เจ้าของอนุมัติ — แก้เฉพาะ Laravel)**: เดิมลูกค้าส่งยอดติดลบ/0/"abc" ได้ แล้วถ้าแอดมินกดอนุมัติ = INSERT `balance_cn` ติดลบ (หักเงินหยวนลูกค้า)
+  → `_shop_cashback/save`: ทุกแถวต้องผ่าน `Money::validRefillAmount()` (ตัวเลข > 0 ทศนิยมไม่เกิน 2 ตำแหน่ง, `,` คั่นหลักพันได้ — เก็บแบบไม่มี `,`; เดิม MySQL ตัด `1,000` เหลือ 1) ไม่งั้น `ErrorBox('กรุณาระบุจำนวนเงินที่ขอคืนให้ถูกต้อง ...')` ไม่สร้างอะไร; `total` = ผลรวมของแถวที่ผ่าน
+  · `_admin/_shop_cashback/save_approved`: รายการย่อยที่ `price <= 0` → `ErrorBox('ยอดเงินของรายการนี้ไม่ถูกต้อง (ต้องมากกว่า 0) ไม่สามารถอนุมัติได้')` สถานะไม่เปลี่ยน ไม่เติม/หักเงิน (เดิม 0 = อนุมัติโดยไม่เติมเงิน) · test: tests/Feature/Money/LegacyRisksDbTest.php
 - shop_cashback `save`: ห่อ transaction; JS `blockblob_ajax` ตอบเฉพาะไฟล์ที่ชื่อปลอดภัยและมีจริงใน `legacy.upload.temp_dir` (เดิม `file_exists('../upload/temp/'.$x)` = path traversal และชื่อว่างก็ผ่านเพราะเป็นโฟลเดอร์)
 - `email_approved` / `email_cancel` เรียกตรง: ต้องมีสิทธิ์ `admin_shop_cashback`, รับ `id`/`ids` ทาง POST (เดิมไม่ตรวจอะไรเลย รับค่าผ่าน `extract($_GET)`), ตอบว่างเหมือนเดิม
   และส่งเฉพาะเมื่อรายการย่อย `ids` เป็นของหัวรายการ `id` จริง (เดิมจับคู่มั่วได้ → อีเมลถึงลูกค้า A พร้อมเลขคำสั่งซื้อ/ยอดของลูกค้า B)

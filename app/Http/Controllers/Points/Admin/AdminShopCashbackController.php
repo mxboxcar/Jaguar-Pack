@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Points\Admin;
 
+use App\Domain\Money\Money;
 use App\Domain\Points\Cashback;
 use App\Domain\Points\CashbackMailer;
 use App\Domain\Points\Grid;
@@ -22,6 +23,8 @@ use Illuminate\View\View;
 class AdminShopCashbackController extends Controller
 {
     private const AJAX = '_admin/_shop_cashback/grid';
+
+    public const BAD_PRICE = 'ยอดเงินของรายการนี้ไม่ถูกต้อง (ต้องมากกว่า 0) ไม่สามารถอนุมัติได้';
 
     /** GET /admin/shop_cashback, /admin/shop_cashback/status/{status} — _admin/_shop_cashback/index.php */
     public function index(Request $request): View
@@ -126,6 +129,10 @@ class AdminShopCashbackController extends Controller
             if ($d === null || Php74::eq($d->status, 2)) {
                 return null; // เดิม id ที่ไม่มีจริง: UPDATE ไม่โดนแถวใด ไม่ INSERT (price ว่าง) แต่ยังส่งอีเมลหาใครไม่ได้ → ไม่ทำอะไร
             }
+            // เดิมอนุมัติยอดติดลบได้ = INSERT balance_cn ติดลบ (หักเงินหยวนลูกค้า) → ใหม่ (เจ้าของอนุมัติ): ยอด <= 0 ไม่อนุมัติ ไม่เปลี่ยนอะไร
+            if (! is_numeric((string) $d->price) || (float) $d->price <= 0) {
+                return self::BAD_PRICE;
+            }
             $head = DB::table('shop_cashback')->where('id', $d->shop_cashback_id)->first();
             DB::table('shop_cashback_detail')->where('id', $d->id)->update([
                 'status' => '2', 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
@@ -142,6 +149,9 @@ class AdminShopCashbackController extends Controller
 
             return $d;
         });
+        if ($detail === self::BAD_PRICE) {
+            return response(Money::refuse(self::BAD_PRICE));
+        }
         if ($detail !== null && ! config('legacy.debug_mail')) {
             CashbackMailer::approved($detail->shop_cashback_id, $detail->id);
         }
