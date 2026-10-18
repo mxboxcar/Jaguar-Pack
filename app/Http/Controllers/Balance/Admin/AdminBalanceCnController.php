@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Balance\Admin;
 
 use App\Domain\Balance\Ledger;
 use App\Http\Controllers\Controller;
+use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
@@ -52,8 +53,9 @@ class AdminBalanceCnController extends Controller
         [$total, $items] = Ledger::page($q, 'balance_cn', $page, [
             'balance_cn.*', 'balance_type.name', 'prefix.link_admin as link', 'user.code', 'user.id as user_id',
             'cb.code as create_code',
-            DB::raw('(SELECT SUM(b2.amount) FROM `balance_cn` b2 WHERE b2.id < balance_cn.id AND b2.is_delete = 0 AND b2.`user` = IFNULL(`user`.id, 0)) as prev_sum'),
         ]);
+        // ยอดสะสมก่อนหน้า (เดิม SUM ต่อแถว) — b2.user = IFNULL(user.id, 0) แบบเดิม
+        GridQuery::attachPrevSums('balance_cn', $items, fn ($item) => (int) ($item->user_id ?? 0));
 
         return response(view('balance.admin_cn.grid', [
             'ajaxpage' => self::AJAX,

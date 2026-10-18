@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Balance;
 use App\Domain\Balance\Ledger;
 use App\Domain\Balance\Withdraw;
 use App\Http\Controllers\Controller;
+use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Blocklist;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -37,28 +39,32 @@ class BalanceController extends Controller
         $uid = Legacy::userId();
         $s = Ledger::search($request);
 
+        $filter = function (Builder $q) use ($uid, $s) {
+            $q->where('balance.user', $uid);
+            if ($s['term'] !== '') {
+                $like = Ledger::contains(Ledger::stripPrefix('balance', $s['term']));
+                $q->where(fn ($w) => $w->where('balance.id', 'like', $like)->orWhere('balance.detail', 'like', $like));
+            }
+            if (Ledger::typeFilterApplies($s['type'])) {
+                $q->where('balance.type', $s['type']);
+            }
+        };
         $q = DB::table('balance')
             ->leftJoin('balance_type', 'balance.type', '=', 'balance_type.id')
             ->leftJoin('prefix', 'balance.prefix', '=', 'prefix.id')
-            ->where('balance.is_delete', '0')
-            ->where('balance.user', $uid);
-        if ($s['term'] !== '') {
-            $like = Ledger::contains(Ledger::stripPrefix('balance', $s['term']));
-            $q->where(fn ($w) => $w->where('balance.id', 'like', $like)->orWhere('balance.detail', 'like', $like));
-        }
-        if (Ledger::typeFilterApplies($s['type'])) {
-            $q->where('balance.type', $s['type']);
-        }
+            ->where('balance.is_delete', '0');
+        $filter($q);
 
-        // รูปสลิปของรายการถอน (type 12) + ยอดสะสมก่อนหน้า = join/subquery (เดิม 2 query ต่อแถว)
+        // รูปสลิปของรายการถอน (type 12) = join (เดิม 1 query ต่อแถว)
         $q->leftJoin('balance_withdraw as bw', function ($j) {
             $j->on('bw.id', '=', 'balance.prefix_ref_id')->where('balance.type', '=', 12);
         });
         $page = Ledger::php($request, 'page');
         [$total, $items] = Ledger::page($q, 'balance', $page, [
             'balance.*', 'balance_type.name', 'prefix.link', 'bw.approved_upload as w_upload',
-            DB::raw('(SELECT SUM(b2.amount) FROM `balance` b2 WHERE b2.id < balance.id AND b2.`user` = '.(int) $uid.' AND b2.is_delete = 0) as prev_sum'),
-        ]);
+        ], GridQuery::liveCount('balance', $filter));
+        // ยอดสะสมก่อนหน้า (เดิม SUM ต่อแถว = อ่านประวัติทั้งหมด 10 รอบ) → query เดียว
+        GridQuery::attachPrevSums('balance', $items, fn () => (int) $uid);
 
         return response(view('balance.customer.grid', [
             'ajaxpage' => self::AJAX,

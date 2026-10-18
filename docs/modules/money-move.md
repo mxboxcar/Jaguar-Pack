@@ -88,6 +88,15 @@ test: `tests/Feature/Money/MoneyMoveDbTest.php` (รันกับ admin_jl_ben
 - แอดมิน `_admin/_refill/save` (เติมเงินให้ลูกค้าตรง): **แก้แล้ว (fix/followups, เจ้าของอนุมัติ)** เดิมรับยอดติดลบ/0/`abc` → `Money::validRefillAmount()` เดียวกับ `_refill/save` (ตัวเลขบวก ทศนิยมไม่เกิน 2 ตำแหน่ง) ไม่งั้น `ErrorBox('กรุณาระบุจำนวนเงินให้ถูกต้อง (ต้องมากกว่า 0)', 'CloseLoading()')` — ถ้าต้องปรับยอดลง ใช้ทางปรับยอดของ balance แทน
 - `_admin/_refill/cancel` และ `_admin/_lot/cancel` (สำเนาเดิมในกลุ่ม lot) ใช้ `Money::cancelPendingRefill()` ตัวเดียวกัน (transaction + lockForUpdate, เฉพาะ status 1, ซ้ำ = ErrorBox ไม่เขียนแถว) · test: `tests/Feature/Money/MoneyMoveDbTest.php`
 
+## ความเร็ว grid เติมเงิน (2026-10-18, fix/grid-perf — bench refill 53,803 แถว, ลูกค้า 137 = 17.7k แถว)
+
+- `_refill/grid`: `COUNT(*) … is_delete = 0 AND id LIKE '%%' AND user = ?` ต้องเปิดทุกแถวของลูกค้า (62 ms) → ช่องค้นว่างไม่ใส่ `id LIKE '%%'` (id int NOT NULL = จริงทุกแถว)
+  และนับด้วย `GridQuery::liveCount()` (นับจาก `idx_refill_user (user, id)` ลบแถวที่ถูกลบ) ≈ 8 ms
+- `_admin/_refill/grid`: `COUNT(*)` ผ่าน `LEFT JOIN user` + `id LIKE '%%' OR code LIKE '%%'` (330 ms) → ช่องค้นว่างไม่มีเงื่อนไข (นับจาก `idx_notif`) ≈ 21 ms;
+  มีคำค้น: `user.code LIKE` ผ่าน join ≡ `refill.user IN (SELECT id FROM user WHERE code LIKE …)` (user.id = PK) → นับจาก index ไม่ join ≈ 70 ms
+- ผล HTML เท่าเดิม (diff กับ :8101 ลูกค้า 137/545/380/418/10579 × สถานะ/คำค้น/หน้า และแอดมิน)
+- grid โอน/ถอน (`bill_transfer` 2.5k, `balance_withdraw` 3.6k แถว) ไม่คำนวณยอดและเร็วอยู่แล้ว (< 20 ms ใน DB) — ไม่แก้
+
 ## การตรวจ
 
 - HTML เทียบกับ :8101 (ตัดช่องว่าง, แทน href) ด้วย session ลูกค้า (137, 10579, zz_fdn_cust) และแอดมิน (zz_fdn_admin): ทุกหน้า/grid ตรงกัน ยกเว้นค่าที่ escape ตามข้างบน

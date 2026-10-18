@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\DB;
  * ของที่ใช้ร่วมกันของ grid บัญชีเงิน 5 ไฟล์เดิม (_balance, _balance_cn, _admin/_balance, _admin/_balance_cn, _admin/_balance_company)
  *
  * N+1 เดิม (ทุกแถว): SUM(amount) ยอดคงเหลือก่อนหน้า, SELECT balance_withdraw (รูปสลิป), SELECT user (ผู้ทำรายการ)
- * → ที่นี่ใช้ subquery ใน select / LEFT JOIN ในคำสั่งเดียว (จำนวน query คงที่ไม่ขึ้นกับจำนวนแถว)
+ * → LEFT JOIN ในคำสั่งเดียว + ยอดสะสมก่อนหน้าทั้งหน้าใน query เดียว (GridQuery::attachPrevSums)
+ *   นับแถวด้วย GridQuery::liveCount / query ที่ไม่มี join แสดงผล (จำนวน query คงที่ไม่ขึ้นกับจำนวนแถว)
  */
 final class Ledger
 {
@@ -87,12 +88,13 @@ final class Ledger
 
     /**
      * นับแถว (เดิม mysqli_num_rows ของ query เต็ม) + ดึงหน้าปัจจุบัน ORDER BY id DESC LIMIT
+     * $total ส่งมาเอง = ไม่นับจาก $q (count ของ $q ต้อง LEFT JOIN ทุกตารางแสดงผล ซึ่งไม่เปลี่ยนจำนวนแถวเพราะ join ด้วย PK)
      *
      * @return array{0: int, 1: Collection}
      */
-    public static function page(Builder $q, string $table, mixed $page, array $columns): array
+    public static function page(Builder $q, string $table, mixed $page, array $columns, ?int $total = null): array
     {
-        $total = (clone $q)->count();
+        $total ??= (clone $q)->count();
         $offset = Php74::offset($page);
         $items = $offset === null ? collect() : $q->orderByDesc($table.'.id')->offset($offset)->limit(10)->get($columns);
 

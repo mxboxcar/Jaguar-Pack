@@ -2,17 +2,19 @@
 
 namespace App\Http\Controllers\MoneyMove;
 
-use App\Domain\MoneyMove\Lookups;
 use App\Domain\Money\Money;
+use App\Domain\MoneyMove\Lookups;
 use App\Domain\MoneyMove\Php74;
 use App\Domain\MoneyMove\TempUpload;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\MoneyMove\Concerns\ReadsLegacyInput;
+use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
 use App\Support\Legacy\LegacyInput;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -66,14 +68,22 @@ class RefillController extends Controller
         }
         $s = explode('|', $this->in($request, 'txtsearch'));
         $sp = explode('|', $this->php($request, 'txtsearch'));
-        $q = DB::table('refill')->where('refill.is_delete', 0)
-            ->where('refill.id', 'like', '%'.addcslashes($s[0], '%_\\').'%')
-            ->where('user', Legacy::userId());
+        $uid = Legacy::userId();
         $st = $s[1] ?? null;
-        if (Php74::neq($st, '-2') && Php74::neq($st, '')) {
-            $q->where('refill.status', $st);
-        }
-        $total = (clone $q)->count();
+        $filter = function (Builder $q) use ($s, $st, $uid) {
+            $q->where('refill.user', $uid);
+            // id เป็น int NOT NULL → `id LIKE '%%'` (ช่องค้นว่าง) จริงทุกแถว = ไม่ต้องใส่
+            if ($s[0] !== '') {
+                $q->where('refill.id', 'like', '%'.addcslashes($s[0], '%_\\').'%');
+            }
+            if (Php74::neq($st, '-2') && Php74::neq($st, '')) {
+                $q->where('refill.status', $st);
+            }
+        };
+        $q = DB::table('refill')->where('refill.is_delete', 0);
+        $filter($q);
+        // นับจาก idx_refill_user (user, id) อย่างเดียว ไม่ต้องเปิดทุกแถวเพื่อดู is_delete
+        $total = GridQuery::liveCount('refill', $filter);
         $page = $this->php($request, 'page');
         $offset = Lookups::offset($page);
         $items = $offset === null ? collect() : $q->orderByDesc('id')->offset($offset)->limit(10)->get(['refill.*']);

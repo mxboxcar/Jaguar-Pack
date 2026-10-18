@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Balance\Admin;
 use App\Domain\Balance\Ledger;
 use App\Domain\Balance\Php74;
 use App\Http\Controllers\Controller;
+use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -34,21 +36,26 @@ class AdminBalanceController extends Controller
         }
         $s = Ledger::search($request);
 
+        // ค้นหา/กรองประเภทใช้แค่คอลัมน์ของ balance → นับด้วย GridQuery::liveCount (เดิม COUNT ผ่าน LEFT JOIN 5 ตาราง ≈ 2 วินาที)
+        $ids = $s['term'] !== '' ? $this->searchIds($s['term']) : null;
+        $filter = function (Builder $q) use ($ids, $s) {
+            if ($ids !== null) {
+                // whereIntegerInRaw: ids เป็น int ทั้งหมด (cast ใน searchIds) — whereIn ปกติ bind ทีละตัว
+                // แล้วพังเมื่อเกิน 65,535 placeholder (MySQL 1390) เช่นค้น "JL" บน production ได้ ~600k แถว
+                $q->whereIntegerInRaw('balance.id', $ids);
+            }
+            if (Ledger::typeFilterApplies($s['type'])) {
+                $q->where('balance.type', $s['type']);
+            }
+        };
         $q = DB::table('balance')
             ->leftJoin('balance_type', 'balance.type', '=', 'balance_type.id')
             ->leftJoin('prefix', 'balance.prefix', '=', 'prefix.id')
             ->leftJoin('user', 'user.id', '=', 'balance.user')
             ->where('balance.is_delete', '0');
-        if ($s['term'] !== '') {
-            // whereIntegerInRaw: ids เป็น int ทั้งหมด (cast ใน searchIds) — whereIn ปกติ bind ทีละตัว
-            // แล้วพังเมื่อเกิน 65,535 placeholder (MySQL 1390) เช่นค้น "JL" บน production ได้ ~600k แถว
-            $q->whereIntegerInRaw('balance.id', $this->searchIds($s['term']));
-        }
-        if (Ledger::typeFilterApplies($s['type'])) {
-            $q->where('balance.type', $s['type']);
-        }
+        $filter($q);
 
-        // ผู้ทำรายการ / รูปสลิปถอนเงิน / ยอดสะสมก่อนหน้าของลูกค้าคนนั้น — เดิม 3 query ต่อแถว
+        // ผู้ทำรายการ / รูปสลิปถอนเงิน — เดิม query ต่อแถว
         $q->leftJoin('user as cb', 'cb.id', '=', 'balance.create_by')
             ->leftJoin('balance_withdraw as bw', function ($j) {
                 $j->on('bw.id', '=', 'balance.prefix_ref_id')->where('balance.type', '=', 12);
@@ -57,8 +64,9 @@ class AdminBalanceController extends Controller
         [$total, $items] = Ledger::page($q, 'balance', $page, [
             'balance.*', 'balance_type.name', 'prefix.link_admin as link', 'user.code', 'user.id as user_id',
             'cb.code as create_code', 'bw.approved_upload as w_upload',
-            DB::raw('(SELECT SUM(b2.amount) FROM `balance` b2 WHERE b2.id < balance.id AND b2.is_delete = 0 AND b2.`user` = IFNULL(`user`.id, 0)) as prev_sum'),
-        ]);
+        ], GridQuery::liveCount('balance', $filter));
+        // ยอดสะสมก่อนหน้าของลูกค้าแต่ละแถว (เดิม SUM ต่อแถว) — b2.user = IFNULL(user.id, 0) แบบเดิม
+        GridQuery::attachPrevSums('balance', $items, fn ($item) => (int) ($item->user_id ?? 0));
 
         return response(view('balance.admin.grid', [
             'ajaxpage' => self::AJAX,
