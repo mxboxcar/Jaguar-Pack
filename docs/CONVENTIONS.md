@@ -73,6 +73,33 @@ Route::middleware('legacy.perm:admin_tracking')->group(function () {
 7. `tests/Feature/RouteSecurityTest.php` ล้มถ้ามี route ที่ไม่มี `legacy.auth`/`legacy.perm`/`legacy.own` หรือ route POST ที่ไม่อยู่ใต้ group `legacy` — หน้าสาธารณะจริง (register, lostpassword ฯลฯ) ให้เพิ่มใน `PUBLIC` ของ test พร้อมเหตุผล
 8. IP ผู้ใช้ = `Legacy::clientIp()` เท่านั้น (เชื่อ `X-Real-IP` เฉพาะเมื่อมาจาก proxy ในเครื่อง/วงใน หรือ `LEGACY_TRUSTED_PROXIES`)
 9. production ต้องตั้ง `LEGACY_HREF` (หรือ `APP_URL`) — ห้ามสร้าง URL/redirect จาก Host header
+10. สิทธิ์ `*_view` (เช่น `admin_lot_view`, `admin_user_view`) = **อ่านอย่างเดียว**: route ที่เขียนข้อมูลใช้สิทธิ์เต็มอย่างเดียว (`legacy.perm:admin_lot`) แม้ไฟล์เดิมจะยอม `_view` (แก้ใน lot แล้ว 2026-10-18 — ดู docs/modules/lot.md) และ endpoint อ่านที่มีผลข้างเคียง (เช่น ทำเครื่องหมายพิมพ์/ตรวจแล้ว) ไม่เขียนเมื่อมีแค่ `_view`
+11. `_profile/pin` จำกัดการเดา PIN (`App\Domain\Users\PinThrottle`, config `legacy.pin_throttle`) — endpoint อื่นที่รับ PIN ควรใช้ตัวเดียวกัน
+
+### 3.1 สิทธิ์กำพร้า → fallback (`config/legacy.php` `permission_fallbacks`)
+
+สิทธิ์บางตัวมีใน `role_detail` / โค้ดเดิมตรวจ แต่ **ไม่มี role ใดถือ** (`role_on_detail.permission = 1`) → เว็บเดิมไม่มีใครเข้าได้แม้แอดมิน
+เจ้าของอนุมัติ (2026-10-18) ให้ Laravel ใช้งานได้โดย **ไม่แก้แถว role/permission ใน DB**: `Permissions::build()` ให้สิทธิ์กำพร้าแก่ผู้ที่ถือ "สิทธิ์ต้นทาง" ของงานเดียวกัน
+
+| สิทธิ์กำพร้า | ใช้ที่ | ได้จาก (ต้นทาง) | role ที่ได้ (admin_jl_bench 2026-10-18) | เหตุผล |
+|---|---|---|---|---|
+| `admin_point` | `/admin/point`, `_admin/_point/grid` (ดูแต้มลูกค้าทุกคน) | `admin_shop_cashback` | 1 Default, 5 บัญชี | งานรางวัล/คืนเงินร้านค้า ทีมเดียวกัน, หน้าอ่านอย่างเดียว |
+| `admin_withdrawpoint` | `/admin/withdrawpoint*`, `_admin/_withdrawpoint/{grid,save_approved,cancel}`, `_admin/_exchange/cancel`, แจ้งเตือน | `admin_exchange` | 1, 5 | แลกแต้มเป็นเงิน = งานอนุมัติแลกเปลี่ยน; `_admin/_exchange/cancel` ใช้ชื่อนี้ (ผู้อนุมัติ exchange จึงยกเลิกได้) |
+| `admin_nobilling` | `/admin/nobilling`, แจ้งเตือนพัสดุค้างไม่ออกบิล | `admin_report` | 1, 5, 7 แพ็คสินค้า | เป็นรายงาน (อ่านอย่างเดียว) |
+| `admin_balance_company` | `/admin/balance_company`, `_admin/_balance_company/{load_amount,save_amount}` (ยอดติดลบ) | `admin_balance` | 1, 5 | บัญชีบริษัทอยู่ในงานยอดเงิน |
+| `admin_balance_company_delete` | `save_amount` ยอดบวก/แก้ไขรายการเดิม | `admin_balance_cn_add` | 1 | สิทธิ์ "เพิ่มยอด" ที่เข้มกว่า (เทียบ balance_cn) — role 5 บันทึกได้แต่ยอดติดลบ |
+| `admin_balance_company_add` | (ไม่มีโค้ดตรวจ — ใส่ไว้ให้ครบชุด) | `admin_balance_cn_add` | 1 | เหมือนข้างบน |
+| `admin_change_sender` | ฟอร์มแก้ผู้ส่ง/ประเภทส่งในบิล + `_admin/_payment/save_new_sender` | `admin_payment` | 1, 5, 7 | ผู้ที่แก้บิลได้อยู่แล้ว |
+| `admin_mall_category` | `/admin/mall_category`, `_admin/_mall_category/{grid,save}` | `admin_mall` | 1, 6 คนกดออเดอร์ | หมวดหมู่ของร้านค้า |
+| `view_bol` | `POST /get_price` (คำนวณราคาตามเรตลูกค้า — ไม่มี JS ใดเรียก) | `admin_tracking` | 1, 4 โกดังจีน, 5, 6, 7 | แอดมิน tracking เห็น/คำนวณราคาในฟอร์ม tracking อยู่แล้ว |
+
+ไม่ได้ map (ไม่มีหน้า/route ให้ใช้): `admin_coupon`, `admin_iden` (เมนูเดิมเท่านั้น — ลิงก์ไปหน้าที่ไม่มี), `admin_payment_createpayment` (เป็นแค่ชื่อในข้อความแจ้งเตือน — โค้ดตรวจ `admin_payment_create`)
+
+กติกา:
+- ชั้นเดียว: ต้นทางต้องเป็นสิทธิ์ที่ role ถือใน DB (สิทธิ์ที่ได้จาก fallback ไม่ส่งต่อ) · เพิ่มอย่างเดียว ไม่ถอนสิทธิ์ที่ DB ให้ — ถ้าเจ้าของติ๊กสิทธิ์กำพร้าให้ role ใดใน DB ภายหลัง ก็ใช้ได้ตามปกติ
+- เปลี่ยน/ลบรายการ: แก้ `config/legacy.php` `permission_fallbacks` · ปิดทั้งหมด: `.env` `LEGACY_PERMISSION_FALLBACKS=false` (แล้ว `artisan config:clear`/`optimize`)
+- map ใช้ "ชื่อสิทธิ์" ไม่ใช่ id ของ role → ถ้า production มี role ต่างจาก bench ให้ดู role ที่ถือสิทธิ์ต้นทางใน production (`tests/Feature/Access/PermissionFallbackTest.php` มีตารางข้างบน)
+- เว็บเดิม (PHP 7.4) ไม่เปลี่ยน: ระหว่างช่วงที่ยังสลับไม่ครบ หน้าเดียวกันบนเว็บเดิมยังปฏิเสธเหมือนเดิม
 
 ## 4. รับค่า (input) และ SQL
 
@@ -129,8 +156,8 @@ Route::middleware('legacy.perm:admin_tracking')->group(function () {
   ส่วน Laravel (PDO) โยน `QueryException` → 500 ดังนั้นตอนพอร์ต **ตรวจทุกตาราง/คอลัมน์ที่ไฟล์เดิมใช้ว่ามีจริง** (`SHOW COLUMNS FROM x`) ถ้าไม่มี ให้เขียนผลลัพธ์ "ว่าง" แบบเดิมตรงๆ (ไม่ต้อง query) และบันทึกในรายงาน
   - ที่เจอแล้ว (ดูหมายเหตุใน `docs/url-map.md`): ตาราง `member`, `member_rate` (getPrice → ใช้ product_type เสมอ แก้ใน `Pricing::getPrice()` แล้ว), `user_receipt_address`, `user_address` (payment), `user_copy` (users: password.php), `caching` (order: `_admin/_order/load_paging.php`); คอลัมน์ `product_type.per_amount`
   - `SELECT *` แล้วอ่าน key ที่ไม่มี = `null` เงียบๆ ในเว็บเดิม → ใน Laravel ใช้ `$row->col ?? null` ไม่ใช่ `select(['col'])` ที่ระบุคอลัมน์ที่ไม่มี
-- **สิทธิ์ที่ไม่มีใครมี**: ไฟล์เดิมบางไฟล์ตรวจ `getPermission('x')` ที่ไม่มีใน `role_detail` → ไม่มีใครเข้าได้แม้แอดมิน (`admin_mall_category`, `admin_payment_createpayment`, `view_bol`, เมนู `admin_coupon`/`admin_iden`)
-  พอร์ตด้วยชื่อสิทธิ์เดิม (ผลเหมือนเดิม = เข้าไม่ได้) แล้วแจ้งในรายงานให้เจ้าของตัดสินใจ — ห้ามเปลี่ยนเป็นสิทธิ์อื่นเอง
+- **สิทธิ์ที่ไม่มีใครมี**: ไฟล์เดิมบางไฟล์ตรวจ `getPermission('x')` ที่ไม่มี role ใดถือ → ไม่มีใครเข้าได้แม้แอดมิน
+  พอร์ตด้วยชื่อสิทธิ์เดิมเสมอ (ห้ามเปลี่ยนชื่อสิทธิ์ใน route/controller เอง) — การให้สิทธิ์ทำที่เดียวคือ fallback ในข้อ 3.1 (เจ้าของอนุมัติแล้ว 2026-10-18)
 - ทุกคำสั่งที่ไม่ใช่ SELECT ถูกบันทึกลง `storage/logs/legacy/YYYY-MM-DD.log` อัตโนมัติ (แทน `mysqlquerys()`/`goLog()`) ไม่ต้องเรียกเอง
 
 ## 8. helper เดิม → ของใหม่
