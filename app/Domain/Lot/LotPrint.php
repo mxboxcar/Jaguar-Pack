@@ -5,6 +5,7 @@ namespace App\Domain\Lot;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Status;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -47,8 +48,9 @@ final class LotPrint
             ? 'user.code ASC, tracking.user ASC, tracking.lot_id ASC,  tracking.`no` ASC'
             : 'tracking.lot_id ASC,  tracking.`no` ASC';
         // SQL เดิม (GROUP BY tracking.tracking กับ sql_mode ว่าง) — ค่าที่เคยฝังตรงๆ เปลี่ยนเป็น placeholder
+        // ยกเว้น header_count: เดิม subquery (t2.header = tracking.id) ต่อแถว เทียบ TEXT กับ int → ใช้ index ไม่ได้
+        // = สแกน tracking ทั้งตารางต่อแถว (ล็อต ~100 tracking ≈ 75 วินาที → 504) — นับแยกครั้งเดียวด้านล่าง
         $detail = collect(DB::select("SELECT tracking.* , user.code , product_type.name as type_name , lot.name as lot_name
-		, (SELECT count(id) FROM tracking as t2 WHERE t2.header = tracking.id) as header_count
 		, (SELECT COUNT(*) FROM
 			(SELECT COUNT(id), USER FROM tracking AS t WHERE t.lot_id IN ($in)  AND t.is_delete = 0  AND (t.header = 0 OR t.header IS NULL) GROUP BY t.`tracking`) ts
 		 WHERE ts.user = tracking.`user`) AS `count`
@@ -58,6 +60,7 @@ final class LotPrint
 		LEFT JOIN lot ON tracking.lot_id = lot.id
 		WHERE tracking.lot_id IN ($in) AND tracking.is_delete = 0 AND (tracking.header = 0 OR tracking.header IS NULL)
 		GROUP BY tracking.tracking	ORDER BY  $order", array_merge($ids, $ids)));
+        self::withHeaderCount($detail);
 
         $memo = DB::table('lot_memo')->leftJoin('user', 'lot_memo.user', '=', 'user.id')
             ->whereIn('lot_memo.lot_id', $ids)->where('lot_memo.is_delete', 0)
@@ -67,6 +70,23 @@ final class LotPrint
         $withChildren = $detail->filter(fn ($r) => Php74::neq($r->header_count, 0))->pluck('id')->all();
 
         return [$head, substr($strHead, 1), $detail, $memo, LotLookups::childTrackings($withChildren)];
+    }
+
+    /**
+     * header_count = (SELECT count(id) FROM tracking as t2 WHERE t2.header = tracking.id) เดิม (นับทุกแถว รวมที่ลบแล้ว)
+     * นับครั้งเดียวด้วย header IN ('id', ...) ซึ่งใช้ idx_tracking_header ได้ — ค่า header ในระบบเป็นตัวเลขล้วน → ผลเท่ากัน
+     * (แบบเดียวกับ PaymentLookups::withHeaderCount; แถวลูกที่พิมพ์ก็ใช้ header = 'id' แบบข้อความอยู่แล้ว)
+     *
+     * @param  Collection<int, object>  $detail
+     */
+    private static function withHeaderCount(Collection $detail): void
+    {
+        $ids = array_values(array_unique(array_map(fn ($r) => (string) (int) $r->id, $detail->all())));
+        $counts = $ids === [] ? [] : DB::table('tracking')->whereIn('header', $ids)->groupBy('header')
+            ->pluck(DB::raw('count(id) as c'), 'header')->all();
+        foreach ($detail as $r) {
+            $r->header_count = (string) ($counts[(string) $r->id] ?? 0);
+        }
     }
 
     /** print.php — แยกตารางต่อลูกค้า + ขึ้นหน้าใหม่ */
