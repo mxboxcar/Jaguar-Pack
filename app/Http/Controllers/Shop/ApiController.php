@@ -126,11 +126,12 @@ class ApiController extends ShopController
 
     /**
      * _api/load_product_v7 — ตัวดึงรุ่นเก่า (cnsthai.com): เดิมล็อกอินด้วยบัญชีที่ฝังในโค้ด แล้วเรียก removehtmltag()
-     * ที่ไม่มีจริง → fatal 500 ทุกครั้ง — คงผล 500 โดยไม่ยิงภายนอก/ไม่ใช้บัญชีนั้น (ควรเปลี่ยนรหัสบัญชีนั้น)
+     * ที่ไม่มีจริง → fatal 500 ทุกครั้ง — ที่นี่ตอบ 410 Gone (ยังเป็น error สำหรับ JS เหมือนเดิม แต่ไม่ใช่ 500 ที่ดูเหมือนระบบพัง)
+     * โดยไม่ยิงภายนอก/ไม่ใช้บัญชีนั้น (ควรเปลี่ยนรหัสบัญชีนั้น)
      */
     public function loadProductV7(): Response
     {
-        return response('', 500);
+        return response('', 410);
     }
 
     /** _api/blockblob_ajax — POST path (เดิมไม่ตรวจล็อกอิน) */

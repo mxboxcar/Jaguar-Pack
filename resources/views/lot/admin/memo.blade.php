@@ -89,7 +89,7 @@
 $('.autocomplete2').typeahead({
   source: function (query, process) {
     $.ajax({
-      url: rooturl + '_admin/_lot/load_autocomplete_user.php',
+      url: rooturl + '_admin/_lot/load_autocomplete_user',
       type: 'POST',
       dataType: 'JSON',
       data: 'query=' + query,

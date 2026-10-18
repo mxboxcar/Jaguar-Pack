@@ -66,7 +66,7 @@ ajax (`/<ไฟล์>` ไม่มี `.php`, POST + `legacy.ajax` ถ้า�
 - **`_api/submit_order_number_v2`** ต้องใช้ `CombineTrack()` ของกลุ่ม tracking (ยังไม่พอร์ต): เรียก `App\Domain\Tracking\CombineTrack::run($tracking, $order)` ถ้ามี ไม่มี = 501 ไม่เขียนอะไร
 - **token API**: token เดิมฝังในโค้ด → อ่านจาก `.env` (`LEGACY_SHOP_*`), ไม่ตั้ง = ปิด (ตอบว่าง) และเทียบด้วย `hash_equals`
 - `_api/send_sms`: เดิมใครเปิดก็ส่ง SMS ทดสอบด้วยบัญชี thaibulksms ที่ฝังในโค้ด → ไม่ส่งอะไร (log อย่างเดียว)
-- `_api/load_product_v7`: เดิมล็อกอิน cnsthai.com ด้วยบัญชีที่ฝังในโค้ดแล้ว fatal (`removehtmltag()` ไม่มีจริง) ทุกครั้ง → 500 ทันที ไม่ยิงภายนอก
+- `_api/load_product_v7`: เดิมล็อกอิน cnsthai.com ด้วยบัญชีที่ฝังในโค้ดแล้ว fatal (`removehtmltag()` ไม่มีจริง) ทุกครั้ง → ตอบ 410 Gone ทันที (เดิม 500) ไม่ยิงภายนอก
 - `_api/load_product_v2` ลิงก์ `.1688`: เดิม include v5 แล้ว `getimage()` ไม่มีจริง → fatal → 500 เหมือนเดิม (ไม่ยิงภายนอก)
 - `_api/unban` → `Unjail::run()` (= `check_unjail()` รวมลบ `sessions` ที่ data ว่างแบบเดิม — ตารางเก่า ไม่ใช่ `sessions_v2`)
 - **mall routes**: `.htaccess` เดิมเรียง `^mall/(.+)$` (ค้นหา) ไว้ก่อน `mall/create|cart|{id}` และไม่มี `[L]` — ถ้าใช้ Apache แบบเดิมจริง `mall/cart` จะกลายเป็นค้นหาคำว่า "cart" ที่นี่ให้ path เฉพาะชนะ (ตาม url-map) — `mall/create`, `mall/{id}` ชี้ไฟล์ที่ไม่มีในเว็บเดิม → แสดง layout เปล่า (เดิมหน้าหยุดกลางคัน)

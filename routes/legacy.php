@@ -15,10 +15,20 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function (\Illuminate\Http\Request $request) {
     $page = $request->query('page');
     if (is_string($page) && preg_match('/^[a-z0-9_]+$/', $page) && Route::has('page.'.$page)) {
+        $query = $request->except('page');
+        $params = [];
+        foreach (Route::getRoutes()->getByName('page.'.$page)->parameterNames() as $name) {
+            if (isset($query[$name]) && is_scalar($query[$name])) {
+                $params[$name] = $query[$name];
+                unset($query[$name]);
+            }
+        }
         try {
-            return redirect()->to(Legacy::href(ltrim(route('page.'.$page, $request->except('page'), false), '/')));
+            $path = ltrim(route('page.'.$page, $params, false), '/');
+
+            return redirect()->to(Legacy::href($path).($query === [] ? '' : '?'.http_build_query($query)));
         } catch (\Illuminate\Routing\Exceptions\UrlGenerationException) {
-            // ขาด parameter ที่ route ต้องใช้ (เช่น ?page=export_detail ไม่มี id) → ทำเหมือนไม่มี page
+            // ขาด parameter ที่ route ต้องใช้ หรือไม่ตรง where (เช่น ?page=export_detail ไม่มี id) → ทำเหมือนไม่มี page
         }
     }
 

@@ -32,7 +32,7 @@ POST ทุกตัว (ยกเว้น `_lot/_message/*`) มี `legacy.aj
 | `^admin/lot/create$`, `^admin/lot/([0-9]+)$` → `_admin/_lot/form.php` | `GET /admin/lot/create`, `GET /admin/lot/{id}` | VIEW |
 | `_admin/_lot/grid.php` | `POST /_admin/_lot/grid` | VIEW |
 | `_admin/_lot/load_autocomplete_tracking.php` | `POST /_admin/_lot/load_autocomplete_tracking` | VIEW |
-| `_admin/_lot/load_autocomplete_user.php` | `POST /_admin/_lot/load_autocomplete_user` (+ `.php` ที่ JS ของ load_lot_memo เรียก) | VIEW |
+| `_admin/_lot/load_autocomplete_user.php` | `POST /_admin/_lot/load_autocomplete_user` (JS ของ load_lot_memo เดิมเรียกแบบมี `.php` — view ใหม่เรียกแบบไม่มี `.php` เพราะ nginx ไม่ส่ง `*.php` มา Laravel) | VIEW |
 | `_admin/_lot/load_check_tracking.php` | `POST /_admin/_lot/load_check_tracking` | VIEW |
 | `_admin/_lot/load_lastest_lot.php` | `POST /_admin/_lot/load_lastest_lot` | VIEW |
 | `_admin/_lot/load_lot_detail.php` | `POST /_admin/_lot/load_lot_detail` | VIEW |

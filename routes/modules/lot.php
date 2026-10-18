@@ -46,8 +46,6 @@ Route::middleware('legacy.perm:admin_lot,admin_lot_view')->group(function () {
         Route::post('/_admin/_lot/grid', [AdminLotController::class, 'grid']);
         Route::post('/_admin/_lot/load_autocomplete_tracking', [AdminLotController::class, 'autocompleteTracking']);
         Route::post('/_admin/_lot/load_autocomplete_user', [AdminLotController::class, 'autocompleteUser']);
-        // load_lot_memo.php เรียกแบบมี .php ต่อท้าย
-        Route::post('/_admin/_lot/load_autocomplete_user.php', [AdminLotController::class, 'autocompleteUser']);
         Route::post('/_admin/_lot/load_check_tracking', [AdminLotController::class, 'loadCheckTracking']);
         Route::post('/_admin/_lot/load_lastest_lot', [AdminLotController::class, 'loadLastestLot']);
         Route::post('/_admin/_lot/load_lot_detail', [AdminLotController::class, 'loadLotDetail']);
