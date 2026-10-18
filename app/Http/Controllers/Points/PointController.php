@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers\Points;
 
-use App\Domain\Points\Grid;
+use App\Domain\Money\Money;
 use App\Domain\Payment\PinBox;
+use App\Domain\Points\Grid;
 use App\Domain\Points\Rules;
 use App\Http\Controllers\Controller;
 use App\Support\Legacy\Alerts;
@@ -93,6 +94,12 @@ class PointController extends Controller
         $uid = Legacy::userId();
         $wantPhp = str_replace('-', '', Grid::php($request, 'wantcash'));
         $wantSql = str_replace('-', '', Grid::in($request, 'wantcash'));
+        // , ที่ไม่ใช่ตัวคั่นหลักพัน ("1,00") → ปฏิเสธ; "1,000" → 1000 (เดิม MySQL ตัดที่ , = 1)
+        if (Money::ambiguousComma($wantPhp)) {
+            return response(Alerts::error('CloseLoading()', Money::BAD_AMOUNT));
+        }
+        $wantPhp = str_replace(',', '', $wantPhp);
+        $wantSql = str_replace(',', '', $wantSql);
 
         // เดิมตรวจยอดแล้ว INSERT 2 ตารางแยกกัน ไม่มี transaction/lock → ห่อ transaction + ล็อกแถว user แล้วตรวจยอดภายใน
         $id = DB::transaction(function () use ($uid, $wantPhp, $wantSql) {

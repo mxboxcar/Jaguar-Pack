@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Shop;
 
+use App\Domain\Money\Money;
 use App\Domain\Shop\Php74;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Format;
@@ -172,9 +173,9 @@ class TaobaoController extends ShopController
         }
 
         return DB::transaction(function () use ($uid, $n, $orderArr, $priceArr, $name, $password, $rate, $byOrder, $remark, $prefix) {
-            // ล็อกแถวเงินของผู้ใช้ระหว่างตรวจยอด/ตัดเงิน
-            DB::table('balance')->where('user', $uid)->lockForUpdate()->count('id');
-            DB::table('balance_cn')->where('user', $uid)->lockForUpdate()->count('id');
+            // ล็อกแถว user (mutex ยอดเงินเดียวกับ _transfer/save, _balance/save_withdraw ฯลฯ) ระหว่างตรวจยอด/ตัดเงิน
+            // เดิมล็อกแถว balance/balance_cn ของผู้ใช้: ผู้ใช้ที่ยังไม่มีแถว = gap lock ที่สอง transaction ถือพร้อมกันได้ → deadlock/ตัดซ้อน
+            Money::lockUser($uid);
             $cashCn = Lookup::getCurrentCashCN();
             $cash = Lookup::getCurrentCash();
 

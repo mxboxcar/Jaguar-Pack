@@ -19,6 +19,9 @@ final class Money
 
     public const CANCELLED = '-1';
 
+    /** ข้อความเมื่อยอดเงินมี , ที่ไม่ใช่ตัวคั่นหลักพัน (ambiguousComma) */
+    public const BAD_AMOUNT = 'กรุณาระบุจำนวนเงินให้ถูกต้อง (ใช้ , คั่นหลักพันเท่านั้น เช่น 1,000.50)';
+
     /** สถานะเป็นค่าใดค่าหนึ่งใน $allowed (เทียบแบบตัวเลขของ DB: '1' / 1) */
     public static function statusIn(mixed $status, array $allowed): bool
     {
@@ -70,9 +73,24 @@ final class Money
      */
     public static function validRefillAmount(string $amount): bool
     {
+        if (self::ambiguousComma($amount)) {
+            return false;
+        }
         $a = str_replace(',', '', trim($amount));
 
         return preg_match('/^[0-9]+(\.[0-9]{1,2})?$/', $a) === 1 && (float) $a > 0;
+    }
+
+    /**
+     * มี , แต่ไม่ใช่ตัวคั่นหลักพันแบบ addCommas() ของ JS เดิม ("1,000" / "12,345.50") เช่น "1,00", "1,0000", ",5", "1,000,00"
+     * เดิม: str_replace(',', '') → "1,00" = 100 (_transfer/_alipay/_refill) หรือ MySQL ตัดที่ , → 1.00 (_balance/save_withdraw)
+     * — ผู้ใช้ตั้งใจ 1.00 หรือ 100 ไม่รู้ → ปฏิเสธ (เจ้าของอนุมัติ 2026-10-18)
+     */
+    public static function ambiguousComma(string $amount): bool
+    {
+        $a = trim($amount);
+
+        return str_contains($a, ',') && preg_match('/^-?[0-9]{1,3}(,[0-9]{3})+(\.[0-9]*)?$/', $a) !== 1;
     }
 
     /**

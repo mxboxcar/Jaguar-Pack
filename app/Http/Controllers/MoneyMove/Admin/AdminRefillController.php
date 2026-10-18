@@ -171,6 +171,10 @@ class AdminRefillController extends Controller
             if ($data === null) {
                 return null;
             }
+            // เดิมตอบ "สำเร็จ" แม้รายการถูกยกเลิกไปแล้ว (ไม่ได้เติมเงิน) → แจ้ง error ให้แอดมินรู้
+            if (Money::statusIn($data->status, [Money::CANCELLED])) {
+                return 'cancelled';
+            }
             // เดิม: prefix = '10' (ตายตัว = id ของ prefix "refill") → ใช้ id จากตาราง prefix — แถวแรกคงไว้ ที่เหลือ is_delete = 1
             $dups = DB::table('balance')->where('prefix', (string) (Lookups::prefixId('refill') ?? ''))->where('prefix_ref_id', $data->id)->where('type', '1')
                 ->orderBy('id')->pluck('id')->slice(1)->values();
@@ -180,6 +184,9 @@ class AdminRefillController extends Controller
 
             return $data->id;
         });
+        if ($refId === 'cancelled') {
+            return response(Money::refuse('รายการนี้ถูกยกเลิกไปแล้ว ไม่สามารถอนุมัติได้'));
+        }
         if ($refId === 'invalid') {
             return response(Money::refuse('ยอดเงินไม่ถูกต้อง (ต้องมากกว่า 0)'));
         }

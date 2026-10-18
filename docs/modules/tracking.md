@@ -71,6 +71,9 @@ ajax / form post (ทุกตัว `legacy.ajax` = system_check_ajax เดิ
 
 ## 2. ไม่ได้พอร์ต / ต่างจากเดิมโดยตั้งใจ
 
+- **กันกดซ้ำ/ส่งซ้อน (double submit)** (เจ้าของอนุมัติ 2026-10-18, E2E: ดับเบิลคลิก `_taobao/save` = 2 รายการ ตัดเงิน 2 ครั้ง — เว็บเดิมก็เป็น): middleware `legacy.once` (`App\Support\SubmitGuard`) — lock ต่อ ผู้ใช้+route ระหว่างประมวลผล (คำขอที่ซ้อนได้ `ErrorBox('รายการนี้กำลังดำเนินการ กรุณารอสักครู่')`) + payload เดิมที่สำเร็จแล้วภายใน 8 วินาทีได้ `ErrorBox('รายการนี้ถูกส่งไปแล้ว (ส่งซ้ำ) ...')` (คำตอบ error/กล่อง PIN ไม่ถูกจำ ส่งใหม่ได้ทันที): `_tracking/save`, `_lost_package/save`, `_admin/_tracking/save` · test: `tests/Feature/SubmitGuardTest.php`, `tests/Feature/Money/DoubleSubmitDbTest.php` (JL_BENCH_DB_TESTS=1)
+  - ชั้นนี้กันรายการซ้ำ; การกันยอดติดลบเมื่อคำขอต่างกันมาพร้อมกันยังเป็น transaction + `SELECT … FOR UPDATE` แถว user แล้วตรวจยอดภายใน (ทุก endpoint ตัดเงินตอนสร้าง)
+
 ไม่ได้ทำ route:
 - `/_tracking/index`, `/_tracking/form`, `/_admin/_tracking/index`, `/_admin/_tracking/form`, `/_admin/_combine_track/index`, `/_lost_package/index`, `/_lost_package/form`, `/_admin/_lost_package/index`, `/_admin/_lost_package/form` — เป็นไฟล์เนื้อหาของหน้าที่ `content.php` include; เปิดตรงในเว็บเดิมได้แค่ fatal error (ไม่มี `$resource`/ฟังก์ชัน) → หน้าเหล่านี้เข้าทาง URL ของ RewriteRule ด้านบน
 - `_lost_package/grid` และ `_admin/_lost_package/grid` เรียก `../delete` (ปุ่มลบ) และฟอร์มแอดมินโพสต์ไป `_admin/_lost_package/save` แต่ไฟล์ทั้งสองไม่มีในเว็บเดิม (404 เดิม) — ไม่ได้สร้าง

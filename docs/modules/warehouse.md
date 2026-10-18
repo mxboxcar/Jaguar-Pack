@@ -56,6 +56,8 @@ load_lot_detail ช้ากว่าเดิมเล็กน้อย = over
 
 ## ต่างจากเดิมโดยตั้งใจ
 
+- **กันกดซ้ำ/ส่งซ้อน (double submit)** (เจ้าของอนุมัติ 2026-10-18, E2E: ดับเบิลคลิก `_taobao/save` = 2 รายการ ตัดเงิน 2 ครั้ง — เว็บเดิมก็เป็น): middleware `legacy.once` (`App\Support\SubmitGuard`) — lock ต่อ ผู้ใช้+route ระหว่างประมวลผล (คำขอที่ซ้อนได้ `ErrorBox('รายการนี้กำลังดำเนินการ กรุณารอสักครู่')`) + payload เดิมที่สำเร็จแล้วภายใน 8 วินาทีได้ `ErrorBox('รายการนี้ถูกส่งไปแล้ว (ส่งซ้ำ) ...')` (คำตอบ error/กล่อง PIN ไม่ถูกจำ ส่งใหม่ได้ทันที): `_admin/_goodsconfirm/save`, `_admin/_warehouse/save_new_warehouse` (lock อย่างเดียว) · test: `tests/Feature/SubmitGuardTest.php`, `tests/Feature/Money/DoubleSubmitDbTest.php` (JL_BENCH_DB_TESTS=1)
+  - ชั้นนี้กันรายการซ้ำ; การกันยอดติดลบเมื่อคำขอต่างกันมาพร้อมกันยังเป็น transaction + `SELECT … FOR UPDATE` แถว user แล้วตรวจยอดภายใน (ทุก endpoint ตัดเงินตอนสร้าง)
 - ลูกค้า `goodsconfirm`: `save_approved` / `load_tracking_by_id` ตรวจเจ้าของ (เดิมไม่ตรวจ: เขียนทับ `user` ของรายการที่อนุมัติให้คนอื่นแล้วได้ / ดูล็อต-วันที่ของ tracking ใดก็ได้)
   - `save_approved` ใช้เงื่อนไขเดียวกับหน้า form: ยึดได้เฉพาะรายการที่ยังไม่ถูกลบ (`is_delete = 0`) และ status 0 หรือเป็นของตัวเอง → รายการที่ยกเลิกแล้ว (status -1) หรือถูกลบ ยึดไม่ได้ (เดิมยึดได้ผ่าน POST ตรงๆ แม้หน้า form ไม่ให้เข้า)
 - `save_track_weight`: JS `go_receive()` เดิมไม่ส่ง `tracking` → เดิมเขียนเลข tracking เป็น `''` (ข้อมูลหาย) — ใหม่: ไม่ส่งมา = ไม่แก้เลข tracking

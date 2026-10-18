@@ -7,6 +7,7 @@ use App\Http\Middleware\LegacyJail;
 use App\Http\Middleware\LegacyOwnUserOrPermission;
 use App\Http\Middleware\LegacyPermission;
 use App\Http\Middleware\LegacySessionMiddleware;
+use App\Http\Middleware\LegacySubmitOnce;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Application;
@@ -58,6 +59,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'legacy.perm' => LegacyPermission::class,
             'legacy.ajax' => LegacyAjaxOnly::class,
             'legacy.own' => LegacyOwnUserOrPermission::class,
+            'legacy.once' => LegacySubmitOnce::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

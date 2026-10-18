@@ -22,7 +22,7 @@ Route::get('/balance', [BalanceController::class, 'index'])->middleware('legacy.
 Route::middleware(['legacy.auth', 'legacy.ajax'])->group(function () {
     Route::post('/_balance/grid', [BalanceController::class, 'grid']);
     Route::post('/_balance/load_withdraw', [BalanceController::class, 'loadWithdraw']);
-    Route::post('/_balance/save_withdraw', [BalanceController::class, 'saveWithdraw']);
+    Route::post('/_balance/save_withdraw', [BalanceController::class, 'saveWithdraw'])->middleware('legacy.once');
 });
 
 // ---------- ลูกค้า: บัญชีเงินหยวน ----------
@@ -30,7 +30,7 @@ Route::get('/balance_cn', [BalanceCnController::class, 'index'])->middleware('le
 Route::middleware(['legacy.auth', 'legacy.ajax'])->group(function () {
     Route::post('/_balance_cn/grid', [BalanceCnController::class, 'grid']);
     Route::post('/_balance_cn/load_withdraw', [BalanceCnController::class, 'loadWithdraw']);
-    Route::post('/_balance_cn/save_withdraw', [BalanceCnController::class, 'saveWithdraw']);
+    Route::post('/_balance_cn/save_withdraw', [BalanceCnController::class, 'saveWithdraw'])->middleware('legacy.once');
 });
 
 // ---------- แอดมิน: บัญชีเงินบาท ----------
@@ -38,7 +38,7 @@ Route::get('/admin/balance', [AdminBalanceController::class, 'index'])->middlewa
 Route::post('/_admin/_balance/grid', [AdminBalanceController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 Route::middleware(['legacy.ajax', 'legacy.perm:admin_balance'])->group(function () {
     Route::post('/_admin/_balance/load_amount', [AdminBalanceController::class, 'loadAmount']);
-    Route::post('/_admin/_balance/save_amount', [AdminBalanceController::class, 'saveAmount']);
+    Route::post('/_admin/_balance/save_amount', [AdminBalanceController::class, 'saveAmount'])->middleware('legacy.once');
 });
 
 // ---------- แอดมิน: บัญชีเงินหยวน ----------
@@ -46,7 +46,7 @@ Route::get('/admin/balance_cn', [AdminBalanceCnController::class, 'index'])->mid
 Route::post('/_admin/_balance_cn/grid', [AdminBalanceCnController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 Route::middleware(['legacy.ajax', 'legacy.perm:admin_balance_cn'])->group(function () {
     Route::post('/_admin/_balance_cn/load_amount', [AdminBalanceCnController::class, 'loadAmount']);
-    Route::post('/_admin/_balance_cn/save_amount', [AdminBalanceCnController::class, 'saveAmount']);
+    Route::post('/_admin/_balance_cn/save_amount', [AdminBalanceCnController::class, 'saveAmount'])->middleware('legacy.once');
 });
 
 // ---------- แอดมิน: บัญชีบริษัท (admin_balance_company ไม่มี role ใดถือใน DB → ได้จาก fallback ← admin_balance, CONVENTIONS 3.1) ----------
@@ -54,5 +54,5 @@ Route::get('/admin/balance_company', [AdminBalanceCompanyController::class, 'ind
 Route::post('/_admin/_balance_company/grid', [AdminBalanceCompanyController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 Route::middleware(['legacy.ajax', 'legacy.perm:admin_balance_company'])->group(function () {
     Route::post('/_admin/_balance_company/load_amount', [AdminBalanceCompanyController::class, 'loadAmount']);
-    Route::post('/_admin/_balance_company/save_amount', [AdminBalanceCompanyController::class, 'saveAmount']);
+    Route::post('/_admin/_balance_company/save_amount', [AdminBalanceCompanyController::class, 'saveAmount'])->middleware('legacy.once');
 });

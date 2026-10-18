@@ -40,6 +40,10 @@ JS ในหน้าแอดมินเติมเงินเรียก `
 
 ## ต่างจากเดิมโดยตั้งใจ
 
+- **กันกดซ้ำ/ส่งซ้อน (double submit)** (เจ้าของอนุมัติ 2026-10-18, E2E: ดับเบิลคลิก `_taobao/save` = 2 รายการ ตัดเงิน 2 ครั้ง — เว็บเดิมก็เป็น): middleware `legacy.once` (`App\Support\SubmitGuard`) — lock ต่อ ผู้ใช้+route ระหว่างประมวลผล (คำขอที่ซ้อนได้ `ErrorBox('รายการนี้กำลังดำเนินการ กรุณารอสักครู่')`) + payload เดิมที่สำเร็จแล้วภายใน 8 วินาทีได้ `ErrorBox('รายการนี้ถูกส่งไปแล้ว (ส่งซ้ำ) ...')` (คำตอบ error/กล่อง PIN ไม่ถูกจำ ส่งใหม่ได้ทันที): `_refill/save`, `_transfer/save`, `_admin/_refill/save` (เติมเงินทันที) · test: `tests/Feature/SubmitGuardTest.php`, `tests/Feature/Money/DoubleSubmitDbTest.php` (JL_BENCH_DB_TESTS=1)
+  - ชั้นนี้กันรายการซ้ำ; การกันยอดติดลบเมื่อคำขอต่างกันมาพร้อมกันยังเป็น transaction + `SELECT … FOR UPDATE` แถว user แล้วตรวจยอดภายใน (ทุก endpoint ตัดเงินตอนสร้าง)
+- ยอดเงินที่มี `,` แบบที่ไม่ใช่ตัวคั่นหลักพัน (`1,00`, `1,0000`) → `ErrorBox` (`Money::ambiguousComma`) — เดิม `str_replace(',', '')` = `1,00` กลายเป็น 100; `1,000.50` ยังรับ (= 1000.50)
+- `_admin/_refill/save_approved` ของรายการที่ถูกยกเลิกแล้ว (status -1) → `ErrorBox('รายการนี้ถูกยกเลิกไปแล้ว ไม่สามารถอนุมัติได้')` — เดิมตอบ "สำเร็จ" ทั้งที่ไม่ได้เติมเงิน
 - ค่าจาก DB/ผู้ใช้ใน HTML ถูก escape (`acc_name`, `remark`, `cancel_remark`, `branch_*`, ชื่อไฟล์แนบ, ค่าค้นหา) — ค่าคำค้นที่มี `'` แสดงเป็น `&#039;` แทน `'`
   ค่า setting `bank_acc/bank_no/bank_name/bank_branch` ยังแสดงดิบ (แอดมินตั้ง)
 - รายการที่ไม่พบ/ของคนอื่นใน `/refill/{id}`: เดิม layout ถูกตัดกลางหน้า (exit) — ใหม่แสดง layout เต็ม + ErrorBox เดิม

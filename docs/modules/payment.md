@@ -83,6 +83,9 @@ ajax / form post (ทุกตัว `legacy.ajax` = system_check_ajax เดิ
 
 ## 2. ต่างจากเดิมโดยตั้งใจ
 
+- **กันกดซ้ำ/ส่งซ้อน (double submit)** (เจ้าของอนุมัติ 2026-10-18, E2E: ดับเบิลคลิก `_taobao/save` = 2 รายการ ตัดเงิน 2 ครั้ง — เว็บเดิมก็เป็น): middleware `legacy.once` (`App\Support\SubmitGuard`) — lock ต่อ ผู้ใช้+route ระหว่างประมวลผล (คำขอที่ซ้อนได้ `ErrorBox('รายการนี้กำลังดำเนินการ กรุณารอสักครู่')`) + payload เดิมที่สำเร็จแล้วภายใน 8 วินาทีได้ `ErrorBox('รายการนี้ถูกส่งไปแล้ว (ส่งซ้ำ) ...')` (คำตอบ error/กล่อง PIN ไม่ถูกจำ ส่งใหม่ได้ทันที): `_payment/save` (แจ้งเติมเงิน), `_payment/save_create`, `_payment/save_submit_payment`, `_payment/save_create_receiptaddress`, `_admin/_payment/save_create`, `_admin/_payment/save_submit_payment`, `_alipay/save`, `_export/save_approved` (กลุ่ม reports — ยืนยันบิล+ตัดเงิน) · test: `tests/Feature/SubmitGuardTest.php`, `tests/Feature/Money/DoubleSubmitDbTest.php` (JL_BENCH_DB_TESTS=1)
+  - ชั้นนี้กันรายการซ้ำ; การกันยอดติดลบเมื่อคำขอต่างกันมาพร้อมกันยังเป็น transaction + `SELECT … FOR UPDATE` แถว user แล้วตรวจยอดภายใน (ทุก endpoint ตัดเงินตอนสร้าง)
+- `_alipay/save`, `_payment/save`: ยอดที่มี `,` แบบกำกวม (`1,00`) → `ErrorBox` (เดิมกลายเป็น 100)
 - ลูกค้าเห็น/ใช้ได้เฉพาะของตัวเอง: `save_create` เก็บเฉพาะ tracking ของตัวเอง; `payment/create/{random}`, `load_shipping_price`, `save_submit_payment`, `view_example` ใช้ random ที่ตัวเองสร้าง + `tracking.user = ผู้ใช้` (เดิมรู้ random = ดู/จ่าย tracking ของคนอื่นได้)
 - `_payment/save_delete`: ยกเลิก+คืนเงินได้เฉพาะบิลของตัวเองสถานะ 1 (= ปุ่มในหน้าเดิม) — เดิมทุกสถานะ ≠ -1 (สถานะ 0 ยังไม่ตัดเงินก็คืนได้, 2/3 ส่งของแล้วก็คืนได้) และ id ของคนอื่นได้แถว balance 0 บาท
 - `_alipay/cancel`: เฉพาะบิลของตัวเองสถานะ 1 (ดูช่องโหว่ข้อ 1)

@@ -36,7 +36,7 @@ Route::middleware('legacy.perm:order')->group(function () {
         Route::post('/_cart/save_amount', [CartController::class, 'saveAmount']);
         Route::post('/_cart/save_craft', [CartController::class, 'saveCraft']);
         Route::post('/_cart/save_qc', [CartController::class, 'saveQc']);
-        Route::post('/_cart/save_checkout', [CartController::class, 'saveCheckout']);
+        Route::post('/_cart/save_checkout', [CartController::class, 'saveCheckout'])->middleware('legacy.once');
     });
 });
 Route::middleware('legacy.auth')->group(function () {
@@ -59,7 +59,7 @@ Route::middleware('legacy.perm:taobao')->group(function () {
         Route::post('/_taobao/load_new_line', [TaobaoController::class, 'loadNewLine']);
         Route::post('/_taobao/load_calculator', [TaobaoController::class, 'loadCalculator']);
         Route::post('/_taobao/save_remark', [TaobaoController::class, 'saveRemark']);
-        Route::post('/_taobao/save', [TaobaoController::class, 'save']);
+        Route::post('/_taobao/save', [TaobaoController::class, 'save'])->middleware('legacy.once');
     });
 });
 // _taobao/delete.php เดิม fatal ทุกครั้ง (require path ผิด) — คงผลเดิม 500 (ต้องล็อกอิน)
@@ -81,7 +81,7 @@ Route::middleware(['legacy.perm:mall', 'legacy.ajax'])->group(function () {
     Route::post('/_mall/load_detail', [MallController::class, 'loadDetail']);
     Route::post('/_mall/addtocart', [MallController::class, 'addToCart']);
     Route::post('/_mall/delete_cart', [MallController::class, 'deleteCart']);
-    Route::post('/_mall/save', [MallController::class, 'save']);
+    Route::post('/_mall/save', [MallController::class, 'save'])->middleware('legacy.once');
 });
 
 // ================================================================ แอดมิน: สินค้าร้านค้า (_admin/_mall) — admin_mall

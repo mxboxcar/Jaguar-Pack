@@ -61,6 +61,9 @@ ajax (`/<ไฟล์>` ไม่มี `.php`, POST + `legacy.ajax` ถ้า�
 
 ## 2. ต่างจากเดิมโดยตั้งใจ / ข้อสังเกต
 
+- **กันกดซ้ำ/ส่งซ้อน (double submit)** (เจ้าของอนุมัติ 2026-10-18, E2E: ดับเบิลคลิก `_taobao/save` = 2 รายการ ตัดเงิน 2 ครั้ง — เว็บเดิมก็เป็น): middleware `legacy.once` (`App\Support\SubmitGuard`) — lock ต่อ ผู้ใช้+route ระหว่างประมวลผล (คำขอที่ซ้อนได้ `ErrorBox('รายการนี้กำลังดำเนินการ กรุณารอสักครู่')`) + payload เดิมที่สำเร็จแล้วภายใน 8 วินาทีได้ `ErrorBox('รายการนี้ถูกส่งไปแล้ว (ส่งซ้ำ) ...')` (คำตอบ error/กล่อง PIN ไม่ถูกจำ ส่งใหม่ได้ทันที): `_taobao/save`, `_cart/save_checkout`, `_mall/save` · test: `tests/Feature/SubmitGuardTest.php`, `tests/Feature/Money/DoubleSubmitDbTest.php` (JL_BENCH_DB_TESTS=1)
+  - ชั้นนี้กันรายการซ้ำ; การกันยอดติดลบเมื่อคำขอต่างกันมาพร้อมกันยังเป็น transaction + `SELECT … FOR UPDATE` แถว user แล้วตรวจยอดภายใน (ทุก endpoint ตัดเงินตอนสร้าง)
+- `_taobao/save` ล็อกแถว `user` (`Money::lockUser`) แทนการล็อกแถว `balance`/`balance_cn` ของผู้ใช้ (ผู้ใช้ที่ยังไม่มีแถว = gap lock ที่สอง transaction ถือพร้อมกันได้) แล้วตรวจยอดใน transaction เดิม
 - **ราคาในตะกร้า (`_cart/save_product`) — ลูกค้ากำหนดเองไม่ได้** (เจ้าของอนุมัติ 2026-10-18 "ให้แอดมินแก้ไขก็พอ", รายงานข้อ 4.16): เดิมเชื่อ `search_price` จาก browser (ช่องราคาในฟอร์มแก้ได้ และยิง POST ตรงได้ เช่น 0.01)
   - `_api/load_product` จำชุดราคาที่ crawler ตอบ (`price`, ราคาทุก SKU `skus[*].price.priceText`, `priceRange[*][1]`) ต่อ ผู้ใช้ + URL (ทั้ง URL ที่ส่งมาและ `url` ที่ crawler ตอบ) ใน cache 2 ชม. (`App\Domain\Shop\CrawlPrices`)
   - `save_product`: ราคาที่ส่งมาตรงกับชุดนั้น (เทียบทศนิยม 2 ตำแหน่ง) = ลง DB ตามค่าที่ส่ง (เหมือนเดิม — JS เลือกราคาตาม SKU/จำนวนจากชุดเดียวกัน) · ไม่ตรง = ใช้ราคาหลักของ crawler · ไม่มีข้อมูล crawler ของผู้ใช้/URL นี้ (ไม่ได้โหลดผ่าน load_product หรือเกิน 2 ชม.) = `ErrorBox('ไม่พบข้อมูลราคาสินค้า กรุณาค้นหาสินค้าใหม่อีกครั้ง')` ไม่เขียนอะไร

@@ -35,7 +35,7 @@ Route::middleware('legacy.perm:export')->group(function () {
 });
 // save_approved / save_delete เดิมตรวจ getPermission('payment')
 Route::middleware(['legacy.perm:payment', 'legacy.ajax'])->group(function () {
-    Route::post('/_export/save_approved', [ExportController::class, 'saveApproved']);
+    Route::post('/_export/save_approved', [ExportController::class, 'saveApproved'])->middleware('legacy.once');
     Route::post('/_export/save_delete', [ExportController::class, 'saveDelete']);
 });
 

@@ -73,6 +73,10 @@ branch `mod/points` · worktree `/home/admin/laravel/jl-wt/points` · port 8207
 
 ## ต่างจากเดิมโดยตั้งใจ
 
+- **กันกดซ้ำ/ส่งซ้อน (double submit)** (เจ้าของอนุมัติ 2026-10-18, E2E: ดับเบิลคลิก `_taobao/save` = 2 รายการ ตัดเงิน 2 ครั้ง — เว็บเดิมก็เป็น): middleware `legacy.once` (`App\Support\SubmitGuard`) — lock ต่อ ผู้ใช้+route ระหว่างประมวลผล (คำขอที่ซ้อนได้ `ErrorBox('รายการนี้กำลังดำเนินการ กรุณารอสักครู่')`) + payload เดิมที่สำเร็จแล้วภายใน 8 วินาทีได้ `ErrorBox('รายการนี้ถูกส่งไปแล้ว (ส่งซ้ำ) ...')` (คำตอบ error/กล่อง PIN ไม่ถูกจำ ส่งใหม่ได้ทันที): `_point/save_withdraw`, `_shop_cashback/save` · test: `tests/Feature/SubmitGuardTest.php`, `tests/Feature/Money/DoubleSubmitDbTest.php` (JL_BENCH_DB_TESTS=1)
+  - ชั้นนี้กันรายการซ้ำ; การกันยอดติดลบเมื่อคำขอต่างกันมาพร้อมกันยังเป็น transaction + `SELECT … FOR UPDATE` แถว user แล้วตรวจยอดภายใน (ทุก endpoint ตัดเงินตอนสร้าง)
+- `_point/save_withdraw`: แต้มที่มี `,` แบบกำกวม → `ErrorBox`; `1,000` → 1000 (เดิม MySQL ตัดเหลือ 1)
+- `_admin/_withdrawpoint/save_approved` ของรายการที่ยกเลิกแล้ว → `ErrorBox('รายการนี้ถูกยกเลิกไปแล้ว ไม่สามารถอนุมัติได้')` (เดิมตอบ "สำเร็จ" โดยไม่ทำอะไร)
 - ค่าจาก DB/ผู้ใช้ escape ทั้งหมด (เดิม echo ดิบ): `balance_point.detail`, `shop_cashback.remark/remark_admin`, `cancel_remark`, `order`, `attachment` (ใน `GetFancyBox`), รหัสลูกค้า, คำค้นใน `value=`, `page`/`status` ที่ฝังใน JS
 - `load_new_line`: `item` บังคับเป็นจำนวนเต็ม (เดิมฝังดิบเป็นชื่อ class/ฟังก์ชัน JS = XSS) — JS เดิมส่งตัวเลขเสมอ ผลเท่าเดิม
 - N+1: ยอดคงเหลือ (SUM ต่อแถว) ใน grid แต้มลูกค้า/แอดมิน → subquery ในคำสั่งเดียว; รายการย่อย `shop_cashback_detail` ต่อแถวใน grid ลูกค้า/แอดมิน (ไม่มี index = full scan ทุกแถว) → `WHERE shop_cashback_id IN (...)` ครั้งเดียว
