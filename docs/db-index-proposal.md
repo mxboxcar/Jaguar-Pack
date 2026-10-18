@@ -53,7 +53,19 @@ EXPLAIN SELECT SUM(amount) FROM balance WHERE user = 137 AND is_delete = 0 AND i
 -- key = idx_balance_user_del_id_amount, Extra มี "Using index"
 ```
 
-## 2. ที่ไม่เสนอ
+## 2. `bill_payment (user, is_delete, status)` (ข้อเสนอ — ยังไม่ได้วัดบน bench)
+
+ตาราง bill_payment มีแค่ PRIMARY, `total_status_ref_id`, `idx_notif (is_delete, status)` — **ไม่มี index `user`**
+→ grid ลูกค้า (`_payment/grid`, `_export/grid`) และหน้า/รายงานที่กรองบิลของลูกค้าต้องสแกนทั้งตาราง (bench 31,638 แถว / 16.5 MB ≈ 100 ms ต่อครั้ง; production ใหญ่กว่า)
+โค้ดใน main ไม่พึ่ง index นี้ (fix/bill-data ลดเหลือสแกนรอบเดียวต่อ request แล้ว) — index ช่วยให้เหลือแค่แถวของลูกค้าคนนั้น
+
+```sql
+ALTER TABLE `bill_payment` ADD INDEX `idx_bill_payment_user` (`user`, `is_delete`, `status`), ALGORITHM=INPLACE, LOCK=NONE;
+-- ย้อนกลับ
+ALTER TABLE `bill_payment` DROP INDEX `idx_bill_payment_user`, ALGORITHM=INPLACE, LOCK=NONE;
+```
+
+## 3. ที่ไม่เสนอ
 
 - `refill`: grid ลูกค้า/แอดมินเร็วแล้วด้วย index เดิม (`idx_refill_user (user)` มี `id` อยู่แล้ว, `idx_notif (is_delete, status)`) — ใหม่ 64 / 74 ms
 - `balance_cn`, `balance_company`, `bill_transfer`, `balance_withdraw`: ตารางเล็ก (≤ 4k แถว)

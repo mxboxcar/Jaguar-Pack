@@ -184,3 +184,24 @@ ajax / form post (ทุกตัว `legacy.ajax` = system_check_ajax เดิ
   → บิลที่ยกเลิกแล้ว `ErrorBox('บิลนี้ถูกยกเลิกแล้ว ...')`, ไม่พบบิล `ErrorBox(no_data)` ไม่แก้อะไร (เหมือน `save_vat`) · test: tests/Feature/Money/AdminWritesDbTest.php (JL_BENCH_DB_TESTS=1)
 - **(เจ้าของยืนยัน 2026-10-18)** `save_new_sender` เปลี่ยนเป็นประเภทการส่ง/ผู้ส่งที่แพงขึ้น: **ยอดลูกค้าติดลบได้เหมือนเว็บเดิม** (ไม่ตรวจยอดคงเหลือ; ล็อกแถว user ใน transaction เท่านั้น) · `save_vat` และค่าส่งใน `_admin/_export/save_approved` ก็คงไว้แบบเดิม · test: tests/Feature/Money/LegacyRisksDbTest.php
 - ยังเหมือนเดิม (แจ้งไว้): `save_create` ซ้ำกับ tracking ที่อยู่ในบิลแล้ว = สร้าง temp แต่ `save_submit_payment` ตอบ "ถูกดำเนินการไปแล้ว" ไม่สร้างบิล
+
+## 8. ทดสอบกับข้อมูลบิลจริงบน bench (2026-10-19, fix/bill-data)
+
+ข้อมูล: bill_payment 31,638 / bill_payment_detail 140,350 / bill_payment_detail_temp 2,167 / cart_detail 17,479 (ประวัติเต็มของ 122 ลูกค้าตัวอย่าง)
+
+- เทียบ 1:1 กับ :8101 (normalize host/ช่องว่าง, multiset + ลำดับบรรทัด): ~330 หน้า/ajax — ลูกค้า 137/849/3269/1418/10957/974/7411/8588/5121/229/6269, แอดมิน zz_fdn_admin
+  - **เท่ากันทุก byte หลัง normalize**: `/payment` (+status), `_payment/grid` (หน้า 1–3, ทุกสถานะ, ค้นหา), `payment/{id}` 93 บิล, `/export`, `_export/grid`, `export/{id}` 32 บิล, `admin/export/{id}` 35 บิล (ต่างเฉพาะเมนู fallback),
+    `_admin/_payment/grid`, `_admin/_export/grid` (สถานะ/หน้า/ค้นหา id, PAY-id, รหัสลูกค้า, ชื่อผู้รับ), `payment/create` + `load_select_lot`/`load_create`/`load_create_sum`/`create/{random}`/`view_example`,
+    `_admin/_payment/load_*`, `_order/print`, `_cart/load_cart`/`load_full_cart`/`cart/checkout/{ids}`, `_admin/_export/print` (เทียบกับ print.php เดิมที่รันด้วย php7.4 โดยตัด UPDATE ออก — :8101 หยุดที่ log ก่อนเขียน)
+  - ต่างโดยตั้งใจ: เมนู fallback (`admin/balance_company`, `admin/point`, `admin/withdrawpoint`), ฟอร์มแก้ผู้ส่งใน `admin/payment/{id}` (`admin_change_sender` fallback ← `admin_payment`, ข้อ 7),
+    `load_shipping_price` ไม่มี key ตัวเลขซ้ำ (ค่าที่เหลือเท่ากันทุกตัว), random/บิลของคนอื่น = ไม่มีสิทธิ์/ว่าง (ข้อ 2), `_cart/cart` เปิดตรง: ลิงก์ `hrefcart/...` เดิม (constant ไม่ได้กำหนด) → `/cart/...`
+  - เทียบไม่ได้: บิลที่มีพัสดุ ≥ ~100 รายการ หน้าเดิม timeout 60 วินาที (header_count subquery สแกน tracking ทั้งตารางต่อแถว) — ใหม่ 150–250 ms
+- **แก้ (bug)**: `payment/{id}` และ `admin/payment/{id}` เรียงแถวพัสดุตาม `bill_payment_detail.id` (= tracking.id) แต่เดิมไม่มี ORDER BY
+  = MySQL อ่านผ่าน index `payment_id` → เรียงตาม PK `tracking_id` (ลำดับที่ใส่ลงบิล) — บน bench 9,414 บิลเรียงต่างกัน (เช่นบิล 123541) → ใหม่ `ORDER BY tracking_id`
+  (ExportBill ของกลุ่ม reports ใช้ tracking_id อยู่แล้ว) · test: `tests/Feature/Money/BillGridDbTest.php`
+- **แก้ (ความเร็ว)**: `bill_payment` ไม่มี index `user` → grid ทั้ง 4 ตัว (`_payment/grid`, `_export/grid`, `_admin/_payment/grid`, `_admin/_export/grid`)
+  เดิม COUNT(*) (join user ทุกแถว) + ORDER BY id DESC LIMIT แยกกัน = สแกนทั้งตาราง 2 รอบเมื่อผลน้อย/ไม่มีผล (แอดมินค้นหา 520–580 ms ช้ากว่าหรือเท่าเดิม)
+  → `GridQuery::idPage()` อ่าน id ที่ตรงรอบเดียว (นับ + ตัดหน้าใน PHP) แล้ว `rowsInOrder()` โหลดแถวเต็มเฉพาะ 10 id; `user.code LIKE` เป็น subquery (ผลเท่ากัน: join 1:1 ด้วย PK)
+  ผล (bin/bench n=30 c=1, mean ms): `_admin/_export/grid` ค้นหาไม่พบ เดิม 545 / main 581 / ใหม่ 170 · `_admin/_payment/grid` PAY-id 585 / 527 / 238 ·
+  `_admin/_export/grid` หน้า 1 231 / 306 / 177 · `_payment/grid` ค้นหาไม่พบ 304 / 228 / 111
+  ข้อเสนอ index `bill_payment (user, …)` ดู docs/db-index-proposal.md ข้อ 2 (ยังไม่ใช้)

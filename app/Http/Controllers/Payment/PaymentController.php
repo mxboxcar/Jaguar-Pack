@@ -10,6 +10,7 @@ use App\Domain\Payment\TempUpload;
 use App\Domain\Payment\UploadBox;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Payment\Concerns\ReadsLegacyInput;
+use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
@@ -49,8 +50,8 @@ class PaymentController extends Controller
         $php = explode('|', $this->php($request, 'txtsearch'));
         $status = $parts[1] ?? null;
 
+        // bill_payment ไม่มี index `user` → อ่านตารางรอบเดียว (นับ + id ของหน้า) แล้วโหลดเฉพาะ 10 แถว (GridQuery::idPage)
         $q = DB::table('bill_payment')
-            ->leftJoin('shipping_type', 'bill_payment.shipping_type', '=', 'shipping_type.id')
             ->where('bill_payment.is_delete', 0)
             ->where('bill_payment.id', 'like', '%'.addcslashes($parts[0], '%_\\').'%')
             ->where('bill_payment.user', Legacy::userId());
@@ -59,11 +60,11 @@ class PaymentController extends Controller
         } else {
             $q->where(fn ($w) => $w->where('bill_payment.status', '2')->orWhere('bill_payment.status', '3'));
         }
-        $total = (clone $q)->count();
         $page = $this->php($request, 'page');
-        $offset = P::offset($page);
-        $items = $offset === null ? collect() : P::strAll($q->orderByDesc('bill_payment.id')->offset($offset)->limit(10)
-            ->get(['bill_payment.*', 'shipping_type.name as ship_name']));
+        [$total, $ids] = GridQuery::idPage($q, 'bill_payment.id', P::offset($page));
+        $items = P::strAll(GridQuery::rowsInOrder(DB::table('bill_payment')
+            ->leftJoin('shipping_type', 'bill_payment.shipping_type', '=', 'shipping_type.id'),
+            'bill_payment.id', $ids, ['bill_payment.*', 'shipping_type.name as ship_name']));
 
         return response(view('payment.customer.grid', [
             'ajaxpage' => self::AJAX,
@@ -521,7 +522,9 @@ class PaymentController extends Controller
             ->leftJoin('lot', 'lot.id', '=', 'bill_payment_detail.lot_id')
             ->leftJoin('product_type', 'bill_payment_detail.product_type_id', '=', 'product_type.id')
             ->where('bill_payment_detail.payment_id', $id)
-            ->orderBy('bill_payment_detail.id')
+            // เดิมไม่มี ORDER BY → MySQL อ่านผ่าน index payment_id = เรียงตาม PK (tracking_id = ลำดับที่ใส่ลงบิล)
+            // ไม่ใช่ id (= tracking.id): บน bench 9,414 บิลเรียงต่างกัน (ExportBill::details ใช้ tracking_id อยู่แล้ว)
+            ->orderBy('bill_payment_detail.tracking_id')
             ->get(['bill_payment_detail.*', 'lot.name as lot_name', 'lot.type as lot_type', 'product_type.name as type_name']))
             ->pipe(fn ($c) => P::withHeaderCount($c));
         $balance = P::strAll(DB::table('balance')
