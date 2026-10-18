@@ -134,6 +134,14 @@ return [
     // ค่าที่ debug_mail เดิมใช้ (false = ทำงานจริง)
     'debug_mail' => false,
 
+    // _profile/pin (method=verified): ผิดครบ max_attempts ครั้งใน decay_minutes นาที ต่อ (ผู้ใช้ + IP) = ล็อก
+    // และต่อผู้ใช้ทุก IP รวมกันครบ max_attempts_per_user = ล็อก (กันเปลี่ยน IP) — App\Domain\Users\PinThrottle
+    'pin_throttle' => [
+        'max_attempts' => (int) env('LEGACY_PIN_MAX_ATTEMPTS', 5),
+        'max_attempts_per_user' => (int) env('LEGACY_PIN_MAX_ATTEMPTS_PER_USER', 10),
+        'decay_minutes' => (int) env('LEGACY_PIN_DECAY_MINUTES', 15),
+    ],
+
     /*
     | สิทธิ์ "กำพร้า" (ไม่มี role ใดถือใน role_on_detail ของ DB จริง → เดิมไม่มีใครเข้าได้แม้แอดมิน)
     | Laravel ให้สิทธิ์นั้นเพิ่มแก่ผู้ที่ถือสิทธิ์จริงที่ใกล้ที่สุดของงานเดียวกัน — ไม่แก้แถว role/permission ใน DB
