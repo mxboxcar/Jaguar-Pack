@@ -176,7 +176,8 @@ class AdminExportController extends Controller
         $remark = $this->in($request, 'cancel_remark');
         $code = (string) (Legacy::user()->code ?? '');
         $done = DB::transaction(function () use ($uid, $id, $remark, $code) {
-            $data = DB::table('bill_payment')->where('id', $id)->lockForUpdate()->first();
+            // id ต้องเป็นตัวเลขล้วน (เดิม '5abc' ถูก MySQL แปลงเป็น 5)
+            $data = preg_match('/^[0-9]+$/', $id) === 1 ? DB::table('bill_payment')->where('id', $id)->lockForUpdate()->first() : null;
             if ($data === null || (string) $data->status !== '2') {
                 return null;
             }

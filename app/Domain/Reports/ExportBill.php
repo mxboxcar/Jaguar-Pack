@@ -190,7 +190,8 @@ final class ExportBill
     /** รายการ balance ที่อ้างถึงบิล (prefix payment/export) — ส่วน "ref_balance_list" ท้ายฟอร์ม */
     public static function balanceBox(mixed $id, bool $admin): string
     {
-        $rows = Rows::strAll(DB::table('balance')
+        // null = ไม่มีบิล (ไม่ต้อง query — ดู ExportController::form)
+        $rows = $id === null ? collect() : Rows::strAll(DB::table('balance')
             ->leftJoin('prefix', 'balance.prefix', '=', 'prefix.id')
             ->where(fn ($w) => $w->where('balance.prefix', Lookup::getPrefixID('payment'))->orWhere('balance.prefix', Lookup::getPrefixID('export')))
             ->where('balance.prefix_ref_id', $id)->where('balance.is_delete', 0)

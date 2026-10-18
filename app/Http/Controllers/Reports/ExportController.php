@@ -78,10 +78,13 @@ class ExportController extends Controller
             // เดิม getPermissionAlert_Page('payment') แล้ว exit
             return view('legacy.no-permission', ['module' => 'payment']);
         }
+        // /export/0 (ไม่มีบิล): เดิม query รายการด้วย payment_id = '0' และ balance ที่ prefix_ref_id = '0' โดยไม่กรองเจ้าของ
+        // → ลูกค้าเห็นพัสดุที่ยังไม่ออกบิล (bill_payment_detail.payment_id ค่าเริ่มต้น 0) และรายการเงินของลูกค้าทุกคน (IDOR)
+        // ที่นี่ไม่มีบิล = ไม่มีรายการ (หน้าว่างแบบเดิม)
+        $owned = $data !== null;
         $data ??= new \stdClass;
         $shipName = isset($data->shipping_type) ? DB::table('shipping_type')->where('id', $data->shipping_type)->value('name') : null;
-        // เดิม query รายการด้วย payment_id = '$id' แม้ไม่มีบิล (id 0) — ผลเท่ากัน
-        $details = ExportBill::details($id);
+        $details = $owned ? ExportBill::details($id) : collect();
 
         return view('reports.export.form', [
             'id' => $id,
@@ -90,7 +93,7 @@ class ExportController extends Controller
             'details' => $details,
             'totals' => ExportBill::totals($details),
             'rows' => ExportBill::trackingRows($details, false),
-            'balance' => ExportBill::balanceBox($id, false),
+            'balance' => ExportBill::balanceBox($owned ? $id : null, false),
             'prefix' => Rows::prefix('payment'),
         ]);
     }
@@ -105,7 +108,9 @@ class ExportController extends Controller
         $uid = Legacy::userId();
         $id = $this->in($request, 'id');
         $error = DB::transaction(function () use ($uid, $id) {
-            $data = DB::table('bill_payment')->where('id', $id)->where('user', $uid)->lockForUpdate()->first();
+            // ล็อกแถวผู้ใช้ก่อน (แบบกลุ่ม payment): 2 บิลที่ยืนยันพร้อมกันจะอ่านยอดเงินทีละรายการ ไม่ตัดเกินยอดคงเหลือ
+            DB::table('user')->where('id', $uid)->lockForUpdate()->value('id');
+            $data = self::ownBill($id, $uid);
             $total = $data->total ?? null;
             if (Php74::num(Format::numberformatforsubmit(Lookup::getCurrentCash())) < Php74::num(Format::numberformatforsubmit($total))) {
                 return Alerts::error('CloseLoading()', Lang::get('error_usingcash'));
@@ -143,7 +148,7 @@ class ExportController extends Controller
         $remark = $this->in($request, 'cancel_remark');
         $code = (string) (Legacy::user()->code ?? '');
         DB::transaction(function () use ($uid, $id, $remark, $code) {
-            $data = DB::table('bill_payment')->where('id', $id)->where('user', $uid)->lockForUpdate()->first();
+            $data = self::ownBill($id, $uid);
             if ($data === null || ! in_array((string) $data->status, ['0', '1'], true)) {
                 return;
             }
@@ -162,5 +167,17 @@ class ExportController extends Controller
         });
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('payment').'";', Lang::get('success_process_no').Rows::prefix('payment').Alerts::js($id)));
+    }
+
+    /**
+     * บิลของผู้ใช้ (lock แถว) — id ต้องเป็นตัวเลขล้วน (เดิม '5abc' / '5 OR …' ถูก MySQL แปลงเป็น 5 แล้วไปโดนบิล 5)
+     */
+    private static function ownBill(string $id, ?int $uid): ?object
+    {
+        if (preg_match('/^[0-9]+$/', $id) !== 1) {
+            return null;
+        }
+
+        return DB::table('bill_payment')->where('id', $id)->where('user', $uid)->lockForUpdate()->first();
     }
 }

@@ -113,6 +113,23 @@ class ReportsRoutesTest extends TestCase
         $this->assertFalse(Php74::eq(null, '-2'));
     }
 
+    /** id ที่ไม่ใช่ตัวเลขล้วน ('5abc', '5 OR 1=1', '5 ') ไม่ไปโดนบิล 5 (MySQL แปลง string เป็นตัวเลข) — ตอบ null ก่อนแตะ DB */
+    public function test_customer_bill_ids_must_be_digits(): void
+    {
+        $m = new \ReflectionMethod(\App\Http\Controllers\Reports\ExportController::class, 'ownBill');
+        foreach (['5abc', "5' OR '1'='1", '5 ', '', '-5', '5.0'] as $id) {
+            $this->assertNull($m->invoke(null, $id, 1), $id);
+        }
+    }
+
+    /** ไม่มีบิล (/export/0) = ไม่มีรายการเงิน (เดิมแสดง balance prefix_ref_id = 0 ของลูกค้าทุกคน) */
+    public function test_balance_box_without_bill_is_empty(): void
+    {
+        $html = \App\Domain\Reports\ExportBill::balanceBox(null, false);
+        $this->assertStringContainsString('colspan="3" class="text-center"', $html);
+        $this->assertStringNotContainsString('<tr><td>', $html);
+    }
+
     public function test_paging_offset_like_make_paging(): void
     {
         $this->assertSame(0, Rows::offset('1'));
