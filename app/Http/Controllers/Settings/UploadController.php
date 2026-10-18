@@ -56,7 +56,7 @@ class UploadController extends Controller
 
     /**
      * POST /system_upload_2 — แชท/ไฟล์ lot: รูป, PDF, Excel ตามนามสกุล ตอบ "<ชื่อใหม่>[NIDA]<ชื่อเดิม>"
-     * เดิมไม่ตรวจเนื้อไฟล์ (คงไว้ — ชนิด Excel ตรวจด้วย finfo ไม่แน่นอน) แต่ต้องล็อกอินและชื่อไฟล์ใหม่สุ่มเสมอ
+     * เดิมไม่ตรวจเนื้อไฟล์ → ที่นี่รูป/PDF ต้องเป็นของจริง (Excel ไม่ตรวจ — finfo ไม่แน่นอน), ต้องล็อกอิน, ชื่อไฟล์ใหม่สุ่มเสมอ
      */
     public function upload2(Request $request): Response
     {
@@ -65,6 +65,17 @@ class UploadController extends Controller
         $ext = pathinfo($orig, PATHINFO_EXTENSION);
         if (! in_array($ext, self::EXT_2, true)) {
             return $this->text('error: สกุล .png, .jpg, .jpeg, .pdf เท่านั้น');
+        }
+        // ตั้งใจต่างจากเดิม: นามสกุลรูป/PDF ต้องเป็นรูป/PDF จริง (เดิมไม่ตรวจเนื้อไฟล์ → ไฟล์ PHP/HTML ชื่อ .jpg ผ่าน)
+        // ชนิดจริงไม่ตรงนามสกุล (เช่น JPEG ชื่อ .png) ใช้นามสกุลตามชนิดจริงแบบ system_upload; Excel ไม่ตรวจ (finfo ไม่แน่นอน)
+        if ($file->getError() === UPLOAD_ERR_OK && ! in_array(strtolower($ext), ['xls', 'xlsx'], true)) {
+            $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($file->getPathname());
+            if (! is_string($mime) || ! isset(self::MIME_TO_EXT[$mime])) {
+                return $this->text('error: สกุล .png, .jpg, .jpeg, .pdf เท่านั้น');
+            }
+            if (self::MIME_TO_EXT[$mime] !== strtolower($ext) && ! ($mime === 'image/jpeg' && strtolower($ext) === 'jpeg')) {
+                $ext = self::MIME_TO_EXT[$mime];
+            }
         }
         $name = $file->getError() === UPLOAD_ERR_OK ? $this->store($file, $ext) : null;
         if ($name === null) {
