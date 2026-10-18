@@ -247,7 +247,8 @@ class AdminLotController extends Controller
                 ->orderBy('tracking.lot_id')->orderBy('tracking.no')
                 ->get(['tracking.*', 'user.code', 'product_type.name as product_type_name', 'lot.name as lot_name', 'lot.type as lot_type']);
         }
-        if ($rows->count() === 1) {
+        // เดิมทำเครื่องหมาย "ตรวจแล้ว" ให้ทุกคนที่เปิดได้ → ผู้ถือ admin_lot_view (ดูอย่างเดียว) เห็นผลค้นหาแต่ไม่เขียน is_checked
+        if ($rows->count() === 1 && perm('admin_lot')) {
             DB::table('tracking')->where('id', $rows[0]->id)->update(['is_checked' => '1', 'checked_by' => (int) \App\Support\Legacy\Legacy::userId()]);
         }
 

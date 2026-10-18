@@ -72,7 +72,7 @@ class AdminLotPrintController extends Controller
         return response(LotPrint::print($this->lotIds($request)));
     }
 
-    /** GET /_admin/_lot/print_all — สิทธิ์ admin_lot / admin_lot_view (ดาวน์โหลด .xls) */
+    /** GET /_admin/_lot/print_all — สิทธิ์ admin_lot / admin_lot_view (ดาวน์โหลด .xls; is_print เขียนเฉพาะ admin_lot) */
     public function printAll(Request $request): Response
     {
         if (self::crossSite($request)) {
@@ -80,7 +80,8 @@ class AdminLotPrintController extends Controller
         }
         $name = (string) LegacyInput::query($request, 'lot');
 
-        return response(LotPrint::printAll($this->lotIds($request)))
+        // admin_lot_view (ดูอย่างเดียว) ดาวน์โหลดได้ แต่ไม่ทำเครื่องหมาย is_print (เดิมเขียนให้ทุกคน)
+        return response(LotPrint::printAll($this->lotIds($request), perm('admin_lot')))
             ->header('Content-type', 'application/vnd.ms-excel')
             // เดิม filename=$id.xls ดิบ (header injection ได้) → ตัดเหลือตัวเลขและ ,
             ->header('Content-Disposition', 'attachment; filename='.preg_replace('/[^0-9,]/', '', $name).'.xls');
