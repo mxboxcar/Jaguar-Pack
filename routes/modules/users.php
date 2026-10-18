@@ -61,7 +61,7 @@ Route::middleware('legacy.auth')->group(function () {
         Route::post('/_admin/_user/btn_pinreset', [AdminUserController::class, 'btnPinReset']);
         Route::post('/_admin/_user/btn_unbanned', [AdminUserController::class, 'btnUnbanned']);
         // save เดิมตรวจรหัสผ่านมี & ก่อนตรวจสิทธิ์ → ตรวจสิทธิ์ใน controller ตามลำดับเดิม
-        Route::post('/_admin/_user/save', [AdminUserController::class, 'save']);
+        Route::post('/_admin/_user/save', [AdminUserController::class, 'save'])->middleware('legacy.once');
     });
 });
 Route::middleware('legacy.perm:admin_user,admin_user_view')->group(function () {
@@ -84,7 +84,7 @@ Route::middleware('legacy.perm:admin_user_type')->group(function () {
     Route::get('/admin/user_type/{id}', [AdminUserTypeController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_user_type_detail');
 
     Route::middleware('legacy.ajax')->group(function () {
-        Route::post('/_admin/_user_type/save', [AdminUserTypeController::class, 'save']);
+        Route::post('/_admin/_user_type/save', [AdminUserTypeController::class, 'save'])->middleware('legacy.once');
         Route::post('/_admin/_user_type/delete', [AdminUserTypeController::class, 'delete']);
     });
 });
@@ -99,7 +99,7 @@ Route::middleware('legacy.perm:admin_role')->group(function () {
     Route::get('/admin/role/{id}', [AdminRoleController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_role_detail');
 
     Route::middleware('legacy.ajax')->group(function () {
-        Route::post('/_admin/_role/save', [AdminRoleController::class, 'save']);
+        Route::post('/_admin/_role/save', [AdminRoleController::class, 'save'])->middleware('legacy.once');
         Route::post('/_admin/_role/delete', [AdminRoleController::class, 'delete']);
     });
 });

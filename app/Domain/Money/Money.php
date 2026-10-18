@@ -22,6 +22,8 @@ final class Money
     /** ข้อความเมื่อยอดเงินมี , ที่ไม่ใช่ตัวคั่นหลักพัน (ambiguousComma) */
     public const BAD_AMOUNT = 'กรุณาระบุจำนวนเงินให้ถูกต้อง (ใช้ , คั่นหลักพันเท่านั้น เช่น 1,000.50)';
 
+    public const BAD_ADMIN_AMOUNT = 'จำนวนเงินไม่ถูกต้อง (ตัวเลขเท่านั้น ทศนิยมไม่เกิน 2 ตำแหน่ง ใช้ , คั่นหลักพันได้ เช่น -1,000.50)';
+
     /** สถานะเป็นค่าใดค่าหนึ่งใน $allowed (เทียบแบบตัวเลขของ DB: '1' / 1) */
     public static function statusIn(mixed $status, array $allowed): bool
     {
@@ -79,6 +81,25 @@ final class Money
         $a = str_replace(',', '', trim($amount));
 
         return preg_match('/^[0-9]+(\.[0-9]{1,2})?$/', $a) === 1 && (float) $a > 0;
+    }
+
+    /**
+     * ยอดที่แอดมินพิมพ์ใน _admin/_balance{,_cn,_company}/save_amount (บวก = เพิ่ม, ลบ = หัก) → string ที่ลง decimal(20,2) ได้ตรงตัว หรือ null = ไม่ถูกต้อง
+     * เดิมลง DB ดิบ (MySQL non-strict): "1,000" → 1.00, "abc"/"" → 0.00, ตัวเลขยาวเกิน → 999999999999999999.99 (แก้แถวเดิม = ยอดหายเงียบๆ)
+     * ช่องว่างหน้า/หลังตัดทิ้ง (JS เดิมไม่ encode: "+500" มาถึงเป็น " 500")
+     */
+    public static function adminAmount(string $amount): ?string
+    {
+        $a = trim($amount);
+        if (self::ambiguousComma($a)) {
+            return null;
+        }
+        $a = str_replace(',', '', $a);
+        if (preg_match('/^([+-]?)([0-9]{1,18})(\.[0-9]{1,2})?$/', $a, $m) !== 1) {
+            return null;
+        }
+
+        return ($m[1] === '-' ? '-' : '').$m[2].($m[3] ?? '');
     }
 
     /**

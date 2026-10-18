@@ -66,6 +66,18 @@ class MoneyRulesTest extends TestCase
         $this->assertSame(['cny' => 0.0, 'thb' => 0.0, 'charge' => 0.0], TaobaoRefund::forCancel(-50, -10, 5, -100, -100));
     }
 
+    public function test_admin_amount_accepts_only_plain_money(): void
+    {
+        foreach (['1000' => '1000', '1,000' => '1000', ' 500' => '500', '+25' => '25', '-20.5' => '-20.5', '-1,000.50' => '-1000.50',
+            '0' => '0', '999999999999999999.99' => '999999999999999999.99'] as $in => $out) {
+            $this->assertSame($out, Money::adminAmount((string) $in), (string) $in);
+        }
+        // เดิม MySQL non-strict: "abc"/"" → 0.00, "1,00" → 1.00, ยาวเกิน → 999999999999999999.99
+        foreach (['', 'abc', '1,00', '1.234', '1e3', '--5', '99999999999999999999', '1 000', '.5', '0x10', '5-'] as $bad) {
+            $this->assertNull(Money::adminAmount($bad), $bad);
+        }
+    }
+
     public function test_refuse_is_legacy_error_box(): void
     {
         $this->assertSame("ErrorBox('x', 'CloseLoading()');", Money::refuse('x'));

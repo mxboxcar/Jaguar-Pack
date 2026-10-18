@@ -94,8 +94,8 @@ Route::middleware('legacy.perm:admin_mall')->group(function () {
         Route::post('/_admin/_mall/load_detail', [MallAdminController::class, 'loadDetail']);
         Route::post('/_admin/_mall/load_sizecolor', [MallAdminController::class, 'loadSizeColor']);
         Route::post('/_admin/_mall/load_stock', [MallAdminController::class, 'loadStock']);
-        Route::post('/_admin/_mall/save', [MallAdminController::class, 'save']);
-        Route::post('/_admin/_mall/save_sizecolor', [MallAdminController::class, 'saveSizeColor']);
+        Route::post('/_admin/_mall/save', [MallAdminController::class, 'save'])->middleware('legacy.once');
+        Route::post('/_admin/_mall/save_sizecolor', [MallAdminController::class, 'saveSizeColor'])->middleware('legacy.once');
         Route::post('/_admin/_mall/save_delsizecolor', [MallAdminController::class, 'saveDelSizeColor']);
         Route::post('/_admin/_mall/save_isshow', [MallAdminController::class, 'saveIsShow']);
     });
@@ -109,7 +109,7 @@ Route::post('/_admin/_mall/delete', [MallAdminController::class, 'delete'])->mid
 Route::middleware('legacy.perm:admin_mall_category')->group(function () {
     Route::get('/admin/mall_category', [MallCategoryController::class, 'index'])->defaults('legacy_page', 'admin_mall_category');
     Route::post('/_admin/_mall_category/grid', [MallCategoryController::class, 'grid'])->middleware('legacy.ajax');
-    Route::post('/_admin/_mall_category/save', [MallCategoryController::class, 'save'])->middleware('legacy.ajax');
+    Route::post('/_admin/_mall_category/save', [MallCategoryController::class, 'save'])->middleware(['legacy.ajax', 'legacy.once']);
 });
 Route::middleware('legacy.perm:admin_user_type')->group(function () {
     Route::get('/admin/mall_category/create', [MallCategoryController::class, 'form'])->defaults('legacy_page', 'admin_mall_category_detail');

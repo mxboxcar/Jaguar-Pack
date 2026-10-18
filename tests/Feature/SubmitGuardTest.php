@@ -33,6 +33,10 @@ class SubmitGuardTest extends TestCase
         '_admin/_tracking/save' => 'legacy.once', '_admin/_goodsconfirm/save' => 'legacy.once',
         '_admin/_lot/save_new_lot' => 'legacy.once:lock', '_admin/_warehouse/save_new_warehouse' => 'legacy.once:lock',
         '_admin/_order/save_add_new_track' => 'legacy.once:lock,html',
+        // E2E admin writes (2026-10-18): สร้างรายการซ้ำเมื่อดับเบิลคลิก (ผู้ใช้ username ซ้ำ, role/กลุ่มราคา/สินค้า/สี-ขนาด/ชั้นวางซ้ำ)
+        '_admin/_user/save' => 'legacy.once', '_admin/_role/save' => 'legacy.once', '_admin/_user_type/save' => 'legacy.once',
+        '_admin/_mall/save' => 'legacy.once', '_admin/_mall/save_sizecolor' => 'legacy.once',
+        '_admin/_mall_category/save' => 'legacy.once', '_admin/_warehouse_section/save' => 'legacy.once',
     ];
 
     protected function setUp(): void
@@ -51,6 +55,13 @@ class SubmitGuardTest extends TestCase
             $names = array_values(array_filter($route->gatherMiddleware(), 'is_string'));
             $this->assertSame($mw, end($names), "$uri: legacy.once ต้องเป็น middleware สุดท้าย");
         }
+    }
+
+    public function test_shelf_allocation_get_is_locked(): void
+    {
+        $route = Route::getRoutes()->match(Request::create('/_admin/_warehouse/save_lot_detail', 'GET'));
+        $names = array_values(array_filter($route->gatherMiddleware(), 'is_string'));
+        $this->assertSame('legacy.once:lock', end($names));
     }
 
     private function guarded(string $hash, string $body, bool $window = true, ?int &$calls = null): string

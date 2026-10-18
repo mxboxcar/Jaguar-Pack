@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Balance\Admin;
 
 use App\Domain\Balance\Ledger;
 use App\Domain\Balance\Php74;
+use App\Domain\Money\Money;
 use App\Http\Controllers\Controller;
 use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
@@ -124,6 +125,11 @@ class AdminBalanceController extends Controller
         $userId = DB::table('user')->where('code', Ledger::in($request, 'code'))->value('id');
         if ($userId === null) {
             return response("ErrorBox('".Lang::get('no_user')."', 'CloseLoading()'); ");
+        }
+        // แก้: เดิมลงยอดดิบ ("1,000" = 1.00, "abc" = 0.00, แก้แถวเดิมด้วยค่าผิด = ยอดหาย) → ตัวเลขเท่านั้น (ดู Money::adminAmount)
+        $amount = Money::adminAmount($amount);
+        if ($amount === null) {
+            return response(Money::refuse(Money::BAD_ADMIN_AMOUNT));
         }
         $uid = Legacy::userId();
         if ($id === '') {

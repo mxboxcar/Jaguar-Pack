@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
  * ลำดับและเงื่อนไขเหมือนเดิมทุกขั้น (รวม bug ที่มีผลต่อข้อมูล) ยกเว้นที่ระบุว่า "แก้":
  *  1. ชั้นวางทั้งหมด (is_delete = 0, name != 'zzz') เรียงตาม floors
  *  2. tracking ของล็อตที่เลือก ("a.ct IS NULL" เดิมเทียบ id ของ warehouse_section_detail แถวแรกกับ tracking.id
- *     = ตัดออกได้อย่างมาก 1 แถว — คง query เดิมไว้) รวม cubic/น้ำหนัก ต่อ "user-user_agent" (ไม่มีคอลัมน์ user_agent → "user-")
+ *     = ตัดออกได้อย่างมาก 1 แถว — แก้แล้ว: ข้าม tracking ที่มีแถวชั้นวางอยู่แล้ว) รวม cubic/น้ำหนัก ต่อ "user-user_agent" (ไม่มีคอลัมน์ user_agent → "user-")
  *  3. tracking ของผู้ใช้ code 'nobody' (เดิมเป็นค่าคงที่ที่ไม่ได้ define = string 'nobody'; ไม่มีผู้ใช้นี้ → ตรงกับ user NULL) → ชั้น 2
  *  4. ต่อลูกค้า: cubic >= 0.7 หรือ น้ำหนัก >= 50 → ชั้น 1, ไม่งั้นหาชั้นแรกที่ที่ว่างพอ (กติกา 10/17 รหัสต่อชั้น,
  *     ชั้นที่ชื่อลงท้าย 3/4 ไม่รับของ >= 15 kg)
@@ -23,7 +23,8 @@ use Illuminate\Support\Facades\DB;
  *  - เดิม getSpace()/getCountCode() = 2 query ต่อ (ลูกค้า × ชั้น) → โหลดครั้งเดียว แล้วอัปเดตในหน่วยความจำทุกครั้งที่ INSERT (ผลเท่ากัน)
  *  - prints (GET) เดิมต่อลง IN (...) ตรงๆ (SQL injection) → รับเฉพาะจำนวนเต็ม/null; ค่าอื่น = เดิม SQL error ทุก query ที่มี IN
  *  - แก้: "UPDATE warehouse_detail SET is_delete = 1 WHERE id = <warehouse id>" เดิมลบแถวของใบรับเข้าอื่นที่ id บังเอิญตรงกัน
- *    → จำกัดให้แตะเฉพาะแถวของใบรับเข้านี้ (warehouse_id = id)
+ *    → ล้างแถวของใบรับเข้านี้ (warehouse_id = id) ก่อนบันทึกชุดล็อตที่เลือก
+ *  - แก้ (E2E 2026-10-18): กดคำนวณซ้ำ = แถวชั้นวาง/ล็อตซ้ำ → ข้าม tracking ที่จัดชั้นแล้ว + route ใช้ legacy.once:lock
  *  - ทั้งหมดอยู่ใน transaction เดียว
  */
 final class ShelfAllocator
@@ -86,12 +87,16 @@ final class ShelfAllocator
         $dataB = [];
         if ($ids !== null) {
             $in = implode(',', array_fill(0, count($ids), '?'));
-            $base = "SELECT tracking.*, a.ct FROM tracking
-                LEFT JOIN (SELECT id AS ct FROM warehouse_section_detail AS t2 WHERE t2.is_delete = 0 LIMIT 1) AS a ON a.ct = tracking.id
-                WHERE lot_id IN ($in)";
-            $dataA = array_map(fn ($r) => W::strings($r), DB::select($base.' AND a.ct IS NULL', $ids));
+            // แก้: เดิม "LEFT JOIN (SELECT id AS ct FROM warehouse_section_detail ... LIMIT 1) ON a.ct = tracking.id WHERE a.ct IS NULL"
+            //      ตั้งใจข้าม tracking ที่จัดชั้นแล้ว แต่เทียบ id ของแถวแรกกับ tracking.id → ไม่ข้ามอะไรเลย
+            //      = กดคำนวณซ้ำ/ดับเบิลคลิก INSERT warehouse_section_detail ซ้ำทุก tracking (E2E: 3 tracking → 9 แถว)
+            //      → ข้าม tracking ที่มีแถวชั้นวาง (is_delete = 0) อยู่แล้ว (ยกเลิกการคำนวณ = is_delete 1 → คำนวณใหม่ได้)
+            $base = "SELECT tracking.*, NULL AS ct FROM tracking
+                WHERE lot_id IN ($in)
+                AND NOT EXISTS (SELECT 1 FROM warehouse_section_detail AS t2 WHERE t2.tracking_id = tracking.id AND t2.is_delete = 0)";
+            $dataA = array_map(fn ($r) => W::strings($r), DB::select($base, $ids));
             // เดิม: `user` != '<id ของ nobody>' — ไม่มี nobody → != '' (= != 0)
-            $dataB = array_map(fn ($r) => W::strings($r), DB::select($base.' AND `user` != ? AND a.ct IS NULL', [...$ids, $nobody ?? '']));
+            $dataB = array_map(fn ($r) => W::strings($r), DB::select($base.' AND `user` != ?', [...$ids, $nobody ?? '']));
         }
 
         $key = fn (array $r) => ($r['user'] ?? '').'-'.($r['user_agent'] ?? '');
@@ -197,9 +202,13 @@ final class ShelfAllocator
             ));
         }
 
-        // แก้: เดิม WHERE id = '<warehouse id>' (ผิดคอลัมน์ → ลบแถวของใบรับเข้าอื่น)
-        DB::table('warehouse_detail')->where('id', $this->warehouseId)->where('warehouse_id', $this->warehouseId)
-            ->update(['is_delete' => '1']);
+        // แก้: เดิม WHERE id = '<warehouse id>' (ผิดคอลัมน์ → ลบแถวของใบรับเข้าอื่น) — ตั้งใจล้างรายการล็อตเดิมของใบนี้
+        //      แล้วบันทึกชุดที่เลือก (หน้า form โหลดล็อตที่บันทึกแล้วใส่ช่องที่เลือกไว้ให้ = ส่งมาครบทุกครั้ง)
+        //      → ล้างแถวของใบรับเข้านี้ (warehouse_id = id) ไม่งั้นกดซ้ำ = warehouse_detail ซ้ำทุกล็อต; id 0 (ไม่ส่ง id) ไม่ล้าง
+        if ($this->warehouseId > 0) {
+            DB::table('warehouse_detail')->where('warehouse_id', $this->warehouseId)->where('is_delete', 0)
+                ->update(['is_delete' => '1']);
+        }
 
         if ($ids !== null) {
             $lots = DB::table('lot')->whereIn('id', array_values(array_filter($ids, fn ($v) => $v !== null)))->orderBy('id')->get(['id', 'name']);

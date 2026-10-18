@@ -176,3 +176,10 @@ ajax / form post (ทุกตัว `legacy.ajax` = system_check_ajax เดิ
 - `Php74`, `UploadBox` เป็นสำเนาจากกลุ่ม tracking (namespace ของกลุ่มตัวเอง) — ควรย้ายเป็นของกลางทีเดียวตอน merge
 - commit `foundation: keep raw POST values` = cherry-pick ตัวเดียวกับของ mod/tracking (ไม่มีการแก้ฐานร่วมอื่น)
 - `PinBox::guard()` = ด่าน PIN ตัวเดียวของทุกกลุ่ม (ตอนนี้ `_point/save_withdraw`, `_admin/_user/btn_*`; สำเนาใน Points/Users ลบแล้ว) + PinThrottle ตัวนับเดียวกับ `_profile/pin` (ผิด 5/15 นาที ต่อผู้ใช้+IP, 10 ต่อผู้ใช้; ถูก = ล้าง)
+
+## 7. E2E admin write-flow (2026-10-18, fix/admin-writes)
+
+- `_admin/_payment/save_new_sender` (สิทธิ์ `admin_change_sender` ได้จาก fallback ← `admin_payment`): เดิมแก้ได้ทุกสถานะ → บิลที่ยกเลิกแล้ว (คืนเงินตามยอดเดิมไปแล้ว)
+  ถูกแก้แถวตัดเงินตามยอดใหม่ = ยอดเงินลูกค้าเปลี่ยนโดยไม่มีที่มา (E2E: ยกเลิกคืน 500 แล้วเปลี่ยนเป็น EMS → แถวตัดเงิน -610, ลูกค้าเสีย 110)
+  → บิลที่ยกเลิกแล้ว `ErrorBox('บิลนี้ถูกยกเลิกแล้ว ...')`, ไม่พบบิล `ErrorBox(no_data)` ไม่แก้อะไร (เหมือน `save_vat`) · test: tests/Feature/Money/AdminWritesDbTest.php (JL_BENCH_DB_TESTS=1)
+- ยังเหมือนเดิม (แจ้งไว้): เปลี่ยนประเภทการส่งเป็นแบบที่แพงขึ้นไม่ตรวจยอดเงินคงเหลือ (ยอดลูกค้าติดลบได้); `save_create` ซ้ำกับ tracking ที่อยู่ในบิลแล้ว = สร้าง temp แต่ `save_submit_payment` ตอบ "ถูกดำเนินการไปแล้ว" ไม่สร้างบิล
