@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Balance;
 
 use App\Domain\Balance\Ledger;
 use App\Domain\Balance\Withdraw;
+use App\Domain\Money\Money;
 use App\Http\Controllers\Controller;
 use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
@@ -96,8 +97,11 @@ class BalanceController extends Controller
             return response('');
         }
         $uid = Legacy::userId();
-        $wantPhp = Withdraw::cleanAmount(Ledger::php($request, 'wantcash'));
-        $wantSql = Withdraw::cleanAmount(Ledger::in($request, 'wantcash'));
+        $wantPhp = Withdraw::amount(Ledger::php($request, 'wantcash'));
+        $wantSql = Withdraw::amount(Ledger::in($request, 'wantcash'));
+        if ($wantPhp === null || $wantSql === null) {
+            return response(Alerts::error('CloseLoading()', Money::BAD_AMOUNT));
+        }
         $bank = [Ledger::in($request, 'bank_no'), Ledger::in($request, 'branch_bank'), Ledger::in($request, 'branch_name')];
 
         // บัญชีดำมิจฉาชีพ — เทียบชื่อ+นามสกุลตรงทั้งคู่

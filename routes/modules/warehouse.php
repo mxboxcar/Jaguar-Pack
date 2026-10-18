@@ -40,7 +40,7 @@ Route::middleware(['legacy.ajax', 'legacy.perm:admin_goodsconfirm'])->group(func
     Route::post('/_admin/_goodsconfirm/cancel', [AdminGoodsconfirmController::class, 'cancel']);
     Route::post('/_admin/_goodsconfirm/load_tracking', [AdminGoodsconfirmController::class, 'loadTracking']);
     Route::post('/_admin/_goodsconfirm/load_upload', [AdminGoodsconfirmController::class, 'loadUpload']);
-    Route::post('/_admin/_goodsconfirm/save', [AdminGoodsconfirmController::class, 'save']);
+    Route::post('/_admin/_goodsconfirm/save', [AdminGoodsconfirmController::class, 'save'])->middleware('legacy.once');
     Route::post('/_admin/_goodsconfirm/save_approved', [AdminGoodsconfirmController::class, 'saveApproved']);
     Route::post('/_admin/_goodsconfirm/save_image', [AdminGoodsconfirmController::class, 'saveImage']);
     Route::post('/_admin/_goodsconfirm/save_unapproved', [AdminGoodsconfirmController::class, 'saveUnapproved']);
@@ -64,7 +64,7 @@ Route::middleware(['legacy.ajax', 'legacy.perm:admin_warehouse'])->group(functio
     Route::post('/_admin/_warehouse/load_tracking_edit', [WarehouseController::class, 'loadTrackingEdit']);
     Route::post('/_admin/_warehouse/save_cancel_warehouse_calculate', [WarehouseController::class, 'saveCancelWarehouseCalculate']);
     Route::post('/_admin/_warehouse/save_editshelf', [WarehouseController::class, 'saveEditShelf']);
-    Route::post('/_admin/_warehouse/save_new_warehouse', [WarehouseController::class, 'saveNewWarehouse']);
+    Route::post('/_admin/_warehouse/save_new_warehouse', [WarehouseController::class, 'saveNewWarehouse'])->middleware('legacy.once:lock');
     Route::post('/_admin/_warehouse/save_push_track', [WarehouseController::class, 'savePushTrack']);
     Route::post('/_admin/_warehouse/save_track_weight', [WarehouseController::class, 'saveTrackWeight']);
     // JS เดิม (go_loadDetail) เรียกด้วย GET — เขียนข้อมูล จึงบังคับ X-Requested-With (legacy.ajax) แทนการตรวจ Origin

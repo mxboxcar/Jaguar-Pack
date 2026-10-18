@@ -28,7 +28,7 @@ Route::middleware(['legacy.auth', 'legacy.ajax'])->group(function () {
     Route::post('/_order/grid', [OrderController::class, 'grid']);
     Route::post('/_order/load_paging', [OrderController::class, 'loadPaging']);
     Route::post('/_order/load_total_order', [OrderController::class, 'loadTotalOrder']);
-    Route::post('/_order/save_payment', [OrderController::class, 'savePayment']);
+    Route::post('/_order/save_payment', [OrderController::class, 'savePayment'])->middleware('legacy.once');
     Route::post('/_order/save_quote', [OrderController::class, 'saveQuote']);
     Route::post('/_order/save_quote_tracking', [OrderController::class, 'saveQuoteTracking']);
     Route::post('/_order/save_remark', [OrderController::class, 'saveRemark']);
@@ -78,7 +78,7 @@ Route::middleware('legacy.perm:admin_order')->group(function () {
         Route::post('/_admin/_order/save_tracking', [AdminOrderDetailController::class, 'saveTracking']);
         Route::post('/_admin/_order/save_quote', [AdminOrderDetailController::class, 'saveQuote']);
         Route::post('/_admin/_order/save_valid_track', [AdminOrderDetailController::class, 'saveValidTrack']);
-        Route::post('/_admin/_order/save_add_new_track', [AdminOrderDetailController::class, 'saveAddNewTrack']);
+        Route::post('/_admin/_order/save_add_new_track', [AdminOrderDetailController::class, 'saveAddNewTrack'])->middleware('legacy.once:lock,html');
         Route::post('/_admin/_order/save_remove_track', [AdminOrderDetailController::class, 'saveRemoveTrack']);
     });
     // ไฟล์อีเมลเดิมเรียกตรงได้โดยไม่ตรวจอะไร แต่ไม่มีค่า $email_id → ไม่ส่งอะไรที่ใช้ได้; ตัวส่งจริงเรียกจาก save_* ภายใน

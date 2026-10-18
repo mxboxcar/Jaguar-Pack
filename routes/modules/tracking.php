@@ -24,7 +24,7 @@ Route::middleware('legacy.perm:tracking')->group(function () {
 
     Route::middleware('legacy.ajax')->group(function () {
         Route::post('/_tracking/delete', [TrackingController::class, 'delete']);
-        Route::post('/_tracking/save', [TrackingController::class, 'save']);
+        Route::post('/_tracking/save', [TrackingController::class, 'save'])->middleware('legacy.once');
     });
 });
 Route::middleware(['legacy.auth', 'legacy.ajax'])->group(function () {
@@ -45,7 +45,7 @@ Route::middleware('legacy.perm:admin_tracking')->group(function () {
     Route::middleware('legacy.ajax')->group(function () {
         Route::post('/_admin/_tracking/load_paging', [AdminTrackingController::class, 'loadPaging']);
         Route::post('/_admin/_tracking/delete', [AdminTrackingController::class, 'delete']);
-        Route::post('/_admin/_tracking/save', [AdminTrackingController::class, 'save']);
+        Route::post('/_admin/_tracking/save', [AdminTrackingController::class, 'save'])->middleware('legacy.once');
         // ไฟล์เดิม 3 ตัวนี้ไม่ตรวจสิทธิ์เลย → ใช้สิทธิ์ของหน้าแม่ (admin_tracking)
         Route::post('/_admin/_tracking/save_lock', [AdminTrackingController::class, 'saveLock']);
         Route::post('/_admin/_tracking/load_pricing', [AdminTrackingController::class, 'loadPricing']);
@@ -76,7 +76,7 @@ Route::middleware('legacy.perm:lost_package')->group(function () {
         Route::post('/_lost_package/cancel', [LostPackageController::class, 'cancel']);
         Route::post('/_lost_package/load_order_number', [LostPackageController::class, 'loadOrderNumber']);
         Route::post('/_lost_package/load_upload', [LostPackageController::class, 'loadUpload']);
-        Route::post('/_lost_package/save', [LostPackageController::class, 'save']);
+        Route::post('/_lost_package/save', [LostPackageController::class, 'save'])->middleware('legacy.once');
         // save_image เดิมไม่ตรวจสิทธิ์ → lost_package
         Route::post('/_lost_package/save_image', [LostPackageController::class, 'saveImage']);
     });

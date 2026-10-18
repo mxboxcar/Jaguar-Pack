@@ -2,6 +2,7 @@
 
 namespace App\Domain\Balance;
 
+use App\Domain\Money\Money;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Lookup;
 use Closure;
@@ -19,6 +20,20 @@ final class Withdraw
     public static function cleanAmount(string $v): string
     {
         return str_replace(['-', ' ', "\t"], '', $v);
+    }
+
+    /**
+     * cleanAmount() + ตัวคั่นหลักพัน: "1,000.50" → "1000.50", มี , แบบอื่น ("1,00") → null (ปฏิเสธ)
+     * เดิม "1,00" ลง DB เป็น 1.00 เงียบๆ (MySQL ตัดที่ ,) และ "1,000" = 1.00 ด้วย — ช่องนี้ JS เดิมเติมยอดดิบไม่มี ,
+     */
+    public static function amount(string $v): ?string
+    {
+        $v = self::cleanAmount($v);
+        if (Money::ambiguousComma($v)) {
+            return null;
+        }
+
+        return str_replace(',', '', $v);
     }
 
     /**

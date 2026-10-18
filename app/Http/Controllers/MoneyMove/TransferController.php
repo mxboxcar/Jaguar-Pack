@@ -93,7 +93,12 @@ class TransferController extends Controller
      */
     public function save(Request $request): Response
     {
-        $total = str_replace(',', '', str_replace('-', '', $this->in($request, 'total')));
+        $total = str_replace('-', '', $this->in($request, 'total'));
+        // เดิม str_replace(',', '') → "1,00" = 100 — รับ , เฉพาะตัวคั่นหลักพัน
+        if (Money::ambiguousComma($total)) {
+            return response(Alerts::error('CloseLoading()', Money::BAD_AMOUNT));
+        }
+        $total = str_replace(',', '', $total);
         $rate = Lookup::getSetting('rate_transfer');
         $usecash = Php74::num($total) * Php74::num($rate);
         $cash = Php74::str($usecash);

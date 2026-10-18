@@ -99,7 +99,7 @@ class AdminWithdrawPointController extends Controller
             // เดิมไม่ตรวจสถานะ: ยกเลิกซ้ำ = คืนแต้มซ้ำทุกครั้ง, ยกเลิกรายการที่อนุมัติแล้ว = ได้ทั้งเงินและแต้มคืน,
             // id ที่ไม่มีจริง = INSERT balance_point user ว่าง → ทำเฉพาะรายการที่รออนุมัติ (ปุ่มยกเลิกเดิมแสดงเฉพาะ status 1)
             if ($row === null || ! Php74::eq($row->status, 1)) {
-                return;
+                return false;
             }
             DB::table('point')->where('id', $row->id)->update([
                 'status' => '-1', 'cancel_remark' => $remark, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
@@ -122,12 +122,16 @@ class AdminWithdrawPointController extends Controller
         $id = Grid::in($request, 'id');
         $uid = Legacy::userId();
 
-        DB::transaction(function () use ($id, $uid) {
+        $cancelled = DB::transaction(function () use ($id, $uid) {
             $row = DB::table('point')->where('id', $id)->lockForUpdate()->first();
+            // เดิม (และก่อนแก้นี้) ตอบ "สำเร็จ" แม้รายการถูกยกเลิกไปแล้ว → แจ้ง error
+            if ($row !== null && Php74::eq($row->status, -1)) {
+                return true;
+            }
             // เดิม: if(status != 2) → อนุมัติได้แม้ถูกยกเลิกแล้ว (ได้แต้มคืน + เงิน) และ id ที่ไม่มีจริงก็ INSERT balance
             // → อนุมัติเฉพาะรายการที่รออนุมัติ (ปุ่มอนุมัติเดิมแสดงเฉพาะ status 1)
             if ($row === null || ! Php74::eq($row->status, 1)) {
-                return;
+                return false;
             }
             DB::table('point')->where('id', $row->id)->update(['status' => '2', 'approved_date' => DB::raw('NOW()')]);
             DB::table('balance')->insert([
@@ -136,7 +140,12 @@ class AdminWithdrawPointController extends Controller
                 'detail' => 'แลกแต้ม รายการแลกแต้ม '.Grid::prefixText('withdrawpoint').$row->id,
                 'type' => 1, 'prefix' => Grid::prefixId('withdrawpoint'), 'prefix_ref_id' => $row->id,
             ]);
+
+            return false;
         });
+        if ($cancelled) {
+            return response(Alerts::error('CloseLoading()', 'รายการนี้ถูกยกเลิกไปแล้ว ไม่สามารถอนุมัติได้'));
+        }
         // เดิม include_once('email_approved.php') — ไม่มีไฟล์นี้ใน _admin/_withdrawpoint = ไม่มีอีเมล
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/withdrawpoint').'";',

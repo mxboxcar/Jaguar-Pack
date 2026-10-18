@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Balance;
 
 use App\Domain\Balance\Ledger;
 use App\Domain\Balance\Withdraw;
+use App\Domain\Money\Money;
 use App\Http\Controllers\Controller;
 use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
@@ -88,8 +89,11 @@ class BalanceCnController extends Controller
             return response('');
         }
         $uid = Legacy::userId();
-        $wantPhp = Withdraw::cleanAmount(Ledger::php($request, 'wantcash'));
-        $wantSql = Withdraw::cleanAmount(Ledger::in($request, 'wantcash'));
+        $wantPhp = Withdraw::amount(Ledger::php($request, 'wantcash'));
+        $wantSql = Withdraw::amount(Ledger::in($request, 'wantcash'));
+        if ($wantPhp === null || $wantSql === null) {
+            return response(Alerts::error('CloseLoading()', Money::BAD_AMOUNT));
+        }
 
         // เดิม $bank_no/$branch_bank/$branch_name ไม่ได้กำหนดในไฟล์นี้ → '' (เว้นแต่ส่งมาทาง GET ผ่าน extract($_GET) — ไม่เลียนแบบ)
         $ok = Withdraw::submit($uid, $wantPhp, $wantSql, fn () => Withdraw::currentCashCn($uid), ['', '', ''],

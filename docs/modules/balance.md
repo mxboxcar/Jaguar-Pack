@@ -74,6 +74,9 @@ grid ทั้ง 5 (หน้า 1–3, ค้นหาด้วยรหัส
 
 ## ต่างจากเดิมโดยตั้งใจ
 
+- **กันกดซ้ำ/ส่งซ้อน (double submit)** (เจ้าของอนุมัติ 2026-10-18, E2E: ดับเบิลคลิก `_taobao/save` = 2 รายการ ตัดเงิน 2 ครั้ง — เว็บเดิมก็เป็น): middleware `legacy.once` (`App\Support\SubmitGuard`) — lock ต่อ ผู้ใช้+route ระหว่างประมวลผล (คำขอที่ซ้อนได้ `ErrorBox('รายการนี้กำลังดำเนินการ กรุณารอสักครู่')`) + payload เดิมที่สำเร็จแล้วภายใน 8 วินาทีได้ `ErrorBox('รายการนี้ถูกส่งไปแล้ว (ส่งซ้ำ) ...')` (คำตอบ error/กล่อง PIN ไม่ถูกจำ ส่งใหม่ได้ทันที): `_balance/save_withdraw`, `_balance_cn/save_withdraw`, `_admin/_balance*/save_amount` (3 ตัว) · test: `tests/Feature/SubmitGuardTest.php`, `tests/Feature/Money/DoubleSubmitDbTest.php` (JL_BENCH_DB_TESTS=1)
+  - ชั้นนี้กันรายการซ้ำ; การกันยอดติดลบเมื่อคำขอต่างกันมาพร้อมกันยังเป็น transaction + `SELECT … FOR UPDATE` แถว user แล้วตรวจยอดภายใน (ทุก endpoint ตัดเงินตอนสร้าง)
+- `save_withdraw` (บาท/หยวน): ยอดที่มี `,` แบบกำกวม (`1,00`) → `ErrorBox` (เดิม MySQL ตัดที่ `,` = บันทึก 1.00 เงียบๆ); ตัวคั่นหลักพัน `1,000.50` → 1000.50 (เดิมได้ 1.00) — JS เดิมเติมยอดดิบไม่มี `,` (`Withdraw::amount`)
 - ค่าจาก DB/ผู้ใช้ escape ทั้งหมด (`detail`, ชื่อประเภท, รหัสลูกค้า, คำค้นใน `value=`) — เดิม echo ดิบ (stored/reflected XSS); `'` ในคำค้นแสดงเป็น `&#039;`
 - `$_POST['page']` ที่เดิมฝังลง JS (`fn_public = "...'<page>'..."`) ผ่าน `Alerts::js()` + `e()`
 - LIKE ของ grid ลูกค้า/แอดมินหยวน/บริษัท escape `%` `_` (CONVENTIONS ข้อ 4) — เดิม `%`/`_` ที่ผู้ใช้พิมพ์เป็น wildcard

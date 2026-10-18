@@ -90,6 +90,8 @@ POST ทุกตัว (ยกเว้น `_lot/_message/*`) มี `legacy.aj
 
 ## ต่างจากเดิมโดยตั้งใจ
 
+- **กันกดซ้ำ/ส่งซ้อน (double submit)** (เจ้าของอนุมัติ 2026-10-18, E2E: ดับเบิลคลิก `_taobao/save` = 2 รายการ ตัดเงิน 2 ครั้ง — เว็บเดิมก็เป็น): middleware `legacy.once` (`App\Support\SubmitGuard`) — lock ต่อ ผู้ใช้+route ระหว่างประมวลผล (คำขอที่ซ้อนได้ `ErrorBox('รายการนี้กำลังดำเนินการ กรุณารอสักครู่')`) + payload เดิมที่สำเร็จแล้วภายใน 8 วินาทีได้ `ErrorBox('รายการนี้ถูกส่งไปแล้ว (ส่งซ้ำ) ...')` (คำตอบ error/กล่อง PIN ไม่ถูกจำ ส่งใหม่ได้ทันที): `_admin/_lot/save_new_lot` (lock อย่างเดียว — สร้าง lot ว่างต่อกันได้) · test: `tests/Feature/SubmitGuardTest.php`, `tests/Feature/Money/DoubleSubmitDbTest.php` (JL_BENCH_DB_TESTS=1)
+  - ชั้นนี้กันรายการซ้ำ; การกันยอดติดลบเมื่อคำขอต่างกันมาพร้อมกันยังเป็น transaction + `SELECT … FOR UPDATE` แถว user แล้วตรวจยอดภายใน (ทุก endpoint ตัดเงินตอนสร้าง)
 - **admin_lot_view = ดูอย่างเดียว** (เจ้าของอนุมัติ 2026-10-18, รายงานข้อ 4.2 — เช่น user 74 role 4 โกดังจีน เคยสร้าง lot/memo ได้): endpoint เขียนทุกตัว (`save`, `save_new_lot`, `save_lot_memo`, `save_delete_lot_memo`, `save_lot_name*`, `save_lot_ship_amount`, `save_status_*`, `save_remove_tracking`, `save_file_lot`, `save_print`, `delete`, `save_verified`, `print`, `print_receive`, `email_lot`) ต้องมี `admin_lot` — ผู้ถือ `admin_lot_view` อย่างเดียวได้ `ErrorBox('ไม่มีสิทธิ์...admin_lot')` แบบ `getPermissionAlert` เดิม (header `X-Legacy-Denied: 1`) ไม่มีการเขียน DB
   - endpoint อ่านที่เดิมมีผลข้างเคียง: `load_check_tracking` (ทำเครื่องหมาย `tracking.is_checked`) และ `print_all` (`lot.is_print = 1`) — ผู้ถือ `admin_lot_view` เห็นผลเหมือนเดิมแต่ไม่เขียน
   - หน้า `/admin/lot/create` และปุ่มต่างๆ ยังแสดงเหมือนเดิม (กดแล้วได้ ErrorBox สิทธิ์) — ไม่ได้ซ่อนปุ่มใน view

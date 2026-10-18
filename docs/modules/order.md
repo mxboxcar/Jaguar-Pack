@@ -52,6 +52,8 @@ worktree: `/home/admin/laravel/jl-wt/order` (branch `mod/order`, port 8203) · �
 
 ## 2. ต่างจากเดิมโดยตั้งใจ
 
+- **กันกดซ้ำ/ส่งซ้อน (double submit)** (เจ้าของอนุมัติ 2026-10-18, E2E: ดับเบิลคลิก `_taobao/save` = 2 รายการ ตัดเงิน 2 ครั้ง — เว็บเดิมก็เป็น): middleware `legacy.once` (`App\Support\SubmitGuard`) — lock ต่อ ผู้ใช้+route ระหว่างประมวลผล (คำขอที่ซ้อนได้ `ErrorBox('รายการนี้กำลังดำเนินการ กรุณารอสักครู่')`) + payload เดิมที่สำเร็จแล้วภายใน 8 วินาทีได้ `ErrorBox('รายการนี้ถูกส่งไปแล้ว (ส่งซ้ำ) ...')` (คำตอบ error/กล่อง PIN ไม่ถูกจำ ส่งใหม่ได้ทันที): `_order/save_payment`, `_admin/_order/save_add_new_track` (`legacy.once:lock,html` = lock อย่างเดียว เพราะกด + เพิ่มแถวว่างซ้ำได้โดยตั้งใจ, คำตอบปฏิเสธเป็น `<script>ErrorBox(...)</script>` เพราะหน้าแทรกผลเป็น HTML) · test: `tests/Feature/SubmitGuardTest.php`, `tests/Feature/Money/DoubleSubmitDbTest.php` (JL_BENCH_DB_TESTS=1)
+  - ชั้นนี้กันรายการซ้ำ; การกันยอดติดลบเมื่อคำขอต่างกันมาพร้อมกันยังเป็น transaction + `SELECT … FOR UPDATE` แถว user แล้วตรวจยอดภายใน (ทุก endpoint ตัดเงินตอนสร้าง)
 - **escape ค่าจาก DB/ผู้ใช้** ทุกที่ (เดิม echo ดิบ) ด้วย `Html::h()` = htmlspecialchars แบบไม่ encode entity ซ้ำ (ชื่อสินค้าที่มี `&amp;` อยู่แล้วยังแสดงเหมือนเดิม); ค่าใน string JS (`div` ของ URL, page, onclick ของ cashback_form, เลขออเดอร์ใน save_add_new_track) escape แบบ JS ก่อน
   - ผลต่าง HTML ที่เหลือจากการเทียบ = เฉพาะตัวอักษร `<>"'&` ในข้อมูล
 - **LIKE ค้นหาตามตัวอักษร**: `%` `_` ที่ผู้ใช้พิมพ์ไม่เป็น wildcard แล้ว (เดิมต่อ string)

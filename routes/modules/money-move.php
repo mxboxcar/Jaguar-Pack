@@ -21,7 +21,7 @@ Route::middleware('legacy.perm:refill')->group(function () {
     Route::get('/refill/create', [RefillController::class, 'form'])->defaults('legacy_page', 'refill_detail');
     Route::get('/refill/status/{status}', [RefillController::class, 'index'])->whereNumber('status')->defaults('legacy_page', 'refill');
     Route::get('/refill/{id}', [RefillController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'refill_detail');
-    Route::post('/_refill/save', [RefillController::class, 'save'])->middleware('legacy.ajax');
+    Route::post('/_refill/save', [RefillController::class, 'save'])->middleware(['legacy.ajax', 'legacy.once']);
 });
 Route::post('/_refill/grid', [RefillController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 
@@ -32,7 +32,7 @@ Route::middleware('legacy.perm:transfer')->group(function () {
     Route::get('/transfer/status/{status}', [TransferController::class, 'index'])->whereNumber('status')->defaults('legacy_page', 'transfer');
     Route::get('/transfer/{id}', [TransferController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'transfer_detail');
     Route::middleware('legacy.ajax')->group(function () {
-        Route::post('/_transfer/save', [TransferController::class, 'save']);
+        Route::post('/_transfer/save', [TransferController::class, 'save'])->middleware('legacy.once');
         Route::post('/_transfer/cancel', [TransferController::class, 'cancel']);
     });
 });
@@ -45,7 +45,7 @@ Route::middleware('legacy.perm:admin_refill')->group(function () {
     Route::get('/admin/refill/status/{status}', [AdminRefillController::class, 'index'])->whereNumber('status')->defaults('legacy_page', 'admin_refill');
     Route::get('/admin/refill/{id}', [AdminRefillController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_refill_detail');
     Route::middleware('legacy.ajax')->group(function () {
-        Route::post('/_admin/_refill/save', [AdminRefillController::class, 'save']);
+        Route::post('/_admin/_refill/save', [AdminRefillController::class, 'save'])->middleware('legacy.once');
         Route::post('/_admin/_refill/save_approved', [AdminRefillController::class, 'saveApproved']);
         Route::post('/_admin/_refill/cancel', [AdminRefillController::class, 'cancel']);
     });

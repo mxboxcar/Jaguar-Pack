@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Payment;
 
+use App\Domain\Money\Money;
 use App\Domain\Payment\PaymentLookups as P;
 use App\Domain\Payment\Php74;
 use App\Domain\Payment\TempUpload;
@@ -117,7 +118,12 @@ class AlipayController extends Controller
             return response(''); // เดิม: มี id = ไม่ทำอะไร ไม่ตอบอะไร
         }
         $uid = Legacy::userId();
-        $total = str_replace(',', '', str_replace('-', '', $this->in($request, 'total')));
+        $total = str_replace('-', '', $this->in($request, 'total'));
+        // เดิม str_replace(',', '') → "1,00" = 100 — รับ , เฉพาะตัวคั่นหลักพัน
+        if (Money::ambiguousComma($total)) {
+            return response(Alerts::error('CloseLoading()', Money::BAD_AMOUNT));
+        }
+        $total = str_replace(',', '', $total);
         $rate = Lookup::getSetting('rate_alipay');
         $usecash = Php74::num($total) * Php74::num($rate);
         $file = $this->in($request, 'upload_file');

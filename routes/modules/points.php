@@ -24,7 +24,7 @@ Route::get('/point', [PointController::class, 'index'])->middleware('legacy.perm
 Route::middleware(['legacy.auth', 'legacy.ajax'])->group(function () {
     Route::post('/_point/grid', [PointController::class, 'grid']);
     Route::post('/_point/load_withdraw', [PointController::class, 'loadWithdraw']);
-    Route::post('/_point/save_withdraw', [PointController::class, 'saveWithdraw']);
+    Route::post('/_point/save_withdraw', [PointController::class, 'saveWithdraw'])->middleware('legacy.once');
 });
 
 // ---------- แอดมิน: แต้ม ----------
@@ -53,7 +53,7 @@ Route::post('/_shop_cashback/grid', [ShopCashbackController::class, 'grid'])->mi
 Route::middleware(['legacy.ajax', 'legacy.perm:shop_cashback'])->group(function () {
     Route::post('/_shop_cashback/load_calculator', [ShopCashbackController::class, 'loadCalculator']);
     Route::post('/_shop_cashback/load_new_line', [ShopCashbackController::class, 'loadNewLine']);
-    Route::post('/_shop_cashback/save', [ShopCashbackController::class, 'save']);
+    Route::post('/_shop_cashback/save', [ShopCashbackController::class, 'save'])->middleware('legacy.once');
     Route::post('/_shop_cashback/save_remark', [ShopCashbackController::class, 'saveRemark']);
 });
 

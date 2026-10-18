@@ -76,7 +76,7 @@ Route::middleware('legacy.perm:admin_lot')->group(function () {
         Route::post('/_admin/_lot/save_lot_name', [AdminLotSaveController::class, 'saveLotName']);
         Route::post('/_admin/_lot/save_lot_name_admin', [AdminLotSaveController::class, 'saveLotNameAdmin']);
         Route::post('/_admin/_lot/save_lot_ship_amount', [AdminLotSaveController::class, 'saveLotShipAmount']);
-        Route::post('/_admin/_lot/save_new_lot', [AdminLotSaveController::class, 'saveNewLot']);
+        Route::post('/_admin/_lot/save_new_lot', [AdminLotSaveController::class, 'saveNewLot'])->middleware('legacy.once:lock');
         Route::post('/_admin/_lot/save_print', [AdminLotSaveController::class, 'savePrint']);
         Route::post('/_admin/_lot/save_remove_tracking', [AdminLotSaveController::class, 'saveRemoveTracking']);
         Route::post('/_admin/_lot/save_status_lot', [AdminLotSaveController::class, 'saveStatusLot']);

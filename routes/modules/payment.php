@@ -28,15 +28,15 @@ Route::middleware('legacy.perm:payment')->group(function () {
         Route::post('/_payment/load_create', [PaymentController::class, 'loadCreate']);
         Route::post('/_payment/load_create_sum', [PaymentController::class, 'loadCreateSum']);
         Route::post('/_payment/load_select_lot', [PaymentController::class, 'loadSelectLot']);
-        Route::post('/_payment/save_create', [PaymentController::class, 'saveCreate']);
-        Route::post('/_payment/save_submit_payment', [PaymentController::class, 'saveSubmitPayment']);
+        Route::post('/_payment/save_create', [PaymentController::class, 'saveCreate'])->middleware('legacy.once');
+        Route::post('/_payment/save_submit_payment', [PaymentController::class, 'saveSubmitPayment'])->middleware('legacy.once');
         Route::post('/_payment/save_delete', [PaymentController::class, 'saveDelete']);
         // เดิมไม่ตรวจสิทธิ์/ล็อกอิน → payment
         Route::post('/_payment/load_shipping_price', [PaymentController::class, 'loadShippingPrice']);
         Route::post('/_payment/load_vat', [PaymentController::class, 'loadVat']);
         // ตาราง user_receipt_address / user_address ไม่มีใน DB — ตอบผลแบบเดิมโดยไม่ query
         Route::post('/_payment/load_receipt_address', [PaymentController::class, 'loadReceiptAddress']);
-        Route::post('/_payment/save_create_receiptaddress', [PaymentController::class, 'saveCreateReceiptAddress']);
+        Route::post('/_payment/save_create_receiptaddress', [PaymentController::class, 'saveCreateReceiptAddress'])->middleware('legacy.once');
         Route::post('/_payment/save_deleteaddress', [PaymentController::class, 'saveDeleteAddress']);
         Route::post('/_payment/save_deletereceiptaddress', [PaymentController::class, 'saveDeleteReceiptAddress']);
     });
@@ -45,7 +45,7 @@ Route::middleware(['legacy.auth', 'legacy.ajax'])->group(function () {
     Route::post('/_payment/grid', [PaymentController::class, 'grid']);
 });
 // _payment/save.php เดิม = สำเนาของ _refill/save.php (ตรวจสิทธิ์ refill)
-Route::post('/_payment/save', [PaymentController::class, 'save'])->middleware(['legacy.perm:refill', 'legacy.ajax']);
+Route::post('/_payment/save', [PaymentController::class, 'save'])->middleware(['legacy.perm:refill', 'legacy.ajax', 'legacy.once']);
 // iframe ตัวอย่างใบปะหน้า: JS เดิม POST ก่อนแล้วเปิดด้วย GET; ไม่มีสิทธิ์ = "ERROR : access denied" (ตรวจใน controller)
 Route::match(['GET', 'POST'], '/_payment/view_example', [PaymentController::class, 'viewExample'])->middleware('legacy.auth');
 
@@ -80,9 +80,9 @@ Route::middleware('legacy.perm:admin_payment_create')->group(function () {
         Route::post('/_admin/_payment/load_autocomplete_user', [AdminPaymentCreateController::class, 'loadAutocompleteUser']);
         Route::post('/_admin/_payment/load_user_by_id', [AdminPaymentCreateController::class, 'loadUserById']);
         Route::post('/_admin/_payment/load_create', [AdminPaymentCreateController::class, 'loadCreate']);
-        Route::post('/_admin/_payment/save_create', [AdminPaymentCreateController::class, 'saveCreate']);
+        Route::post('/_admin/_payment/save_create', [AdminPaymentCreateController::class, 'saveCreate'])->middleware('legacy.once');
         // เดิมไม่ตรวจสิทธิ์เลย (ใครก็สร้างบิล/ตัดเงินลูกค้าคนไหนก็ได้) → admin_payment_create
-        Route::post('/_admin/_payment/save_submit_payment', [AdminPaymentCreateController::class, 'saveSubmitPayment']);
+        Route::post('/_admin/_payment/save_submit_payment', [AdminPaymentCreateController::class, 'saveSubmitPayment'])->middleware('legacy.once');
     });
 });
 // เดิมตรวจ admin_payment_create แต่ข้อความแจ้งใช้ชื่อ admin_payment_createpayment → ตรวจใน controller
@@ -96,7 +96,7 @@ Route::middleware('legacy.perm:alipay')->group(function () {
     Route::get('/alipay/{id}', [AlipayController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'alipay_detail');
 
     Route::middleware('legacy.ajax')->group(function () {
-        Route::post('/_alipay/save', [AlipayController::class, 'save']);
+        Route::post('/_alipay/save', [AlipayController::class, 'save'])->middleware('legacy.once');
         Route::post('/_alipay/cancel', [AlipayController::class, 'cancel']);
     });
 });
