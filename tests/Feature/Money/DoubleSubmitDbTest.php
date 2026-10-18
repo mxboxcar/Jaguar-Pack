@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * กันกดซ้ำ/ส่งซ้อนของ endpoint สร้างรายการที่ตัดเงิน (E2E: ดับเบิลคลิก _taobao/save = 2 รายการ ตัดเงิน 2 ครั้ง)
- * เรียกผ่าน middleware legacy.once + controller จริง กับ admin_jl_bench ใน transaction ที่ rollback (opt-in)
+ * เรียกผ่าน middleware legacy.once + controller จริง กับ DB bench (ดู BenchDbTestCase) ใน transaction ที่ rollback (opt-in)
  * "พร้อมกัน" จำลองด้วยการถือ lock ของคำขอแรกไว้ (process เดียวยิงซ้อนจริงไม่ได้ — ยิงจริงด้วย curl ในรายงาน)
  */
 class DoubleSubmitDbTest extends BenchDbTestCase
