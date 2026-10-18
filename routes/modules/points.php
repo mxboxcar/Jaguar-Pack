@@ -1,17 +1,75 @@
 <?php
 
+use App\Http\Controllers\Points\Admin\AdminPointController;
+use App\Http\Controllers\Points\Admin\AdminShopCashbackController;
+use App\Http\Controllers\Points\Admin\AdminWithdrawPointController;
+use App\Http\Controllers\Points\PointController;
+use App\Http\Controllers\Points\ShopCashbackController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| กลุ่ม: points — ดูรายการ URL/ไฟล์เดิมที่กลุ่มนี้รับผิดชอบใน docs/url-map.md
+| กลุ่ม: points — _point, _admin/_point, _admin/_withdrawpoint, _shop_cashback, _admin/_shop_cashback
+| ดูรายการ URL/ไฟล์เดิมใน docs/url-map.md และรายงานใน docs/modules/points.md
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 |
-| ตัวอย่าง:
-|   Route::middleware('legacy.auth')->group(function () {                 // หน้าลูกค้า
-|       Route::get('/tracking', [TrackingController::class, 'index'])->defaults('legacy_page', 'tracking');
-|       Route::post('/_tracking/grid', [TrackingController::class, 'grid'])->middleware('legacy.ajax');
-|   });
-|   Route::middleware('legacy.perm:admin_tracking')->group(function () {   // หน้าแอดมิน
-|       Route::get('/admin/tracking', [AdminTrackingController::class, 'index'])->defaults('legacy_page', 'admin_tracking');
-|   });
+| สิทธิ์ = getPermission() ของไฟล์เดิม
+|   grid / load_withdraw / save_withdraw ตรวจสิทธิ์ใน controller เพราะเดิม exit() เงียบๆ (ไม่ใช่ ErrorBox)
+|   ajax อื่นเดิมตอบ getPermissionAlert() = สิ่งที่ legacy.perm ตอบให้อยู่แล้ว
+| admin_point / admin_withdrawpoint ไม่มี role ใดได้รับใน DB = เข้าไม่ได้แม้แอดมิน (เหมือนเดิม)
 */
+
+// ---------- ลูกค้า: แต้ม ----------
+Route::get('/point', [PointController::class, 'index'])->middleware('legacy.perm:point')->defaults('legacy_page', 'point');
+Route::middleware(['legacy.auth', 'legacy.ajax'])->group(function () {
+    Route::post('/_point/grid', [PointController::class, 'grid']);
+    Route::post('/_point/load_withdraw', [PointController::class, 'loadWithdraw']);
+    Route::post('/_point/save_withdraw', [PointController::class, 'saveWithdraw']);
+});
+
+// ---------- แอดมิน: แต้ม ----------
+Route::get('/admin/point', [AdminPointController::class, 'index'])->middleware('legacy.perm:admin_point')->defaults('legacy_page', 'admin_point');
+Route::post('/_admin/_point/grid', [AdminPointController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
+
+// ---------- แอดมิน: คำขอแลกแต้ม ----------
+Route::middleware('legacy.perm:admin_withdrawpoint')->group(function () {
+    Route::get('/admin/withdrawpoint', [AdminWithdrawPointController::class, 'index'])->defaults('legacy_page', 'admin_withdrawpoint');
+    Route::get('/admin/withdrawpoint/status/{status}', [AdminWithdrawPointController::class, 'index'])->whereNumber('status')->defaults('legacy_page', 'admin_withdrawpoint');
+    Route::get('/admin/withdrawpoint/{id}', [AdminWithdrawPointController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_withdrawpoint_detail');
+});
+Route::post('/_admin/_withdrawpoint/grid', [AdminWithdrawPointController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
+Route::middleware(['legacy.ajax', 'legacy.perm:admin_withdrawpoint'])->group(function () {
+    Route::post('/_admin/_withdrawpoint/cancel', [AdminWithdrawPointController::class, 'cancel']);
+    Route::post('/_admin/_withdrawpoint/save_approved', [AdminWithdrawPointController::class, 'saveApproved']);
+});
+
+// ---------- ลูกค้า: แจ้งร้านค้าคืนเงิน ----------
+Route::middleware('legacy.perm:shop_cashback')->group(function () {
+    Route::get('/shop_cashback', [ShopCashbackController::class, 'index'])->defaults('legacy_page', 'shop_cashback');
+    Route::get('/shop_cashback/create', [ShopCashbackController::class, 'form'])->defaults('legacy_page', 'shop_cashback_detail');
+    Route::get('/shop_cashback/{id}', [ShopCashbackController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'shop_cashback_detail');
+});
+Route::post('/_shop_cashback/grid', [ShopCashbackController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
+Route::middleware(['legacy.ajax', 'legacy.perm:shop_cashback'])->group(function () {
+    Route::post('/_shop_cashback/load_calculator', [ShopCashbackController::class, 'loadCalculator']);
+    Route::post('/_shop_cashback/load_new_line', [ShopCashbackController::class, 'loadNewLine']);
+    Route::post('/_shop_cashback/save', [ShopCashbackController::class, 'save']);
+    Route::post('/_shop_cashback/save_remark', [ShopCashbackController::class, 'saveRemark']);
+});
+
+// ---------- แอดมิน: แจ้งร้านค้าคืนเงิน ----------
+Route::middleware('legacy.perm:admin_shop_cashback')->group(function () {
+    Route::get('/admin/shop_cashback', [AdminShopCashbackController::class, 'index'])->defaults('legacy_page', 'admin_shop_cashback');
+    Route::get('/admin/shop_cashback/status/{status}', [AdminShopCashbackController::class, 'index'])->whereNumber('status')->defaults('legacy_page', 'admin_shop_cashback');
+    Route::get('/admin/shop_cashback/create', [AdminShopCashbackController::class, 'form'])->defaults('legacy_page', 'admin_shop_cashback_detail');
+    Route::get('/admin/shop_cashback/{id}', [AdminShopCashbackController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_shop_cashback_detail');
+    // email_*.php เดิมเรียกตรงได้โดยไม่ล็อกอิน — ใหม่ต้องมีสิทธิ์ (ไม่บังคับ X-Requested-With เพราะเดิมไม่มี system_check_ajax)
+    Route::post('/_admin/_shop_cashback/email_approved', [AdminShopCashbackController::class, 'emailApproved']);
+    Route::post('/_admin/_shop_cashback/email_cancel', [AdminShopCashbackController::class, 'emailCancel']);
+});
+Route::post('/_admin/_shop_cashback/grid', [AdminShopCashbackController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
+Route::middleware(['legacy.ajax', 'legacy.perm:admin_shop_cashback'])->group(function () {
+    Route::post('/_admin/_shop_cashback/save', [AdminShopCashbackController::class, 'save']);
+    Route::post('/_admin/_shop_cashback/save_approved', [AdminShopCashbackController::class, 'saveApproved']);
+    Route::post('/_admin/_shop_cashback/save_cancel', [AdminShopCashbackController::class, 'saveCancel']);
+    Route::post('/_admin/_shop_cashback/save_remark', [AdminShopCashbackController::class, 'saveRemark']);
+});

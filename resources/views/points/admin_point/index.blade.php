@@ -1,0 +1,30 @@
+{{-- _admin/_point/index.php เดิม (สิทธิ์ admin_point ตรวจที่ middleware legacy.perm) --}}
+@extends('legacy.layout')
+
+@section('content')
+<div class="col-sm-7">
+	<h4 class="page-title">{!! res('point') !!}</h4>
+	<ol class="breadcrumb">
+		<li>
+			<a href="{{ legacy_href() }}dashboard">{!! res('dashboard') !!}</a>
+		</li>
+		<li class="active">
+			{!! res('balance') !!}
+		</li>
+	</ol>
+</div>
+<div class="col-sm-5 pull-right">
+	<div class="button-list">
+	    
+	</div>
+</div>
+
+
+
+@include('points.partials.transfer_modal')
+
+<div id="gridAjax" class="col-sm-12"></div>
+<script type="text/javascript">
+    loadAjaxGrid('_admin/_point/grid', 1, '|{!! \App\Support\Legacy\Alerts::js($status) !!}');
+</script>
+@endsection
