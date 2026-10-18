@@ -105,3 +105,12 @@ load_lot_detail ช้ากว่าเดิมเล็กน้อย = over
 - แก้: ลูกค้า `save_approved` ยึดรายการที่ถูกลบได้ (ดูด้านบน)
 - ยังเหมือนเดิม (แอดมินเท่านั้น): `save_lot_detail` ไม่มี `id` = บันทึกด้วย warehouse_id 0; `cancel`/`save_approved`/`save_unapproved` ไม่ตรวจ `is_delete`;
   ค่า id ที่เป็น string เช่น `5abc` ถูก MySQL แปลงเป็น 5 (bind แล้ว ไม่ใช่ injection)
+
+## E2E admin write-flow (2026-10-18, fix/admin-writes)
+
+- `save_lot_detail` กดคำนวณซ้ำ/ดับเบิลคลิก: `LEFT JOIN (SELECT id AS ct ... LIMIT 1) ... a.ct IS NULL` เดิมไม่ข้าม tracking ที่จัดชั้นแล้ว
+  → `warehouse_section_detail` ซ้ำทุก tracking (E2E: 3 tracking → 9 แถว) และ `warehouse_detail` ซ้ำทุกล็อต (UPDATE เดิม `WHERE id = <ใบรับเข้า>` ไม่โดนแถวของใบนี้)
+  → ข้าม tracking ที่มีแถวชั้นวาง (is_delete = 0) อยู่แล้ว, ล้าง `warehouse_detail` ของใบนี้ (warehouse_id = id, ไม่ทำเมื่อ id = 0) ก่อนบันทึกชุดล็อตที่เลือก,
+  route ใช้ `legacy.once:lock` (คำขอซ้อน = ErrorBox) · ยกเลิกการคำนวณ (`save_cancel_warehouse_calculate`) แล้วคำนวณใหม่ได้เหมือนเดิม
+- กันดับเบิลคลิก `_admin/_warehouse_section/save` (`legacy.once`)
+- test: tests/Feature/Money/AdminWritesDbTest.php (JL_BENCH_DB_TESTS=1), `tests/Feature/SubmitGuardTest.php`

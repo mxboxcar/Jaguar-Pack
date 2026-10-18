@@ -18,6 +18,7 @@ use Illuminate\View\View;
  * ของเดิมพังหลายจุด (คงผลเดิมไว้ทั้งหมด — รายงานให้เจ้าของตัดสินใจใน docs/modules/shop.md):
  *  - index/grid/save ตรวจสิทธิ์ admin_mall_category ซึ่งไม่มีใน role_detail → ไม่มีใครเข้าได้ (แม้แอดมิน)
  *  - form.php / delete.php เป็นสำเนาของ _admin/_user_type (ตรวจ admin_user_type, อ่าน/ลบตาราง user_type ไม่ใช่ mall_category)
+ *    — delete แก้แล้ว: ลบ mall_category (เดิมลบกลุ่มราคาลูกค้า user_type ที่ id ตรงกัน) ดู delete()
  *  - save.php แก้ไข: SQL ผิด (ขาด ') → UPDATE ไม่เคยสำเร็จ แต่ตอบ "สำเร็จ"
  */
 class MallCategoryController extends ShopController
@@ -84,8 +85,11 @@ class MallCategoryController extends ShopController
     }
 
     /**
-     * _admin/_mall_category/delete — สำเนาของ _admin/_user_type/delete (สิทธิ์ admin_user_type, ลบ user_type)
-     * ถ้ามี role ที่ id ตรงกัน เดิมเรียก getError() ไม่มีอาร์กิวเมนต์ → fatal 500
+     * _admin/_mall_category/delete — เดิมเป็นสำเนาของ _admin/_user_type/delete (สิทธิ์ admin_user_type):
+     * ปุ่มลบในตารางหมวดหมู่ส่ง id ของ mall_category แต่ไฟล์เดิม UPDATE **user_type** (กลุ่มราคาลูกค้า) id เดียวกัน is_delete = 1
+     * และ id ที่ตรงกับ role ใดๆ (1–7) = getError() ไม่มีอาร์กิวเมนต์ → fatal 500
+     * เว็บเดิมไม่มีใครเปิดตาราง (admin_mall_category กำพร้า) แต่ Laravel ให้สิทธิ์ผ่าน fallback ← admin_mall แล้ว →
+     * แก้ (E2E 2026-10-18: ลบหมวด id 1708 = กลุ่มราคา 1708 ถูกลบ): ลบเฉพาะแถว mall_category, ไม่แตะ user_type, ไม่เช็ค role
      */
     public function delete(Request $request): Response
     {
@@ -96,10 +100,7 @@ class MallCategoryController extends ShopController
             // เดิม SQL error ทั้งสองคำสั่ง (count = null → ไม่ error) แล้วตอบสำเร็จ
             return $this->out(Alerts::success());
         }
-        if (DB::table('role')->whereIn('id', $ids)->count('id') != 0) {
-            return $this->out('', 500);
-        }
-        DB::table('user_type')->whereIn('id', $ids)->update(['is_delete' => '1', 'mod_date' => DB::raw('NOW()'), 'mod_by' => $this->uid()]);
+        DB::table('mall_category')->whereIn('id', $ids)->update(['is_delete' => '1', 'mod_date' => DB::raw('NOW()'), 'mod_by' => $this->uid()]);
 
         return $this->out(Alerts::success());
     }

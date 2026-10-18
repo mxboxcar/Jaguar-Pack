@@ -29,6 +29,8 @@ class AdminPaymentController extends Controller
 
     private const AJAX = '_admin/_payment/grid';
 
+    public const SENDER_CANCELLED = 'บิลนี้ถูกยกเลิกแล้ว ไม่สามารถแก้ไขผู้ส่ง/ประเภทการส่งได้';
+
     /** GET /admin/payment, /admin/payment/status/{status} */
     public function index(Request $request): View
     {
@@ -241,8 +243,17 @@ class AdminPaymentController extends Controller
             return response(Alerts::error('CloseLoading()', Lang::get('no_shipping_type')));
         }
 
-        DB::transaction(function () use ($request, $id, $aType, $b, $st) {
+        $refused = DB::transaction(function () use ($request, $id, $aType, $b, $st) {
             $head = P::str(DB::table('bill_payment')->where('id', $id)->lockForUpdate()->first());
+            // เดิมแก้ได้ทุกสถานะ (และไม่มีใครถือสิทธิ์ admin_change_sender จึงไม่เคยถูกใช้): บิลที่ยกเลิกแล้ว (คืนเงินตามยอดเดิมไปแล้ว)
+            // ถูกแก้แถวตัดเงินตามยอดใหม่ = ยอดเงินลูกค้าเพิ่ม/ลดโดยไม่มีที่มา (E2E: ยกเลิกคืน 500 แล้วเปลี่ยนเป็น EMS → แถวตัดเงิน -610)
+            // → ไม่ทำอะไรกับบิลที่ไม่มีอยู่/ยกเลิกแล้ว (เหมือน save_vat)
+            if ($head === null) {
+                return Lang::get('no_data');
+            }
+            if (Php74::eq($head->status, -1)) {
+                return self::SENDER_CANCELLED;
+            }
             $items = P::strAll(DB::table('bill_payment_detail')->where('payment_id', $id)->where('is_delete', 0)->get());
             // เดิม getShippingTypePrice($shipping_type, $ref_id, ...) ด้วยตัวแปรที่ไม่ได้กำหนด → id/ref ว่าง
             $fees = PaymentTotals::fees($st, $head->sender_type ?? null, Pricing::getShippingTypePrice('', '', $head->sender_type ?? null));
@@ -265,7 +276,12 @@ class AdminPaymentController extends Controller
                 'price_shipping' => P::s($priceShipping), 'price_thai_storage' => P::s($fees['storage']),
                 'price_thai_shipping' => P::s($fees['shipping']), 'total' => P::s($total),
             ]);
+
+            return null;
         });
+        if ($refused !== null) {
+            return response(Alerts::error('CloseLoading()', $refused));
+        }
 
         return response(Alerts::success('window.location.reload();', Lang::get('success_process_no').P::prefix('payment').Alerts::js(e($id))));
     }

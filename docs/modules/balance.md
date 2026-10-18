@@ -110,3 +110,10 @@ grid ทั้ง 5 (หน้า 1–3, ค้นหาด้วยรหัส
 
 - `foundation: keep raw POST values (drop TrimStrings / ConvertEmptyStringsToNull)` — cherry-pick commit เดียวกับ branch `mod/tracking` (diff เหมือนกันทุกบรรทัด merge ได้ไม่ชน) จำเป็นเพราะคำค้น/`detail`/`amount` เดิมไม่ถูก trim และ `id=''` ต้องเป็น `''` ไม่ใช่ `null` (save_amount แยกเพิ่ม/แก้ด้วย `id == ""`)
 - ข้อเสนอ: `App\Domain\Balance\Php74` ซ้ำกับ `App\Domain\Tracking\Php74` ของกลุ่ม tracking — ควรย้ายเป็น helper ฐานร่วมตอน merge
+
+## E2E admin write-flow (2026-10-18, fix/admin-writes)
+
+- `_admin/_balance{,_cn,_company}/save_amount`: เดิมลงยอดดิบ (MySQL non-strict) → `"1,000"` = 1.00, `"abc"`/ว่าง = 0.00, ตัวเลขยาวเกิน = 999999999999999999.99,
+  แก้แถวเดิมด้วยค่าผิด = ยอดแถวนั้นกลายเป็น 0 เงียบๆ → `Money::adminAmount()`: ตัวเลข (ติดลบได้) ทศนิยมไม่เกิน 2 ตำแหน่ง, `,` คั่นหลักพันเท่านั้น
+  (ตัดทิ้งก่อนบันทึก), ช่องว่างหัวท้ายตัดทิ้ง (JS เดิมไม่ encode: "+500" มาถึงเป็น " 500") ไม่งั้น `ErrorBox(BAD_ADMIN_AMOUNT)` ไม่บันทึก
+  · test: tests/Feature/Money/AdminWritesDbTest.php (JL_BENCH_DB_TESTS=1), `tests/Feature/Money/MoneyRulesTest.php`

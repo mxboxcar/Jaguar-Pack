@@ -68,7 +68,8 @@ Route::middleware(['legacy.ajax', 'legacy.perm:admin_warehouse'])->group(functio
     Route::post('/_admin/_warehouse/save_push_track', [WarehouseController::class, 'savePushTrack']);
     Route::post('/_admin/_warehouse/save_track_weight', [WarehouseController::class, 'saveTrackWeight']);
     // JS เดิม (go_loadDetail) เรียกด้วย GET — เขียนข้อมูล จึงบังคับ X-Requested-With (legacy.ajax) แทนการตรวจ Origin
-    Route::get('/_admin/_warehouse/save_lot_detail', [WarehouseController::class, 'saveLotDetail']);
+    // กดซ้อน (ดับเบิลคลิก ConfirmBox) = คำนวณพร้อมกัน 2 คำขอ → lock ต่อผู้ใช้ (คำขอหลังได้ ErrorBox)
+    Route::get('/_admin/_warehouse/save_lot_detail', [WarehouseController::class, 'saveLotDetail'])->middleware('legacy.once:lock');
 });
 // ไฟล์สำเนาที่เขียน warehouse_section (ตรวจสิทธิ์ admin_warehouse_section เหมือนเดิม)
 Route::post('/_admin/_warehouse/save', [WarehouseController::class, 'save'])->middleware(['legacy.ajax', 'legacy.perm:admin_warehouse_section']);
@@ -83,7 +84,7 @@ Route::middleware('legacy.perm:admin_warehouse_section')->group(function () {
     Route::get('/admin/warehouse_section_move', [WarehouseSectionController::class, 'moveIndex'])->defaults('legacy_page', 'admin_warehouse_section_move');
 });
 Route::middleware(['legacy.ajax', 'legacy.perm:admin_warehouse_section'])->group(function () {
-    Route::post('/_admin/_warehouse_section/save', [WarehouseSectionController::class, 'save']);
+    Route::post('/_admin/_warehouse_section/save', [WarehouseSectionController::class, 'save'])->middleware('legacy.once');
 });
 // delete เดิมตรวจสิทธิ์ admin_product_type (ไม่ใช่ admin_warehouse_section) — คงไว้
 Route::post('/_admin/_warehouse_section/delete', [WarehouseSectionController::class, 'delete'])->middleware(['legacy.ajax', 'legacy.perm:admin_product_type']);

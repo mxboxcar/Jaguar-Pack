@@ -163,3 +163,12 @@ ajax (`/<ไฟล์>` ไม่มี `.php`, POST + `legacy.ajax` ถ้า�
 
 - `_cart/save_checkout` กดซ้ำ (รายการถูกตัดออกจากตะกร้าแล้ว) เดิมสร้างใบสั่งซื้อเปล่ายอด 0 ทุกครั้ง → ไม่มีรายการ = `ErrorBox(order_error)` ไม่สร้างใบ/tracking;
   ล็อกแถว cart ก่อนอ่านรายการ (คำขอพร้อมกันคำขอที่สองเห็นตะกร้าที่ถูกตัดแล้ว) · test: `tests/Feature/Money/CartCheckoutDbTest.php`
+
+## 9. E2E admin write-flow (2026-10-18, fix/admin-writes)
+
+- `_admin/_mall_category/delete`: เดิมเป็นสำเนาของ `_admin/_user_type/delete` → ปุ่มลบในตารางหมวดหมู่ (ส่ง id ของหมวด) ไปลบ **user_type (กลุ่มราคาลูกค้า) ที่ id ตรงกัน**
+  (E2E: ลบ id 1708 → กลุ่มราคา 1708 is_delete = 1) — เว็บเดิมไม่มีใครเปิดหน้านี้ได้ แต่ Laravel เปิดผ่าน fallback `admin_mall_category` ← `admin_mall` แล้ว
+  → ลบเฉพาะแถว `mall_category` (ไม่เช็ค role id แบบสำเนาเดิมที่ทำให้หมวด 1–7 ลบไม่ได้/500) · สิทธิ์ยังเป็น `admin_user_type` ตามไฟล์เดิม
+- กันดับเบิลคลิก (`legacy.once`): `_admin/_mall/save`, `_admin/_mall/save_sizecolor` (เดิมได้สินค้า/สี-ขนาด 2 รายการ + สต๊อกตั้งต้นซ้ำ), `_admin/_mall_category/save`
+- ยังเหมือนเดิม: แก้ชื่อหมวด (save มี id) ไม่มีผล (SQL เดิมผิด) และฟอร์มแก้ไขอ่าน user_type — รอเจ้าของตัดสินใจ (ข้อ 7)
+- test: tests/Feature/Money/AdminWritesDbTest.php (JL_BENCH_DB_TESTS=1), `tests/Feature/SubmitGuardTest.php`

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Balance\Admin;
 
 use App\Domain\Balance\Ledger;
 use App\Domain\Balance\Php74;
+use App\Domain\Money\Money;
 use App\Http\Controllers\Controller;
 use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
@@ -76,10 +77,14 @@ class AdminBalanceCompanyController extends Controller
     {
         $id = Ledger::in($request, 'id');
         $detail = Ledger::in($request, 'detail');
-        $amount = Ledger::in($request, 'amount');
+        // แก้: เดิมลงยอดดิบ ("1,000" = 1.00, "abc" = 0.00) → ตัวเลขเท่านั้น (ดู Money::adminAmount)
+        $amount = Money::adminAmount(Ledger::in($request, 'amount'));
+        if ($amount === null) {
+            return response(Money::refuse(Money::BAD_ADMIN_AMOUNT));
+        }
 
         // เดิม: if($amount > 0) ต้องมี admin_balance_company_delete (เทียบแบบ PHP 7.4 — 8.x เทียบ "abc" > 0 เป็น string)
-        if (Php74::cmp(Ledger::php($request, 'amount'), 0) > 0 && ! perm('admin_balance_company_delete')) {
+        if (Php74::cmp($amount, 0) > 0 && ! perm('admin_balance_company_delete')) {
             return response(Alerts::permission('admin_balance_company_delete'));
         }
         $uid = Legacy::userId();

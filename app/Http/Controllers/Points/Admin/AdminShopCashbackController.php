@@ -159,7 +159,8 @@ class AdminShopCashbackController extends Controller
             $d = DB::table('shop_cashback_detail')->where('id', $id)->lockForUpdate()->first();
             // เดิมยกเลิกได้ทุกสถานะ: ยกเลิกรายการที่อนุมัติแล้ว (เงินหยวนไม่ถูกหักคืน) แล้วอนุมัติซ้ำ = เติมเงินซ้ำ
             // → ไม่ยกเลิกรายการที่อนุมัติแล้ว (ปุ่มยกเลิกเดิมแสดงเฉพาะ status 1)
-            if ($d === null || Php74::eq($d->status, 2)) {
+            // ยกเลิกซ้ำ (กดซ้อน/ส่งซ้ำ) = ไม่เขียนทับเหตุผลเดิมและไม่ส่งอีเมล/แจ้งเตือนยกเลิกซ้ำ
+            if ($d === null || Php74::eq($d->status, 2) || Php74::eq($d->status, -1)) {
                 return null;
             }
             DB::table('shop_cashback_detail')->where('id', $d->id)->update([

@@ -125,3 +125,9 @@ branch `mod/points` · worktree `/home/admin/laravel/jl-wt/points` · port 8207
 - SQL injection (เฉพาะฝั่งใหม่): payload ใน `txtsearch`/`page`/filter ของทุก grid ไม่เพิ่มแถว; write ด้วย id แถว zz เท่านั้น — กระทบเฉพาะแถวที่ตั้งใจ
 - CSRF: ทุก POST ที่เขียนข้อมูล 403 เมื่อ Origin/Referer ข้ามโดเมน หรือไม่มีทั้ง Origin/Referer/X-Requested-With
 - race: `save_withdraw` ซ้อน 2 ครั้ง (เกินยอด) ผ่านครั้งเดียว; อนุมัติคืนเงินร้านค้าซ้อน 2 ครั้ง = balance_cn แถวเดียว; อนุมัติ+ยกเลิกแลกแต้มพร้อมกัน = มีผลอย่างเดียว
+
+## E2E admin write-flow (2026-10-18, fix/admin-writes)
+
+- `_admin/_shop_cashback/save_cancel` กดซ้ำ/ซ้อน: เดิมเขียนทับเหตุผลยกเลิกและส่งอีเมล/แจ้งเตือนยกเลิกซ้ำทุกครั้ง → รายการที่ยกเลิกแล้วไม่ทำอะไร · test: tests/Feature/Money/AdminWritesDbTest.php (JL_BENCH_DB_TESTS=1)
+- ไม่มี endpoint "ปรับแต้มโดยแอดมิน" ในเว็บเดิม (`_admin/_point` มีแค่ index/grid) — ทดสอบ withdrawpoint อนุมัติ/ยกเลิก (ซ้อน 3 คำขอ = เติมเงิน/คืนแต้มครั้งเดียว) และ cashback แทน
+- ยังเหมือนเดิม: ลูกค้าแจ้งยอดคืนเงินติดลบได้ (`_shop_cashback/save` price -5) ถ้าแอดมินอนุมัติ = หักเงินหยวนลูกค้า

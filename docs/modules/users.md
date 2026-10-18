@@ -106,3 +106,9 @@ user_type grid ยังใช้ subquery นับผู้ใช้ต่อ�
 - foundation (commit แยก): `bootstrap/app.php` ไม่ trim/แปลง '' (patch เดียวกับกลุ่มอื่น), `tests/Feature/RouteSecurityTest.php` เพิ่ม route สาธารณะ 7 ตัวใน `PUBLIC`
 - สำเนาในกลุ่ม (รวมเป็นของกลางตอน merge): `App\Domain\Users\Php74` (= Tracking/Payment), (PinBox รวมแล้ว → `App\Domain\Payment\PinBox`), `UploadBox` (เจ้าของ settings)
 - test: `tests/Feature/Users/UsersPortTest.php` (route + middleware ครบ, ตัวแยก id, paging, diff ประวัติราคา, Php74)
+
+## 7. E2E admin write-flow (2026-10-18, fix/admin-writes)
+
+- กันดับเบิลคลิก (`legacy.once`): `_admin/_user/save` (เดิมได้ผู้ใช้ username ซ้ำ 2 แถว), `_admin/_role/save`, `_admin/_user_type/save` (role/กลุ่มราคาซ้ำ)
+  — แก้ไขด้วย payload เดิมซ้ำภายใน 8 วินาทีได้ ErrorBox "ส่งซ้ำ" (ไม่มีผลต่อข้อมูล) · test: `tests/Feature/SubmitGuardTest.php`
+- ยังเหมือนเดิม (ตั้งใจคง): `_admin/_role/delete` ตอบ 500 ว่างเสมอเมื่อ role มีอยู่จริง (ลบ role ไม่ได้), บันทึกผู้ใช้ด้วย option_price = 1 สร้างกลุ่มราคาใหม่ทุกครั้ง
