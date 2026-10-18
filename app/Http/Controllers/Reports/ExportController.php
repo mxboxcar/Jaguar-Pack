@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Reports;
 
+use App\Domain\Money\Money;
 use App\Domain\Reports\ExportBill;
 use App\Domain\Reports\Php74;
 use App\Domain\Reports\Rows;
@@ -137,9 +138,11 @@ class ExportController extends Controller
 
     /**
      * POST /_export/save_delete — ยกเลิกบิล
-     * ต่างจากเดิม: เฉพาะบิลของตัวเองที่สถานะ 0 (ยังไม่ตัดเงิน = ปุ่มยกเลิกในหน้าเดิม) หรือ 1 (ตัดเงินแล้ว รอตรวจ → คืนเงิน)
      * เดิม: UPDATE บิลด้วย id อย่างเดียว (ยกเลิกบิลของลูกค้าคนอื่นได้ + ปลด tracking ของบิลนั้น)
-     *       และยกเลิก+คืนเงินบิลสถานะ 2/3 (ส่งของแล้ว) ได้
+     *       และยกเลิก+คืนเงินบิลทุกสถานะที่ไม่ใช่ -1 (1 = รอตรวจ, 2/3 = ส่งของแล้ว) ได้
+     * ใหม่ (เจ้าของสั่งแก้): เฉพาะบิลของตัวเองที่สถานะ 0 (= ปุ่มยกเลิกในหน้า) ล็อกแถวบิล + user;
+     *       คืนเงินเท่ายอดสุทธิที่บิลนี้ถูกตัดอยู่จริง (ปกติสถานะ 0 = ยังไม่ตัด → ไม่มีแถวคืนเงิน)
+     *       บิลสถานะ 1 ยกเลิก+คืนเงินได้ที่ _payment/save_delete (หน้า payment) ตามเดิม
      */
     public function saveDelete(Request $request): Response
     {
@@ -147,16 +150,22 @@ class ExportController extends Controller
         $id = $this->in($request, 'id');
         $remark = $this->in($request, 'cancel_remark');
         $code = (string) (Legacy::user()->code ?? '');
-        DB::transaction(function () use ($uid, $id, $remark, $code) {
+        $error = DB::transaction(function () use ($uid, $id, $remark, $code) {
+            Money::lockUser($uid); // ลำดับล็อกเดียวกับ save_approved (user → บิล)
             $data = self::ownBill($id, $uid);
-            if ($data === null || ! in_array((string) $data->status, ['0', '1'], true)) {
-                return;
+            if ($data === null) {
+                return null;
             }
             if ((string) $data->status !== '0') {
+                return 'บิลนี้ไม่อยู่ในสถานะที่ยกเลิกได้';
+            }
+            $pid = Lookup::getPrefixID('payment');
+            $refund = Money::refundable(PHP_FLOAT_MAX, Money::net('balance', $pid, $data->id, fn ($q) => $q->where('type', 3)));
+            if ($refund > 0) {
                 DB::table('balance')->insert([
                     'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
-                    'user' => (string) $data->user, 'amount' => (string) $data->total, 'detail' => 'คืนเงิน '.Rows::prefix('payment').$data->id,
-                    'type' => 3, 'prefix' => (string) Lookup::getPrefixID('payment'), 'prefix_ref_id' => $data->id,
+                    'user' => (string) $data->user, 'amount' => Money::fmt($refund), 'detail' => 'คืนเงิน '.Rows::prefix('payment').$data->id,
+                    'type' => 3, 'prefix' => (string) $pid, 'prefix_ref_id' => $data->id,
                 ]);
             }
             // calPoint() เดิมเป็นฟังก์ชันว่าง
@@ -164,7 +173,12 @@ class ExportController extends Controller
                 'status' => '-1', 'cancel_remark' => $remark.' ,ยกเลิกโดย '.$code, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
             ]);
             DB::table('tracking')->where('payment_id', $data->id)->update(['payment_id' => '0']);
+
+            return null;
         });
+        if ($error !== null) {
+            return response(Money::refuse($error));
+        }
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('payment').'";', Lang::get('success_process_no').Rows::prefix('payment').Alerts::js($id)));
     }

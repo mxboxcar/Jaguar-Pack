@@ -117,6 +117,13 @@ ajax / form post (ทุกตัว `legacy.ajax` = system_check_ajax เดิ
 - `_payment/save` (สำเนา `_refill/save`): ยอดต้องเป็นตัวเลขบวก (ดู money-move)
 - test: `tests/Feature/Money/PaymentDbTest.php` (admin_jl_bench + rollback, opt-in `JL_BENCH_DB_TESTS=1`)
 
+บิลเดียวกันในกลุ่ม reports (`_export/*`, `_admin/_export/*` — ยังไม่มี `docs/modules/reports.md` จึงบันทึกไว้ที่นี่; รายงานข้อ 15, เจ้าของอนุมัติ 2026-10-18):
+- `_export/save_delete` (ลูกค้า): เดิมยกเลิก+คืนเงินบิลทุกสถานะ ≠ -1 (ก่อนรอบนี้ Laravel ยอม 0/1) → เฉพาะบิลของตัวเองสถานะ **0** (= ปุ่มยกเลิกในหน้า `export/{id}`) ล็อก user → บิล,
+  คืนเงินเท่ายอดสุทธิที่บิลถูกตัดอยู่จริง (สถานะ 0 ปกติ = ไม่มีเงินคืน), สถานะอื่น = `ErrorBox`; บิลสถานะ 1 ยกเลิก+คืนเงินที่ `_payment/save_delete` ตามเดิม
+- `_admin/_export/save_approved`: เดิมรับทุกสถานะ (บิลที่ยกเลิก/คืนเงินแล้ว หรือยังไม่จ่าย ถูกพลิกเป็น "ส่งแล้ว" + ตัด/คืนค่าส่งในประเทศ) → เฉพาะ **2** (รอส่ง)
+  และ 3 (ส่งแล้ว = แก้ข้อมูลการส่ง; ปุ่มบันทึกแสดงทุกสถานะ และแถวค่าส่ง type 4 เดิมถูก `is_delete` แล้วเขียนใหม่ จึงไม่ตัดซ้ำ) ล็อกบิล + user; สถานะอื่น = `ErrorBox`
+- test: `tests/Feature/Money/ReportsDbTest.php`
+
 คงพฤติกรรมเดิม (ควรให้เจ้าของตัดสินใจ):
 - `_admin/_alipay/grid` ลำดับ `AND … OR user.code LIKE …` ทำให้กิ่งค้นหารหัสลูกค้าไม่กรอง is_delete
 - รหัสผ่าน taobao/alipay ของลูกค้าเก็บ plaintext ใน `bill_alipay` และแสดงในหน้าแอดมิน (ระบบเดิมออกแบบให้พนักงานล็อกอินแทน)
