@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Payment;
 
+use App\Domain\Money\Money;
 use App\Domain\Payment\PaymentLookups as P;
 use App\Domain\Payment\PaymentTotals;
 use App\Domain\Payment\Php74;
@@ -350,6 +351,10 @@ class PaymentController extends Controller
     {
         if ($this->in($request, 'id') !== '') {
             return response('');
+        }
+        // เหมือน _refill/save: ยอดต้องเป็นตัวเลขบวก (เดิมรับติดลบ/0/ไม่ใช่ตัวเลข) — เจ้าของสั่งแก้
+        if (! Money::validRefillAmount($this->in($request, 'amount'))) {
+            return response(Money::refuse('กรุณาระบุจำนวนเงินให้ถูกต้อง (ต้องมากกว่า 0)'));
         }
         $uid = Legacy::userId();
         $exp = explode('|', $this->in($request, 'date'));

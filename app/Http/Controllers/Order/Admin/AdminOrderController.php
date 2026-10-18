@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Order\Admin;
 
+use App\Domain\Money\Money;
 use App\Domain\Order\OrderLookups;
 use App\Domain\Order\OrderMailer;
 use App\Domain\Order\OrderQueries;
@@ -145,14 +146,18 @@ class AdminOrderController extends Controller
                 'status' => '-1', 'cancel_remark' => $remark.' ,ยกเลิกโดย '.$code, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
             ]);
             if ($data !== null && Php74::num($data->status) >= 2) {
-                $bal = DB::table('balance')->where('prefix', OrderLookups::prefixId('order'))->where('prefix_ref_id', $data->id)
-                    ->orderBy('id')->first();
-                DB::table('balance')->insert([
-                    'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
-                    'is_delete' => 0, 'user' => $data->user, 'amount' => str_replace('-', '', (string) ($bal->amount ?? '')),
-                    'detail' => 'คืนเงิน '.OrderLookups::prefix('order').$idRaw, 'type' => 2,
-                    'prefix' => OrderLookups::prefixId('order'), 'prefix_ref_id' => $data->id,
-                ]);
+                // เดิม: คืนเท่ากับ balance แถวแรกของใบ (แถวชำระเงิน) โดยไม่หักรายการที่คืนไปแล้ว (save_cashback)
+                //       = ลูกค้าได้คืนเกินที่จ่าย — ใหม่ (เจ้าของสั่งแก้): คืนเท่ายอดสุทธิที่ใบนี้ยังถูกตัดอยู่ (ล็อกแถว user)
+                Money::lockUser($data->user);
+                $refund = Money::refundable(PHP_FLOAT_MAX, Money::net('balance', OrderLookups::prefixId('order'), $data->id));
+                if ($refund > 0) {
+                    DB::table('balance')->insert([
+                        'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
+                        'is_delete' => 0, 'user' => $data->user, 'amount' => Money::fmt($refund),
+                        'detail' => 'คืนเงิน '.OrderLookups::prefix('order').$data->id, 'type' => 2,
+                        'prefix' => OrderLookups::prefixId('order'), 'prefix_ref_id' => $data->id,
+                    ]);
+                }
             }
 
             return $data;
@@ -165,19 +170,31 @@ class AdminOrderController extends Controller
             Lang::get('success_process_no').OrderLookups::prefix('order').Alerts::js(e($idRaw))));
     }
 
-    /** POST /_admin/_order/save_approved — ยืนยันใบ (status 1) แล้วแจ้งลูกค้า */
+    /**
+     * POST /_admin/_order/save_approved — ยืนยันใบ (status 0 → 1) แล้วแจ้งลูกค้า
+     * เดิมไม่ตรวจสถานะ: ใบที่จ่ายแล้ว (2/3) ถูกพลิกกลับเป็น 1 = ลูกค้าจ่ายซ้ำได้ ใบที่ยกเลิกแล้วกลับมาเปิดได้
+     * ใหม่ (เจ้าของสั่งแก้): เฉพาะ status 0 (= ปุ่มอนุมัติในหน้า) ล็อกแถวใน transaction
+     */
     public function saveApproved(Request $request): Response
     {
         $idRaw = $this->in($request, 'id');
         $uid = Legacy::userId();
-        DB::table('bill_product')->where('id', $idRaw)->update([
-            'status' => '1', 'who_did_this_1' => $uid, 'who_did_this_1_date' => DB::raw('NOW()'), 'mod_by' => $uid,
-        ]);
-        if (! config('legacy.debug_mail')) {
-            $id = DB::table('bill_product')->where('id', $idRaw)->value('id');
-            if ($id !== null) {
-                OrderMailer::orderApproved((int) $id);
+        $id = DB::transaction(function () use ($idRaw, $uid) {
+            $data = DB::table('bill_product')->where('id', $idRaw)->lockForUpdate()->first(['id', 'status']);
+            if ($data === null || ! Money::statusIn($data->status, [0])) {
+                return null;
             }
+            DB::table('bill_product')->where('id', $data->id)->update([
+                'status' => '1', 'who_did_this_1' => $uid, 'who_did_this_1_date' => DB::raw('NOW()'), 'mod_by' => $uid,
+            ]);
+
+            return (int) $data->id;
+        });
+        if ($id === null) {
+            return response(Money::refuse('ใบสั่งซื้อนี้ไม่อยู่ในสถานะรอการตรวจสอบ (อาจถูกยืนยัน/ชำระ/ยกเลิกไปแล้ว)'));
+        }
+        if (! config('legacy.debug_mail')) {
+            OrderMailer::orderApproved($id);
         }
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/order').'";',
@@ -191,8 +208,9 @@ class AdminOrderController extends Controller
         $uid = Legacy::userId();
         $data = DB::table('bill_product')->where('id', $idRaw)->first();
         if ($data !== null && Php74::eq($data->status, 2)) {
-            // เดิมเขียน prefix = 11 ตายตัว (= id ของ prefix "order")
-            $c = DB::table('balance')->where('type', 2)->where('prefix', 11)->where('prefix_ref_id', $data->id)
+            // เดิมเขียน prefix = 11 ตายตัว — เจตนา = id ของ prefix "order" (แถวชำระเงินของ _order/save_payment ใช้ getPrefixID('order'))
+            // ใหม่: อ่านจากตาราง prefix (ค่าเท่ากันใน DB ตอนนี้ แต่ไม่พังถ้า id เปลี่ยน)
+            $c = DB::table('balance')->where('type', 2)->where('prefix', OrderLookups::prefixId('order'))->where('prefix_ref_id', $data->id)
                 ->whereNull('ref_id_2')->where('is_delete', 0)->count();
             if ($c === 0) {
                 return response(Alerts::error('CloseLoading()', 'ยังไม่มีการชำระเงิน กรุณาแจ้งผู้ดูแล'));

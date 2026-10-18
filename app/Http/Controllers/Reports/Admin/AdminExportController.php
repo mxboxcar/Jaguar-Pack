@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Reports\Admin;
 
+use App\Domain\Money\Money;
 use App\Domain\Reports\ExportBill;
 use App\Domain\Reports\ExportMailer;
 use App\Domain\Reports\Php74;
@@ -137,6 +138,12 @@ class AdminExportController extends Controller
                 if ($data === null) {
                     return false;
                 }
+                // เดิมรับทุกสถานะ: บิลที่ยกเลิก/คืนเงินแล้ว (-1) หรือยังไม่จ่าย (0/1) ถูกพลิกเป็น "ส่งแล้ว" + ตัดค่าส่งในประเทศ
+                // ใหม่ (เจ้าของสั่งแก้): เฉพาะ 2 (รอส่ง) และ 3 (ส่งแล้ว = แก้ข้อมูลการส่ง; แถวค่าส่งเดิมถูกแทนที่ ไม่ตัดซ้ำ)
+                if (! in_array((string) $data->status, ['2', '3'], true)) {
+                    return 'invalid';
+                }
+                Money::lockUser($data->user);
                 DB::table('bill_payment')->where('id', $data->id)->update([
                     'status' => '3', 'export_tracking' => $tracking, 'export_remark' => $remark,
                     'export_date' => $exportDate === '' ? DB::raw('NOW()') : $newDateTime,
@@ -154,7 +161,10 @@ class AdminExportController extends Controller
                 return true;
             });
         }
-        if ($found) {
+        if ($found === 'invalid') {
+            return response(Money::refuse('บิลนี้ไม่อยู่ในสถานะรอส่งสินค้า ไม่สามารถบันทึกการส่งได้'));
+        }
+        if ($found === true) {
             if ($file !== '') {
                 // เดิม echo JS ให้เบราว์เซอร์ย้ายไฟล์จาก upload/temp ขึ้น storage (_api/blockblob_ajax)
                 $js = self::blobJs($file);

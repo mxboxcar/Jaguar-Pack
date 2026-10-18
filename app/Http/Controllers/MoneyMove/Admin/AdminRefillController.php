@@ -4,6 +4,7 @@ namespace App\Http\Controllers\MoneyMove\Admin;
 
 use App\Domain\MoneyMove\Lookups;
 use App\Domain\MoneyMove\Mailer;
+use App\Domain\Money\Money;
 use App\Domain\MoneyMove\Php74;
 use App\Domain\MoneyMove\TempUpload;
 use App\Http\Controllers\Controller;
@@ -135,7 +136,12 @@ class AdminRefillController extends Controller
         $approved = false;
         $refId = DB::transaction(function () use ($uid, $id, &$approved) {
             $data = DB::table('refill')->where('id', $id)->lockForUpdate()->first();
+            // รายการแจ้งยอดติดลบ/ศูนย์ที่ค้างจากเว็บเดิม: อนุมัติ = หักเงินลูกค้า → ไม่ยอม
+            if ($data !== null && Php74::eq($data->status, 1) && (float) $data->amount <= 0) {
+                return 'invalid';
+            }
             if ($data !== null && Php74::eq($data->status, 1)) {
+                Money::lockUser($data->user);
                 DB::table('refill')->where('id', $data->id)->update(['status' => '2', 'approved_date' => DB::raw('NOW()')]);
                 DB::table('balance')->insert([
                     'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
@@ -147,8 +153,8 @@ class AdminRefillController extends Controller
             if ($data === null) {
                 return null;
             }
-            // เดิม: prefix = '10' (ตายตัว) — แถวแรกคงไว้ ที่เหลือ is_delete = 1
-            $dups = DB::table('balance')->where('prefix', '10')->where('prefix_ref_id', $data->id)->where('type', '1')
+            // เดิม: prefix = '10' (ตายตัว = id ของ prefix "refill") → ใช้ id จากตาราง prefix — แถวแรกคงไว้ ที่เหลือ is_delete = 1
+            $dups = DB::table('balance')->where('prefix', (string) (Lookups::prefixId('refill') ?? ''))->where('prefix_ref_id', $data->id)->where('type', '1')
                 ->orderBy('id')->pluck('id')->slice(1)->values();
             if ($dups->isNotEmpty()) {
                 DB::table('balance')->whereIn('id', $dups)->update(['is_delete' => '1', 'mod_date' => DB::raw('NOW()'), 'mod_by' => (string) $uid]);
@@ -156,6 +162,9 @@ class AdminRefillController extends Controller
 
             return $data->id;
         });
+        if ($refId === 'invalid') {
+            return response(Money::refuse('ยอดเงินไม่ถูกต้อง (ต้องมากกว่า 0)'));
+        }
         if ($approved) {
             Mailer::refillApproved($refId);
         }
@@ -163,16 +172,38 @@ class AdminRefillController extends Controller
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/refill').'";', Lang::get('success_process_no').Lookups::prefix('refill').Alerts::js(e($id))));
     }
 
-    /** POST /_admin/_refill/cancel — เดิมไม่ตรวจ status (ยกเลิกรายการที่อนุมัติแล้วได้ — คงไว้, ไม่คืน/หักเงิน) */
+    /**
+     * POST /_admin/_refill/cancel — ยกเลิกรายการแจ้งเติมเงิน (ไม่มีการเคลื่อนเงิน)
+     * เดิมไม่ตรวจ status: ยกเลิกรายการที่อนุมัติแล้วได้ (เงินที่เติมยังอยู่ในบัญชี แต่รายการแสดงว่ายกเลิก)
+     * ใหม่ (เจ้าของสั่งแก้): ล็อกแถว, เฉพาะ status 1 (= ปุ่มยกเลิกในหน้าแสดงเฉพาะสถานะนี้) — เลือก "ปฏิเสธ" แทน "หักเงินคืน"
+     * เพราะหน้าเดิมไม่มีทางยกเลิกรายการที่อนุมัติแล้วอยู่แล้ว ถ้าต้องดึงเงินคืนให้ทำรายการปรับยอดแยก
+     */
     public function cancel(Request $request): Response
     {
         $u = Legacy::user();
         $id = $this->in($request, 'id');
-        DB::table('refill')->where('id', $id)->update([
-            'status' => '-1', 'cancel_remark' => $this->in($request, 'cancel_remark').' ,ยกเลิกโดย '.$u->code,
-            'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id,
-        ]);
-        Mailer::refillCancelled($id);
+        $result = DB::transaction(function () use ($u, $id, $request) {
+            $data = DB::table('refill')->where('id', $id)->lockForUpdate()->first();
+            if ($data === null) {
+                return 'ไม่พบรายการ';
+            }
+            if (Money::statusIn($data->status, [Money::DONE])) {
+                return 'รายการนี้อนุมัติ (เติมเงินเข้าบัญชี) แล้ว ไม่สามารถยกเลิกได้';
+            }
+            if (! Money::statusIn($data->status, [Money::PENDING])) {
+                return 'รายการนี้ถูกยกเลิกไปแล้ว';
+            }
+            DB::table('refill')->where('id', $data->id)->update([
+                'status' => '-1', 'cancel_remark' => $this->in($request, 'cancel_remark').' ,ยกเลิกโดย '.$u->code,
+                'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id,
+            ]);
+
+            return (int) $data->id;
+        });
+        if (is_string($result)) {
+            return response(Money::refuse($result));
+        }
+        Mailer::refillCancelled($result);
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/refill').'";', ''));
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\MoneyMove;
 
 use App\Domain\MoneyMove\Lookups;
+use App\Domain\Money\Money;
 use App\Domain\MoneyMove\Php74;
 use App\Domain\MoneyMove\TempUpload;
 use App\Http\Controllers\Controller;
@@ -147,14 +148,19 @@ class TransferController extends Controller
             if ($row === null || ! Php74::eq($row->status, 1)) {
                 return;
             }
+            Money::lockUser($u->id);
             DB::table('bill_transfer')->where('id', $row->id)->where('user', $u->id)->update([
                 'status' => '-1', 'cancel_remark' => 'ยกเลิกโดย '.$u->code, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id,
             ]);
-            DB::table('balance')->insert([
-                'create_date' => DB::raw('NOW()'), 'create_by' => $u->id, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id, 'is_delete' => 0,
-                'user' => $u->id, 'amount' => $row->usecash, 'detail' => 'ยกเลิกรายการ '.Lookups::prefix('transfer').$row->id, 'type' => 5,
-                'prefix' => (string) (Lookups::prefixId('transfer') ?? ''), 'prefix_ref_id' => $row->id,
-            ]);
+            // คืนเท่าที่รายการถูกตัดไว้จริง (ไม่เกิน usecash)
+            $refund = Money::refundable((float) $row->usecash, Money::net('balance', Lookups::prefixId('transfer'), $row->id));
+            if ($refund > 0) {
+                DB::table('balance')->insert([
+                    'create_date' => DB::raw('NOW()'), 'create_by' => $u->id, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id, 'is_delete' => 0,
+                    'user' => $u->id, 'amount' => Money::fmt($refund), 'detail' => 'ยกเลิกรายการ '.Lookups::prefix('transfer').$row->id, 'type' => 5,
+                    'prefix' => (string) (Lookups::prefixId('transfer') ?? ''), 'prefix_ref_id' => $row->id,
+                ]);
+            }
         });
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('transfer').'";'));

@@ -129,9 +129,9 @@ class OrderRoutesTest extends TestCase
         $this->assertNull(OrderQueries::applyShipStatus($q, '-2', ''));
         $this->assertStringNotContainsString('where', $q->toSql());
 
-        // load_paging ของลูกค้าเดิม: "= 0" กับ derived table → ไม่มีแถวผ่าน
-        $this->assertSame('never', OrderQueries::applyShipStatus(OrderQueries::base(), null, '5', true));
+        // load_paging ของลูกค้าเดิม: "= 0" กับ derived table → ไม่มีแถวผ่าน — แก้แล้ว (เจ้าของสั่ง): ใช้ HAVING เดียวกับ grid
         $this->assertSame('5', OrderQueries::applyShipStatus(OrderQueries::base(), null, '5'));
+        $this->assertSame('6', OrderQueries::applyShipStatus(OrderQueries::base(), null, '6'));
     }
 
     public function test_load_total_order_ref_uses_php74_comparison(): void

@@ -107,9 +107,24 @@ ajax / form post (ทุกตัว `legacy.ajax` = system_check_ajax เดิ
 - ลูกค้า `save_submit_payment`: ค่าส่งตามน้ำหนัก (`getShippingTypePrice`) คิดจาก random ของรายการที่จ่ายจริง (`id`) แทน `ref_id` ที่ส่งแยกมา (หน้าเดิมส่งค่าเดียวกัน; ส่ง ref_id ของ random อื่นที่เบากว่า = ค่าส่งถูกลง)
 - id จาก POST ที่ฝังในข้อความ `SuccessBox(...)` ผ่าน `Alerts::js(e())` (เดิมไม่ escape); แถว balance/อีเมลใช้ id ของบิลที่อ่านได้จริง (เดิมใช้ค่าที่ส่งมา เช่น `5abc`)
 
+แก้ตามที่เจ้าของอนุมัติ (2026-10-18, รายงานข้อ 13 — เฉพาะฝั่ง Laravel):
+- ราคาติดลบตอนแอดมินสร้างบิล: เดิม `prices` ใน `admin/payment/create` ติดลบได้ → บิลยอดติดลบ + pay_now = เพิ่มเงินให้ลูกค้า
+  ใหม่: `_admin/_payment/save_create` **บล็อกการบันทึก** ถ้าราคาช่องใดติดลบ (อ่านแบบตัวเลข 7.4 หลังตัด `,`) ตอบ `ErrorBox('ราคาไม่ถูกต้อง (ห้ามติดลบ) …', 'CloseLoading()')`;
+  `save_submit_payment` ตรวจซ้ำ (temp ที่ค้าง/ยิงตรง): ราคารายการหรือยอดรวมติดลบ = ไม่สร้างบิล ไม่ตัด/เพิ่มเงิน
+- `getShippingTypePrice_EditSender` (`Pricing::getShippingTypePriceEditSender`, ฐานร่วม — commit `foundation:`): เดิม join `t.id = bill_payment_detail.tracking_id`
+  แต่ `tracking_id` คือ PK (AUTO_INCREMENT) ของ bill_payment_detail ส่วน tracking.id อยู่ในคอลัมน์ `id` (ตรวจกับ DB จริงแบบอ่านอย่างเดียว: 500/500 แถวตรงกันที่ `id`, 0/297 ที่ `tracking_id`)
+  → ค่าส่งแบบ rate / VAT ใน `save_vat`, `load_new_sender` คิดจากน้ำหนักของ tracking ผิดแถว — ใหม่ join `t.id = t2.id`
+- `_payment/save` (สำเนา `_refill/save`): ยอดต้องเป็นตัวเลขบวก (ดู money-move)
+- test: `tests/Feature/Money/PaymentDbTest.php` (admin_jl_bench + rollback, opt-in `JL_BENCH_DB_TESTS=1`)
+
+บิลเดียวกันในกลุ่ม reports (`_export/*`, `_admin/_export/*` — ยังไม่มี `docs/modules/reports.md` จึงบันทึกไว้ที่นี่; รายงานข้อ 15, เจ้าของอนุมัติ 2026-10-18):
+- `_export/save_delete` (ลูกค้า): เดิมยกเลิก+คืนเงินบิลทุกสถานะ ≠ -1 (ก่อนรอบนี้ Laravel ยอม 0/1) → เฉพาะบิลของตัวเองสถานะ **0** (= ปุ่มยกเลิกในหน้า `export/{id}`) ล็อก user → บิล,
+  คืนเงินเท่ายอดสุทธิที่บิลถูกตัดอยู่จริง (สถานะ 0 ปกติ = ไม่มีเงินคืน), สถานะอื่น = `ErrorBox`; บิลสถานะ 1 ยกเลิก+คืนเงินที่ `_payment/save_delete` ตามเดิม
+- `_admin/_export/save_approved`: เดิมรับทุกสถานะ (บิลที่ยกเลิก/คืนเงินแล้ว หรือยังไม่จ่าย ถูกพลิกเป็น "ส่งแล้ว" + ตัด/คืนค่าส่งในประเทศ) → เฉพาะ **2** (รอส่ง)
+  และ 3 (ส่งแล้ว = แก้ข้อมูลการส่ง; ปุ่มบันทึกแสดงทุกสถานะ และแถวค่าส่ง type 4 เดิมถูก `is_delete` แล้วเขียนใหม่ จึงไม่ตัดซ้ำ) ล็อกบิล + user; สถานะอื่น = `ErrorBox`
+- test: `tests/Feature/Money/ReportsDbTest.php`
+
 คงพฤติกรรมเดิม (ควรให้เจ้าของตัดสินใจ):
-- `_admin/_payment/save_vat` / `getShippingTypePrice_EditSender` join `bill_payment_detail.tracking_id` (= PK ของ bill_payment_detail ไม่ใช่ tracking.id) → น้ำหนักที่ใช้คิดค่าส่งแบบ rate มาจาก tracking ผิดแถว (ฟังก์ชันของฐานร่วม)
-- ราคาที่แอดมินแก้ใน `admin/payment/create` (prices) ติดลบได้ → บิลยอดติดลบ + pay_now = เพิ่มเงินให้ลูกค้า (แอดมินเท่านั้น)
 - `_admin/_alipay/grid` ลำดับ `AND … OR user.code LIKE …` ทำให้กิ่งค้นหารหัสลูกค้าไม่กรอง is_delete
 - รหัสผ่าน taobao/alipay ของลูกค้าเก็บ plaintext ใน `bill_alipay` และแสดงในหน้าแอดมิน (ระบบเดิมออกแบบให้พนักงานล็อกอินแทน)
 - `admin_change_sender` ไม่มีใน role_detail → ฟอร์มแก้ผู้ส่ง/`save_new_sender` ไม่มีใครใช้ได้ (พอร์ตครบแต่ทดสอบผ่าน HTTP ไม่ได้)

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\MoneyMove;
 
 use App\Domain\MoneyMove\Lookups;
+use App\Domain\Money\Money;
 use App\Domain\MoneyMove\Php74;
 use App\Domain\MoneyMove\TempUpload;
 use App\Http\Controllers\Controller;
@@ -95,6 +96,10 @@ class RefillController extends Controller
     {
         if (! Php74::eq($this->has($request, 'id') ? $this->in($request, 'id') : null, '')) {
             return response('');
+        }
+        // เดิมไม่ตรวจยอด (ติดลบ / 0 / ไม่ใช่ตัวเลข ได้หมด) — ใหม่ (เจ้าของสั่งแก้): ต้องเป็นตัวเลขบวก
+        if (! Money::validRefillAmount($this->in($request, 'amount'))) {
+            return response(Money::refuse('กรุณาระบุจำนวนเงินให้ถูกต้อง (ต้องมากกว่า 0)'));
         }
         $uid = Legacy::userId();
         $exp = explode('|', $this->in($request, 'date'));
