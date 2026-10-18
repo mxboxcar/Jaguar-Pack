@@ -142,8 +142,11 @@ final class Pricing
     /** getShippingTypePrice_EditSender($id, $payment_id, $sender) — บิลที่สร้างแล้ว (bill_payment_detail) */
     public static function getShippingTypePriceEditSender(mixed $id, mixed $paymentId, mixed $sender): ?array
     {
+        // เดิม join t.id = t2.tracking_id แต่ bill_payment_detail.tracking_id คือ PK (AUTO_INCREMENT) ของตารางนี้เอง
+        // ส่วน tracking.id อยู่ในคอลัมน์ id → น้ำหนัก/ขนาดที่ใช้คิดค่าส่งแบบ rate (และ VAT) มาจาก tracking ผิดแถว
+        // แก้ (เจ้าของอนุมัติ 2026-10-18): join t.id = t2.id
         $rows = DB::table('tracking as t')
-            ->leftJoin('bill_payment_detail as t2', 't.id', '=', 't2.tracking_id')
+            ->leftJoin('bill_payment_detail as t2', 't.id', '=', 't2.id')
             ->where('t2.payment_id', $paymentId)
             ->get(['t.weight', 't.width', 't.height', 't.long', 't.amount']);
 
