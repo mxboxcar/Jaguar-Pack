@@ -38,7 +38,7 @@ class MessagingRoutesTest extends TestCase
         'GET admin/notice' => ['legacy.perm:admin_notice', false],
         'GET admin/notice/create' => ['legacy.perm:admin_notice', false],
         'GET admin/notice/{id}' => ['legacy.perm:admin_notice', false],
-        'POST _admin/_notice/grid' => ['legacy.perm:admin_notice', true],
+        'POST _admin/_notice/grid' => ['legacy.auth', true],
         'POST _admin/_notice/save' => ['legacy.perm:admin_notice', true],
         'POST _admin/_notice/save_isshow' => ['legacy.perm:admin_notice', true],
         'POST _admin/_notice/delete' => ['legacy.perm:admin_product_type', true],

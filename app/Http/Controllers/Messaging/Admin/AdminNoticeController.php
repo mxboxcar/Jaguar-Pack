@@ -48,6 +48,9 @@ class AdminNoticeController extends Controller
     /** POST /_admin/_notice/grid */
     public function grid(Request $request): Response
     {
+        if (! perm('admin_notice')) {
+            return response(''); // เดิม exit() เงียบ
+        }
         $q = DB::table('notice')->where('is_delete', 0);
         $total = (clone $q)->count();
         $page = $this->php($request, 'page', null);

@@ -29,7 +29,7 @@ worktree `/home/admin/laravel/jl-wt/money-move` (branch `mod/money-move`, port 8
 | `_admin/_refill/grid` / `save` / `save_approved` / `cancel` | `POST` เดิม | ล็อกอิน (grid) / admin_refill |
 | `_admin/_refill/email_approved` / `email_cancel` (include) | `GET\|POST` → ตอบว่าง ไม่ส่งอะไร | admin_refill |
 | `admin/transfer`, `admin/transfer/status/N` | `GET /admin/transfer...` | admin_transfer |
-| `admin/transfer/create`, `admin/transfer/N` (`form.php` เดิมตรวจ `transfer`) | `GET` | **transfer + admin_transfer** |
+| `admin/transfer/create`, `admin/transfer/N` (`form.php` เดิมตรวจ `transfer`) | `GET` | **transfer + admin_transfer** (ตรวจ `transfer` ก่อน → ข้อความปฏิเสธของผู้ไม่มี transfer ตรงเดิม) |
 | `_admin/_transfer/grid` / `save` / `cancel` / `rollback` | `POST` เดิม | ล็อกอิน (grid) / admin_transfer |
 | `_admin/_transfer/email_success` / `email_cancel` (include) | `GET\|POST` → ตอบว่าง | admin_transfer |
 | `admin/withdrawcash`, `admin/withdrawcash/status/N`, `admin/withdrawcash/N` | `GET` | admin_withdrawcash |
