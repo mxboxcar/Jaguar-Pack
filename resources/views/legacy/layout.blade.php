@@ -20,7 +20,7 @@
         <meta property="og:image" content="{{ legacy_href() }}assets/images/fav.png">
 
         <!--Morris Chart CSS -->
-		    <link rel="stylesheet" href="assets/plugins/morris/morris.css">
+		    {{-- morris.css ตัดออก 2026-10-19: ไม่มีหน้าไหนใช้กราฟ morris และ path แบบ relative ทำให้ 404 ทุกหน้า --}}
 
         <link href="{{ legacy_href() }}assets/css/bootstrap.min.css?v={{ config('legacy.version') }}" rel="stylesheet" type="text/css" />
         <link href="{{ legacy_href() }}assets/css/core.css?v={{ config('legacy.version') }}" rel="stylesheet" type="text/css" />
@@ -1274,7 +1274,7 @@
 
         <script src="{{ legacy_href() }}assets/plugins/jquery-knob/jquery.knob.js"></script>
 
-        <script src="{{ legacy_href() }}assets/pages/jquery.dashboard.js"></script>
+        {{-- jquery.dashboard.js ตัดออก 2026-10-19: เป็นกราฟตัวอย่างของ template (ข้อมูลปลอม 2005–2015) ไม่มีหน้าไหนมีกล่องกราฟ → error "Graph container element not found" ทุกหน้า --}}
 
         <script src="{{ legacy_href() }}assets/js/jquery.core.js"></script>
         <script src="{{ legacy_href() }}assets/js/jquery.app.js"></script>
