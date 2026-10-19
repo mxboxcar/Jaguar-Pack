@@ -2,13 +2,14 @@
 
 use App\Http\Controllers\Tracking\Admin\AdminLostPackageController;
 use App\Http\Controllers\Tracking\Admin\AdminTrackingController;
+use App\Http\Controllers\Tracking\Admin\CheckController;
 use App\Http\Controllers\Tracking\Admin\CombineTrackController;
 use App\Http\Controllers\Tracking\LostPackageController;
 use App\Http\Controllers\Tracking\TrackingController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| กลุ่ม: tracking — _tracking, _admin/_tracking, _admin/_combine_track, _lost_package, _admin/_lost_package
+| กลุ่ม: tracking — _tracking, _admin/_tracking, _admin/_combine_track, _lost_package, _admin/_lost_package, _admin/_check (SR)
 | ดูรายการ URL/ไฟล์เดิมใน docs/url-map.md และรายงานใน docs/modules/tracking.md
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 |
@@ -54,6 +55,16 @@ Route::middleware('legacy.perm:admin_tracking')->group(function () {
 });
 Route::post('/_admin/_tracking/grid', [AdminTrackingController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 
+// ---------- แอดมิน: รายการรอเช็ค (SR-only: _admin/_check, ตาราง tracking_check) ----------
+// ทั้ง 3 ไฟล์เดิมตรวจ getPermission('admin_tracking')
+Route::middleware('legacy.perm:admin_tracking')->group(function () {
+    Route::get('/admin/check', [CheckController::class, 'index'])->defaults('legacy_page', 'admin_check');
+    Route::middleware('legacy.ajax')->group(function () {
+        Route::post('/_admin/_check/save_clear', [CheckController::class, 'saveClear']);
+        Route::post('/_admin/_check/save_clearall', [CheckController::class, 'saveClearAll']);
+    });
+});
+
 // ---------- แอดมิน: รวมรหัสพัสดุ ----------
 // หน้า index เดิมไม่ตรวจสิทธิ์ (เมนูซ่อนไว้เท่านั้น) → ใช้ admin_combine_track เดียวกับ ajax
 Route::middleware('legacy.perm:admin_combine_track')->group(function () {
@@ -98,6 +109,8 @@ Route::middleware('legacy.perm:admin_lost_package')->group(function () {
         Route::post('/_admin/_lost_package/cancel', [AdminLostPackageController::class, 'adminCancel']);
         Route::post('/_admin/_lost_package/rollback', [AdminLostPackageController::class, 'rollback']);
         Route::post('/_admin/_lost_package/save_approved', [AdminLostPackageController::class, 'saveApproved']);
+        // SR-only: หมายเหตุแอดมินในตาราง (lost_package.admin_quote)
+        Route::post('/_admin/_lost_package/save_remark', [AdminLostPackageController::class, 'saveRemark']);
     });
     // ไฟล์ include ของ cancel/save_approved ที่เดิมเปิดตรงได้ (ไม่ต้องล็อกอิน) — ที่นี่ต้องมีสิทธิ์ และไม่ส่งอะไร
     Route::match(['GET', 'POST'], '/_admin/_lost_package/email_approved', [AdminLostPackageController::class, 'emailDirect']);

@@ -1,5 +1,113 @@
 # กลุ่ม tracking — รายงานการพอร์ต
 
+## SR (2026-10-20)
+
+branch `mod/tracking` ของ repo sr · worktree `/home/admin/laravel/sr-wt/tracking` · dev http://127.0.0.1:8301 · เทียบกับ SR เดิม :8111 (`admin_sr_bench`)
+ข้อความด้านล่าง (หัวข้อ 1–10) เป็นรายงานเดิมของ jl — ยังใช้ได้กับ SR ยกเว้นที่ระบุในหัวข้อนี้
+
+### สิ่งที่เปลี่ยนสำหรับ SR (ตาม `docs/sr-diff.md` กลุ่ม tracking)
+
+| ไฟล์เดิม | สถานะ | ที่ทำ |
+|---|---|---|
+| `_tracking/index.php` | diff 10 | ไม่ต้องแก้ (SR ซ่อนปุ่ม "เพิ่มรายการ" เมื่อไม่มีสิทธิ์ tracking — route มี `legacy.perm:tracking` อยู่แล้ว ผลเท่ากัน) |
+| `_tracking/grid.php` | diff 30 | คอลัมน์ "รหัสลูกค้า" (= `tracking.subuser`), แถว "ถ่ายรูป" (`is_takeapic`), คอลัมน์ "ไฟล์แนบ" = รูป `tracking_image` (batch 1 query แทนทีละแถว) |
+| `_tracking/form.php` | diff 80 | ช่อง "ถ่ายรูป" (select เมื่อยังไม่เข้าล็อต / ข้อความเมื่อเข้าแล้ว), `onchange="openmodals()"` ที่ไม้/QC/ถ่ายรูป + modal "มีค่าใช้จ่าย…", การ์ด "รูปภาพ" (`tracking_image`) |
+| `_tracking/save.php` | diff 49 | บันทึก `is_takeapic`; สร้างใหม่ที่ขอ QC/ไม้ → INSERT `tracking_check`; แก้ไขที่ขอ QC/ไม้/ถ่ายรูป → แถว `tracking_check` ที่เช็คแล้วแถวแรกตั้งกลับเป็น 0 ไม่มีก็ INSERT ใหม่; **แก้ไข: เลขพัสดุใช้ค่าเดิมใน DB** (SR ไม่ให้ลูกค้าเปลี่ยนเลข) และข้อความแสดงเลขนั้น |
+| `_admin/_tracking/grid.php` | diff 44 | ค้นเลขแทรค `LIKE '%x%'` (jl = `x%`), ชื่อล็อต/ลิงก์จาก `lot.id` ที่พบ, แถว "ถ่ายรูป", รหัสลูกค้า + `subuser` (สีแดง), ชั้นวางไม่นับแถว `warehouse_section_detail.is_delete = 1`, คอลัมน์ "ไฟล์แนบ" (รูป) |
+| `_admin/_tracking/load_paging.php` | diff 60 | นับสดทุกครั้ง (SR ไม่มี cache Redis 10 นาที / ไม่ตัด zero-width space แบบ jl), `LIKE '%x%'` เหมือน grid |
+| `_admin/_tracking/form.php` | diff 47 | ช่อง "รหัสย่อย" (`subuser`), "ถ่ายรูป" (`is_takeapic`) แทน "รับเข้าไทยแล้ว?" (`is_checked` — SR ไม่มีคอลัมน์), การ์ด "รูปภาพ" (กล่องอัปโหลดหลายไฟล์ + รูปเดิมพร้อมปุ่มลบ) |
+| `_admin/_tracking/save.php` | diff 69 | `subuser` (ตัดช่องว่าง + `nStr` = `'` ถูกเก็บเป็น `''` แบบเดิม), `is_takeapic`, ไม่มี `is_checked`; รูป: ลบ (`is_delete=1`) ทั้งหมดแล้ว INSERT ตาม `upload_upload_track_mul[]`, ไฟล์ที่อยู่ใน temp = ตอบ JS เรียก `_api/blockblob_ajax` แบบเดิม |
+| `_admin/_combine_track/save_combine.php` + `CombineTrack()` | diff 20 | คอลัมน์ SR (`date_section`, `subuser`, `is_takeapic` เทียบกับ `''`), ย้าย `tracking_image` (ที่ยังไม่ลบ) ไปแถวใหม่; คงการแก้ของ jl (lock + ตรวจสถานะ/ลูกค้าเดียวกัน + transaction) |
+| `_admin/_lost_package/grid.php` | diff 28 | ค้นด้วยเลขรายการ **หรือ** เลขออเดอร์ **หรือ** รหัสลูกค้า, คอลัมน์ "หมายเหตุแอดมิน" (input แก้ในตาราง → `save_remark`), `white-space`/`word-break` แบบ SR |
+| `_admin/_lost_package/email_approved.php`, `email_cancel.php` | diff 2 | ปุ่มสี `#a3b2f1` + แม่แบบ email header/center/footer ของ SR, ผู้ส่ง `SRShippingSystem <no-reply@srshippingsystem.com>` (`LostPackageMailer`) |
+| `getuploadmultiple()` (SR อยู่ใน system_status_function.php) | — | `UploadBox::multiple()` เปลี่ยนเป็นแบบ SR (รูปเดิมดูจากนามสกุล, ไฟล์ zip/rar/7z, ไม่มีตัวล้างช่อง input ของ jl) — ใช้โดย lost_package, admin tracking และ **warehouse (AdminGoodsconfirmController)** |
+| ไฟล์ `same` อีก 25 ไฟล์ | same | ไม่ต้องแก้ — เทียบผลกับ :8111 แล้วตรงกัน |
+
+### SR-only ที่พอร์ตใหม่
+
+| ไฟล์เดิม | route | สิทธิ์ |
+|---|---|---|
+| `_admin/_check/index.php` (page `admin_check`) | `GET /admin/check` | `legacy.perm:admin_tracking` |
+| `_admin/_check/save_clear.php` | `POST /_admin/_check/save_clear` | `legacy.perm:admin_tracking` |
+| `_admin/_check/save_clearall.php` | `POST /_admin/_check/save_clearall` | `legacy.perm:admin_tracking` |
+| `_admin/_lost_package/save_remark.php` | `POST /_admin/_lost_package/save_remark` | `legacy.perm:admin_lost_package` |
+
+ไฟล์: `app/Http/Controllers/Tracking/Admin/CheckController.php`, `resources/views/tracking/check/index.blade.php`, `app/Domain/Tracking/TrackingChecks.php` (ตาราง `tracking_check`), `app/Domain/Tracking/TempUpload.php` (ย้าย safeName/blobJs ออกจาก LostPackageController ให้ใช้ร่วมกับ admin tracking), partial `tracking/partials/images.blade.php`
+
+JL-only: ไม่มี (กลุ่มนี้ไม่มีไฟล์ที่ jl มีแต่ SR ไม่มี) · ไม่มีหน้า "dead"
+
+### ต่างจาก SR เดิมโดยตั้งใจ (เพิ่มจากของ jl ในหัวข้อ 2)
+
+- ไม่มี `target="_blank"` (เจ้าของ) — รวมรูปในตาราง/ฟอร์ม, กล่องอัปโหลด, หน้า admin/check
+- **save_combine / CombineTrack**: SR เดิม `INSERT INTO tracking VALUES(...)` ตามลำดับ `..., date_section, subuser, is_takeapic` แต่ตาราง SR เรียง `date_section, is_takeapic, subuser` → ค่าสลับคอลัมน์ (รหัสย่อย "1269263" กลายเป็น `is_takeapic = 1269263` = "ถ่ายรูป: เปิด" และ `subuser = "0"`) → ใหม่ INSERT ตามชื่อคอลัมน์ (ดู test `TrackingSrDbTest::test_combine_keeps_subuser_and_takeapic_columns_and_moves_images`)
+- `_admin/_tracking/save.php` รูป: รับเฉพาะชื่อไฟล์ธรรมดา `[A-Za-z0-9._-]` (เดิมบันทึก/ส่งต่อทุกค่า: `file_exists('../../upload/temp/'.$x)` = path traversal และชื่อไฟล์ถูกฝังใน JS ที่ตอบ) — ชื่อที่ไม่ผ่านถูกข้าม
+- `save_clearall.php`: id ต้องเป็นตัวเลขทั้งหมด (เดิม `IN (".substr($id,1).")` = SQL injection) — ไม่ใช่ตัวเลข = ไม่เปลี่ยนอะไร (เดิม SQL error เหมือนกัน) แต่ยังตอบสำเร็จแบบเดิม
+- `admin/check` ไม่มีสิทธิ์: แสดงหน้า no-permission (เดิม `getPermissionAlert_Page()` ไม่ `exit` → **ตาราง tracking ที่รอเช็คทั้งหมดถูกส่งไปให้ผู้ไม่มีสิทธิ์** ก่อน JS redirect — เทียบแล้วกับ role 7)
+- ลำดับแถวที่เดิมไม่มี ORDER BY (`tracking_image`, `tracking_check`) ใช้ `ORDER BY id`
+- `_tracking/save.php` แก้ไข: งานเขียน `tracking_check` + `tracking` ห่อ transaction; ค่าเลขพัสดุเดิมที่มี `'` (SQL เดิมพัง → ไม่บันทึก) ไม่ได้เลียนแบบ
+- อีเมล lost_package: แม่แบบของ SR ก่อน hotfix (หลัง hotfix 2026-10-18 ไฟล์ `email_*.php` บนเว็บเดิมขึ้นต้นด้วยบรรทัด `<?php … ?>` ซึ่ง `file_get_contents` ใส่ลงในเนื้ออีเมลด้วย — ไม่เลียนแบบ)
+- hotfix ของ SR เดิม `_tracking/delete.php` แปลง id ที่ไม่ใช่ตัวเลขด้วย `intval` (`1) OR (1=1` → ลบ id 1) ส่วนพอร์ต (ของ jl) ไม่ลบอะไรเลย — ปลอดภัยทั้งคู่
+
+### พฤติกรรมเดิมที่คงไว้ (ไม่ใช่ช่องโหว่)
+
+- แก้ไข tracking ที่ขอ QC/ไม้/ถ่ายรูป เมื่อไม่มีแถว `tracking_check` ที่เช็คแล้ว → INSERT แถวใหม่ทุกครั้ง แม้มีแถวรอเช็คอยู่ (หน้า admin/check มีแถวซ้ำได้)
+- ตอนสร้างใหม่ "ถ่ายรูป" อย่างเดียวไม่เข้า tracking_check (ต้อง QC หรือไม้) แต่ตอนแก้ไขเข้า
+- `on_saveremark()` ส่ง `remark=` โดยไม่ encode (มี `&`/`+` แล้วข้อความขาด) — JS เดิม
+- combine ไม่ย้าย `tracking_check` ไปแถวใหม่ (เดิมก็ไม่ย้าย — แถวรอเช็คของ tracking ที่ถูกรวมหายจากหน้า admin/check เพราะ tracking เดิมถูก DELETE)
+
+### ตรวจเทียบกับ :8111 (cookie เดียวกัน, ตัดช่องว่าง + แทน href + ตัด target=_blank)
+
+ตรงกันทุกตัวอักษร: `/tracking`, `/tracking/create`, `/tracking/{id}` (มี/ไม่มีล็อต, ชำระแล้ว, ของคนอื่น, ไม่มีจริง, มีรูป 7 รูป), `_tracking/grid` (หน้า 1/2/3/5, สถานะ 0/2/3/-1, ค้นหา), `load_pricing`, `load_product_type` (ลูกค้า 3, 7, 8),
+`/admin/tracking`, `/admin/tracking/status/2`, `/admin/tracking/{create,0,994,1038,568}`, `_admin/_tracking/grid` + `load_paging` (หน้า 1/2/3, ค้นเลขแทรค/ship/ออเดอร์/รหัสลูกค้า, ภาษา th/en/cn), `/admin/combine_track`, `load_tracking` (ผลเยอะ ~42K บรรทัด/ไม่มีผล),
+`/admin/check` (ว่าง / มีรายการ zz), `/lost_package` (+status), `/lost_package/{create,id,status/1}`, `_lost_package/grid`, `load_upload`, `load_order_number`, `/admin/lost_package` (+status), `/admin/lost_package/{create,id}`, `_admin/_lost_package/grid` (ค้นเลขรายการ/ออเดอร์/รหัสลูกค้า, สถานะ)
+ต่างตามที่ตั้งใจ: escape `< " '` (`zz_remark <b>x</b> "q"`), หน้าไม่มีสิทธิ์ (role 7: admin/check, admin/tracking, admin/lost_package, admin tracking form), JS หน้า combine (eval ErrorBox ของ jl), meta theme-color/favicon/`jquery.dashboard.js` ของ layout
+สิทธิ์: role 7 (user 11) → ErrorBox เดียวกัน (`load_paging`), grid ตอบว่างเหมือนเดิม; ลูกค้า 3 → `load_tracking` ErrorBox เดียวกัน
+
+### E2E งานเขียน (ฝั่ง Laravel เท่านั้น, แถว zz_ / ผู้ใช้ 11937/11938, ลบตาม id แล้ว)
+
+- ลูกค้าสร้าง tracking (QC+ถ่ายรูป) + กดซ้ำพร้อมกัน/ซ้ำภายหลัง → 1 แถว + `tracking_check` 1 แถว (คำขอซ้อน = "กำลังดำเนินการ", ซ้ำ = "ส่งซ้ำ")
+- แอดมิน Clear (`save_clear`) → ลูกค้าแก้ไข (ถ่ายรูป) → แถวเดิมกลับเป็นรอเช็ค; แก้ไข (ไม้) → INSERT แถวใหม่; เลขพัสดุไม่เปลี่ยนแม้ส่งค่าใหม่; `save_clearall` 2 แถว
+- อัปโหลดรูป (`_lost_package/upload`) → แอดมินบันทึก tracking พร้อมรูป temp + ชื่อที่ไม่มีไฟล์ + `../../x.php` → JS blockblob 1 ตัว, INSERT 2 แถว (ชื่ออันตรายถูกข้าม), `subuser` = `zzsub9`; บันทึกซ้ำโดยลบ 1 รูป (กดซ้ำพร้อมกัน → ส่งซ้ำ) → รูปเดิมถูก is_delete แล้ว INSERT ใหม่ตามรายการ
+- รวม 2 tracking (ยิงพร้อมกัน 2 ครั้ง) → แถวใหม่ 1 แถว (`subuser`/`is_takeapic` ถูกคอลัมน์), รูปย้าย; คำขอที่สองตอบสำเร็จแต่ไม่ทำอะไร (เหมือนเดิม: ไม่ครบ 2 แถว)
+- save_lock (-3, ล้าง date_thai), ลูกค้าลบ, แอดมินสร้าง (คิดราคาอัตโนมัติ: 60.00) + กดซ้ำ, แอดมินลบ, quick quote (+ IDOR tracking คนอื่น = ไม่เปลี่ยน)
+- lost_package: สร้าง (+ ซ้อน) → `save_remark` → อนุมัติ (balance +64.88 = ¥12.50 × 5.190) + อนุมัติซ้ำ (ไม่ทำ) → rollback (-64.88) → ลูกค้ายกเลิก → แอดมินยกเลิก (ถูกปฏิเสธ: ยกเลิกแล้ว) → rollback → แอดมินยกเลิก; อีเมลลง log (`From: SRShippingSystem`, ปุ่ม #a3b2f1) ไม่ส่งจริง
+- ลบแล้ว: tracking 1185/1186 (1183/1184 ถูกลบโดย combine), tracking_check 13/14 (+ แถวทดสอบอ่าน 1–4), tracking_image 6014–6017, lost_package 9/10/11/17, lost_package_detail 1–3, balance 947/948, bill_product 49, ไฟล์ temp 2 ไฟล์ — ตรวจแล้วไม่เหลือแถว/ไม่มีแถวเดิมถูกแก้
+
+### Bench (`bin/bench`, -n 30 -c 1, `artisan optimize`; ms เฉลี่ย รอบ 1 / รอบ 2)
+
+| หน้า | เดิม ms | ใหม่ ms |
+|---|---|---|
+| `/tracking` (ลูกค้า 8) | 367 / 347 | 43 / 37 |
+| `_tracking/grid` หน้า 1 (ลูกค้า 8, มีรูปทุกแถว) | 77 / 84 | 45 / 40 |
+| `_admin/_tracking/grid` หน้า 1 | 167 / 128 | 54 / 56 |
+| `_admin/_tracking/load_paging` | 23–25 | 27–28 |
+| `/admin/check` (3 แถว) | 336 | 37 |
+| `_admin/_lost_package/grid` | 56 / 41 | 38 / 33 |
+
+`load_paging` ช้ากว่าเดิม ~4 ms: ไฟล์เดิมเล็กมาก (count 1 ครั้ง) ส่วน Laravel มี overhead คงที่ต่อ request (boot + session/สิทธิ์) — ตาม CONVENTIONS ข้อ 10
+
+### Test
+
+- `tests/Feature/Tracking/TrackingRoutesTest.php`: route + สิทธิ์ของ 4 route SR-only, `legacy_page=admin_check`, ไม่มี `_blank` ใน view ของกลุ่ม, merge ของ CombineTrack แบบ SR (subuser/is_takeapic, ไม่มี is_checked)
+- `tests/Feature/Tracking/TrackingSrDbTest.php` (JL_BENCH_DB_TESTS=1, rollback): สร้าง/แก้ไขลูกค้า + tracking_check, IDOR, แอดมินบันทึก subuser/ถ่ายรูป/รูป, combine (คอลัมน์ + ย้ายรูป), check clear/clearall (+ SQL injection), save_remark
+- `tests/Feature/Money/LegacyRisksDbTest` (combine / save_lock) ผ่านแล้ว — เดิมล้มเพราะ `CombineTrack` INSERT คอลัมน์ `is_checked`/`checked_by` ที่ SR ไม่มี
+
+### คำถามถึงเจ้าของ
+
+1. `save_combine`: SR เดิมสลับค่า `subuser` ↔ `is_takeapic` ในแถวที่รวม — พอร์ตแก้เป็นตามชื่อคอลัมน์ (ถ้าต้องการให้เหมือนเดิมเป๊ะต้องตัดสินใจ) และข้อมูลจริงที่เคยรวมไปแล้วอาจมี `is_takeapic` เป็นเลขรหัสย่อย (ตรวจได้: `SELECT id, subuser, is_takeapic FROM tracking WHERE is_takeapic NOT IN (0,1)`)
+2. `tracking_check` ซ้ำ (แก้ไขหลายครั้ง = หลายแถวรอเช็ค) — คงไว้แบบเดิม จะให้ INSERT เฉพาะเมื่อยังไม่มีแถวรอเช็คไหม
+3. เมนูแจ้งเตือน "รายการรอเช็ค" (`notification.php`, กลุ่ม messaging) ตรวจสิทธิ์ `admin_export` แต่หน้า `admin/check` ใช้ `admin_tracking` — ผู้ที่มีแค่ `admin_export` เห็นตัวเลขแต่เปิดหน้าไม่ได้ (เหมือนเดิม)
+4. hotfix เว็บเดิม (2026-10-18) ใส่บรรทัด PHP กันเปิดตรงไว้ที่ `email_header/center/footer.php` ซึ่งถูกอ่านด้วย `file_get_contents` → อีเมลจริงจากเว็บเดิมตอนนี้มีโค้ด PHP ติดอยู่ในเนื้อ HTML (ฝั่ง Laravel ไม่เป็น)
+5. ข้อเสนอเดิมของ jl ยังใช้: บังคับความยาวคำค้นของ `load_tracking`; index `tracking_image(tracking_id, is_delete)` มีแล้ว (MUL) ไม่ต้องเพิ่ม
+
+### ฝากกลุ่มอื่น
+
+- warehouse: `AdminGoodsconfirmController` ใช้ `App\Domain\Tracking\UploadBox::multiple()` ซึ่งตอนนี้ให้ HTML แบบ SR (ถูกต้องสำหรับ SR เพราะ `getuploadmultiple()` เป็นของกลาง) — ตรวจหน้าของตัวเองอีกครั้งหลัง merge
+- lot / payment: ยังอ้าง `tracking.is_checked`/`checked_by` (`app/Domain/Lot/LotPrint.php`, `AdminLotController`, `PaymentController`, `resources/views/lot/admin/detail.blade.php`, `routes/modules/lot.php`) — SR ไม่มีคอลัมน์นี้
+- `tests/Feature/Lot/LotRoutesTest::test_route_count_matches_url_map` ล้มอยู่แล้วบน main (46 vs 43) — ไม่ใช่ของกลุ่มนี้
+- `php8.4 vendor/bin/phpunit` กับ JL_BENCH_DB_TESTS=1: test ที่ล้มของกลุ่มอื่น (payment/money): `BillGridDbTest` (`is_vat`), `GridPerfDbTest`, `LegacyRisksDbTest::test_sender_change_*` 3 ตัว
+
+
 branch `mod/tracking` · worktree `/home/admin/laravel/jl-wt/tracking` · dev server `bin/wt-serve tracking` → http://127.0.0.1:8201
 
 โมดูลเดิม: `_tracking`, `_admin/_tracking`, `_admin/_combine_track`, `_lost_package`, `_admin/_lost_package` และ `CombineTrack()` (system_status_function.php)

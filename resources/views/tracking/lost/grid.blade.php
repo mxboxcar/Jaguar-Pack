@@ -49,6 +49,7 @@
 @if ($admin)
                             <th class="text-center" style="width: 93px;">{!! res('order') !!}</th>
                             <th class="text-center" style="width: 93px;">{!! res('customer_code') !!}</th>
+                            <th class="text-center" style="width: 105px;">{!! res('admin_remark') !!}</th>
 @else
                             <th class="text-center">{!! res('order') !!}</th>
 @endif
@@ -70,11 +71,18 @@
                             <td class="text-center">
                                 {!! $dt($item->approved_date) !!}
                             </td>
-                            <td class="text-left"><a href="{{ legacy_href() }}{{ $base }}order/{{ $item->order_id }}" >{{ $orderPrefix.$item->order_id }}</a></td>
 @if ($admin)
-                            <td class="text-center">{{ $item->code }}</td>
-@endif
+                            {{-- SR: แอดมินมีช่องหมายเหตุแอดมิน (lost_package.admin_quote) แก้ในตาราง → save_remark --}}
+                            <td class="text-left" style="white-space: nowrap;"><a href="{{ legacy_href() }}{{ $base }}order/{{ $item->order_id }}" >{{ $orderPrefix.$item->order_id }}</a></td>
+                            <td class="text-center" style="white-space: nowrap;">{{ $item->code }}</td>
+                            <td class="text-center" style="white-space: nowrap;">
+                                <input onblur="on_saveremark($(this))" onkeydown="javascript: if(event.keyCode == 13) on_saveremark($(this));" class="editable" type="text" value="{{ $item->admin_quote }}" ref="{{ $item->id }}">
+                            </td>
+                            <td class="text-left" style="word-break: break-all;">{{ $item->submit_remark }}</td>
+@else
+                            <td class="text-left"><a href="{{ legacy_href() }}{{ $base }}order/{{ $item->order_id }}" >{{ $orderPrefix.$item->order_id }}</a></td>
                             <td class="text-left">{{ $item->submit_remark }}</td>
+@endif
                             <td class="text-right">{!! Format::numberformat($item->cashback, true, true, true) !!}</td>
                             <td class="text-center">
                             {!! Format::getFancyBox(isset($images[(int) $item->id]) ? e($images[(int) $item->id]) : null) !!}</td>
@@ -146,6 +154,24 @@
 		}
 	}
 
+@if ($admin)
+    function on_saveremark(ele) {
+        OpenLoading();
+        var vals = ele.val();
+        var ids = ele.attr('ref');
+
+        $.ajax({
+            type: 'POST',
+            async: true,
+            data : 'id=' + ids + '&remark=' + vals,
+            url: rooturl + '{{ $ajaxpage }}/../save_remark',
+            success: function(data) {
+                eval(data);
+            }
+        });
+    }
+
+@endif
 	function GenerateWhere() {
 		$("#txtSearch").val($("#txtsearch").val() + '|' + $("#status").val());
 	}

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tracking;
 use App\Domain\Tracking\Php74;
 use App\Domain\Tracking\PricePreview;
 use App\Domain\Tracking\ProductTypeSelect;
+use App\Domain\Tracking\TrackingChecks;
 use App\Domain\Tracking\TrackingLookups;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Tracking\Concerns\ReadsLegacyInput;
@@ -55,6 +56,8 @@ class TrackingController extends Controller
             'isNew' => $isNew,
             'd' => $d,
             'allowEdit' => $allowEdit,
+            // SR: รูปพัสดุ — เดิม WHERE tracking_id = '<id ของแถวที่พบ>' AND is_delete = 0 AND tracking_id != 0 (ไม่มี ORDER BY → ใช้ id)
+            'images' => TrackingLookups::imageList($row !== null ? (int) $row->id : 0),
             'prefix' => TrackingLookups::prefix('tracking'),
             'payPrefix' => TrackingLookups::prefix('payment'),
         ]);
@@ -113,6 +116,7 @@ class TrackingController extends Controller
             'ajaxpage' => self::AJAX,
             'items' => $items,
             'orderIds' => TrackingLookups::orderIds($ids),
+            'images' => TrackingLookups::images($ids),
             'search' => $phpParts[0],
             'status' => isset($parts[1]) ? $phpParts[1] ?? '' : null,
             'page' => $page,
@@ -154,6 +158,7 @@ class TrackingController extends Controller
         $ship = $this->in($request, 'ship');
         $isCraft = $this->in($request, 'is_craft');
         $isQc = $this->in($request, 'is_qc');
+        $isTakeapic = $this->in($request, 'is_takeapic');
         $prefix = TrackingLookups::prefix('tracking');
         $done = 'window.location.href = "'.Legacy::href('tracking').'";';
 
@@ -172,25 +177,35 @@ class TrackingController extends Controller
                 'price_qc' => '0.00', 'price_repack' => '0.00', 'price_express' => '0.00', 'price_else' => '0.00', 'price_craft' => '0.00',
                 'date_warehouse' => '0000-00-00 00:00:00', 'date_outofchina' => '0000-00-00 00:00:00',
                 'date_thai' => '0000-00-00 00:00:00', 'date_finish' => '0000-00-00 00:00:00', 'remark' => null,
+                'is_takeapic' => $isTakeapic,
             ]);
+            // SR: ขอ QC / ไม้กันกระแทก = เข้ารายการรอเช็ค (admin/check) — ตอนสร้างไม่นับ "ถ่ายรูป" แบบเดิม
+            if (Php74::eq($isQc, 1) || Php74::eq($isCraft, 1)) {
+                TrackingChecks::insert($newId, $uid);
+            }
 
             return response(Alerts::success($done, Lang::get('success_process_no').$prefix.$newId.'<br />'.Lang::get('tracking').' : '.Alerts::js($tracking)));
         }
 
         $row = DB::table('tracking')->where('id', $id)->where('is_delete', 0)->where('user', $uid)->first();
+        // SR: $tracking = เลขเดิมใน DB (ลูกค้าแก้เลขพัสดุไม่ได้ ค่าที่ส่งมาถูกทิ้ง) และแสดงเลขนั้นในข้อความ
+        $shown = (string) ($row->tracking ?? '');
         if ($row !== null && (Php74::eq($row->lot_id, '0') || Php74::eq($row->lot_id, ''))) {
-            $linked = DB::table('bill_product_on_tracking')->where('tracking_id', $id)->where('user', $uid)->exists();
-            $set = ['tracking' => $tracking, 'order' => $order, 'quote' => $quote];
-            if (! $linked) {
-                $set += ['is_craft' => $isCraft, 'ship' => $ship, 'is_qc' => $isQc];
-            }
-            DB::table('tracking')->where('id', $id)->update($set);
-            // เดิม $data ถูกแทนด้วยแถว bill_product_on_tracking (ไม่มีคอลัมน์ tracking) → ข้อความท้ายว่างเสมอ
-            $shown = '';
+            DB::transaction(function () use ($row, $id, $uid, $order, $quote, $isCraft, $ship, $isQc, $isTakeapic) {
+                $linked = DB::table('bill_product_on_tracking')->where('tracking_id', $id)->where('user', $uid)->exists();
+                $set = ['tracking' => $row->tracking, 'order' => $order, 'quote' => $quote];
+                if (! $linked) {
+                    $set += ['is_craft' => $isCraft, 'ship' => $ship, 'is_qc' => $isQc, 'is_takeapic' => $isTakeapic];
+                }
+                // SR: ขอ QC / ไม้ / ถ่ายรูป (ค่าที่ส่งมา แม้ผูกออเดอร์แล้วจะไม่ได้บันทึกค่าเหล่านี้) = เข้ารายการรอเช็คอีกครั้ง
+                if (Php74::eq($isQc, 1) || Php74::eq($isCraft, 1) || Php74::eq($isTakeapic, 1)) {
+                    TrackingChecks::requeue((int) $row->id, $uid);
+                }
+                DB::table('tracking')->where('id', $row->id)->update($set);
+            });
         } else {
             // เดิม UPDATE ... WHERE id = '$id' ไม่กรองเจ้าของ = แก้ quote ของ tracking คนอื่นได้ → กรอง user
             DB::table('tracking')->where('id', $id)->where('user', $uid)->update(['quote' => $quote]);
-            $shown = (string) ($row->tracking ?? '');
         }
 
         return response(Alerts::success($done, Lang::get('success_process_no').$prefix.Alerts::js($this->php($request, 'id')).'<br />'.Lang::get('tracking').' : '.Alerts::js($shown)));

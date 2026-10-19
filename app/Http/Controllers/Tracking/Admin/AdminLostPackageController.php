@@ -143,6 +143,15 @@ class AdminLostPackageController extends LostPackageController
             Lang::get('success_process_no').$prefix.Alerts::js($this->php($request, 'id'))));
     }
 
+    /** POST /_admin/_lost_package/save_remark — SR: หมายเหตุแอดมิน (lost_package.admin_quote) จากช่องในตาราง (ไม่พบ id = ไม่เปลี่ยนอะไร แต่ตอบสำเร็จแบบเดิม) */
+    public function saveRemark(Request $request): Response
+    {
+        DB::table('lost_package')->where('id', $this->in($request, 'id'))
+            ->update(['admin_quote' => $this->in($request, 'remark')]);
+
+        return response(Alerts::success());
+    }
+
     /**
      * /_admin/_lost_package/email_approved, /email_cancel — เดิมเป็นไฟล์ include แต่เปิดตรงได้โดยไม่ต้องล็อกอิน
      * และรับ email_id ผ่าน extract($_GET) = ใครก็สั่งส่งอีเมลหาลูกค้าได้ → ที่นี่ต้องมีสิทธิ์ และไม่ส่งอะไร (ส่งจาก cancel/save_approved เท่านั้น)

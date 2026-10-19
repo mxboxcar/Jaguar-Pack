@@ -60,6 +60,11 @@ class TrackingRoutesTest extends TestCase
         'POST _admin/_lost_package/save_approved' => 'legacy.perm:admin_lost_package',
         'GET _admin/_lost_package/email_approved' => 'legacy.perm:admin_lost_package',
         'GET _admin/_lost_package/email_cancel' => 'legacy.perm:admin_lost_package',
+        // SR-only
+        'POST _admin/_lost_package/save_remark' => 'legacy.perm:admin_lost_package',
+        'GET admin/check' => 'legacy.perm:admin_tracking',
+        'POST _admin/_check/save_clear' => 'legacy.perm:admin_tracking',
+        'POST _admin/_check/save_clearall' => 'legacy.perm:admin_tracking',
     ];
 
     public function test_every_legacy_url_has_a_route_with_the_legacy_permission(): void
@@ -84,13 +89,21 @@ class TrackingRoutesTest extends TestCase
         $pages = [
             'tracking' => 'tracking', 'tracking/{id}' => 'tracking_detail', 'admin/tracking/{id}' => 'admin_tracking_detail',
             'admin/combine_track' => 'admin_combine_track', 'lost_package/status/{status}' => 'lost_package_detail',
-            'admin/lost_package/status/{status}' => 'admin_lost_package',
+            'admin/lost_package/status/{status}' => 'admin_lost_package', 'admin/check' => 'admin_check',
         ];
         foreach (Route::getRoutes() as $r) {
             if (isset($pages[$r->uri()]) && in_array('GET', $r->methods(), true)) {
                 $this->assertSame($pages[$r->uri()], $r->defaults['legacy_page'] ?? null, $r->uri());
             }
         }
+    }
+
+    public function test_sr_views_have_no_target_blank(): void
+    {
+        foreach (glob(resource_path('views/tracking/*/*.blade.php')) as $f) {
+            $this->assertStringNotContainsString('_blank', (string) file_get_contents($f), $f);
+        }
+        $this->assertStringNotContainsString('_blank', \App\Domain\Tracking\UploadBox::multiple('upload_track', 'a.jpg', true));
     }
 
     public function test_php74_loose_comparison(): void
@@ -132,11 +145,11 @@ class TrackingRoutesTest extends TestCase
     {
         $a = (object) ['create_date' => '2026-01-01 00:00:00', 'mod_date' => '0000-00-00 00:00:00', 'no' => 0, 'tracking' => '',
             'order' => 'O1', 'price_kg' => '0.00', 'amount' => 2, 'ship' => 0, 'is_craft' => 1, 'quote' => '', 'rate_kg' => null,
-            'is_checked' => 0, 'date_section' => '0000-00-00 00:00:00', 'remark' => null, 'id' => 5, 'create_by' => 9];
+            'subuser' => '', 'is_takeapic' => 0, 'date_section' => '0000-00-00 00:00:00', 'remark' => null, 'id' => 5, 'create_by' => 9];
         $b = (object) ['create_date' => '2026-02-01 00:00:00', 'mod_date' => '2026-02-02 00:00:00', 'no' => 7, 'tracking' => 'T2',
             'order' => 'O2', 'price_kg' => '12.50', 'amount' => 5, 'ship' => 1, 'is_craft' => 0, 'quote' => 'Q', 'rate_kg' => null,
-            'is_checked' => 1, 'date_section' => '2026-03-01 00:00:00', 'remark' => 'R', 'id' => 6, 'create_by' => 9];
-        $m = CombineTrack::merge([$a, $b], '');
+            'subuser' => 'S2', 'is_takeapic' => 1, 'date_section' => '2026-03-01 00:00:00', 'remark' => 'R', 'id' => 6, 'create_by' => 9];
+        $m = CombineTrack::merge([$a, $b]);
         $this->assertSame('2026-01-01 00:00:00', $m['create_date']);
         $this->assertSame('2026-02-02 00:00:00', $m['mod_date']);
         $this->assertSame('7', $m['no']);
@@ -149,9 +162,11 @@ class TrackingRoutesTest extends TestCase
         // quote '' != '0' → เดิมเอาค่าว่างของแถวแรก แล้วแถวถัดไปเติมได้เพราะยัง == ''
         $this->assertSame('Q', $m['quote']);
         $this->assertSame('', $m['rate_kg']);
-        // save_combine: is_checked เทียบกับ '' → 0 ของแถวแรกถูกเลือก
-        $this->assertSame('0', $m['is_checked']);
-        $this->assertSame('1', CombineTrack::merge([$a, $b], '0')['is_checked']);
+        // SR: subuser / is_takeapic เทียบกับ '' → '' ของแถวแรกถูกข้าม, 0 ของแถวแรกถูกเลือก
+        $this->assertSame('S2', $m['subuser']);
+        $this->assertSame('0', $m['is_takeapic']);
+        $this->assertSame('2026-03-01 00:00:00', $m['date_section']);
+        $this->assertArrayNotHasKey('is_checked', $m);
         $this->assertSame('', $m['id']);
         $this->assertSame('', $m['create_by']);
     }
