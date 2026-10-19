@@ -1,5 +1,86 @@
 # กลุ่ม users — รายงานการพอร์ต
 
+## SR (2026-10-20)
+
+branch `mod/users` · worktree `/home/admin/laravel/sr-wt/users` · port 8310 · เทียบกับ SR เดิม :8111 (session เดียวกัน, ผู้ใช้ 11938 แอดมิน / 6 role 12 / 11 role 7 ไม่มีสิทธิ์ / 24, 22, 11937 ลูกค้า)
+
+### ไฟล์ตาม docs/sr-diff.md
+
+| ไฟล์ | ผล |
+|---|---|
+| `_admin/_role/*` (5), `_admin/_user_type/*` (5), `_admin/_user/{index,cancel,delete,load_role_detail,rate_history,rate_history_lib,btn_*}` , `_profile/{load_role_detail,load_user_type_detail,pin}`, `_register/lost_password`, `system_check_username` | same → ไม่ต้องแก้ (เทียบผลแล้วตรง) |
+| `_admin/_user/grid.php` (diff 32) | ทำแล้ว: ไม่แสดงผู้ใช้ที่ยกเลิก (`is_approved != -1` เสมอ), ค้น lineid/wechatid, ตัวกรอง `99` = "ตั้งเอง" (`type NOT IN` กลุ่มหลัก), คอลัมน์ Line ID + ยอดเงินในระบบ, เรียง `id DESC` |
+| `_admin/_user/form.php` (diff 408) | ทำแล้ว: SR ไม่มีหน้าอ่านอย่างเดียว (admin_user_view เห็นฟอร์มเดียวกัน), ช่อง LINE ID/WeChat ID, ไม่มีรหัสผู้แนะนำ, บัตรประชาชนลิงก์ `upload/<ไฟล์>` (ไม่ใช่ Azure), ตารางเรตตั้งเองแบบแนวตั้ง, LoadUserType เฉพาะ option_price = 0 |
+| `_admin/_user/save.php` (diff 36) | ทำแล้ว: code จากช่องฟอร์ม (jl = username), บันทึก lineid/wechatid, ไม่มี commission, เปลี่ยนรหัสผ่านได้เฉพาะผู้บันทึก role = 1 |
+| `_admin/_user/save_approved.php` (diff 13) | ทำแล้ว: ตอบ `$('form').submit();`, อีเมลอนุมัติเฉพาะ type 3, type 4 = 500 (ดูข้างล่าง) |
+| `_admin/_user/load_user_type_detail.php` (diff 83) | ทำแล้ว: สิทธิ์ admin_user เท่านั้น, แสดงทุก product_type (เรตของกลุ่ม หรือค่าตั้งต้นของ product_type), numberformat |
+| `_admin/_user/email.php`, `email_approved.php`, `_register/email.php`, `_register/email_lost_password.php` (diff) | ทำแล้วใน `UsersMailer` (ข้อความ/สี/หัวเรื่องของ SR) |
+| `_profile/index.php` (diff 16) | ทำแล้ว: ช่อง WeChat ID แทนบัตรประชาชน |
+| `_profile/save.php` (diff 42) | ทำแล้ว: ถาม PIN ก่อน (`PinBox::guard`), บันทึก email/phone/phone2/lineid/wechatid |
+| `_register/save.php` (diff 40) | ทำแล้ว: รหัส `SU####`, lineid/wechatid, อีเมลซ้ำไม่ได้, ข้อความ "ผู้ใช้งานนี้มีในระบบแล้ว", ไม่มีรหัสผู้แนะนำ, ไฟล์บัตรคัดลอกในเครื่อง |
+| `register.php` (diff 119), `lost_password.php` (diff 7) | ทำแล้ว: สร้าง blade ใหม่จากไฟล์ SR (โลโก้ SR, ลิงก์เปลี่ยนภาษา, ช่อง LINE/WeChat, กล่องแนบบัตร, ข้อตกลงของ SR แทน JLCARGO) |
+| `password.php` (diff 9) | คงไว้ = ตอบว่าง (ดูช่องโหว่ข้อ 1) |
+| `_register/email_lost_password.php`, `btn_email_lost_password.php`, `email_cancel.php` | ใน UsersMailer (สี/ข้อความ SR) |
+
+ไม่มีไฟล์ SR-only / JL-only ในกลุ่มนี้ — route เดิมครบ ไม่ต้องลบ
+
+### ฐานร่วม (commit `foundation:` แยก)
+- `config/legacy.php` `mail` = ผู้ส่ง `SRShippingSystem <no-reply@srshippingsystem.com>` (ตาม `sendmail()` ของ SR) + แม่แบบ email_header/center/footer ของ SR (byte ตรงกับไฟล์เดิม) — Mailer ของกลุ่มอื่นใช้ค่านี้ได้เลย (`config('legacy.mail.from_address')`, `UsersMailer::wrap()` เป็นตัวอย่าง)
+- `config/services.php` mailgun domain ตั้งต้น `mg.srshippingsystem.com`, `config/mail.php` from ตั้งต้นเป็นของ SR, `tests/Feature/Integrations/MailgunMailerTest.php` ตามค่าใหม่
+- ยังมีข้อความ JLcargo ใน Mailer ของกลุ่มอื่น (NoticeMail, CashbackMailer, MoneyMove/Lot/Order/Payment/Reports/LostPackage) — เป็นงานของกลุ่มนั้น
+
+### ต่างจาก SR เดิมโดยตั้งใจ
+- ทุกข้อของ jl ด้านล่างยังอยู่ (bind SQL, escape, CSRF, PinThrottle, legacy.once, transaction/lock ของ user_count ฯลฯ)
+- ลิงก์ทุกตัวไม่มี `target="_blank"` (grid ผู้ใช้/กลุ่มราคา/role, ปุ่ม "แก้ไขโมดูลนี้", ลิงก์บัตรประชาชน, ปุ่มในอีเมล)
+- admin_user_view: หน้าฟอร์มเหมือน SR (แก้ช่องได้) แต่บันทึก/อนุมัติ/ยกเลิก/ลบ/btn_* ต้องมี admin_user (owner decision `*_view` = อ่านอย่างเดียว) — bench ไม่มี role ที่ถือ view อย่างเดียว
+- `_profile/save`: PIN ผิด → log เป็น `***` (เดิม plaintext) และนับ PinThrottle ร่วมกับ `_profile/pin`
+- `save_approved` type 4: เดิม UPDATE อนุมัติแล้ว `require_once('email_approved2.php')` ที่ไม่มีไฟล์ → PHP fatal (หน้าไม่ทำอะไรต่อ); ใหม่ = อนุมัติแล้วตอบ HTTP 500 ว่าง (ผลที่ผู้ใช้เห็นเท่าเดิม) — bench ไม่มี user_type id 4
+- `_register/save` บัตรประชาชน: รับเฉพาะชื่อไฟล์ล้วนใน `legacy.upload.temp_dir` แล้ว copy ไป `legacy.upload.local_dir` (production ต้องตั้ง `LEGACY_UPLOAD_LOCAL_DIR` = โฟลเดอร์ `upload/` ของเว็บ เพื่อให้ลิงก์ `upload/<ไฟล์>` ในฟอร์มแอดมินเปิดได้); ค่า `identity` ยังบันทึกตามที่ส่งมาแบบเดิม
+- อีเมล: เดิม `sendmail()` จับ exception แล้ว `echo $e` (ข้อความ error ปนในคำตอบ ajax) → ใหม่ log เงียบ; ค่าจาก DB ถูก escape
+- ข้อความ blocklist ตอนสมัครยังเป็นภาษาไทยที่อ่านได้ (SR เดิมเป็น UTF-8 ซ้อนเหมือน jl)
+
+### ช่องโหว่เดิมที่พบใน SR (เพิ่มจากของ jl)
+1. **ร้ายแรง: `password.php` ของ SR เปิดสาธารณะ (ไม่ต้องล็อกอิน) และพิมพ์รหัสผ่านที่ถอดรหัสแล้วของผู้ใช้ทุกคน** (`echo "UPDATE user SET password = '".decrypt($row['password'])."' ..."` ทุกแถวของ `user`) — ยังอยู่ทั้ง sr-prehotfix และ sr-old (hotfix 2026-10-18 ไม่ได้แก้) · Laravel ตอบว่าง · **ควรลบไฟล์นี้ออกจาก production ทันที** (ไม่ได้ยิงทดสอบ)
+2. `_register/save.php` SR: `copy('../upload/temp/'.$_POST['upload_file'], '../upload/'.$upload_file)` ไม่กรอง path → คัดลอกไฟล์ใดๆ ที่ php อ่านได้ (เช่น `../../system_config.php`, `../../system_db.php`) ไปไว้ใต้ `upload/` ที่เปิดสาธารณะ (แก้แล้ว)
+3. `_admin/_user/form.php` SR echo `identity` ดิบใน href/img (stored XSS ผ่านค่าที่สมัครส่งมา) และ lineid/wechatid ดิบ (แก้: escape)
+4. `_admin/_user/load_user_type_detail.php` / grid / form echo ชื่อกลุ่ม/ประเภทสินค้า/ lineid ดิบ (แก้: escape)
+5. ช่องโหว่ข้อ 1–14 ของ jl ด้านล่าง SR มีครบเหมือนกัน (ไฟล์ same)
+
+### ผลเทียบ (หลังยุบช่องว่าง + แทน href; ต่างที่เหลือ = favicon/morris/dashboard.js ของ layout ฐานร่วม และ target="_blank")
+- หน้า: admin/user, admin/user/status/1, admin/user/create, /24, /2, /22, /11937, /999999, ผู้ใช้ราคาตั้งเอง (สร้าง zz ชั่วคราว), ฟอร์มที่มีปุ่ม view/reset/pin/unbanned (เพิ่มรหัสแอดมินใน setting ชั่วคราว), role 12 (admin_user), role 7 (ไม่มีสิทธิ์ → layout + ErrorBox ของฐานร่วม), profile (24, 11937, 11938, 6), admin/user_type (+create, /3), admin/role (+create, /8), register, lostpassword (th/cn/en) — **ตรงกัน**
+- ajax: _admin/_user/grid 7 แบบ (หน้า 1/2, ค้นหา+role+type+approved, 99, -1, `a_b`, ไม่ส่ง txtsearch) + ลูกค้า/role 7 (ว่าง), load_user_type_detail (2, 3, 126, 999, ว่าง, role 7 ว่าง), load_role_detail ×4, rate_history, _profile/load_* ×8, user_type grid ×3, role grid ×2 — **ตรงกัน**
+
+### E2E (ฝั่ง Laravel เท่านั้น, แถว zz_ แล้วลบตาม id)
+- สมัคร: สำเร็จ (user SU0001 + crawl_guard_signup + copy บัตร), ส่งซ้ำ = "ผู้ใช้งานนี้มีในระบบแล้ว", อีเมลซ้ำ, user_type ตั้งเองของคนอื่น (invalid), path `../../.env` (บันทึกค่า แต่ไม่คัดลอก) · อีเมลสมัคร/ลืมรหัส ตรวจใน log (From SRShippingSystem, ข้อความ SR)
+- ลืมรหัสผ่าน (รหัสเปลี่ยน + อีเมล) — **หมายเหตุ**: ลบแถว `ips` ของ IP ผู้ขอ (127.0.0.1) ตามพฤติกรรมเดิม ทำให้แถว ips id 88 (ล็อกอินผิดจาก 127.0.0.1 ของการทดสอบฐานร่วมเมื่อ 02:04) หายไป 1 แถว กู้คืนไม่ได้ (ค่าใน log ถูกปิด) — เป็นแถวทดสอบ ไม่กระทบข้อมูลจริง; หลังจากนั้น snapshot ips/ips_ban/ips_ban_user ก่อนทุกขั้น
+- โปรไฟล์ 11937: ไม่มี PIN → กล่องตั้ง PIN, ตั้ง PIN, ไม่ส่ง PIN → กล่อง PIN, PIN ผิด, ถูก (บันทึกทุกช่อง), ส่งซ้ำ, รหัส = username, รหัสมี & , เปลี่ยนรหัสผ่าน → คืนค่าเดิมทุกช่อง (pin คืนเป็น '')
+- แอดมิน: สร้างผู้ใช้ราคาตั้งเอง (user + user_type ลูก + user_type_detail 8 + rate history), ส่งซ้ำ = "ส่งซ้ำ" (legacy.once), แก้โดย role 1 (รหัสเปลี่ยน) / role 12 (รหัสไม่เปลี่ยน) / role 7 (ปฏิเสธ), อนุมัติ type 2 (ไม่มีเมล) / 3 (มีเมล) / 4 (500), ยกเลิก (อีเมล), ลบ, btn_viewpassword/pinreset/resetpassword/unbanned + PIN ผิด (setting/PIN แอดมินคืนค่าแล้ว), user_type สร้าง/ลบ, role สร้าง/ลบ (500 แบบเดิม)
+- ลบแล้ว: user 12005, 12006, 12069; user_type 173, 174; user_type_detail 4394–4409; role 14 + role_on_detail; user_rate_history 2–3; crawl_guard_signup 16–18; ips 89, 90; ไฟล์ทดสอบใน storage/app/legacy-upload
+
+### bench (`bin/bench`, -n 30 -c 1, `artisan optimize`)
+
+| หน้า | เดิม mean ms (2 รอบ) | ใหม่ mean ms |
+|---|---|---|
+| /profile (ลูกค้า 24) | 322 / 366 | 45 / 37 |
+| /admin/user/24 (แอดมิน 11938) | 394 / 379 | 47 / 48 |
+| _admin/_user/grid page 1 | 161 / 80 | 56 / 33 |
+| _admin/_user_type/grid page 1 | 22 / 23 | 28 / 27 |
+| /register (ไม่ล็อกอิน) | 20 / 16 | 25 / 17 |
+
+user_type grid และ register ช้ากว่าเล็กน้อย: bench SR มีผู้ใช้แค่ ~24 แถว (subquery นับผู้ใช้ต่อกลุ่มของเดิมจึงเร็ว) และ register เป็นหน้าคงที่ — ต่างเท่ากับ overhead คงที่ของ Laravel (~5–20 ms) · ใน production ที่มีผู้ใช้มาก grid ของเดิมจะช้าลงตามจำนวนแถว
+
+### test
+- `php8.4 vendor/bin/phpunit`: users ผ่านทั้งหมด; ล้ม 1 ตัวของกลุ่มอื่น `Lot\LotRoutesTest::test_route_count_matches_url_map` (ล้มบน main ด้วย)
+- `JL_BENCH_DB_TESTS=1`: `Users\UsersSrDbTest` (5) ผ่าน; ล้มของกลุ่มอื่น (คอลัมน์ jl ที่ SR ไม่มี: tracking.is_checked, bill_payment.is_vat ฯลฯ): Lot\LotPrintHeaderCountDbTest ×2, Money\BillGridDbTest, Money\LegacyRisksDbTest ×4, Money\GridPerfDbTest
+
+### คำถามถึงเจ้าของ
+1. ลบ `password.php` ออกจาก production SR ทันทีหรือไม่ (เปิดเผยรหัสผ่านทุกคน) — แนะนำอย่างยิ่ง
+2. production: ตั้ง `LEGACY_UPLOAD_LOCAL_DIR` ให้ชี้ `upload/` ของเว็บ SR (บัตรประชาชนตอนสมัคร) หรือจะย้ายไปเก็บที่ Azure (ต้องแก้ account ของ SR ก่อน — โค้ดเดิมเขียนว่า Azure ของ SR ตั้ง account ผิด)
+3. type 4 ตอนอนุมัติ: ให้ส่งอีเมลอนุมัติแบบ type 3 แทน 500 หรือไม่ (ไฟล์ email_approved2.php ไม่มีในเว็บเดิม)
+4. admin_user_view เห็นฟอร์มแบบแก้ไขได้แบบ SR (แต่บันทึกไม่ได้) — ต้องการหน้าอ่านอย่างเดียวแบบ jl หรือไม่
+5. ข้อความในอีเมลสมัครของ SR มี "กรุณาติดต่อหมายเลขโทรศัพท์ :" แต่ไม่มีเบอร์ (เดิมเว้นว่าง) — คงไว้ตามเดิม
+
+
 branch `mod/users` · worktree `/home/admin/laravel/jl-wt/users` · port 8210
 
 ไฟล์เดิม: `_profile/*`, `_register/*`, `_admin/_user/*`, `_admin/_user_type/*`, `_admin/_role/*`, `register.php`, `lost_password.php`, `password.php`, `system_check_username.php` (42 ไฟล์ใน `docs/url-map.md`)
