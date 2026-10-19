@@ -84,8 +84,8 @@
 											<i class="fa fa-bars"></i>
 										</button>
 										<ul class="header-social-icons social-icons visible-lg">
-											<li class="social-icons-facebook"><a href="http://www.facebook.com/" target="_blank" title="Facebook"><i class="fa fa-facebook"></i></a></li>
-											<li class="social-icons-twitter"><a href="http://www.twitter.com/" target="_blank" title="Twitter"><i class="fa fa-twitter"></i></a></li>
+											<li class="social-icons-facebook"><a href="http://www.facebook.com/" title="Facebook"><i class="fa fa-facebook"></i></a></li>
+											<li class="social-icons-twitter"><a href="http://www.twitter.com/" title="Twitter"><i class="fa fa-twitter"></i></a></li>
 										</ul>
 										<div class="header-nav-main header-nav-main-square header-nav-main-effect-2 header-nav-main-sub-effect-1 collapse">
 											<nav>
@@ -116,7 +116,7 @@
 														</a>
 													</li>
 													<li>
-														<a target="_blank" href="https://portal.jlcargoth.com/">
+														<a href="https://portal.jlcargoth.com/">
 															เข้าสู่ระบบ/สมัครสมาชิก
 														</a>
 													</li>
@@ -157,25 +157,25 @@
 										<div class="">
 										
 											<p style="clear:both"><div style="float: left;"><img style="width:20px;" src="/img/icon/china (2).png" alt="" class="img-responsive"></div>
-												<div style="margin-left: 10px;float: left;"><a target="_blank" href="/how-to/profile">วิธีแก้ไขข้อมูลส่วนตัว</a></div>
+												<div style="margin-left: 10px;float: left;"><a href="/how-to/profile">วิธีแก้ไขข้อมูลส่วนตัว</a></div>
 											</p>
 											<p style="clear:both"><div style="float: left;"><img style="width:20px;" src="/img/icon/china (2).png" alt="" class="img-responsive"></div>
-												<div style="margin-left: 10px;float: left;"><a target="_blank" href="/how-to/refill">วิธีเติมเงินเข้าระบบ</a></div>
+												<div style="margin-left: 10px;float: left;"><a href="/how-to/refill">วิธีเติมเงินเข้าระบบ</a></div>
 											</p>
 											<p style="clear:both"><div style="float: left;"><img style="width:20px;" src="/img/icon/china (2).png" alt="" class="img-responsive"></div>
-												<div style="margin-left: 10px;float: left;"><a target="_blank" href="/how-to/order">วิธีการสั่งซื้อสินค้า</a></div>
+												<div style="margin-left: 10px;float: left;"><a href="/how-to/order">วิธีการสั่งซื้อสินค้า</a></div>
 											</p>
 											<p style="clear:both"><div style="float: left;"><img style="width:20px;" src="/img/icon/china (2).png" alt="" class="img-responsive"></div>
-												<div style="margin-left: 10px;float: left;"><a target="_blank" href="/how-to/tracking">วิธีเพิ่มเลขพัสดุในระบบ</a></div>
+												<div style="margin-left: 10px;float: left;"><a href="/how-to/tracking">วิธีเพิ่มเลขพัสดุในระบบ</a></div>
 											</p>
 											<p style="clear:both"><div style="float: left;"><img style="width:20px;" src="/img/icon/china (2).png" alt="" class="img-responsive"></div>
-												<div style="margin-left: 10px;float: left;"><a target="_blank" href="/how-to/alipay">วิธีเติมเงิน อลีเพย์</a></div>
+												<div style="margin-left: 10px;float: left;"><a href="/how-to/alipay">วิธีเติมเงิน อลีเพย์</a></div>
 											</p>
 											<p style="clear:both"><div style="float: left;"><img style="width:20px;" src="/img/icon/china (2).png" alt="" class="img-responsive"></div>
-												<div style="margin-left: 10px;float: left;"><a target="_blank" href="/how-to/transfer">วิธีโอนเงินไปจีน</a></div>
+												<div style="margin-left: 10px;float: left;"><a href="/how-to/transfer">วิธีโอนเงินไปจีน</a></div>
 											</p>
 											<p style="clear:both"><div style="float: left;"><img style="width:20px;" src="/img/icon/china (2).png" alt="" class="img-responsive"></div>
-												<div style="margin-left: 10px;float: left;"><a target="_blank" href="/how-to/payment">วิธีชำระเงิน  แจ้งส่งของ</a></div>
+												<div style="margin-left: 10px;float: left;"><a href="/how-to/payment">วิธีชำระเงิน  แจ้งส่งของ</a></div>
 											</p>
 											
 											<p style="clear:both"></p>

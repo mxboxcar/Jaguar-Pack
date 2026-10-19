@@ -84,8 +84,8 @@
 											<i class="fa fa-bars"></i>
 										</button>
 										<ul class="header-social-icons social-icons visible-lg">
-											<li class="social-icons-facebook"><a href="http://www.facebook.com/" target="_blank" title="Facebook"><i class="fa fa-facebook"></i></a></li>
-											<li class="social-icons-twitter"><a href="http://www.twitter.com/" target="_blank" title="Twitter"><i class="fa fa-twitter"></i></a></li>
+											<li class="social-icons-facebook"><a href="http://www.facebook.com/" title="Facebook"><i class="fa fa-facebook"></i></a></li>
+											<li class="social-icons-twitter"><a href="http://www.twitter.com/" title="Twitter"><i class="fa fa-twitter"></i></a></li>
 										</ul>
 										<div class="header-nav-main header-nav-main-square header-nav-main-effect-2 header-nav-main-sub-effect-1 collapse">
 											<nav>
@@ -116,7 +116,7 @@
 														</a>
 													</li>
 													<li>
-														<a target="_blank" href="https://portal.jlcargoth.com/">
+														<a href="https://portal.jlcargoth.com/">
 															เข้าสู่ระบบ/สมัครสมาชิก
 														</a>
 													</li>

@@ -22,6 +22,7 @@ class WwwRoutesTest extends TestCase
             // asset ต้องเป็น path จาก root (หน้า /how-to/order โหลด css/ แบบ relative ไม่เจอ)
             $this->assertDoesNotMatchRegularExpression('~(src|href)=["\'](css|js|img|image|XDX|master)/~', $html);
             $this->assertStringNotContainsString('.php"', $html);
+            $this->assertStringNotContainsString('_blank', $html, 'ลิงก์ต้องเปิดในแท็บเดิม');
         }
     }
 
