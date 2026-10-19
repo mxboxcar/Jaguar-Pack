@@ -131,6 +131,7 @@ final class TrackingLookups
         $rows = DB::table('warehouse_section_detail as t')
             ->leftJoin('warehouse_section as t2', 't2.id', '=', 't.section_id')
             ->whereIn('t.tracking_id', $ids)
+            ->where('t.is_delete', 0) // SR: ไม่นับแถวชั้นวางที่ลบแล้ว
             ->get(['t.tracking_id', 't2.id as sid', 't2.name']);
         foreach ($rows as $r) {
             $k = (int) $r->tracking_id;
@@ -141,6 +142,36 @@ final class TrackingLookups
         }
 
         return array_map(fn ($r) => $r->name, $best);
+    }
+
+    /**
+     * SR: รูปพัสดุ (tracking_image) ต่อ tracking ใน grid — เดิม SELECT ทีละแถว WHERE tracking_id = x AND is_delete = 0 (ไม่มี ORDER BY → id)
+     *
+     * @param  list<int>  $ids
+     * @return array<int, list<string>>
+     */
+    public static function images(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+        $out = [];
+        foreach (DB::table('tracking_image')->whereIn('tracking_id', $ids)->where('is_delete', '0')->orderBy('id')
+            ->get(['tracking_id', 'attachment']) as $r) {
+            $out[(int) $r->tracking_id][] = (string) $r->attachment;
+        }
+
+        return $out;
+    }
+
+    /**
+     * SR: รูปของ tracking เดียว (หน้า form) — เดิม AND tracking_id != '0' (หน้าสร้างใหม่ = ไม่มีรูป)
+     *
+     * @return list<string>
+     */
+    public static function imageList(int $trackingId): array
+    {
+        return $trackingId === 0 ? [] : (self::images([$trackingId])[$trackingId] ?? []);
     }
 
     /**
