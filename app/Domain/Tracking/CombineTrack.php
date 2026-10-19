@@ -14,8 +14,8 @@ use Illuminate\Support\Facades\DB;
  * การเทียบใช้ == / != / > แบบ PHP 7.4 และค่าที่ได้ถูกส่งเป็น string ('' แทน NULL) เหมือน INSERT ... VALUES('...') เดิม
  *
  * ต่างจากเดิมโดยตั้งใจ (ดู docs/modules/tracking.md):
- *  - save_combine เดิม INSERT 42 ค่าเข้าตาราง 43 คอลัมน์ (ไม่มี date_section) → INSERT ล้มเสมอ แต่ยัง DELETE ทั้ง 2 แถว
- *    และย้าย bill_product_on_tracking ไป tracking_id = 0 = ข้อมูลหาย → ที่นี่ INSERT ครบคอลัมน์ และทำทั้งหมดใน transaction
+ *  - jl: save_combine เดิม INSERT 42 ค่าเข้าตาราง 43 คอลัมน์ → INSERT ล้มแต่ยัง DELETE ทั้ง 2 แถว = ข้อมูลหาย
+ *    (SR เดิมส่งครบ 43 ค่าแต่สลับ subuser/is_takeapic — ดู insertMerged) → ที่นี่ INSERT ตามชื่อคอลัมน์ และทำทั้งหมดใน transaction
  *  - CombineTrack เดิมมี loop เช็ค `lot` (คอลัมน์ไม่มีจริง → SQL error → ไม่ทำอะไร) → ตัดทิ้ง ผลเท่าเดิม
  */
 final class CombineTrack
@@ -25,7 +25,7 @@ final class CombineTrack
         'price_kg', 'price_cubic', 'price_shipping', 'price_amount', 'rate_kg', 'rate_cubic', 'product_type_id', 'lot_id', 'user',
         'weight', 'width', 'height', 'long', 'amount', 'ship', 'payment_id', 'is_craft', 'is_qc', 'quote', 'price_qc', 'price_repack',
         'price_express', 'price_else', 'price_craft', 'date_warehouse', 'date_outofchina', 'date_thai', 'date_finish', 'remark',
-        'remark_shop', 'header', 'is_checked', 'checked_by', 'date_section'];
+        'remark_shop', 'header', 'date_section', 'subuser', 'is_takeapic'];
 
     private const ZERO = '0000-00-00 00:00:00';
 
@@ -34,17 +34,20 @@ final class CombineTrack
         'create_date' => self::ZERO, 'mod_date' => self::ZERO, 'tracking' => '', 'order' => '', 'remark' => '', 'remark_shop' => '',
         'header' => '', 'date_warehouse' => self::ZERO, 'date_outofchina' => self::ZERO, 'date_thai' => self::ZERO,
         'date_finish' => self::ZERO, 'date_section' => self::ZERO,
+        // SR: เทียบกับ '' (ค่า 0 ก็ถือว่ามีค่า → เอาของแถวแรก)
+        'subuser' => '', 'is_takeapic' => '',
     ];
 
     /** คอลัมน์ที่ไม่เคยถูกตั้งค่าในโค้ดเดิม (คงเป็น '') */
     private const NEVER = ['create_by', 'mod_by', 'is_delete', 'id'];
 
     /**
+     * save_combine.php และ CombineTrack() ของ SR ใช้กติกาเดียวกันทุกคอลัมน์
+     *
      * @param  iterable<object>  $rows
-     * @param  string  $isCheckedEmpty  save_combine เทียบ is_checked กับ '' / CombineTrack เทียบกับ '0'
      * @return array<string, string>
      */
-    public static function merge(iterable $rows, string $isCheckedEmpty): array
+    public static function merge(iterable $rows): array
     {
         $last = array_fill_keys(self::FIELDS, '');
         foreach ($rows as $r) {
@@ -62,7 +65,7 @@ final class CombineTrack
 
                     continue;
                 }
-                $empty = $f === 'is_checked' ? $isCheckedEmpty : (self::EMPTY[$f] ?? '0');
+                $empty = self::EMPTY[$f] ?? '0';
                 if (Php74::neq($v, $empty) && Php74::eq($last[$f], '')) {
                     $last[$f] = $v;
                 }
@@ -73,7 +76,12 @@ final class CombineTrack
         return array_map(fn ($v) => $v === null ? '' : (string) $v, $last);
     }
 
-    /** แถวที่รวมแล้ว → INSERT (ไม่ส่ง id: '' ใน AUTO_INCREMENT = ได้ id ใหม่เหมือนเดิม) */
+    /**
+     * แถวที่รวมแล้ว → INSERT ตามชื่อคอลัมน์ (ไม่ส่ง id: '' ใน AUTO_INCREMENT = ได้ id ใหม่เหมือนเดิม)
+     * SR เดิม INSERT INTO tracking VALUES(...) ตามลำดับ ..., date_section, subuser, is_takeapic แต่ตารางเรียง date_section, is_takeapic, subuser
+     * → ค่า subuser ไปลง is_takeapic และกลับกัน (เช่น รหัสย่อย "1269263" กลายเป็น is_takeapic = 1269263 = "ถ่ายรูป: เปิด", subuser = "0")
+     * ที่นี่ใส่ตามชื่อคอลัมน์ (ต่างจากเดิมโดยตั้งใจ — docs/modules/tracking.md)
+     */
     private static function insertMerged(array $last): int
     {
         unset($last['id']);
@@ -86,6 +94,8 @@ final class CombineTrack
     {
         DB::table('tracking')->whereIn('id', $oldIds)->delete();
         DB::table('bill_product_on_tracking')->whereIn('tracking_id', $oldIds)->update(['tracking_id' => $newId]);
+        // SR: ย้ายรูปพัสดุที่ยังไม่ลบไปแถวใหม่
+        DB::table('tracking_image')->whereIn('tracking_id', $oldIds)->where('is_delete', 0)->update(['tracking_id' => $newId]);
         Pricing::calPriceAutoDiff($newId);
     }
 
@@ -117,7 +127,7 @@ final class CombineTrack
             if ($rows->pluck('user')->map(fn ($u) => (string) $u)->unique()->count() !== 1) {
                 return self::ERR_USER;
             }
-            $newId = self::insertMerged(self::merge($rows, ''));
+            $newId = self::insertMerged(self::merge($rows));
             self::replace($rows->pluck('id')->all(), $newId);
 
             return $newId;
@@ -146,7 +156,7 @@ final class CombineTrack
                 ->lockForUpdate()->get();
             $n = $rows->count();
             if ($n !== 1 && $n !== 0) {
-                $newId = self::insertMerged(self::merge($rows, '0'));
+                $newId = self::insertMerged(self::merge($rows));
                 self::replace($rows->pluck('id')->all(), $newId);
             }
             if ($n === 1) {
