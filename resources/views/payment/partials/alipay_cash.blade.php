@@ -17,6 +17,14 @@
 	                	 ¥1 <i class="fa fa-arrows-h"></i> <span class="currency">{{ $rate }}</span>&nbsp;฿
 		            </div>
 		        </div>
+		        @if (! $admin)
+		        <div class="form-group">
+		            <label class="col-md-4 control-label"> {!! res('cash_cn') !!}</label>
+		            <div class="col-md-4 form-control-static">
+	                	{!! Format::numberformat($cashCn, true, true, true) !!}
+		            </div>
+		        </div>
+		    	@endif
 		        <div class="form-group">
 		            <label class="col-md-4 control-label"> {!! res('est_transfer') !!}</label>
 		            <div class="col-md-4 form-control-static">
@@ -51,6 +59,12 @@
 		            <label class="col-md-4 control-label"> {!! res('using_system_cash') !!}</label>
 		            <div class="col-md-6 form-control-static">
 		            	{!! Format::numberformat($data->usecash ?? null) !!}
+		            </div>
+		        </div>
+		        <div class="form-group">
+		            <label class="col-md-4 control-label"> {!! res('use_cash_cn_short') !!}</label>
+		            <div class="col-md-4 form-control-static">
+	                	{!! Format::numberformat($data->usecash_cn ?? null, true, true, true) !!}
 		            </div>
 		        </div>
 		        <div class="form-group">

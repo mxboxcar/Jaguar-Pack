@@ -1,4 +1,4 @@
-{{-- รายการ balance อ้างอิง (form.php ของ payment / alipay) — $colClass, $w1, $w2, $br --}}
+{{-- รายการ balance อ้างอิง (form.php ของ payment / alipay) — $colClass, $w1, $w2, $br; แถว types = balance_cn (SR alipay) แสดงเป็นหยวน --}}
 @php
     use App\Support\Legacy\Format;
     use App\Domain\Payment\Php74;
@@ -16,7 +16,7 @@
                             <th class="text-center" style="width: {{ $w2 }}px;">{!! res('amount') !!}</th>
                         </tr>
                     </thead>
-                    <tbody>@forelse ($balance as $item)@php $exp = explode(' ', (string) $item->create_date); @endphp<tr><td>{!! Format::getthaidate($exp[0]) !!}{!! $br !!}{{ $exp[1] ?? '' }}</td><td class="text-left"><a href="{{ legacy_href().$item->link.$item->prefix_ref_id }}">{{ $item->detail }}</a></td><td class="text-right">@if (Php74::num($item->amount) >= 0)<span class="text-success">+{!! Format::numberformat($item->amount) !!}</span>@else<span class="text-danger">{!! Format::numberformat($item->amount) !!}</span>@endif</td>@empty<tr><td colspan="3" class="text-center">{!! res('no_data') !!}</td></tr>@endforelse
+                    <tbody>@forelse ($balance as $item)@php $exp = explode(' ', (string) $item->create_date); @endphp<tr><td>{!! Format::getthaidate($exp[0]) !!}{!! $br !!}{{ $exp[1] ?? '' }}</td><td class="text-left"><a href="{{ legacy_href().$item->link.$item->prefix_ref_id }}">{{ $item->detail }}</a></td><td class="text-right">@php $cn = ($item->types ?? 'balance') === 'balance_cn'; $amt = $cn ? Format::numberformat($item->amount, true, true, true) : Format::numberformat($item->amount); @endphp @if (Php74::num($item->amount) >= 0)<span class="text-success">+{!! $amt !!}</span>@else<span class="text-danger">{!! $amt !!}</span>@endif</td>@empty<tr><td colspan="3" class="text-center">{!! res('no_data') !!}</td></tr>@endforelse
                 </tbody>
             </table>
         </div>
