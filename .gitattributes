@@ -9,3 +9,6 @@
 /.github export-ignore
 CHANGELOG.md export-ignore
 .styleci.yml export-ignore
+
+# เว็บหน้าแรก (คัดจากไฟล์เดิมตรงตัว) — คง CRLF ไว้ให้ HTML ตรงกับเว็บเดิมทุกไบต์
+resources/views/www/*.php -text
