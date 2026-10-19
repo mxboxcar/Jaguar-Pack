@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tracking\Admin;
 use App\Domain\Tracking\Php74;
 use App\Domain\Tracking\PricePreview;
 use App\Domain\Tracking\ProductTypeSelect;
+use App\Domain\Tracking\TempUpload;
 use App\Domain\Tracking\TrackingLookups;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Tracking\Concerns\ReadsLegacyInput;
@@ -12,12 +13,12 @@ use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
+use App\Support\Legacy\LegacyInput;
 use App\Support\Legacy\Paging;
 use App\Support\Legacy\Pricing;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -51,13 +52,14 @@ class AdminTrackingController extends Controller
         return view('tracking.admin.form', [
             'id' => $id,
             'd' => (array) ($row ?? []),
+            'images' => TrackingLookups::imageList($row !== null ? (int) $row->id : 0),
             'prefix' => TrackingLookups::prefix('tracking'),
             'payPrefix' => TrackingLookups::prefix('payment'),
         ]);
     }
 
     /**
-     * เงื่อนไขค้นหาของ grid/load_paging เดิม: [0]=เลขแทรค [1]=ship [2]=ออเดอร์ [3]=รหัสลูกค้า (ขึ้นต้นด้วย = LIKE 'x%')
+     * เงื่อนไขค้นหาของ grid/load_paging เดิม: [0]=เลขแทรค (SR: LIKE '%x%') [1]=ship [2]=ออเดอร์ (LIKE 'x%') [3]=รหัสลูกค้า (เท่ากับ)
      *
      * @param  list<string|null>  $s
      */
@@ -70,7 +72,8 @@ class AdminTrackingController extends Controller
         }
         $or = [];
         if (($s[0] ?? '') !== '') {
-            $or[] = fn (Builder $w) => $w->orWhere('tracking.tracking', 'like', addcslashes((string) $s[0], '%_\\').'%');
+            // SR: เลขแทรคค้นแบบมีคำนี้ (LIKE '%x%') — jl เป็นขึ้นต้นด้วย (x%)
+            $or[] = fn (Builder $w) => $w->orWhere('tracking.tracking', 'like', '%'.addcslashes((string) $s[0], '%_\\').'%');
         }
         if (($s[2] ?? '') !== '') {
             $or[] = fn (Builder $w) => $w->orWhere('tracking.order', 'like', addcslashes((string) $s[2], '%_\\').'%');
@@ -110,7 +113,8 @@ class AdminTrackingController extends Controller
             $items = $this->applySearch($q, $s)
                 ->orderByDesc('tracking.date_warehouse')->orderByDesc('tracking.id')
                 ->offset($offset)->limit(10)
-                ->get(['tracking.*', 'user.code', 'lot.name as lot_name', 'lot.type as lot_type', 'product_type.name as product_type_name']);
+                // SR: ชื่อล็อตอ่านจาก lot ทีละแถว (ลิงก์ใช้ lot.id ที่พบ — ไม่พบ = ลิงก์ admin/lot/ ว่าง) → LEFT JOIN แทน
+                ->get(['tracking.*', 'user.code', 'lot.id as lot_real_id', 'lot.name as lot_name', 'product_type.name as product_type_name']);
         }
         $ids = $items->pluck('id')->map(fn ($v) => (int) $v)->all();
 
@@ -121,6 +125,7 @@ class AdminTrackingController extends Controller
             'quotes' => TrackingLookups::adminQuotes($ids),
             'goods' => TrackingLookups::goodsconfirmIds($ids),
             'sections' => TrackingLookups::sectionNames($ids),
+            'images' => TrackingLookups::images($ids),
             's' => $sp,
             'page' => $page,
             'txtsearch' => $this->php($request, 'txtsearch'),
@@ -130,24 +135,13 @@ class AdminTrackingController extends Controller
         ])->render());
     }
 
-    /** POST /_admin/_tracking/load_paging — นับจำนวนแถวแยก (cache 10 นาทีเหมือน writeRedis เดิม) */
+    /** POST /_admin/_tracking/load_paging — นับจำนวนแถวแยก (SR: นับสดทุกครั้ง ไม่มี cache Redis / ไม่ตัด zero-width space แบบ jl) */
     public function loadPaging(Request $request): Response
     {
         $s = explode('|', $this->in($request, 'txtsearch'));
-        // เดิมตัด zero-width space (U+200B) ออกจากช่อง 0, 2, 3 เฉพาะใน query นับ
-        foreach ([0, 2, 3] as $i) {
-            $s[$i] = str_replace("\u{200B}", '', (string) ($s[$i] ?? ''));
-        }
-        $page = $this->php($request, 'page');
-        $key = 'tracking:admin_paging:'.sha1(json_encode([$page, $s]));
+        $total = $this->applySearch(DB::table('tracking')->where('tracking.is_delete', 0), $s)->count('tracking.id');
 
-        $html = Cache::remember($key, 600, function () use ($s, $page) {
-            $total = $this->applySearch(DB::table('tracking')->where('tracking.is_delete', 0), $s)->count('tracking.id');
-
-            return Paging::getpaging($page, $total, 10, self::AJAX);
-        });
-
-        return response((string) $html);
+        return response(Paging::getpaging($this->php($request, 'page'), $total, 10, self::AJAX));
     }
 
     /** POST /_admin/_tracking/delete */
@@ -212,6 +206,30 @@ class AdminTrackingController extends Controller
         return response(ProductTypeSelect::html($sel, $this->in($request, 'ship'), true));
     }
 
+    /**
+     * SR: รูปพัสดุหลังบันทึก — เดิม: ลบ (is_delete = 1) รูปทั้งหมดของ tracking แล้ว INSERT ใหม่ตาม upload_upload_track_mul[]
+     * (ทั้งรูปเดิมที่ยังไม่กดลบและรูปที่อัปใหม่) ไฟล์ที่ยังอยู่ใน temp = ตอบ JS ให้เบราว์เซอร์ย้ายขึ้น storage (_api/blockblob_ajax)
+     * ต่างจากเดิม: รับเฉพาะชื่อไฟล์ธรรมดา (เดิมบันทึก/ส่งต่อทุกค่า = path traversal + ฝัง JS ได้)
+     *
+     * @param  list<string>  $images
+     */
+    private static function syncImages(int|string $trackingId, array $images, ?int $uid): string
+    {
+        DB::table('tracking_image')->where('tracking_id', $trackingId)->update(['is_delete' => '1']);
+        $js = '';
+        foreach ($images as $img) {
+            if (TempUpload::exists($img)) {
+                $js .= TempUpload::blobJs($img);
+            }
+            DB::table('tracking_image')->insert([
+                'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
+                'is_delete' => 0, 'tracking_id' => $trackingId, 'attachment' => $img,
+            ]);
+        }
+
+        return $js;
+    }
+
     /** POST /_admin/_tracking/save */
     public function save(Request $request): Response
     {
@@ -236,11 +254,15 @@ class AdminTrackingController extends Controller
             'is_craft' => $this->in($request, 'is_craft'),
             'is_qc' => $this->in($request, 'is_qc'),
             'remark' => $this->in($request, 'remark'),
+            // SR: รหัสย่อย — เดิมตัดช่องว่างแล้ว nStr() ซ้ำกับการแปลง ' ของ POST เดิม = ' ถูกเก็บเป็น '' ใน DB
+            'subuser' => Format::nStr(str_replace(' ', '', $this->in($request, 'subuser'))),
+            'is_takeapic' => $this->in($request, 'is_takeapic'),
         ];
         foreach (['weight', 'width', 'height', 'long', 'amount', 'price_qc', 'price_repack', 'price_express', 'price_else', 'price_craft'] as $k) {
             $v[$k] = $num($k);
         }
         $auto = $this->in($request, 'is_auto_price') === '1';
+        $images = TempUpload::names(LegacyInput::post($request, 'upload_upload_track_mul', []));
         $prefix = TrackingLookups::prefix('tracking');
         $done = 'window.location.href = "'.Legacy::href('admin/tracking').'";';
 
@@ -248,7 +270,8 @@ class AdminTrackingController extends Controller
             if (DB::table('tracking')->where('tracking', $v['tracking'])->exists()) {
                 return response("ErrorBox('เลขรหัสพัสดุซ้ำ', 'CloseLoading()'); ");
             }
-            $newId = DB::transaction(function () use ($v, $uid, $member, $auto) {
+            $js = '';
+            $newId = DB::transaction(function () use ($v, $uid, $member, $auto, $images, &$js) {
                 $newId = DB::table('tracking')->insertGetId($v + [
                     'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
                     'is_delete' => 0, 'no' => '0', 'price_kg' => '0.00', 'price_cubic' => '0.00', 'price_shipping' => '0.00',
@@ -258,19 +281,20 @@ class AdminTrackingController extends Controller
                 if ($auto) {
                     Pricing::calPriceAutoDiff($newId);
                 }
+                $js = self::syncImages($newId, $images, $uid);
 
                 return $newId;
             });
 
-            return response(Alerts::success($done, Lang::get('success_process_no').$prefix.$newId));
+            return response($js.Alerts::success($done, Lang::get('success_process_no').$prefix.$newId));
         }
 
-        DB::transaction(function () use ($v, $id, $request, $num, $date, $member, $auto) {
+        $js = '';
+        DB::transaction(function () use ($v, $id, $request, $num, $date, $member, $auto, $images, $uid, &$js) {
             DB::table('tracking')->where('id', $id)->update($v + [
                 'quote' => $this->in($request, 'quote'),
                 'price_kg' => $num('price_kg'), 'price_cubic' => $num('price_cubic'),
                 'date_warehouse' => $date('date_warehouse'), 'date_outofchina' => $date('date_outofchina'),
-                'is_checked' => $this->in($request, 'is_checked'),
                 'user' => $member, 'date_thai' => $date('date_arrive'),
             ]);
             if ($auto) {
@@ -281,8 +305,9 @@ class AdminTrackingController extends Controller
             if (Php74::neq($member, $nobody)) {
                 DB::table('goodsconfirm')->where('tracking_id', $id)->update(['status' => 2]);
             }
+            $js = self::syncImages($id, $images, $uid);
         });
 
-        return response(Alerts::success($done, Lang::get('success_process_no').$prefix.Alerts::js($this->php($request, 'id'))));
+        return response($js.Alerts::success($done, Lang::get('success_process_no').$prefix.Alerts::js($this->php($request, 'id'))));
     }
 }

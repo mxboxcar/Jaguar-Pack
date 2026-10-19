@@ -3,6 +3,7 @@
 
 @php
     use App\Domain\Tracking\Php74;
+    use App\Domain\Tracking\UploadBox;
     use App\Support\Legacy\Alerts;
     use App\Support\Legacy\Format;
     $g = fn (string $k) => $d[$k] ?? null;
@@ -86,6 +87,13 @@
 		            <div class="col-md-8">
 		                <input type="text" name="code" class="form-control validate[required]" value="{{ $g('code') }}" >
 		            </div>
+		        </div>
+		        {{-- SR: รหัสย่อย (tracking.subuser) --}}
+		        <div class="form-group">
+		            <label class="col-md-4 control-label"> รหัสย่อย</label>
+		            <div class="col-md-8">
+		                <input type="text" name="subuser" class="form-control" value="{{ $g('subuser') }}" >
+		            </div>
 		        </div>                         
 		        <div class="form-group">
 		            <label class="col-md-4 control-label"> {!! res('tracking') !!}</label>
@@ -140,11 +148,12 @@
 		        </div>
 
 		        <div class="form-group">
-		            <label class="col-md-4 control-label"> รับเข้าไทยแล้ว?</label>
+		            {{-- SR: ถ่ายรูป (is_takeapic) แทน "รับเข้าไทยแล้ว?" (is_checked ของ jl — SR ไม่มีคอลัมน์นี้) --}}
+		            <label class="col-md-4 control-label"> ถ่ายรูป</label>
 		            <div class="col-md-5">
-		                <select name="is_checked" class="form-control " >
-	                        <option {!! $sel('is_checked', '0') !!} value="0">{!! res('disable') !!}</option>
-	                        <option {!! $sel('is_checked', '1') !!} value="1">{!! res('active') !!}</option>
+		                <select name="is_takeapic" class="form-control " >
+	                        <option {!! $sel('is_takeapic', '0') !!} value="0">{!! res('disable') !!}</option>
+	                        <option {!! $sel('is_takeapic', '1') !!} value="1">{!! res('active') !!}</option>
 	                    </select>
 		            </div>
 		        </div>
@@ -256,6 +265,34 @@
 		        </div>
 			</div>
 	    </div>
+
+	    {{-- SR: รูปพัสดุ (tracking_image) — บันทึกแล้วแทนที่รายการรูปทั้งหมดด้วย upload_upload_track_mul[] --}}
+	    <div class="card-box">
+			<h4 class="m-t-0 header-title"><b>รูปภาพ</b></h4>
+				<p class="text-muted font-13 m-b-30">
+				</p>
+				<div class="form-horizontal" role="form">    
+					<div class="form-group">
+						<label class="col-xs-3 control-label">{!! res('attachment') !!}</label>
+						<div class="col-xs-7 ">
+							{!! UploadBox::multiple('upload_track', '', true) !!}
+						</div>
+					</div>
+
+					<div class="form-group">
+						<div class="col-xs-9 col-xs-offset-3" id="image_list">
+@foreach ($images as $img)
+<div class="img_list_detail" style="float:left;margin-left: 10px;width:120px"><a style="float:left" class="fancybox" href="{{ legacy_blob($img) }}">
+							<img src="{{ legacy_blob($img) }}" style="max-width: 50px;max-height: 50px;">
+							<input type="hidden" name="upload_upload_track_mul[]" value="{{ $img }}" />
+							</a>
+							<div onclick="$(this).parent().remove()" style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">ลบ</div></div>
+							</div>
+@endforeach
+						</div>
+					</div>
+				</div>
+		</div>
 
 
 	    <div class="card-box">

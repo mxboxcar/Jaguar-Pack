@@ -46,6 +46,7 @@
                                 <th> <div class="text-center" >{!! res('calculate_price') !!}</div></th>
                                 <th style="min-width:150px;"> <div class="text-center" >{!! res('detail') !!}</div></th>
                                 <th> <div class="text-center" >{!! res('shelf_manage') !!}</div></th>
+                                <th style="width:100px;"> <div class="text-center" >{!! res('attachment') !!}</div></th>
                                 <th style="width:70px;"> <div class="text-center" >{!! res('invoice') !!}</div></th>
                                 <th class="text-center" style="width: 60px;">{!! res('action') !!}</th>
                           </tr>
@@ -76,10 +77,10 @@
                                     <tr>
                                         <td class="text-right left">{!! res('lot_and_no') !!} : </td>
                                         <td style="padding-left:3px" class="text-left">
-                                            {!! Status::getShipType($item->ship) !!} <a href='{{ legacy_href() }}admin/lot/{{ $item->lot_id }}'>{{ $item->lot_name }}</a>/{{ $item->no }}
+                                            {!! Status::getShipType($item->ship) !!} <a href='{{ legacy_href() }}admin/lot/{{ $item->lot_real_id }}'>{{ $item->lot_name }}</a>/{{ $item->no }}
                                         </td>
                                     </tr>
-                                    @include('tracking.partials.flags', ['typeName' => $item->product_type_name])
+                                    @include('tracking.partials.flags', ['typeName' => $item->product_type_name, 'takeapic' => true])
                                     <tr>
                                         <td class="text-right left">{!! res('admin_remark') !!} : </td>
                                         <td style="padding-left:3px" class="text-left">
@@ -97,7 +98,7 @@
                                 </table>
                             </td>
                             <td style="vertical-align: top;text-align:center">
-                                <div style="padding: 0 10px 0 10px;">{{ $item->code }}</div>
+                                <div style="padding: 0 10px 0 10px;">{{ $item->code }}<br/><span class="text-danger">{{ $item->subuser }}</span></div>
                             </td>
                             <td>
 @include('tracking.partials.prices', ['admin' => true])
@@ -114,6 +115,10 @@
                                 @else
 {{ Php74::eq($section, '') ? '-' : $section }}
                                 @endif
+                            </td>
+
+                            <td class="text-center boxcar-td" style="vertical-align:top">
+@include('tracking.partials.images', ['list' => $images[$tid] ?? []])
                             </td>
 
                             <td class="text-center boxcar-td" style="vertical-align:top">
