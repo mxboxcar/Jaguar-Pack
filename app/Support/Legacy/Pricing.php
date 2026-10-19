@@ -50,46 +50,62 @@ final class Pricing
         return [$kg, $cubic, $pa];
     }
 
-    /** GetCalPrice($tracking) → "kg|cubic|amount" */
-    public static function getCalPrice(mixed $trackingId): string
-    {
-        [$kg, $cubic, $amount] = self::calc(self::trackingRate($trackingId, false));
-
-        return self::sqlNum($kg).'|'.self::sqlNum($cubic).'|'.self::sqlNum($amount);
-    }
-
-    /** CalPrice($tracking, $choose_price): 1 = ตามน้ำหนัก, 2 = ตามคิว, อื่นๆ = ค่าที่มากกว่า (เท่ากัน → น้ำหนัก) */
-    public static function calPrice(mixed $trackingId, mixed $choosePrice): void
-    {
-        $d = self::trackingRate($trackingId, false);
-        if (! $d) {
-            return; // เดิม: UPDATE ... WHERE id = '' → ไม่มีแถวถูกแก้
-        }
-        [$kg, $cubic] = self::calc($d);
-        $byKg = $choosePrice == 1 || ($choosePrice != 2 && $kg >= $cubic);
-        self::writePrice($d->id, $byKg, $kg, $cubic);
-    }
-
-    /** CalPriceAutoDiff($tracking): แก้ product_type ให้ตรงประเภทล็อต แล้วเลือกราคาที่มากกว่า (เท่ากัน → คิว) */
-    public static function calPriceAutoDiff(mixed $trackingId): void
+    /**
+     * SR: แก้ product_type ของ tracking ให้ตรงประเภทล็อต (เดิม "fix bug shipping type") แล้วอ่านแถวใหม่
+     * - $onlyWithLot = true (CalPriceAutoDiff): ทำเมื่อ lot_id != "0" เท่านั้น
+     * - $onlyWithLot = false (GetCalPrice / CalPrice ของ SR): ทำเสมอ — ไม่มีล็อต = type ว่าง == 0 → หา product_type ชื่อเดียวกันของรถ (type 0)
+     *   ไม่เจอ = เขียน '' (non-strict → 0) เหมือนเดิม
+     * ใช้ราคาหลักของ product_type เมื่อ user_type_detail ไม่มีราคา (kg/cubic ว่าง)
+     */
+    private static function syncLotTypeAndLoad(mixed $trackingId, bool $onlyWithLot): ?object
     {
         $d = self::trackingRate($trackingId, true);
-        if ($d && (string) $d->lot_id !== '0') {
-            $lotType = DB::table('lot')->where('id', $d->lot_id)->value('type');
-            $typeName = DB::table('product_type')->where('id', $d->product_type_id)->value('name');
-            $newId = DB::table('product_type')->where('name', $typeName)
+        if (! $onlyWithLot || ($d && (string) $d->lot_id !== '0')) {
+            $lotType = $d ? DB::table('lot')->where('id', $d->lot_id)->value('type') : null;
+            $typeName = $d ? DB::table('product_type')->where('id', $d->product_type_id)->value('name') : null;
+            $newId = DB::table('product_type')->where('name', (string) $typeName)
                 ->where('type', (string) $lotType === '0' || $lotType === null ? 0 : 1)->value('id');
             DB::table('tracking')->where('id', $trackingId)->update(['product_type_id' => $newId ?? '']);
             $d = self::trackingRate($trackingId, true);
         }
+        if ($d) {
+            if ((string) ($d->kg ?? '') === '') {
+                $d->kg = $d->main_kg;
+            }
+            if ((string) ($d->cubic ?? '') === '') {
+                $d->cubic = $d->main_cubic;
+            }
+        }
+
+        return $d;
+    }
+
+    /** GetCalPrice($tracking) → "kg|cubic|amount" — SR: เขียน product_type_id ด้วย (ผู้เรียกห่อ transaction เอง) */
+    public static function getCalPrice(mixed $trackingId): string
+    {
+        [$kg, $cubic, $amount] = self::calc(self::syncLotTypeAndLoad($trackingId, false));
+
+        return self::sqlNum($kg).'|'.self::sqlNum($cubic).'|'.self::sqlNum($amount);
+    }
+
+    /** CalPrice($tracking, $choose_price): 1 = ตามน้ำหนัก, 2 = ตามคิว, อื่นๆ = น้ำหนักเมื่อมากกว่าคิว (เท่ากัน → คิว แบบ SR) */
+    public static function calPrice(mixed $trackingId, mixed $choosePrice): void
+    {
+        $d = self::syncLotTypeAndLoad($trackingId, false);
+        if (! $d) {
+            return; // เดิม: UPDATE ... WHERE id = '' → ไม่มีแถวถูกแก้
+        }
+        [$kg, $cubic] = self::calc($d);
+        $byKg = $choosePrice == 1 || ($choosePrice != 2 && $kg > $cubic);
+        self::writePrice($d->id, $byKg, $kg, $cubic);
+    }
+
+    /** CalPriceAutoDiff($tracking): แก้ product_type ให้ตรงประเภทล็อต (มีล็อต) แล้วเลือกราคาที่มากกว่า (เท่ากัน → คิว) */
+    public static function calPriceAutoDiff(mixed $trackingId): void
+    {
+        $d = self::syncLotTypeAndLoad($trackingId, true);
         if (! $d) {
             return;
-        }
-        if ((string) ($d->kg ?? '') === '') {
-            $d->kg = $d->main_kg;
-        }
-        if ((string) ($d->cubic ?? '') === '') {
-            $d->cubic = $d->main_cubic;
         }
         [$kg, $cubic] = self::calc($d);
         self::writePrice($d->id, $kg > $cubic, $kg, $cubic);
@@ -119,7 +135,8 @@ final class Pricing
 
         return [
             'kg' => self::n($weight) * self::n($rate->kg ?? null),
-            'cubic' => ((self::n($width) * self::n($height) * self::n($long)) / 1000000) * self::n($rate->cubic ?? null),
+            // SR: cubicformat(คิว, false) ก่อนคูณราคา (jl ใช้คิวดิบ)
+            'cubic' => self::n(Format::cubicformat(((self::n($width) * self::n($height) * self::n($long)) / 1000000), false)) * self::n($rate->cubic ?? null),
             'amount' => self::n($amount) * self::n($rate->per_amount ?? null),
         ];
     }
@@ -132,9 +149,10 @@ final class Pricing
     public static function getShippingTypePrice(mixed $id, mixed $paymentRef, mixed $sender): ?array
     {
         $rows = DB::table('tracking as t')
+            ->leftJoin('user', 'user.id', '=', 't.user')
             ->leftJoin('bill_payment_detail_temp as t2', 't.id', '=', 't2.shipping_id')
             ->where('t2.random', $paymentRef)
-            ->get(['t.weight', 't.width', 't.height', 't.long', 't.amount']);
+            ->get(['t.weight', 't.width', 't.height', 't.long', 't.amount', 'user.code']);
 
         return self::shippingType($id, $rows, $sender);
     }
@@ -146,9 +164,10 @@ final class Pricing
         // ส่วน tracking.id อยู่ในคอลัมน์ id → น้ำหนัก/ขนาดที่ใช้คิดค่าส่งแบบ rate (และ VAT) มาจาก tracking ผิดแถว
         // แก้ (เจ้าของอนุมัติ 2026-10-18): join t.id = t2.id
         $rows = DB::table('tracking as t')
+            ->leftJoin('user', 'user.id', '=', 't.user')
             ->leftJoin('bill_payment_detail as t2', 't.id', '=', 't2.id')
             ->where('t2.payment_id', $paymentId)
-            ->get(['t.weight', 't.width', 't.height', 't.long', 't.amount']);
+            ->get(['t.weight', 't.width', 't.height', 't.long', 't.amount', 'user.code']);
 
         return self::shippingType($id, $rows, $sender);
     }
@@ -158,9 +177,13 @@ final class Pricing
     {
         $w = 0.0;
         $c = 0.0;
+        $code = '';
         foreach ($rows as $r) {
             $w += self::n($r->weight) * self::n($r->amount);
             $c += ((self::n($r->width) * self::n($r->height) * self::n($r->long)) / 1000000) * self::n($r->amount);
+            if ($code === '') {
+                $code = (string) ($r->code ?? '');
+            }
         }
         $row = DB::table('shipping_type')->where('id', $id)->where('is_delete', 0)->first();
         $data = $row ? (array) $row : null;
@@ -174,7 +197,15 @@ final class Pricing
                 ->orderByDesc('max')->limit(1)->value('value');
         }
         if ($sender == 1) {
-            $data['price_thai_storage'] = self::n($data['price_thai_storage'] ?? null) + self::n(Lookup::getSetting('change_sender'));
+            // SR: ค่าเปลี่ยนผู้ส่งต่อรหัสลูกค้า setting charge_sender_edit = "CODE|ค่า,CODE|ค่า" (ตัวท้ายที่ตรงชนะ, เทียบแบบ == เดิม)
+            $fee = Lookup::getSetting('change_sender');
+            foreach (explode(',', (string) Lookup::getSetting('charge_sender_edit')) as $item) {
+                $p = explode('|', $item);
+                if ($p[0] == $code) {
+                    $fee = $p[1] ?? null;
+                }
+            }
+            $data['price_thai_storage'] = self::n($data['price_thai_storage'] ?? null) + self::n($fee);
         }
 
         return $data;

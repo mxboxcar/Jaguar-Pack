@@ -10,17 +10,17 @@ const GROUPS = ['tracking', 'shop', 'order', 'payment', 'balance', 'money-move',
 
 // โฟลเดอร์ → กลุ่ม (ตาม brief)
 $dirs = [
-    'tracking' => ['_tracking', '_admin/_tracking', '_admin/_combine_track', '_lost_package', '_admin/_lost_package'],
-    'shop' => ['_cart', '_taobao', '_api', '_mall', '_admin/_mall', '_admin/_mall_category', '_admin/_mallstock'],
-    'order' => ['_order', '_admin/_order', '_admin/_taobao'],
-    'payment' => ['_payment', '_admin/_payment', '_alipay', '_admin/_alipay'],
+    'tracking' => ['_tracking', '_admin/_tracking', '_admin/_combine_track', '_lost_package', '_admin/_lost_package', '_admin/_check'],
+    'shop' => ['_cart', '_taobao', '_api', '_admin/_mallstock', '_findproduct', '_admin/_findproduct'],
+    'order' => ['_order', '_admin/_order', '_admin/_taobao', '_admin/_printorder'],
+    'payment' => ['_payment', '_admin/_payment', '_alipay', '_admin/_alipay', '_admin/_receipt'],
     'balance' => ['_balance', '_balance_cn', '_admin/_balance', '_admin/_balance_cn', '_admin/_balance_company'],
     'money-move' => ['_refill', '_admin/_refill', '_transfer', '_admin/_transfer', '_admin/_withdrawcash'],
     'points' => ['_point', '_admin/_point', '_admin/_withdrawpoint', '_shop_cashback', '_admin/_shop_cashback'],
     'lot' => ['_lot', '_admin/_lot'],
     'warehouse' => ['_admin/_warehouse', '_admin/_warehouse_section', '_admin/_warehouse_section_move', '_admin/_section', '_goodsconfirm', '_admin/_goodsconfirm'],
     'users' => ['_profile', '_register', '_admin/_user', '_admin/_user_type', '_admin/_role'],
-    'messaging' => ['_message', '_admin/_message', '_notice', '_admin/_notice', '_linenotify', '_admin/_send'],
+    'messaging' => ['_message', '_admin/_message', '_notice', '_admin/_notice', '_admin/_send'],
     'reports' => ['_export', '_admin/_export', '_admin/_report', '_admin/_log', '_admin/_nobilling', '_dashboard', '_admin/_dashboard'],
     'settings' => ['_admin/_setting', '_admin/_exchange', '_admin/_product_type', '_admin/_shipping_type'],
 ];
@@ -33,7 +33,7 @@ $rootFiles = [
     'users' => ['register.php', 'lost_password.php', 'password.php', 'system_check_username.php'],
     'messaging' => ['notification.php', 'notifications.php', 'notify_counts.php', 'notify_token.php', 'email_center.php', 'email_header.php', 'email_footer.php'],
     'reports' => ['download_file.php', 'print_header.php', 'print_footer.php'],
-    'settings' => ['get_price.php', 'get_resource.php', 'load_quick_search.php', 'gateway.php', 'system_upload.php', 'system_upload_2.php', 'index_close.php'],
+    'settings' => ['get_price.php', 'get_resource.php', 'load_quick_search.php', 'resource.php', 'system_ckupload.php', 'system_upload.php', 'system_upload_2.php', 'index_close.php'],
 ];
 $foundationNote = [
     'index.php' => 'resources/views/legacy/layout.blade.php + routes/legacy.php', 'content.php' => 'routes/modules/*.php (แทน switch page)',
@@ -81,6 +81,10 @@ function groupOfFile(string $rel, array $dirs, array $rootFiles): string
     }
     if ($bestG !== '') {
         return $bestG;
+    }
+    // SR: ร้านค้า (_admin/_mall) ไม่มีตาราง mall* ใน admin_sr และไม่มีใน content.php — เจ้าของให้ตัดออก (2026-10-20)
+    if (str_starts_with($rel, '_admin/_mall/')) {
+        return 'dropped (SR ไม่มีร้านค้า — เจ้าของให้ตัด 2026-10-20)';
     }
     if (str_starts_with($rel, 'assets/phpexcel/')) {
         return '3rd-party (PHPExcel → ใช้ไลบรารีใหม่ในกลุ่ม reports)';
@@ -135,6 +139,10 @@ foreach ($rules as $i => $r) {
             $file .= ' (**ไม่มีไฟล์นี้ในเว็บเดิม** — หน้าเดิม error/ว่าง)';
         }
         $g = isset($pages[$page]) ? groupOfFile($pages[$page], $dirs, $rootFiles) : 'UNASSIGNED';
+        // SR: page ที่ไม่มีใน content.php หรือไฟล์ไม่มีจริง = หน้าเดิมเปิดไม่ได้ → ไม่พอร์ต (Laravel 404 → หน้าแรก)
+        if (! isset($pages[$page]) || ! is_file($src.'/'.$pages[$page])) {
+            $g = 'dead (หน้าเดิมไม่มี — ไม่พอร์ต)';
+        }
     } elseif (str_ends_with($r['target'], '.php') && ! str_contains($r['target'], '$')) {
         $file = $r['target'];
         $g = groupOfFile($file, $dirs, $rootFiles);
