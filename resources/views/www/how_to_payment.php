@@ -14,9 +14,7 @@
 
 
 		<!-- Favicon -->
-		<link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
-		<link rel="apple-touch-icon" href="/img/XDX.png">
-
+		<link rel="icon" href="/icons/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="manifest" href="/icons/site.webmanifest"><meta name="theme-color" content="#9b1c20">
 		<!-- Mobile Metas -->
 		<meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
