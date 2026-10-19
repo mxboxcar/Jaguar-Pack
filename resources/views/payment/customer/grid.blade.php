@@ -64,10 +64,7 @@
                             <td class="text-center">{!! Format::getFancyBox($item->export_attachment) !!}</td>
                             <td class="text-right">{!! Format::numberformat($item->total) !!}</td>
                             <td class="text-right">{!! Format::numberformat($item->export_price) !!}</td>
-                            <td class="text-center">
-                                {!! Status::getstatusexport($item->status) !!}
-                                @if (Php74::eq($item->is_vat, 1))<br/><span class='label label-danger'>VAT</span>@endif
-                            </td>
+                            <td class="text-center">{!! Status::getstatusexport($item->status) !!}</td>
                             <td class="text-center">
                                 <a href="{{ legacy_href() }}payment/{{ $item->id }}" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
                             </td>

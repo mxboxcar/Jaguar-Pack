@@ -7,7 +7,7 @@ use App\Domain\Payment\PaymentLookups as P;
 use App\Domain\Payment\PaymentTotals;
 use App\Domain\Payment\Php74;
 use App\Domain\Payment\TempUpload;
-use App\Domain\Payment\UploadBox;
+use App\Domain\Payment\PinBox;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Payment\Concerns\ReadsLegacyInput;
 use App\Support\GridQuery;
@@ -84,17 +84,22 @@ class PaymentController extends Controller
         return view('payment.customer.create');
     }
 
-    /** POST /_payment/load_select_lot — ล็อตที่มีพัสดุรอชำระ */
-    public function loadSelectLot(): Response
+    /**
+     * POST /_payment/load_select_lot — ล็อตที่มีพัสดุรอชำระ
+     * SR: กรองด้วยช่องค้นหา (tracking/quote/รหัสย่อย/ถึงไทย) เหมือน load_create และไม่กรอง tracking/no/header แบบ jl
+     */
+    public function loadSelectLot(Request $request): Response
     {
-        $rows = DB::table('tracking')
+        $q = DB::table('tracking')
             ->leftJoin('lot', 'lot.id', '=', 'tracking.lot_id')
             ->where('tracking.is_delete', 0)->where('tracking.user', Legacy::userId())
-            ->where('tracking.payment_id', '0')->where('tracking.tracking', '!=', '')
-            ->where('tracking.lot_id', '!=', 0)->where('tracking.no', '!=', 0)->where('tracking.header', 0)
-            ->groupBy('tracking.lot_id')
-            ->orderBy('tracking.lot_id')
-            // เดิม GROUP BY lot_id ORDER BY lot_id, no — sql_mode ว่าง (ไม่ ONLY_FULL_GROUP_BY) เหมือนเดิม
+            ->where('tracking.lot_id', '!=', '')->where('tracking.lot_id', '!=', '0')->where('tracking.payment_id', '0');
+        $ok = self::applyTextSearch($q, $this->in($request, 'track'), $this->in($request, 'quote'), $this->in($request, 'subuser'));
+        if (Php74::eq($this->in($request, 'admit_thai'), '1')) {
+            $q->where('tracking.date_thai', '!=', '0000-00-00 00:00:00');
+        }
+        // เดิม GROUP BY lot_id ORDER BY lot_id, no — sql_mode ว่าง (ไม่ ONLY_FULL_GROUP_BY) เหมือนเดิม
+        $rows = ! $ok ? collect() : $q->groupBy('tracking.lot_id')->orderBy('tracking.lot_id')
             ->get([DB::raw('MIN(lot.id) as id'), DB::raw('MIN(lot.name) as lot_name')]);
         $html = '<select id="search_lot" onchange="loaddata();" style="width:100px">';
         $html .= '<option value="-1">'.Lang::get('all').'</option>';
@@ -106,7 +111,7 @@ class PaymentController extends Controller
         return response($html."\n\n");
     }
 
-    /** POST /_payment/load_create — รายการพัสดุที่เลือกชำระได้ */
+    /** POST /_payment/load_create — รายการพัสดุที่เลือกชำระได้ (SR: + ค้นหารหัสย่อย, รูปพัสดุ, คอลัมน์รหัสย่อย) */
     public function loadCreate(Request $request): Response
     {
         $track = $this->in($request, 'track');
@@ -116,8 +121,8 @@ class PaymentController extends Controller
         $q = self::trackingQuery()
             ->where('tracking.is_delete', 0)->where('tracking.payment_id', 0)
             ->where('tracking.user', Legacy::userId());
-        self::applySearch($q, $searchLot, $track, $quote, $this->in($request, 'admit_thai'));
-        $items = P::withHeaderCount(P::strAll($q->orderBy('tracking.lot_id')->orderBy('tracking.no')
+        $ok = self::applySearch($q, $searchLot, $track, $quote, $this->in($request, 'admit_thai'), $this->in($request, 'subuser'));
+        $items = ! $ok ? collect() : P::withHeaderCount(P::strAll($q->orderBy('tracking.lot_id')->orderBy('tracking.no')
             ->get(['tracking.*', 'user.code', 'product_type.name as type_name', 'lot.name as lot_name', 'lot.type as lot_type'])));
 
         return response(view('payment.customer.load_create', [
@@ -125,6 +130,7 @@ class PaymentController extends Controller
             'sum' => PaymentTotals::selectable($items),
             'orderIds' => P::orderIds(P::idsOf($items)),
             'children' => P::children($items->filter(fn ($i) => Php74::neq($i->header_count, 0))->pluck('id')),
+            'images' => P::trackingImages(P::idsOf($items)),
             'orderPrefix' => P::prefix('order'),
         ])->render());
     }
@@ -191,93 +197,77 @@ class PaymentController extends Controller
             'top' => PaymentTotals::all($items),
             'sum' => PaymentTotals::headerOnly($items),
             'hideOwnSender' => $hideOwnSender,
-            'shippingTypes' => P::strAll(DB::table('shipping_type')->where('is_delete', 0)->where('is_quick_show', 0)
-                ->orderBy('no')->orderBy('name')->get()),
+            'shippingTypes' => P::shippingTypes(),
             'cash' => Lookup::getCurrentCash(),
-            'changeSender' => Lookup::getSetting('change_sender'),
+            // SR: ค่าเปลี่ยนผู้ส่งต่อรหัสลูกค้า (setting charge_sender_edit)
+            'senderCharge' => PaymentTotals::senderCharge(Legacy::user()->code ?? null),
             'orderIds' => P::orderIds(P::idsOf($items)),
             'children' => P::children($items->filter(fn ($i) => Php74::neq($i->header_count, 0))->pluck('id')),
             'orderPrefix' => P::prefix('order'),
         ]);
     }
 
-    /** POST /_payment/load_shipping_price — ราคาค่าส่งในไทย (JSON) */
+    /**
+     * POST /_payment/load_shipping_price — ราคาค่าส่งในไทย (JSON ของ getShippingTypePrice)
+     * SR: ไม่มี VAT/ตาราง html (jl ส่ง is_vat แล้วคืน data.html) — เหลือ json_encode($data) ตรงๆ
+     */
     public function loadShippingPrice(Request $request): Response
     {
         $ref = $this->ownRandom($this->in($request, 'payment_ref'));
         $data = Pricing::getShippingTypePrice($this->in($request, 'id'), $ref, $this->in($request, 'sender'));
 
-        $priceShipping = 0;
-        foreach (self::tempTrackings($ref)->get(['tracking.*']) as $item) {
-            $priceShipping = $priceShipping + P::add(P::str($item), ['price_kg', 'price_cubic', 'price_amount', 'price_qc', 'price_express', 'price_else', 'price_repack', 'price_craft']);
-        }
-        $storage = $data['price_thai_storage'] ?? null;
-        $shipping = $data['price_thai_shipping'] ?? null;
-        $extened = $data['price_extened'] ?? null;
-
-        if (Php74::eq($this->in($request, 'is_vat'), 1)) {
-            $t = PaymentTotals::vat($storage, $priceShipping, $extened, Lookup::getSetting('vat'), false);
-            $v = (string) Lookup::getSetting('vat');
-            $html = "\t\n\t\t<tr>\n            <th class=\"text-right \" colspan=\"11\"><span class=\"text-danger\">ภาษีมูลค่าเพิ่ม ".$v."%</span>\n            </th>\n"
-                .'            <th class="text-right   " colspan="4"><span class="text-danger addcomma">'.Format::numberformat($t['vat_before'])."</span></th>\n        </tr>\n\n"
-                ."        <tr>\n            <th class=\"text-right \" colspan=\"11\"><span class=\"text-danger\">รวม</span>\n            </th>\n"
-                .'            <th class="text-right   " colspan="4"><span class="text-danger addcomma">'.Format::numberformat($t['vat'])."</th>\n        </tr>\n\n"
-                ."        <tr>\n            <th class=\"text-right\" colspan=\"11\"><span class=\"text-danger\">หัก ณ ที่จ่าย 3% (จากยอดที่รวม VAT แล้ว)</span>\n            </th>\n"
-                .'            <th class="text-right  " colspan="4"><span class="text-danger addcomma">'.Format::numberformat($t['shipvat_before'])."</span></th>\n        </tr>\n\n"
-                ."        <tr>\n            <th class=\"text-right\" colspan=\"11\">".Lang::get('total_net')."</th>\n"
-                .'            <th class="text-right " style="font-size: 20px!important"  colspan="4">'.Format::numberformat($t['shipvat'])."</th>\n        </tr>";
-        } else {
-            $html = "<tr>\n\t            <th class=\"text-right\" colspan=\"11\">".Lang::get('total_net')."</th>\n"
-                ."\t            <th class=\"text-right total_net addcomma\" style=\"font-size: 20px!important\"  colspan=\"4\">".Format::numberformat($data['total'] ?? null, true, false)."</th>\n\t        </tr>";
-        }
-        $data = $data ?? [];
-        $data['html'] = str_replace("\n", "\r\n", $html); // ไฟล์เดิมเป็น CRLF
-
-        return response(json_encode(self::jsonValues($data)));
+        return response(json_encode($data === null ? null : self::jsonValues($data)));
     }
 
-    /** POST /_payment/load_vat — เดิมไม่มีโค้ด (ตอบว่าง) */
-    public function loadVat(): Response
-    {
-        return response('');
-    }
-
-    /** POST /_payment/save_submit_payment — สร้างบิล ตัดเงิน และผูก tracking (transaction + lock ต่อผู้ใช้) */
+    /**
+     * POST /_payment/save_submit_payment — สร้างบิล ตัดเงิน และผูก tracking (transaction + lock ต่อผู้ใช้)
+     * SR ต่างจาก jl: ถาม PIN จ่ายเงิน (getPinBox), สร้างบิลได้ 1 ใบต่อ 20 วินาที, ค่าเปลี่ยนผู้ส่งต่อรหัสลูกค้า, ไม่มี VAT
+     */
     public function saveSubmitPayment(Request $request): Response
     {
+        $user = Legacy::user();
+        if (($pin = PinBox::guard($request, $user)) !== null) {
+            return response($pin);
+        }
         $uid = Legacy::userId();
         $code = $this->ownRandom($this->in($request, 'id'));
         $refId = $this->in($request, 'ref_id');
         $shippingType = $this->in($request, 'shipping_type');
         $radio = $this->in($request, 'shipping_type_radio');
         $senderType = $this->in($request, 'sender_type');
-        $isVat = $this->in($request, 'is_vat');
 
         // hack yd: 9 บริษัทจัดส่ง, 10 รับเอง
         if (Php74::eq($radio, 9) || Php74::eq($radio, 10)) {
             $shippingType = $radio;
         }
-        $st = DB::table('shipping_type')->where('id', $shippingType)->first();
-        if ($st === null) {
-            return response(Alerts::error('CloseLoading()', Lang::get('no_shipping_type')));
-        }
-        $st = P::str($st);
 
-        return DB::transaction(function () use ($request, $uid, $code, $refId, $shippingType, $senderType, $isVat, $st) {
-            // กันกดซ้ำ/ส่งพร้อมกัน: ล็อกแถวผู้ใช้ แล้วอ่าน tracking ที่ยังไม่ผูกบิลภายในล็อก
+        return DB::transaction(function () use ($request, $user, $uid, $code, $refId, $shippingType, $senderType) {
+            // กันกดซ้ำ/ส่งพร้อมกัน: ล็อกแถวผู้ใช้ แล้วอ่านบิลล่าสุด/tracking ที่ยังไม่ผูกบิลภายในล็อก
             DB::table('user')->where('id', $uid)->lockForUpdate()->value('id');
+            // SR: บิลใบล่าสุดของผู้ใช้สร้างไม่ถึง 20 วินาที → รอ (เดิมเทียบเวลา PHP กับ create_date ที่ลงด้วย NOW())
+            $since = DB::table('bill_payment')->where('user', (string) $uid)->orderByDesc('create_date')->limit(1)
+                ->value(DB::raw('TIMESTAMPDIFF(SECOND, create_date, NOW())'));
+            if ($since !== null && (int) $since < 20) {
+                return response(Alerts::error('CloseLoading()', 'ไม่สามารถสร้างรายการได้ กรุณารอ '.(20 - (int) $since).' วินาที'));
+            }
+            $st = DB::table('shipping_type')->where('id', $shippingType)->first();
+            if ($st === null) {
+                return response(Alerts::error('CloseLoading()', Lang::get('no_shipping_type')));
+            }
+            $st = P::str($st);
             $items = P::strAll(self::tempTrackings($code)->where('tracking.is_delete', 0)->get(['tracking.*']));
 
             // ค่าส่งตามน้ำหนักคิดจาก random ของรายการที่จ่ายจริง ($code) — เดิมใช้ ref_id ที่ส่งมาแยก (หน้าเดิมส่งค่าเดียวกัน)
             // ส่ง ref_id ของ random อื่นที่เบากว่า = ค่าส่งถูกลง
-            $fees = PaymentTotals::fees($st, $senderType, Pricing::getShippingTypePrice($shippingType, $code, $senderType));
+            $fees = PaymentTotals::fees($st, $senderType, Pricing::getShippingTypePrice($shippingType, $code, $senderType),
+                PaymentTotals::senderCharge($user->code ?? null));
             $priceShipping = 0;
             foreach ($items as $item) {
                 $priceShipping = $priceShipping + P::add($item, ['price_kg', 'price_cubic', 'price_amount', 'price_qc', 'price_express', 'price_else', 'price_repack', 'price_craft']);
             }
-            $t = PaymentTotals::bill($fees, $priceShipping, $isVat);
+            $total = PaymentTotals::plain($fees['storage'], $priceShipping, $fees['extened'], $fees['shipping']);
 
-            if (Php74::gt(Format::numberformatforsubmit($t['total']), Format::numberformatforsubmit(Lookup::getCurrentCash()))) {
+            if (Php74::gt(Format::numberformatforsubmit($total), Format::numberformatforsubmit(Lookup::getCurrentCash()))) {
                 return response(Alerts::error('CloseLoading()', Lang::get('error_usingcash')));
             }
             if ($items->isEmpty()) {
@@ -287,21 +277,19 @@ class PaymentController extends Controller
 
             $id = DB::table('bill_payment')->insertGetId([
                 'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
-                'total' => P::s($t['total']), 'submit_date' => DB::raw('NOW()'), 'submit_remark' => $this->in($request, 'submit_remark'),
+                'total' => P::s($total), 'submit_date' => DB::raw('NOW()'), 'submit_remark' => $this->in($request, 'submit_remark'),
                 'status' => '1', 'price_shipping' => P::s($priceShipping), 'price_thai_storage' => P::s($fees['storage']),
                 'price_thai_shipping' => P::s($fees['shipping']), 'user' => (string) $uid,
                 'send_name' => $this->in($request, 'name'), 'send_address' => $this->in($request, 'address'), 'send_phone' => $this->in($request, 'phone'),
                 'shipping_type' => $shippingType, 'ref_id' => $refId, 'sender_type' => $senderType,
                 'sender_name' => $this->in($request, 'sender_name'), 'sender_address' => $this->in($request, 'sender_address'),
                 'sender_phone' => $this->in($request, 'sender_phone'), 'sender_charge' => P::s($fees['sender_charge']),
-                'vat' => P::s($t['vat']), 'vat_before' => P::s($t['vat_before']), 'shipvat' => P::s($t['shipvat']),
-                'shipvat_before' => P::s($t['shipvat_before']), 'is_vat' => $isVat, 'v' => P::s($t['v']), 'shipv' => P::s($t['shipv']),
             ]);
             self::attachTrackings($items, $id, $uid);
 
             DB::table('balance')->insert([
                 'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
-                'user' => (string) $uid, 'amount' => '-'.P::s($t['total']), 'detail' => 'ชำระเงิน '.P::prefix('payment').$id,
+                'user' => (string) $uid, 'amount' => '-'.P::s($total), 'detail' => 'ชำระเงิน '.P::prefix('payment').$id,
                 'type' => 3, 'prefix' => (string) Lookup::getPrefixID('payment'), 'prefix_ref_id' => (string) $id,
             ]);
 
@@ -371,50 +359,6 @@ class PaymentController extends Controller
             .Alerts::success('window.location.href = "'.Legacy::href('refill').'";', Lang::get('success_process_no').P::prefix('refill').$id));
     }
 
-    /**
-     * POST /_payment/load_receipt_address — ตาราง user_receipt_address ไม่มีใน DB (เดิม query ล้มเงียบ)
-     * ผลเดิม = ฟอร์มว่าง + กล่องแนบไฟล์ว่าง + "ไม่มีข้อมูล" → ตอบแบบนั้นโดยไม่ query
-     */
-    public function loadReceiptAddress(): Response
-    {
-        return response(view('payment.customer.receipt_address', ['upload' => UploadBox::single('tax_proof2', '', true)])->render());
-    }
-
-    /** POST /_payment/save_create_receiptaddress — ตรวจค่าแบบเดิม แล้ว INSERT/UPDATE ตารางที่ไม่มีอยู่ (ล้มเงียบ) */
-    public function saveCreateReceiptAddress(Request $request): Response
-    {
-        $proof = $this->in($request, 'proof');
-        if ($proof === '') {
-            return response(Alerts::error('CloseLoading()', 'กรุณาอัพโหลดไฟล์เอกสารผู้เสียภาษี, บัตรประจำตัวประชาชน หรือ ใบรับรองบริษัท'));
-        }
-        foreach (['name', 'address', 'phone', 'tax'] as $k) {
-            if ($this->in($request, $k) === '') {
-                return response(Alerts::error('CloseLoading()', 'กรุณากรอกข้อมูลผู้เสียภาษีให้ครบ'));
-            }
-        }
-        if ($this->in($request, 'type') === 'undefined') {
-            return response(Alerts::error('CloseLoading()', 'กรุณาเลือกประเภทลูกค้า บุคคลธรรมดา/นิติบุคคล'));
-        }
-        $blob = TempUpload::jsIfExists($proof);
-        if ($this->in($request, 'id') === '') {
-            return response($blob."CloseLoading();receipt_address_form();setTimeout(function() { $('.receipt_address_form table td').eq(0).find('a').click(); } , 1000);");
-        }
-
-        return response($blob.'CloseLoading();receipt_address_form();');
-    }
-
-    /** POST /_payment/save_deleteaddress — ตาราง user_address ไม่มีใน DB (เดิม DELETE ล้มเงียบ) */
-    public function saveDeleteAddress(): Response
-    {
-        return response('window.location.reload()');
-    }
-
-    /** POST /_payment/save_deletereceiptaddress — ตาราง user_receipt_address ไม่มีใน DB */
-    public function saveDeleteReceiptAddress(): Response
-    {
-        return response('CloseLoading();receipt_address_form();');
-    }
-
     /** GET|POST /_payment/view_example — ตัวอย่างใบปะหน้า (iframe) */
     public function viewExample(Request $request): Response
     {
@@ -453,11 +397,35 @@ class PaymentController extends Controller
             ->leftJoin('lot', 'lot.id', '=', 'tracking.lot_id');
     }
 
-    /** เงื่อนไขค้นหาของ load_create (ลูกค้า/แอดมินเหมือนกัน) */
-    public static function applySearch(Builder $q, ?string $searchLot, string $track, string $quote, string $admitThai): void
+    /**
+     * เงื่อนไขค้นหาของ load_create (ลูกค้า/แอดมินเหมือนกัน; รหัสย่อยมีเฉพาะลูกค้า — แอดมินส่ง null)
+     * คืน false = SQL เดิมผิดไวยากรณ์ (mysqli คืน false → ไม่มีแถว) ดู applyTextSearch()
+     */
+    public static function applySearch(Builder $q, ?string $searchLot, string $track, string $quote, string $admitThai, ?string $subuser = null): bool
     {
         if (Php74::neq($searchLot, '-1')) {
             $q->where('tracking.lot_id', (string) $searchLot);
+        }
+        $ok = self::applyTextSearch($q, $track, $quote, (string) $subuser);
+        if (Php74::eq($admitThai, '1')) {
+            $q->where('tracking.date_thai', '!=', '0000-00-00 00:00:00');
+        }
+        $q->where('tracking.payment_id', '0')->where('tracking.tracking', '!=', '')
+            ->where('tracking.lot_id', '!=', 0)->where('tracking.no', '!=', 0);
+
+        return $ok;
+    }
+
+    /**
+     * ช่องค้นหา tracking / quote / รหัสย่อย ของไฟล์เดิม:
+     *   track: " AND ( tracking LIKE .. " + (quote ว่าง ? " ) " : " OR ")   quote: (track ว่าง ? " AND (" : "") + " quote LIKE .. )"
+     *   subuser (SR): (track ว่าง ? " AND (" : "") + " subuser LIKE .. )"
+     * → มีทั้ง track และ subuser = SQL ผิดไวยากรณ์ (วงเล็บไม่มี AND นำหน้า) → เดิมได้ผลว่าง → คืน false
+     */
+    public static function applyTextSearch(Builder $q, string $track, string $quote, string $subuser): bool
+    {
+        if ($track !== '' && $subuser !== '') {
+            return false;
         }
         $lt = '%'.addcslashes($track, '%_\\').'%';
         $lq = '%'.addcslashes($quote, '%_\\').'%';
@@ -468,11 +436,11 @@ class PaymentController extends Controller
         } elseif ($quote !== '') {
             $q->where('tracking.quote', 'like', $lq);
         }
-        if (Php74::eq($admitThai, '1')) {
-            $q->where('tracking.date_thai', '!=', '0000-00-00 00:00:00');
+        if ($subuser !== '') {
+            $q->where('tracking.subuser', 'like', '%'.addcslashes($subuser, '%_\\').'%');
         }
-        $q->where('tracking.payment_id', '0')->where('tracking.tracking', '!=', '')
-            ->where('tracking.lot_id', '!=', 0)->where('tracking.no', '!=', 0);
+
+        return true;
     }
 
     /** tracking ที่ผูกกับ random ของ bill_payment_detail_temp (เฉพาะของผู้ใช้นี้, ยังไม่ผูกบิล) */
@@ -507,7 +475,8 @@ class PaymentController extends Controller
      */
     public static function attachTrackings(iterable $items, int|string $paymentId, ?int $by): void
     {
-        $cols = '`create_date`, `create_by`, `mod_date`, `mod_by`, `is_delete`, `id`, `no`, `tracking`, `order`, `price_kg`, `price_cubic`, `price_shipping`, `price_amount`, `rate_kg`, `rate_cubic`, `product_type_id`, `lot_id`, `user`, `weight`, `width`, `height`, `long`, `amount`, `ship`, `payment_id`, `is_craft`, `is_qc`, `quote`, `price_qc`, `price_repack`, `price_express`, `price_else`, `price_craft`, `date_warehouse`, `date_outofchina`, `date_thai`, `date_finish`, `remark`, `remark_shop`, `header`, `is_checked`, `checked_by`, `date_section`';
+        // SR: ไม่มี is_checked/checked_by (jl) แต่มี subuser/is_takeapic — เดิม INSERT ... VALUES จากแถว tracking ที่อ่านหลัง UPDATE
+        $cols = '`create_date`, `create_by`, `mod_date`, `mod_by`, `is_delete`, `id`, `no`, `tracking`, `order`, `price_kg`, `price_cubic`, `price_shipping`, `price_amount`, `rate_kg`, `rate_cubic`, `product_type_id`, `lot_id`, `user`, `weight`, `width`, `height`, `long`, `amount`, `ship`, `payment_id`, `is_craft`, `is_qc`, `quote`, `price_qc`, `price_repack`, `price_express`, `price_else`, `price_craft`, `date_warehouse`, `date_outofchina`, `date_thai`, `date_finish`, `remark`, `remark_shop`, `header`, `date_section`, `subuser`, `is_takeapic`';
         foreach ($items as $item) {
             DB::table('tracking')->where('header', $item->id)->update(['payment_id' => (string) $paymentId, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $by]);
             DB::table('tracking')->where('id', $item->id)->update(['payment_id' => (string) $paymentId, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $by]);

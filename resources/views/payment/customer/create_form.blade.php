@@ -78,16 +78,6 @@
 	        </div>
 
 
-	        <div class="form-group " >
-	            <label class="col-md-4 control-label">ต้องการ VAT?
-	            </label>
-	            <div class="col-md-4">
-                	<select class="form-control  " name="is_vat" onchange="getShippingPrice($('select[name=\'shipping_type\']'))">
-                	<option selected="selected" value="0">ไม่</option><option value="1">ใช่</option>
-                	</select>
-	            </div>
-	        </div>
-
 	        <div class="form-group" style="border-top:1px #ccc dashed"></div>
 
 	        <div class="form-group">
@@ -112,7 +102,7 @@
 	        <div class="custom_sender" style="display:none">
 	        	<div class="form-group">
         			<div class="col-md-8 col-md-offset-4">
-        				<span class="text-danger">{!! res('extra_charge_sender') !!} {!! Format::numberformat($changeSender) !!}</span>
+        				<span class="text-danger">{!! res('extra_charge_sender') !!} {!! Format::numberformat($senderCharge) !!}</span>
         			</div>
         		</div>
 	            <div class="form-group">
@@ -190,6 +180,7 @@
 		            <th class="text-center">{!! res('lot_list').'/'.res('no') !!}</th>
 		            <th class="text-center">{!! res('tracking') !!}</th>
 		            <th class="text-center">{!! res('order') !!}</th>
+					<th class="text-center">รหัสย่อย</th>
 		            <th class="text-center">{!! res('remark_for_this_order') !!}</th>
 		            <th class="text-center">{!! res('amount') !!}</th>
 		            <th class="text-center">{!! res('weight') !!}</th>
@@ -209,7 +200,7 @@
 		@include('payment.partials.detail_rows', ['orderBase' => 'order/', 'orderWithTracking' => false, 'note' => 'quote', 'emptyCols' => 11])
 		</tbody>
 			<thead>
-	            <th class="text-right " colspan="4"></th>
+	            <th class="text-right " colspan="5"></th>
 	            <th class="text-right" >{!! Format::numberformatzero($sum['amount']) !!}</th>
 	            <th class="text-right" >{!! Format::numberformatone($sum['weight']) !!}</th>
 	            <th class="text-right" >{!! Format::numberformatone($sum['width']) !!}</th>
@@ -223,26 +214,27 @@
 	            <!-- <th class="text-right" >{!! Format::numberformat($sum['pamount'], true, false) !!}</th> -->
 	        </thead>
 	        <thead>
-	            <th class="text-right" colspan="11">{!! res('total') !!}
+	            <th class="text-right" colspan="12">{!! res('total') !!}
 	            	<input type="hidden" class="hid_service" value="{!! Format::numberformat($sum['service'] + $sum['kg'] + $sum['pcubic'] + $sum['pamount'], false, false) !!}" />
 	            </th>
 	            <th class="text-right" colspan="8">{!! Format::numberformat($sum['service'] + $sum['kg'] + $sum['pcubic'] + $sum['pamount'], true, false) !!}</th>
 	        </thead>
 	        <thead>
-	            <th class="text-right" colspan="11">{!! res('price_thai_storage') !!}
+	            <th class="text-right" colspan="12">{!! res('price_thai_storage') !!}
 	            	<input type="hidden" class="hid_price_thai_storage" value="0" />
 	            </th>
 	            <th class="text-right price_thai_storage addcomma" colspan="3"></th>
 	        </thead>
 	        <thead>
-	            <th class="text-right" colspan="11"><small class="text-danger">({!! res('price_shipping_remark') !!})</small> {!! res('price_thai_shipping') !!}
+	            <th class="text-right" colspan="12"><small class="text-danger">({!! res('price_shipping_remark') !!})</small> {!! res('price_thai_shipping') !!}
 	            	<input type="hidden" class="hid_price_thai_shipping" value="0" />
 	            </th>
 	            <th class="text-right price_thai_shipping addcomma" colspan="3"></th>
 	        </thead>
 	        
-	        <thead id="totalhtml">
-
+	        <thead>
+	            <th class="text-right" colspan="12">{!! res('total_net') !!}</th>
+	            <th class="text-right total_net addcomma" colspan="4"></th>
 	        </thead>
 
 		</table>
@@ -339,7 +331,7 @@ function getShippingPrice(ele) {
 	$.ajax({
         type: 'POST',
         async: true,
-        data : 'id=' + ele.val() + '&payment_ref=' + $("input[name='ref_id']").val() + '&sender=' + $("select[name='sender_type']").val() + '&is_vat=' + $("select[name='is_vat']").val() ,
+        data : 'id=' + ele.val() + '&payment_ref=' + $("input[name='ref_id']").val() + '&sender=' + $("select[name='sender_type']").val(),
         url: rooturl + '_payment/load_shipping_price',
         success: function(data) {
         	data = $.parseJSON(data);
@@ -356,8 +348,6 @@ function getShippingPrice(ele) {
 				$(".hid_price_thai_storage").val(eval(data.price_thai_storage));
 	        	$(".hid_price_thai_shipping").val(eval(data.price_thai_shipping));
 
-	        	$('#totalhtml').html(data.html);
-	        	makeCurrency();
         	}
         	
         	CalculateTotal();
@@ -371,7 +361,7 @@ function CalculateTotal() {
 	var price_thai_shipping = $(".hid_price_thai_shipping").val();
 	var price_thai_storage = $(".hid_price_thai_storage").val();
 
-	$(".total_net").text(eval(service) + eval(price_thai_storage) + eval(price_thai_shipping));
+	$(".total_net").text((eval(service) + eval(price_thai_storage) + eval(price_thai_shipping)).toFixed(2) );
 	initialAddcommaText();
 }
 

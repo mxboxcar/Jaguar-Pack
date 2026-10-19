@@ -116,13 +116,40 @@ final class PaymentLookups
         return array_values(array_unique($out));
     }
 
-    /** "รถ/เรือ lot/no" หรือ MALL (lot_id = no = -99) */
-    public static function lotLabel(object $item, bool $mall = true): string
+    /**
+     * รูปพัสดุ (SR: tracking_image) ของแต่ละ tracking — เดิม SELECT * FROM tracking_image WHERE tracking_id = X AND is_delete = '0' ทีละแถว
+     *
+     * @param  iterable<int|string>  $trackingIds
+     * @return array<int, list<string>>
+     */
+    public static function trackingImages(iterable $trackingIds): array
+    {
+        $ids = self::ints($trackingIds);
+        if ($ids === []) {
+            return [];
+        }
+        $out = [];
+        foreach (DB::table('tracking_image')->whereIn('tracking_id', $ids)->where('is_delete', '0')->orderBy('id')->get(['tracking_id', 'attachment']) as $r) {
+            $out[(int) $r->tracking_id][] = (string) $r->attachment;
+        }
+
+        return $out;
+    }
+
+    /**
+     * ประเภทการส่งของฟอร์มสร้างบิล (ลูกค้า/แอดมิน) — SR: ORDER BY no = 0, no ASC (no = 0 ไปท้าย)
+     * ลำดับที่ no เท่ากันไม่กำหนดใน SQL เดิม → ใช้ ORDER BY เดียวกันทุกตัวอักษร (MySQL ได้ลำดับเดียวกัน)
+     */
+    public static function shippingTypes(): Collection
+    {
+        return self::strAll(DB::table('shipping_type')->where('is_delete', 0)->where('is_quick_show', 0)
+            ->orderByRaw('no = 0, no ASC')->get());
+    }
+
+    /** "รถ/เรือ lot/no" (SR ไม่มี MALL — jl แสดง MALL เมื่อ lot_id = no = -99) */
+    public static function lotLabel(object $item): string
     {
         $str = Php74::eq($item->lot_type ?? null, 0) ? Lang::get('car') : Lang::get('ship');
-        if ($mall && Php74::eq($item->lot_id ?? null, -99) && Php74::eq($item->no ?? null, -99)) {
-            return 'MALL';
-        }
 
         return $str.' '.($item->lot_name ?? '').'/'.($item->no ?? '');
     }

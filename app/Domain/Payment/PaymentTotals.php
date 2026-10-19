@@ -112,10 +112,13 @@ final class PaymentTotals
      * @param  array<string, mixed>|null  $stp  getShippingTypePrice(...)
      * @return array{storage: mixed, shipping: mixed, extened: mixed, sender_charge: mixed}
      */
-    public static function fees(object $st, mixed $senderType, ?array $stp): array
+    public static function fees(object $st, mixed $senderType, ?array $stp, mixed $charge = null): array
     {
         $shipping = $st->price_thai_shipping ?? null;
-        $charge = Lookup::getSetting('change_sender');
+        // ไม่ส่ง $charge = setting change_sender (แอดมินสร้างบิล / save_new_sender); ลูกค้าส่ง senderCharge(code) มา (ค่า null ได้แบบเดิม)
+        if (func_num_args() < 4) {
+            $charge = Lookup::getSetting('change_sender');
+        }
         $extened = $st->price_extened ?? null;
         $storage = Php74::eq($senderType, 1) ? self::plus($st->price_thai_storage ?? null, $charge) : ($st->price_thai_storage ?? null);
         if (Php74::eq($storage, 0)) {
@@ -132,24 +135,20 @@ final class PaymentTotals
     }
 
     /**
-     * VAT เดิม:
-     *   total = nfs(storage) + nfs(shipping) + nfs(extened)
-     *   vat_before = nfs(nfs(total * v) / 100); vat = nfs(total + vat_before)
-     *   shipvat_before = nfs(nfs(<total หรือ vat> * 3) / 100)   ← ลูกค้า/สร้างบิล: total (ก่อน VAT), แอดมิน save_vat: vat
-     *   shipvat = nfs(vat - shipvat_before)
-     *
-     * @return array{total: int|float, vat_before: string, vat: string, shipvat_before: string, shipvat: string}
+     * SR: ค่าเปลี่ยนผู้ส่ง = setting change_sender แต่ถ้ารหัสลูกค้าอยู่ใน charge_sender_edit ("CODE|ค่า,CODE|ค่า") ใช้ค่านั้น
+     * (ตัวท้ายที่ตรงชนะ, เทียบแบบ == เดิม — เหมือน Pricing::getShippingTypePrice) — _payment/create_form.php, save_submit_payment.php
      */
-    public static function vat(mixed $storage, mixed $shipping, mixed $extened, mixed $v, bool $shipFromVat): array
+    public static function senderCharge(mixed $code): mixed
     {
-        $nfs = fn ($x) => Format::numberformatforsubmit($x);
-        $total = self::n($nfs($storage)) + self::n($nfs($shipping)) + self::n($nfs($extened));
-        $vatBefore = $nfs(self::n($nfs($total * self::n($v))) / 100);
-        $vat = $nfs($total + self::n($vatBefore));
-        $shipBefore = $nfs(self::n($nfs(($shipFromVat ? self::n($vat) : $total) * 3)) / 100);
-        $shipvat = $nfs(self::n($vat) - self::n($shipBefore));
+        $charge = Lookup::getSetting('change_sender');
+        foreach (explode(',', (string) Lookup::getSetting('charge_sender_edit')) as $item) {
+            $p = explode('|', $item);
+            if ($p[0] == $code) {
+                $charge = $p[1] ?? null;
+            }
+        }
 
-        return ['total' => $total, 'vat_before' => $vatBefore, 'vat' => $vat, 'shipvat_before' => $shipBefore, 'shipvat' => $shipvat];
+        return $charge;
     }
 
     /** total = nfs(storage) + nfs(price_shipping) + nfs(extened) + nfs(thai_shipping) (ไม่มี VAT) */
@@ -158,25 +157,5 @@ final class PaymentTotals
         $nfs = fn ($x) => self::n(Format::numberformatforsubmit($x));
 
         return $nfs($storage) + $nfs($priceShipping) + $nfs($extened) + $nfs($thaiShipping);
-    }
-
-    /**
-     * ยอดบิลของ _payment/save_submit_payment.php
-     *
-     * @param  array{storage: mixed, shipping: mixed, extened: mixed, sender_charge: mixed}  $fees
-     * @return array<string, mixed>
-     */
-    public static function bill(array $fees, int|float $priceShipping, mixed $isVat): array
-    {
-        if (Php74::eq($isVat, 1)) {
-            $v = Lookup::getSetting('vat');
-            $t = self::vat($fees['storage'], $priceShipping, $fees['extened'], $v, false);
-
-            return ['total' => $t['shipvat'], 'v' => $v, 'vat_before' => $t['vat_before'], 'vat' => $t['vat'],
-                'shipvat_before' => $t['shipvat_before'], 'shipvat' => $t['shipvat'], 'shipv' => 3];
-        }
-
-        return ['total' => self::plain($fees['storage'], $priceShipping, $fees['extened'], $fees['shipping']),
-            'v' => 0, 'vat_before' => 0, 'vat' => 0, 'shipvat_before' => 0, 'shipvat' => 0, 'shipv' => 0];
     }
 }

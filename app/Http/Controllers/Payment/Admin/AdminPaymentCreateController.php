@@ -85,7 +85,7 @@ class AdminPaymentCreateController extends Controller
         $rows = DB::table('tracking')->leftJoin('lot', 'lot.id', '=', 'tracking.lot_id')
             ->where('tracking.is_delete', 0)->where('tracking.user', $this->in($request, 'user_id'))
             ->where('tracking.payment_id', '0')->where('tracking.tracking', '!=', '')
-            ->where('tracking.lot_id', '!=', 0)->where('tracking.no', '!=', 0)
+            ->where('tracking.lot_id', '!=', 0)->where('tracking.no', '!=', 0)->where('tracking.header', 0)
             ->groupBy('tracking.lot_id')->orderBy('tracking.lot_id')
             ->get([DB::raw('MIN(lot.id) as id'), DB::raw('MIN(lot.name) as lot_name')]);
         $html = '<select id="search_lot" onchange="loaddata();" style="width:100px">';
@@ -98,7 +98,7 @@ class AdminPaymentCreateController extends Controller
         return response($html);
     }
 
-    /** POST /_admin/_payment/load_create — รายการพัสดุของลูกค้า + ตารางเรท */
+    /** POST /_admin/_payment/load_create — รายการพัสดุของลูกค้า (SR: ไม่มีตารางเรท) */
     public function loadCreate(Request $request): Response
     {
         $userId = $this->in($request, 'user_id');
@@ -108,20 +108,8 @@ class AdminPaymentCreateController extends Controller
         $items = P::withHeaderCount(P::strAll($q->orderBy('tracking.lot_id')->orderBy('tracking.no')
             ->get(['tracking.*', 'user.code', 'product_type.name as type_name', 'lot.name as lot_name', 'lot.type as lot_type'])));
 
-        $rates = null;
-        if ($userId !== '') {
-            $type = DB::table('user')->where('id', $userId)->value('type');
-            $rate = fn (string $t) => P::strAll(DB::table('user_type_detail')
-                ->leftJoin('product_type', 'user_type_detail.product_type_id', '=', 'product_type.id')
-                ->where('user_type_detail.type', $t)->where('user_type_detail.user_type_id', (string) $type)
-                ->orderBy('user_type_detail.id')
-                ->get(['user_type_detail.*', 'product_type.name', 'product_type.desc']));
-            $rates = ['car' => $rate('0'), 'ship' => $rate('1')];
-        }
-
         return response(view('payment.admin.load_create', [
             'items' => $items,
-            'rates' => $rates,
             'sum' => PaymentTotals::selectable($items),
             'orderIds' => P::orderIds(P::idsOf($items)),
             'children' => P::children($items->filter(fn ($i) => Php74::neq($i->header_count, 0))->pluck('id')),
@@ -180,7 +168,7 @@ class AdminPaymentCreateController extends Controller
             'items' => $items,
             'sum' => PaymentTotals::adminCreate($items),
             'hideOwnSender' => $items->contains(fn ($i) => Php74::eq($i->product_type_id, 9) || Php74::eq($i->product_type_id, 10)),
-            'shippingTypes' => P::strAll(DB::table('shipping_type')->where('is_delete', 0)->where('is_quick_show', 0)->orderBy('no')->get()),
+            'shippingTypes' => P::shippingTypes(),
             'cash' => Lookup::getCurrentCash($userId),
             'changeSender' => Lookup::getSetting('change_sender'),
             'orderIds' => P::orderIds(P::idsOf($items)),
@@ -196,6 +184,11 @@ class AdminPaymentCreateController extends Controller
         $shippingType = $this->in($request, 'shipping_type');
         $senderType = $this->in($request, 'sender_type');
         $payNow = $this->in($request, 'pay_now');
+        // SR: hack yd (9 บริษัทจัดส่ง, 10 รับเอง) เปิดใช้ในฝั่งแอดมินด้วย (jl comment ไว้)
+        $radio = $this->in($request, 'shipping_type_radio');
+        if (Php74::eq($radio, 9) || Php74::eq($radio, 10)) {
+            $shippingType = $radio;
+        }
 
         $st = P::str(DB::table('shipping_type')->where('id', $shippingType)->first());
         if ($st === null) {
@@ -256,9 +249,11 @@ class AdminPaymentCreateController extends Controller
                 foreach (['no', 'tracking', 'order', 'price_kg', 'price_cubic', 'price_shipping', 'price_amount', 'rate_kg', 'rate_cubic',
                     'product_type_id', 'lot_id', 'user', 'weight', 'width', 'height', 'long', 'amount', 'ship', 'is_craft', 'is_qc', 'quote',
                     'price_qc', 'price_repack', 'price_express', 'price_else', 'price_craft', 'date_warehouse', 'date_outofchina',
-                    'date_thai', 'date_finish', 'remark', 'remark_shop', 'header'] as $k) {
+                    'date_thai', 'date_finish', 'remark', 'remark_shop', 'header', 'subuser'] as $k) {
                     $row[$k] = P::s($item->{$k} ?? null);
                 }
+                // SR: เดิม INSERT `is_takeapic` จาก $item['is_takeapic'] ที่ไม่ได้ SELECT มา (= '' → 0)
+                $row['is_takeapic'] = 0;
                 // tracking_id = AUTO_INCREMENT (PK), id = tracking.id (ซ้ำได้ถ้า tracking เคยอยู่ในบิลที่ยกเลิก)
                 DB::table('bill_payment_detail')->insert($row);
             }
@@ -292,6 +287,6 @@ class AdminPaymentCreateController extends Controller
         return ['tracking.id', 'tracking.tracking', 'tracking.quote', 'tracking.amount', 'tracking.weight', 'tracking.width', 'tracking.height',
             'tracking.long', 'tracking.product_type_id', 't1.kg as price_kg', 't1.cubic as price_cubic', 't1.qc as price_qc',
             't1.repack as price_repack', 't1.express as price_express', 't1.else as price_else', 't1.craft as price_craft',
-            'lot.name as lot_name', 'lot.type as lot_type', 'product_type.name as type_name'];
+            'lot.name as lot_name', 'lot.type as lot_type', 'product_type.name as type_name', 'tracking.subuser'];
     }
 }

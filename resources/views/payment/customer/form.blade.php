@@ -150,6 +150,7 @@
 		            <th class="text-center">{!! res('lot_list').'/'.res('no') !!}</th>
 		            <th class="text-center">{!! res('tracking') !!}</th>
 		            <th class="text-center">{!! res('order') !!}</th>
+					<th class="text-center">รหัสย่อย</th>
 		            <th class="text-center">{!! res('remark_for_this_order') !!}</th>
 		            <th class="text-center">{!! res('amount') !!}</th>
 		            <th class="text-center">{!! res('weight') !!}</th>
