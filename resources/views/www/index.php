@@ -14,8 +14,8 @@
 
 
 		<!-- Favicon -->
-		<link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon" />
-		<link rel="apple-touch-icon" href="img/XDX.png">
+		<link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+		<link rel="apple-touch-icon" href="/img/XDX.png">
 
 		<!-- Mobile Metas -->
 		<meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -24,39 +24,39 @@
 		<link href='http://fonts.googleapis.com/css?family=Kanit:400,300,700' rel='stylesheet' type='text/css'>
 
 		<!-- XDX CSS -->
-		<link rel="stylesheet" href="XDX/bootstrap/css/bootstrap.min.css">
-		<link rel="stylesheet" href="XDX/font-awesome/css/font-awesome.min.css">
-		<link rel="stylesheet" href="XDX/animate/animate.min.css">
-		<link rel="stylesheet" href="XDX/simple-line-icons/css/simple-line-icons.min.css">
-		<link rel="stylesheet" href="XDX/owl.carousel/assets/owl.carousel.min.css">
-		<link rel="stylesheet" href="XDX/owl.carousel/assets/owl.theme.default.min.css">
-		<link rel="stylesheet" href="XDX/magnific-popup/magnific-popup.min.css">
+		<link rel="stylesheet" href="/XDX/bootstrap/css/bootstrap.min.css">
+		<link rel="stylesheet" href="/XDX/font-awesome/css/font-awesome.min.css">
+		<link rel="stylesheet" href="/XDX/animate/animate.min.css">
+		<link rel="stylesheet" href="/XDX/simple-line-icons/css/simple-line-icons.min.css">
+		<link rel="stylesheet" href="/XDX/owl.carousel/assets/owl.carousel.min.css">
+		<link rel="stylesheet" href="/XDX/owl.carousel/assets/owl.theme.default.min.css">
+		<link rel="stylesheet" href="/XDX/magnific-popup/magnific-popup.min.css">
 
 		<!-- Theme CSS -->
-		<link rel="stylesheet" href="css/theme.css">
-		<link rel="stylesheet" href="css/theme-elements.css">
-		<link rel="stylesheet" href="css/theme-blog.css">
-		<link rel="stylesheet" href="css/theme-shop.css">
-		<link href="css/style.css" rel="stylesheet">
-		<!--<link href="css/layout.css" rel="stylesheet" type="text/css">-->
+		<link rel="stylesheet" href="/css/theme.css">
+		<link rel="stylesheet" href="/css/theme-elements.css">
+		<link rel="stylesheet" href="/css/theme-blog.css">
+		<link rel="stylesheet" href="/css/theme-shop.css">
+		<link href="/css/style.css" rel="stylesheet">
+		<!--<link href="/css/layout.css" rel="stylesheet" type="text/css">-->
 
 		<!-- Current Page CSS -->
-		<link rel="stylesheet" href="XDX/rs-plugin/css/settings.css">
-		<link rel="stylesheet" href="XDX/rs-plugin/css/layers.css">
-		<link rel="stylesheet" href="XDX/rs-plugin/css/navigation.css">
-		<link rel="stylesheet" href="XDX/nivo-slider/nivo-slider.css">
-		<link rel="stylesheet" href="XDX/nivo-slider/default/default.css">
+		<link rel="stylesheet" href="/XDX/rs-plugin/css/settings.css">
+		<link rel="stylesheet" href="/XDX/rs-plugin/css/layers.css">
+		<link rel="stylesheet" href="/XDX/rs-plugin/css/navigation.css">
+		<link rel="stylesheet" href="/XDX/nivo-slider/nivo-slider.css">
+		<link rel="stylesheet" href="/XDX/nivo-slider/default/default.css">
 
 		<!-- Skin CSS -->
-		<link rel="stylesheet" href="css/skins/skin-construction.css">		<script src="master/style-switcher/style.switcher.localstorage.js"></script> 
+		<link rel="stylesheet" href="/css/skins/skin-construction.css">		<script src="/master/style-switcher/style.switcher.localstorage.js"></script> 
 
-		<!-- Demo CSS -->		<link rel="stylesheet" href="css/demos/demo-construction.css">
+		<!-- Demo CSS -->		<link rel="stylesheet" href="/css/demos/demo-construction.css">
 
 		<!-- Theme Custom CSS -->
-		<link rel="stylesheet" href="css/custom.css">
+		<link rel="stylesheet" href="/css/custom.css">
 
 		<!-- Head Libs -->
-		<script src="XDX/modernizr/modernizr.min.js"></script>
+		<script src="/XDX/modernizr/modernizr.min.js"></script>
 
 		<script>
 		  	</script>
@@ -70,9 +70,9 @@
 						<div class="header-row">
 							<div class="header-column">
 								<div class="header-logo">
-									<img class="logo-default" alt="Porto" width="324" height="212" src="img/logo.png">
+									<img class="logo-default" alt="Porto" width="324" height="212" src="/img/logo.png">
 									<a href="#">
-										<img class="logo-small" alt="Porto" width="133"  src="img/JL_logo_ok-01.png">
+										<img class="logo-small" alt="Porto" width="133"  src="/img/JL_logo_ok-01.png">
 									</a>
 								</div>
 							</div>
@@ -90,7 +90,7 @@
 											<nav>
 												<ul class="nav nav-pills" id="mainNav">
 													<li class="active">
-														<a href="index.php">
+														<a href="/">
 															หน้าแรก
 														</a>
 													</li>
@@ -100,22 +100,22 @@
 														</a>
 													</li>
 													<li>
-														<a href="how_to.php">
+														<a href="/how-to">
 															วิธีใช้
 														</a>
 													</li>
 													<li>
-														<a href="page_02.php">
+														<a href="/contact">
 															ติดต่อเรา
 														</a>
 													</li>
 													<li>
-														<a href="page_03.php">
+														<a href="/terms">
 															ข้อตกลงการใช้บริการ
 														</a>
 													</li>
 													<li>
-														<a target="_blank" href="http://portal.jlcargoth.com/">
+														<a target="_blank" href="https://portal.jlcargoth.com/">
 															เข้าสู่ระบบ/สมัครสมาชิก
 														</a>
 													</li>
@@ -148,11 +148,11 @@
 				<tbody>
 					<tr>
 						<td style="font-weight: bold">
-							<div style=""><p style="margin:6px 0px"><img src="http://www.jlcargoth.com/image/002-mobile-phone.png" style="width: 20px;margin-right:5px;"> 095-550-4009</p></div>
-							<div style=""><p style="margin:6px 0px"><img src="http://www.jlcargoth.com/image/001-email.png" style="width: 20px;margin-right:5px;"> jlcargoth@hotmail.com</p></div>
-							<div style=""><p style="margin:6px 0px"><img src="http://www.jlcargoth.com/image/LINE_logo.svg.png" style="width: 20px;margin-right:5px;"> @jlcargo, tigerlekk</p></div>
-							<div style=""><p style="margin:6px 0px"><img src="http://www.jlcargoth.com/image/Tencent_QQ.png" style="width: 20px;margin-right:5px;"> 2779852334</p></div>
-							<div class="text-center" style=""><p style="margin:6px 0px"><img style="max-width: 200px;" src="http://www.jlcargoth.com/image/jlcargo2.jpg"></p></div>
+							<div style=""><p style="margin:6px 0px"><img src="/image/002-mobile-phone.png" style="width: 20px;margin-right:5px;"> 095-550-4009</p></div>
+							<div style=""><p style="margin:6px 0px"><img src="/image/001-email.png" style="width: 20px;margin-right:5px;"> jlcargoth@hotmail.com</p></div>
+							<div style=""><p style="margin:6px 0px"><img src="/image/LINE_logo.svg.png" style="width: 20px;margin-right:5px;"> @jlcargo, tigerlekk</p></div>
+							<div style=""><p style="margin:6px 0px"><img src="/image/Tencent_QQ.png" style="width: 20px;margin-right:5px;"> 2779852334</p></div>
+							<div class="text-center" style=""><p style="margin:6px 0px"><img style="max-width: 200px;" src="/image/jlcargo2.jpg"></p></div>
 						</td>
 					</tr>
 				</tbody>
@@ -163,7 +163,7 @@
 					<div id="revolutionSlider" class="slider rev_slider" data-plugin-revolution-slider data-plugin-options="{'delay': 9000, 'gridwidth': 1170, 'gridheight': 700, 'disableProgressBar': 'on'}">
 						<ul>
 							<li data-transition="fade">
-								<img src="img/demos/construction/slides/slide-construction-1.jpg"  
+								<img src="/img/demos/construction/slides/slide-construction-1.jpg"  
 									alt=""
 									data-bgposition="center 100%" 
 									data-bgfit="cover" 
@@ -177,7 +177,7 @@
 									data-transform_in="x:[100%];opacity:0;s:1000;">JL CARGO : ชิปปิ้งสินค้าจากจีน</div>
 							</li>
 							<li data-transition="fade">
-								<img src="img/demos/construction/slides/slide-construction-2.jpg"  
+								<img src="/img/demos/construction/slides/slide-construction-2.jpg"  
 									alt=""
 									data-bgposition="center 100%" 
 									data-bgfit="cover" 
@@ -201,7 +201,7 @@
 							<p class="lead">รับนำเข้าสินค้าจากจีน ชิปปิ้งสินค้าจากจีน</p>
 						</div>
 						<div class="col-md-2 center hidden-xs hidden-sm">
-							<img src="img/dotted-line-angle.png" class="img-responsive" />
+							<img src="/img/dotted-line-angle.png" class="img-responsive" />
 						</div>
 						<div class="col-md-6">
 							<p class="mt-xl">รับนำเข้าสินค้าจากจีน ชิปปิ้งสินค้าจากจีน รับขนส่งสินค้าจากจีน รับสั่งซื้อ นำเข้าสินค้า จาก ทุกเว็บ ทุกร้าน ทุกโรงงาน ในประเทศจีน รับโอนเงินจากจีนกลับไทย รับจัดหาสินค้าจีน แนะนำร้านค้าขายส่งที่จีน รับโอนเงินไปจีน รับสั่งของจากจีน ถูกที่สุด เริ่มต้นเพียงกิโลละ 25 บาท ไม่มีขั้นต่ำ ชิปปิ้งจากจีน นำเข้า ส่งออก เรทถูก</p>
@@ -224,7 +224,7 @@
 							<div class="col-md-6">
 								<div class="feature-box feature-box-style-2 mb-xl appear-animation" data-appear-animation="fadeInUp" data-appear-animation-delay="300">
 									<div class="feature-box-icon">
-										<img src="img/icon/china.png" alt="" class="img-responsive" />
+										<img src="/img/icon/china.png" alt="" class="img-responsive" />
 									</div>
 									<div class="feature-box-info ml-md">
 										<h4 class="mb-sm">รับนำเข้าสินค้าจากจีนมาไทย</h4>
@@ -236,7 +236,7 @@
 							<div class="col-md-6">
 								<div class="feature-box feature-box-style-2 mb-xl appear-animation" data-appear-animation="fadeInUp" data-appear-animation-delay="0">
 									<div class="feature-box-icon">
-										<img src="img/icon/china (2).png" alt="" class="img-responsive" />
+										<img src="/img/icon/china (2).png" alt="" class="img-responsive" />
 									</div>
 									<div class="feature-box-info ml-md">
 										<h4 class="mb-sm">มีระบบติดตามสินค้า </h4>
@@ -251,7 +251,7 @@
 							<div class="col-md-6">
 								<div class="feature-box feature-box-style-2 mb-xl appear-animation" data-appear-animation="fadeInUp" data-appear-animation-delay="300">
 									<div class="feature-box-icon">
-										<img src="img/icon/yuan.png" alt="" class="img-responsive" />
+										<img src="/img/icon/yuan.png" alt="" class="img-responsive" />
 									</div>
 									<div class="feature-box-info ml-md">
 										<h4 class="mb-sm">ไม่มีปิดรอบ ไม่มีขั้นต่ำ</h4>
@@ -263,7 +263,7 @@
 							<div class="col-md-6">
 								<div class="feature-box feature-box-style-2 mb-xl appear-animation" data-appear-animation="fadeInUp" data-appear-animation-delay="0">
 									<div class="feature-box-icon">
-										<img src="img/icon/coin.png" alt="" class="img-responsive" />
+										<img src="/img/icon/coin.png" alt="" class="img-responsive" />
 									</div>
 									<div class="feature-box-info ml-md">
 										<h4 class="mb-sm">โอนเงินไปจีน เติมเงินAlipay เรทถูกกว่าธนาคาร</h4>
@@ -347,28 +347,28 @@
 							<div class="col-md-12 center">
 								<div class="owl-carousel owl-theme stage-margin rounded-nav" data-plugin-options="{'margin': 10, 'loop': false, 'nav': true, 'dots': false, 'stagePadding': 40, 'items': 6, 'autoplay': true, 'autoplayTimeout': 3000}">
 									<div>
-										<img class="img-responsive" src="img/icon/1688_on.png" alt="">
+										<img class="img-responsive" src="/img/icon/1688_on.png" alt="">
 									</div>
 									<div>
-										<img class="img-responsive" src="img/icon/alibaba_on.png" alt="">
+										<img class="img-responsive" src="/img/icon/alibaba_on.png" alt="">
 									</div>
 									<div>
-										<img class="img-responsive" src="img/icon/alipay_on.png" alt="">
+										<img class="img-responsive" src="/img/icon/alipay_on.png" alt="">
 									</div>
 									<div>
-										<img class="img-responsive" src="img/icon/taobao_on.png" alt="">
+										<img class="img-responsive" src="/img/icon/taobao_on.png" alt="">
 									</div>
 									<div>
-										<img class="img-responsive" src="img/icon/tmall_on.png" alt="">
+										<img class="img-responsive" src="/img/icon/tmall_on.png" alt="">
 									</div>
 									<div>
-										<img class="img-responsive" src="img/icon/1688_on.png" alt="">
+										<img class="img-responsive" src="/img/icon/1688_on.png" alt="">
 									</div>
 									<div>
-										<img class="img-responsive" src="img/icon/alibaba_on.png" alt="">
+										<img class="img-responsive" src="/img/icon/alibaba_on.png" alt="">
 									</div>
 									<div>
-										<img class="img-responsive" src="img/icon/tmall_on.png" alt="">
+										<img class="img-responsive" src="/img/icon/tmall_on.png" alt="">
 									</div>
 								</div>
 							</div>
@@ -385,7 +385,7 @@
 			<section class="pt-lg pb-sm" id="jl-rate" style="background:#eef1f4;">
 				<div class="container">
 					<div style="max-width:1000px;margin:0 auto;text-align:center;">
-						<img src="image/jl_rate.jpg" alt="เรทขนส่ง JL Cargo ทางรถ/ทางเรือ" style="width:100%;height:auto;border-radius:12px;box-shadow:0 6px 22px rgba(0,0,0,.08);">
+						<img src="/image/jl_rate.jpg" alt="เรทขนส่ง JL Cargo ทางรถ/ทางเรือ" style="width:100%;height:auto;border-radius:12px;box-shadow:0 6px 22px rgba(0,0,0,.08);">
 					</div>
 				</div>
 			</section>
@@ -493,7 +493,7 @@
 					<div class="row">
 						<div class="col-md-3">
 							<a href="#">
-								<img alt="Porto" class="img-responsive logo" width="110" src="img/JL_logo_ok-01.png">
+								<img alt="Porto" class="img-responsive logo" width="110" src="/img/JL_logo_ok-01.png">
 							</a>
 						</div>
 						<div class="col-md-4">
@@ -506,7 +506,7 @@
 								<div class="col-md-6">
 									<ul class="list list-footer-nav">
 										<li>
-											<a href="index.php">
+											<a href="/">
 												หน้าแรก
 											</a>
 										</li>
@@ -516,7 +516,7 @@
 											</a>
 										</li>
 										<li>
-														<a href="how_to.php">
+														<a href="/how-to">
 															วิธีใช้
 														</a>
 													</li>
@@ -525,17 +525,17 @@
 								<div class="col-md-6">
 									<ul class="list list-footer-nav">
 										<li>
-											<a href="page_02.php">
+											<a href="/contact">
 												ติดต่อเรา
 											</a>
 										</li>
 										<li>
-											<a href="page_03.php">
+											<a href="/terms">
 												ข้อตกลงการใช้บริการ
 											</a>
 										</li>
 										<li>
-											<a target="_blank" href="http://portal.jlcargoth.com/">เข้าสู่ระบบ/สมัครสมาชิก</a>
+											<a target="_blank" href="https://portal.jlcargoth.com/">เข้าสู่ระบบ/สมัครสมาชิก</a>
 										</li>
 									</ul>
 								</div>
@@ -558,42 +558,42 @@
 		</div>
 
 		<!-- XDX -->
-		<script src="XDX/jquery/jquery.min.js"></script>
-		<script src="XDX/jquery.appear/jquery.appear.min.js"></script>
-		<script src="XDX/jquery.easing/jquery.easing.min.js"></script>
-		<script src="XDX/jquery-cookie/jquery-cookie.min.js"></script>
-		<script src="master/style-switcher/style.switcher.js" id="styleSwitcherScript" data-base-path="" data-skin-src="master/less/skin-construction.less"></script>
-		<script src="XDX/bootstrap/js/bootstrap.min.js"></script>
-		<script src="XDX/common/common.min.js"></script>
-		<script src="XDX/jquery.validation/jquery.validation.min.js"></script>
-		<script src="XDX/jquery.easy-pie-chart/jquery.easy-pie-chart.min.js"></script>
-		<script src="XDX/jquery.gmap/jquery.gmap.min.js"></script>
-		<script src="XDX/jquery.lazyload/jquery.lazyload.min.js"></script>
-		<script src="XDX/isotope/jquery.isotope.min.js"></script>
-		<script src="XDX/owl.carousel/owl.carousel.min.js"></script>
-		<script src="XDX/magnific-popup/jquery.magnific-popup.min.js"></script>
-		<script src="XDX/vide/vide.min.js"></script>
+		<script src="/XDX/jquery/jquery.min.js"></script>
+		<script src="/XDX/jquery.appear/jquery.appear.min.js"></script>
+		<script src="/XDX/jquery.easing/jquery.easing.min.js"></script>
+		<script src="/XDX/jquery-cookie/jquery-cookie.min.js"></script>
+		<script src="/master/style-switcher/style.switcher.js" id="styleSwitcherScript" data-base-path="" data-skin-src="/master/less/skin-construction.less"></script>
+		<script src="/XDX/bootstrap/js/bootstrap.min.js"></script>
+		<script src="/XDX/common/common.min.js"></script>
+		<script src="/XDX/jquery.validation/jquery.validation.min.js"></script>
+		<script src="/XDX/jquery.easy-pie-chart/jquery.easy-pie-chart.min.js"></script>
+		<script src="/XDX/jquery.gmap/jquery.gmap.min.js"></script>
+		<script src="/XDX/jquery.lazyload/jquery.lazyload.min.js"></script>
+		<script src="/XDX/isotope/jquery.isotope.min.js"></script>
+		<script src="/XDX/owl.carousel/owl.carousel.min.js"></script>
+		<script src="/XDX/magnific-popup/jquery.magnific-popup.min.js"></script>
+		<script src="/XDX/vide/vide.min.js"></script>
 		
 		<!-- Theme Base, Components and Settings -->
-		<script src="js/theme.js"></script>
+		<script src="/js/theme.js"></script>
 		
 		<!-- Current Page XDX and Views -->
-		<script src="XDX/rs-plugin/js/jquery.themepunch.tools.min.js"></script>		<script src="XDX/rs-plugin/js/jquery.themepunch.revolution.min.js"></script>
+		<script src="/XDX/rs-plugin/js/jquery.themepunch.tools.min.js"></script>		<script src="/XDX/rs-plugin/js/jquery.themepunch.revolution.min.js"></script>
 
 		<!-- Current Page XDX and Views -->
-		<script src="XDX/nivo-slider/jquery.nivo.slider.min.js"></script>
-		<script src="js/views/view.contact.js"></script>
+		<script src="/XDX/nivo-slider/jquery.nivo.slider.min.js"></script>
+		<script src="/js/views/view.contact.js"></script>
 
 		<!-- Demo -->
-		<script src="js/demos/demo-construction.js"></script>	
+		<script src="/js/demos/demo-construction.js"></script>	
 		
 		<!-- Theme Custom -->
-		<script src="js/custom.js"></script>
+		<script src="/js/custom.js"></script>
 		
 		<!-- Theme Initialization Files -->
-		<script src="js/theme.init.js"></script>
+		<script src="/js/theme.init.js"></script>
 		
-		<script src="master/analytics/analytics.js"></script>
+		<script src="/master/analytics/analytics.js"></script>
 		
 
 	</body>

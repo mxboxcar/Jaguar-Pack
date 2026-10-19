@@ -14,8 +14,8 @@
 
 
 		<!-- Favicon -->
-		<link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon" />
-		<link rel="apple-touch-icon" href="img/XDX.png">
+		<link rel="shortcut icon" href="/img/favicon.ico" type="image/x-icon" />
+		<link rel="apple-touch-icon" href="/img/XDX.png">
 
 		<!-- Mobile Metas -->
 		<meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -24,42 +24,42 @@
 		<link href='http://fonts.googleapis.com/css?family=Kanit:400,300,700' rel='stylesheet' type='text/css'>
 
 		<!-- XDX CSS -->
-		<link rel="stylesheet" href="XDX/bootstrap/css/bootstrap.min.css">
-		<link rel="stylesheet" href="XDX/font-awesome/css/font-awesome.min.css">
-		<link rel="stylesheet" href="XDX/animate/animate.min.css">
-		<link rel="stylesheet" href="XDX/simple-line-icons/css/simple-line-icons.min.css">
-		<link rel="stylesheet" href="XDX/owl.carousel/assets/owl.carousel.min.css">
-		<link rel="stylesheet" href="XDX/owl.carousel/assets/owl.theme.default.min.css">
-		<link rel="stylesheet" href="XDX/magnific-popup/magnific-popup.min.css">
+		<link rel="stylesheet" href="/XDX/bootstrap/css/bootstrap.min.css">
+		<link rel="stylesheet" href="/XDX/font-awesome/css/font-awesome.min.css">
+		<link rel="stylesheet" href="/XDX/animate/animate.min.css">
+		<link rel="stylesheet" href="/XDX/simple-line-icons/css/simple-line-icons.min.css">
+		<link rel="stylesheet" href="/XDX/owl.carousel/assets/owl.carousel.min.css">
+		<link rel="stylesheet" href="/XDX/owl.carousel/assets/owl.theme.default.min.css">
+		<link rel="stylesheet" href="/XDX/magnific-popup/magnific-popup.min.css">
 
 		<!-- Theme CSS -->
-		<link rel="stylesheet" href="css/theme.css">
-		<link rel="stylesheet" href="css/theme-elements.css">
-		<link rel="stylesheet" href="css/theme-blog.css">
-		<link rel="stylesheet" href="css/theme-shop.css">
-		<link href="css/style.css" rel="stylesheet">
-		<!--<link href="css/layout.css" rel="stylesheet" type="text/css">
+		<link rel="stylesheet" href="/css/theme.css">
+		<link rel="stylesheet" href="/css/theme-elements.css">
+		<link rel="stylesheet" href="/css/theme-blog.css">
+		<link rel="stylesheet" href="/css/theme-shop.css">
+		<link href="/css/style.css" rel="stylesheet">
+		<!--<link href="/css/layout.css" rel="stylesheet" type="text/css">
 
 		<!-- Current Page CSS -->
-		<link rel="stylesheet" href="XDX/rs-plugin/css/settings.css">
-		<link rel="stylesheet" href="XDX/rs-plugin/css/layers.css">
-		<link rel="stylesheet" href="XDX/rs-plugin/css/navigation.css">
-		<link rel="stylesheet" href="XDX/nivo-slider/nivo-slider.css">
-		<link rel="stylesheet" href="XDX/nivo-slider/default/default.css">
+		<link rel="stylesheet" href="/XDX/rs-plugin/css/settings.css">
+		<link rel="stylesheet" href="/XDX/rs-plugin/css/layers.css">
+		<link rel="stylesheet" href="/XDX/rs-plugin/css/navigation.css">
+		<link rel="stylesheet" href="/XDX/nivo-slider/nivo-slider.css">
+		<link rel="stylesheet" href="/XDX/nivo-slider/default/default.css">
 
 		<!-- Skin CSS -->
-		<link rel="stylesheet" href="css/skins/skin-construction.css">		<script src="master/style-switcher/style.switcher.localstorage.js"></script> 
+		<link rel="stylesheet" href="/css/skins/skin-construction.css">		<script src="/master/style-switcher/style.switcher.localstorage.js"></script> 
 
-		<!-- Demo CSS -->		<link rel="stylesheet" href="css/demos/demo-construction.css">
+		<!-- Demo CSS -->		<link rel="stylesheet" href="/css/demos/demo-construction.css">
 		
 		
 		
 
 		<!-- Theme Custom CSS -->
-		<link rel="stylesheet" href="css/custom.css">
+		<link rel="stylesheet" href="/css/custom.css">
 
 		<!-- Head Libs -->
-		<script src="XDX/modernizr/modernizr.min.js"></script>
+		<script src="/XDX/modernizr/modernizr.min.js"></script>
 
 	</head>
 	<body data-spy="scroll" data-target="#sidebar" data-offset="120">
@@ -71,9 +71,9 @@
 						<div class="header-row">
 							<div class="header-column">
 								<div class="header-logo">
-									<img class="logo-default" alt="Porto" width="324" height="212" src="img/logo.png">
+									<img class="logo-default" alt="Porto" width="324" height="212" src="/img/logo.png">
 									<a href="#">
-										<img class="logo-small" alt="Porto" width="133"  src="img/JL_logo_ok-01.png">
+										<img class="logo-small" alt="Porto" width="133"  src="/img/JL_logo_ok-01.png">
 									</a>
 								</div>
 							</div>
@@ -91,7 +91,7 @@
 											<nav>
 												<ul class="nav nav-pills" id="mainNav">
 													<li class="active">
-														<a href="index.php">
+														<a href="/">
 															หน้าแรก
 														</a>
 													</li>
@@ -101,22 +101,22 @@
 														</a>
 													</li>
 													<li>
-														<a href="how_to.php">
+														<a href="/how-to">
 															วิธีใช้
 														</a>
 													</li>
 													<li>
-														<a href="page_02.php">
+														<a href="/contact">
 															ติดต่อเรา
 														</a>
 													</li>
 													<li>
-														<a href="page_03.php">
+														<a href="/terms">
 															ข้อตกลงการใช้บริการ
 														</a>
 													</li>
 													<li>
-														<a target="_blank" href="http://portal.jlcargoth.com/">
+														<a target="_blank" href="https://portal.jlcargoth.com/">
 															เข้าสู่ระบบ/สมัครสมาชิก
 														</a>
 													</li>
@@ -164,7 +164,7 @@
 											<p style="text-indent: 50px;">- สินค้าทั่วไป/ มอก. ทางรถ หลังจากขึ้นตู้ 5-7 วันถึงไทย</p>
 											<p style="text-indent: 50px;">- สินค้าทั่วไป/ มอก. ทางเรือ หลังจากขึ้นตู้ 15-20 วันถึงไทย</p>
 											<p style="text-indent: 30px;">1.3 เมื่อติ๊กสินค้าที่ต้องการจะชำระ ออกบิลแจ้งส่งของแล้ว กดปุ่มสร้างใบชำระค่าสินค้า</p>
-											<p><img src="image/payment/1.png" width="100%" /></p>
+											<p><img src="/image/payment/1.png" width="100%" /></p>
 											<p>2. ให้ลูกค้ากรอกรายละเอียดที่ต้องการให้เราจัดส่งไปยังลูกค้า</p>
 											<p style="text-indent: 30px;">-	ใส่ชื่อ ที่อยู่ เบอร์โทร ที่จะให้เราจัดส่งให้ถูกต้องคะ ยิ่งขนส่งเอกชน เบอร์โทรสำคัญมากคะ ต้องโทรติดต่อลูกค้าได้ ใส่สำรองไว้หลายๆเบอร์ได้ยิ่งดีคะ ไม่งั้นขนส่งอาจจะไม่ส่งของให้ถ้าโทรติดต่อลูกค้าไม่ได้</p>
 											<p style="text-indent: 30px;">- เลือกประเภทการจัดส่ง ราคาค่าบริการที่ลูกค้าจะชำระไม่เท่ากันค่ะ
@@ -181,7 +181,7 @@
 											<p style="text-decoration: underline;">ในกรณีให้เราจัดส่งให้</p>
 											<p style="text-indent: 30px;">3.1 ถ้าชำระเงินในวันนั้นก่อนเที่ยงวัน ถ้าลูกค้าเลือกประเภทจัดส่งขนส่งเอกชน  ไปรษณีย์   เราจะจัดส่งให้ภายในวันนั้นเลย แต่หากชำระหลัง 12.00 น. จะถูกจัดส่งในวันถัดไป (วันอาทิตย์ทางเราหยุดไม่มีส่งสินค้านะคะ)</p>
 											<p style="text-indent: 30px;">3.2 จากนั้นลูกค้ารอบิลขนส่ง หลักฐานการส่งของแนบไปกับกล่องสินค้า</p>
-											<p><img src="image/payment/2.png"  width="100%" /></p>
+											<p><img src="/image/payment/2.png"  width="100%" /></p>
 
 
 
@@ -204,7 +204,7 @@
 					<div class="row">
 						<div class="col-md-3">
 							<a href="#">
-								<img alt="Porto" class="img-responsive logo" width="110" src="img/JL_logo_ok-01.png">
+								<img alt="Porto" class="img-responsive logo" width="110" src="/img/JL_logo_ok-01.png">
 							</a>
 						</div>
 						<div class="col-md-4">
@@ -217,7 +217,7 @@
 								<div class="col-md-6">
 									<ul class="list list-footer-nav">
 										<li>
-											<a href="index.php">
+											<a href="/">
 												หน้าแรก
 											</a>
 										</li>
@@ -227,7 +227,7 @@
 											</a>
 										</li>
 										<li>
-														<a href="how_to.php">
+														<a href="/how-to">
 															วิธีใช้
 														</a>
 													</li>
@@ -236,12 +236,12 @@
 								<div class="col-md-6">
 									<ul class="list list-footer-nav">
 										<li>
-											<a href="page_02.php">
+											<a href="/contact">
 												ติดต่อเรา
 											</a>
 										</li>
 										<li>
-											<a href="page_03.php">
+											<a href="/terms">
 												ข้อตกลงการใช้บริการ
 											</a>
 										</li>
@@ -273,42 +273,42 @@
 		</div>
 
 		<!-- XDX -->
-		<script src="XDX/jquery/jquery.min.js"></script>
-		<script src="XDX/jquery.appear/jquery.appear.min.js"></script>
-		<script src="XDX/jquery.easing/jquery.easing.min.js"></script>
-		<script src="XDX/jquery-cookie/jquery-cookie.min.js"></script>
-		<script src="master/style-switcher/style.switcher.js" id="styleSwitcherScript" data-base-path="" data-skin-src="master/less/skin-construction.less"></script>
-		<script src="XDX/bootstrap/js/bootstrap.min.js"></script>
-		<script src="XDX/common/common.min.js"></script>
-		<script src="XDX/jquery.validation/jquery.validation.min.js"></script>
-		<script src="XDX/jquery.easy-pie-chart/jquery.easy-pie-chart.min.js"></script>
-		<script src="XDX/jquery.gmap/jquery.gmap.min.js"></script>
-		<script src="XDX/jquery.lazyload/jquery.lazyload.min.js"></script>
-		<script src="XDX/isotope/jquery.isotope.min.js"></script>
-		<script src="XDX/owl.carousel/owl.carousel.min.js"></script>
-		<script src="XDX/magnific-popup/jquery.magnific-popup.min.js"></script>
-		<script src="XDX/vide/vide.min.js"></script>
+		<script src="/XDX/jquery/jquery.min.js"></script>
+		<script src="/XDX/jquery.appear/jquery.appear.min.js"></script>
+		<script src="/XDX/jquery.easing/jquery.easing.min.js"></script>
+		<script src="/XDX/jquery-cookie/jquery-cookie.min.js"></script>
+		<script src="/master/style-switcher/style.switcher.js" id="styleSwitcherScript" data-base-path="" data-skin-src="/master/less/skin-construction.less"></script>
+		<script src="/XDX/bootstrap/js/bootstrap.min.js"></script>
+		<script src="/XDX/common/common.min.js"></script>
+		<script src="/XDX/jquery.validation/jquery.validation.min.js"></script>
+		<script src="/XDX/jquery.easy-pie-chart/jquery.easy-pie-chart.min.js"></script>
+		<script src="/XDX/jquery.gmap/jquery.gmap.min.js"></script>
+		<script src="/XDX/jquery.lazyload/jquery.lazyload.min.js"></script>
+		<script src="/XDX/isotope/jquery.isotope.min.js"></script>
+		<script src="/XDX/owl.carousel/owl.carousel.min.js"></script>
+		<script src="/XDX/magnific-popup/jquery.magnific-popup.min.js"></script>
+		<script src="/XDX/vide/vide.min.js"></script>
 		
 		<!-- Theme Base, Components and Settings -->
-		<script src="js/theme.js"></script>
+		<script src="/js/theme.js"></script>
 		
 		<!-- Current Page XDX and Views -->
-		<script src="XDX/rs-plugin/js/jquery.themepunch.tools.min.js"></script>		<script src="XDX/rs-plugin/js/jquery.themepunch.revolution.min.js"></script>
+		<script src="/XDX/rs-plugin/js/jquery.themepunch.tools.min.js"></script>		<script src="/XDX/rs-plugin/js/jquery.themepunch.revolution.min.js"></script>
 
 		<!-- Current Page XDX and Views -->
-		<script src="XDX/nivo-slider/jquery.nivo.slider.min.js"></script>
-		<script src="js/views/view.contact.js"></script>
+		<script src="/XDX/nivo-slider/jquery.nivo.slider.min.js"></script>
+		<script src="/js/views/view.contact.js"></script>
 
 		<!-- Demo -->
-		<script src="js/demos/demo-construction.js"></script>	
+		<script src="/js/demos/demo-construction.js"></script>	
 		
 		<!-- Theme Custom -->
-		<script src="js/custom.js"></script>
+		<script src="/js/custom.js"></script>
 		
 		<!-- Theme Initialization Files -->
-		<script src="js/theme.init.js"></script>
+		<script src="/js/theme.init.js"></script>
 		
-		<script src="master/analytics/analytics.js"></script>
+		<script src="/master/analytics/analytics.js"></script>
 		
 
 	</body>

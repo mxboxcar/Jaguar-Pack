@@ -17,14 +17,27 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class WwwController extends Controller
 {
-    public const PAGES = [
-        'index', 'how_to', 'how_to_order', 'how_to_payment', 'how_to_alipay', 'how_to_profile',
-        'how_to_refill', 'how_to_tracking', 'how_to_transfer', 'page_02', 'page_03',
+    /** view (ชื่อไฟล์เดิม) => URL ใหม่ */
+    public const URLS = [
+        'index' => '/',
+        'how_to' => '/how-to',
+        'how_to_order' => '/how-to/order',
+        'how_to_payment' => '/how-to/payment',
+        'how_to_alipay' => '/how-to/alipay',
+        'how_to_profile' => '/how-to/profile',
+        'how_to_refill' => '/how-to/refill',
+        'how_to_tracking' => '/how-to/tracking',
+        'how_to_transfer' => '/how-to/transfer',
+        'page_02' => '/contact',
+        'page_03' => '/terms',
     ];
+
+    public const PAGES = ['index', 'how_to', 'how_to_order', 'how_to_payment', 'how_to_alipay', 'how_to_profile',
+        'how_to_refill', 'how_to_tracking', 'how_to_transfer', 'page_02', 'page_03'];
 
     public function show(Request $request, string $page = 'index'): Response
     {
-        if (! in_array($page, self::PAGES, true)) {
+        if (! array_key_exists($page, self::URLS)) {
             abort(404);
         }
 
@@ -41,5 +54,15 @@ class WwwController extends Controller
         }
 
         return response()->view('www.'.$page, $data);
+    }
+
+    /** URL เดิม (/how_to_order.php, /page_02.php, ...) → 301 ไป URL ใหม่ บน www. (เก็บ query string) */
+    public function legacyRedirect(Request $request, string $page): Response
+    {
+        $host = $request->getHost();
+        $host = str_starts_with($host, 'www.') ? $host : 'www.'.$host;
+        $qs = $request->getQueryString();
+
+        return redirect()->away($request->getScheme().'://'.$host.self::URLS[$page].($qs !== null ? '?'.$qs : ''), 301);
     }
 }
