@@ -3,14 +3,14 @@
 # กติกาเครื่อง production: concurrency <= 2, requests <= 50 ต่อรอบ
 #
 # ใช้: bin/bench <old-url> <new-url> [-n 50] [-c 1] [--user <id> | --sid <PHPSESSID>] [--post 'a=1&b=2'] [--ajax] [--rounds 2]
-#   ไม่ระบุ --user/--sid = session ของ user 137 (bench_sid)
+#   ไม่ระบุ --user/--sid = session ของ zz_fdn_cust 11937 (/root/sr-tools/bench_sid)
 #   --ajax  ส่ง X-Requested-With (หน้า ajax เดิมบังคับ)   --post  ส่งเป็น POST form
 # ผลลัพธ์: ตาราง markdown (mean / p50 / p95 ms, req/s, failed, ขนาด) ใช้วางลงรายงานได้เลย
 set -euo pipefail
 [ $# -ge 2 ] || { sed -n '2,9p' "$0"; exit 1; }
 OLD=$1; NEW=$2; shift 2
 N=50; C=1; SID=""; USER_ID=""; POST=""; AJAX=0; ROUNDS=2
-BENCH_DIR=${JL_BENCH_DIR:-/root/webroot-backups/php84-install-20261017}
+BENCH_DIR=${SR_BENCH_DIR:-/root/sr-tools}
 while [ $# -gt 0 ]; do
     case "$1" in
         -n) N=$2; shift ;; -c) C=$2; shift ;;
