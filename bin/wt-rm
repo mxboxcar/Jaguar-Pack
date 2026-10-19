@@ -24,7 +24,7 @@ esac
 
 REPO=$(cd "$(dirname "$0")/.." && git rev-parse --show-toplevel)
 REPO=$(cd "$REPO" && cd "$(git rev-parse --git-common-dir)/.." && pwd)
-ROOT=${JL_WT_ROOT:-/home/admin/laravel/jl-wt}
+ROOT=${JL_WT_ROOT:-/home/admin/laravel/sr-wt}
 WT=$ROOT/$G
 BR=mod/$G
 

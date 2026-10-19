@@ -4,7 +4,6 @@ use App\Http\Controllers\Messaging\Admin\AdminMessageController;
 use App\Http\Controllers\Messaging\Admin\AdminNoticeController;
 use App\Http\Controllers\Messaging\Admin\AdminSendController;
 use App\Http\Controllers\Messaging\IncludeFileController;
-use App\Http\Controllers\Messaging\LineNotifyController;
 use App\Http\Controllers\Messaging\MessageController;
 use App\Http\Controllers\Messaging\NoticeController;
 use App\Http\Controllers\Messaging\NotificationController;
@@ -76,13 +75,6 @@ Route::post('/_admin/_notice/delete', [AdminNoticeController::class, 'delete'])
 Route::middleware('legacy.perm:admin_export')->group(function () {
     Route::get('/admin/send', [AdminSendController::class, 'index'])->defaults('legacy_page', 'admin_send');
     Route::get('/_admin/_send/index_self', [AdminSendController::class, 'indexSelf']);
-});
-
-// ---- ลูกค้า: LINE Notify (_linenotify) ----
-Route::middleware('legacy.perm:profile')->group(function () {
-    Route::get('/linenotify', [LineNotifyController::class, 'index'])->defaults('legacy_page', 'linenotify');
-    Route::get('/_linenotify/callback', [LineNotifyController::class, 'callback']);
-    Route::get('/_linenotify/revoke', [LineNotifyController::class, 'revoke']);
 });
 
 // ---- แถบแจ้งเตือน + ไฟล์ชิ้นส่วน (เดิมเปิดได้โดยไม่ล็อกอิน: ชิ้นส่วนอีเมล/notify_* — ที่นี่ต้องล็อกอิน) ----

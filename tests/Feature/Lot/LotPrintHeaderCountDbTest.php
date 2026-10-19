@@ -9,7 +9,7 @@ use Tests\Feature\Money\BenchDbTestCase;
 /**
  * _admin/_lot/print, print_all: header_count เดิมเป็น subquery ต่อแถว (t2.header = tracking.id, TEXT กับ int → ใช้ index ไม่ได้)
  * = สแกน tracking ทั้งตารางต่อแถว → ล็อต ~100 tracking ใช้ ~75 วินาที (504 ที่ nginx) — ตอนนี้นับครั้งเดียวด้วย header IN (...)
- * รันกับ admin_jl_bench (opt-in JL_BENCH_DB_TESTS=1) — แถว zz_ ใน transaction ที่ rollback ทั้งหมด
+ * รันกับ admin_sr_bench (opt-in JL_BENCH_DB_TESTS=1) — แถว zz_ ใน transaction ที่ rollback ทั้งหมด
  */
 class LotPrintHeaderCountDbTest extends BenchDbTestCase
 {

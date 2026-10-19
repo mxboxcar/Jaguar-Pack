@@ -33,6 +33,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $approved_upload varchar(50)
  * @property string|null $approved_remark text
  * @property \Carbon\CarbonImmutable|null $approved_date datetime
+ * @property string|null $usecash_cn decimal(20,2)
  */
 abstract class BillAlipayBase extends Model
 {
@@ -49,7 +50,7 @@ abstract class BillAlipayBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'taobao_id', 'taobao_password', 'alipay_id', 'alipay_password', 'password', 'attachment', 'total', 'rate', 'usecash', 'remark', 'status', 'cancel_remark', 'user', 'approved_upload', 'approved_remark', 'approved_date'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'taobao_id', 'taobao_password', 'alipay_id', 'alipay_password', 'password', 'attachment', 'total', 'rate', 'usecash', 'remark', 'status', 'cancel_remark', 'user', 'approved_upload', 'approved_remark', 'approved_date', 'usecash_cn'];
 
     protected function casts(): array
     {

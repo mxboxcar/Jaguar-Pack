@@ -1,16 +1,13 @@
 <?php
 
-use App\Http\Controllers\Shop\Admin\MallAdminController;
-use App\Http\Controllers\Shop\Admin\MallCategoryController;
 use App\Http\Controllers\Shop\Admin\MallStockController;
 use App\Http\Controllers\Shop\ApiController;
 use App\Http\Controllers\Shop\CartController;
-use App\Http\Controllers\Shop\MallController;
 use App\Http\Controllers\Shop\TaobaoController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| กลุ่ม: shop — _cart, _taobao, _api, _mall, _admin/_mall, _admin/_mall_category, _admin/_mallstock
+| กลุ่ม: shop — _cart, _taobao, _api, _admin/_mallstock (SR ไม่มีร้านค้า _mall/_admin/_mall/_mall_category — ตารางไม่มีใน admin_sr)
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 | รายละเอียด/สิ่งที่ต่างจากเดิม: docs/modules/shop.md
 |
@@ -64,58 +61,6 @@ Route::middleware('legacy.perm:taobao')->group(function () {
 });
 // _taobao/delete.php เดิม fatal ทุกครั้ง (require path ผิด) — คงผลเดิม 500 (ต้องล็อกอิน)
 Route::post('/_taobao/delete', [TaobaoController::class, 'delete'])->middleware('legacy.auth');
-
-// ================================================================ ร้านค้าในระบบ (_mall)
-// .htaccess เดิมเรียง ^mall/(.+)$ (ค้นหา) ก่อน mall/create, mall/cart, mall/{id} — ที่นี่ให้ path เฉพาะมาก่อน (ดู docs/modules/shop.md)
-Route::middleware('legacy.auth')->group(function () {
-    Route::get('/mall', [MallController::class, 'index'])->defaults('legacy_page', 'mall');
-    Route::get('/mall/create', [MallController::class, 'detail'])->defaults('legacy_page', 'mall_detail');
-    Route::get('/mall/cart', [MallController::class, 'formCart'])->defaults('legacy_page', 'mall_cart');
-    Route::get('/mall/{id}', [MallController::class, 'detail'])->whereNumber('id')->defaults('legacy_page', 'mall_detail');
-    Route::get('/mall/{search}', [MallController::class, 'index'])->where('search', '.+')->defaults('legacy_page', 'mall');
-    // _mall/grid เดิมตรวจสิทธิ์ refill แล้วตอบว่าง — ตรวจใน controller
-    Route::post('/_mall/grid', [MallController::class, 'grid'])->middleware('legacy.ajax');
-});
-Route::middleware(['legacy.perm:mall', 'legacy.ajax'])->group(function () {
-    // load_detail / addtocart เดิมไม่ตรวจสิทธิ์ (addtocart ตัดเงินได้) → ต้องมีสิทธิ์ mall
-    Route::post('/_mall/load_detail', [MallController::class, 'loadDetail']);
-    Route::post('/_mall/addtocart', [MallController::class, 'addToCart']);
-    Route::post('/_mall/delete_cart', [MallController::class, 'deleteCart']);
-    Route::post('/_mall/save', [MallController::class, 'save'])->middleware('legacy.once');
-});
-
-// ================================================================ แอดมิน: สินค้าร้านค้า (_admin/_mall) — admin_mall
-Route::middleware('legacy.perm:admin_mall')->group(function () {
-    Route::get('/admin/mall', [MallAdminController::class, 'index'])->defaults('legacy_page', 'admin_mall');
-    Route::get('/admin/mall/create', [MallAdminController::class, 'form'])->defaults('legacy_page', 'admin_mall_detail');
-    Route::get('/admin/mall/{id}', [MallAdminController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_mall_detail');
-    Route::middleware('legacy.ajax')->group(function () {
-        Route::post('/_admin/_mall/grid', [MallAdminController::class, 'grid']);
-        Route::post('/_admin/_mall/load_detail', [MallAdminController::class, 'loadDetail']);
-        Route::post('/_admin/_mall/load_sizecolor', [MallAdminController::class, 'loadSizeColor']);
-        Route::post('/_admin/_mall/load_stock', [MallAdminController::class, 'loadStock']);
-        Route::post('/_admin/_mall/save', [MallAdminController::class, 'save'])->middleware('legacy.once');
-        Route::post('/_admin/_mall/save_sizecolor', [MallAdminController::class, 'saveSizeColor'])->middleware('legacy.once');
-        Route::post('/_admin/_mall/save_delsizecolor', [MallAdminController::class, 'saveDelSizeColor']);
-        Route::post('/_admin/_mall/save_isshow', [MallAdminController::class, 'saveIsShow']);
-    });
-});
-// delete.php เดิมตรวจ admin_product_type (ไม่ใช่ admin_mall) — คงไว้
-Route::post('/_admin/_mall/delete', [MallAdminController::class, 'delete'])->middleware(['legacy.perm:admin_product_type', 'legacy.ajax']);
-
-// ================================================================ แอดมิน: หมวดหมู่ร้านค้า (_admin/_mall_category)
-// admin_mall_category ไม่มี role ใดถือ (เว็บเดิมไม่มีใครเข้าได้) → Laravel ได้จาก fallback ← admin_mall (CONVENTIONS 3.1)
-// form/delete เดิมเป็นสำเนาของ user_type (admin_user_type)
-Route::middleware('legacy.perm:admin_mall_category')->group(function () {
-    Route::get('/admin/mall_category', [MallCategoryController::class, 'index'])->defaults('legacy_page', 'admin_mall_category');
-    Route::post('/_admin/_mall_category/grid', [MallCategoryController::class, 'grid'])->middleware('legacy.ajax');
-    Route::post('/_admin/_mall_category/save', [MallCategoryController::class, 'save'])->middleware(['legacy.ajax', 'legacy.once']);
-});
-Route::middleware('legacy.perm:admin_user_type')->group(function () {
-    Route::get('/admin/mall_category/create', [MallCategoryController::class, 'form'])->defaults('legacy_page', 'admin_mall_category_detail');
-    Route::get('/admin/mall_category/{id}', [MallCategoryController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_mall_category_detail');
-    Route::post('/_admin/_mall_category/delete', [MallCategoryController::class, 'delete'])->middleware('legacy.ajax');
-});
 
 // ================================================================ แอดมิน: สต๊อกร้านค้า (_admin/_mallstock) — admin_mall_stock
 Route::middleware('legacy.perm:admin_mall_stock')->group(function () {

@@ -1,9 +1,12 @@
-# jl — พอร์ทัล portal.jlcargoth.com บน Laravel
+# sr — พอร์ทัล portal.srshippingsystem.com บน Laravel
+
+> fork จาก repo jl (portal.jlcargoth.com, Jaguar-JLCargoTH) เมื่อ 2026-10-20 — โค้ดเดิมของ SR เป็น fork ของ jl (ต่างกัน ~40% ของไฟล์)
+> การตัดสินใจของเจ้าของที่ใช้กับ jl ใช้กับ SR ทั้งหมด · SR ไม่มี mall/linenotify/gateway/www (ตัดออกแล้ว) · fallback สิทธิ์ว่าง (SR ไม่มีสิทธิ์กำพร้า)
 
 ย้ายเว็บเดิม (PHP 7.4 + mysqli, ~65K บรรทัด) มาเป็น Laravel 13 ธรรมดา (ไม่ใช้ Octane) แบบทยอยย้าย (strangler)
 ใช้ **DB เดิม** และ **session เดิม** ร่วมกัน: ล็อกอินฝั่งไหนก็ใช้ได้ทั้งสองฝั่ง ย้ายทีละหน้าได้โดยผู้ใช้ไม่รู้ตัว
 
-> ยังไม่สลับเว็บจริง จนกว่าเจ้าของสั่ง — ทุกอย่างตอนนี้รันบน dev (127.0.0.1) กับ DB `admin_jl_bench`
+> ยังไม่สลับเว็บจริง จนกว่าเจ้าของสั่ง — ทุกอย่างตอนนี้รันบน dev (127.0.0.1) กับ DB `admin_sr_bench`
 
 เอกสาร:
 - [docs/CONVENTIONS.md](docs/CONVENTIONS.md) — กติกาการพอร์ต (อ่านก่อนเริ่มทุกครั้ง)
@@ -17,9 +20,9 @@
 |---|---|
 | PHP ของ Laravel | `php8.4` (คำสั่ง `php` = 7.4 ของเว็บเดิม ห้ามเปลี่ยน alternatives) |
 | composer | `COMPOSER_ALLOW_SUPERUSER=1 php8.4 /opt/frankenphp/bin/composer ...` |
-| Laravel dev (main) | http://127.0.0.1:8100 (nginx + php8.4-fpm pool `site_jllv`, open_basedir = โฟลเดอร์นี้) |
-| เว็บเดิมสำหรับเทียบ | http://127.0.0.1:8101 = `/home/admin/bench/jl-old` (php7.4, ไม่มี rewrite: ใช้ `index.php?page=...` และ `xxx.php`) |
-| DB dev | `admin_jl_bench` (ตั้งใน `.env`) — ห้ามเขียน `admin_jl` |
+| Laravel dev (main) | http://127.0.0.1:8300 (`bin/wt-serve main --bg`, php8.4 -S เป็น user `site_jllv`) |
+| เว็บเดิมสำหรับเทียบ | http://127.0.0.1:8111 = `/home/admin/bench/sr-old` (`/root/sr-tools/sr-old-serve`, php7.4 -S เป็น `site_jlbench`, ไม่ส่งเมล/LINE/HTTP ออก, ไม่มี rewrite: ใช้ `index.php?page=...` และ `xxx.php`) |
+| DB dev | `admin_sr_bench` (user `sr_bench` เข้าได้เฉพาะ DB นี้, รหัสใน `/root/sr-tools/bench-db-password`) — ห้ามเขียน `admin_sr` |
 | หลังแก้ไฟล์ | `bin/fix-perms && sudo -u site_jllv php8.4 artisan optimize:clear` |
 | test | `php8.4 vendor/bin/phpunit` (ไม่แตะ DB) |
 | routes ทั้งหมด | `php8.4 artisan route:list` |

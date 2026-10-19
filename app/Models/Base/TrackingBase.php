@@ -33,7 +33,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $width decimal(20,1) default '0.0'
  * @property string|null $height decimal(20,1) default '0.0'
  * @property string|null $long decimal(20,1) default '0.0'
- * @property int|null $amount tinyint default '1'
+ * @property int|null $amount int default '1'
  * @property int|null $ship int default '0'
  * @property int|null $payment_id int default '0'
  * @property int|null $is_craft int default '0'
@@ -50,10 +50,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\CarbonImmutable|null $date_finish datetime default '0000-00-00 00:00:00'
  * @property string|null $remark text
  * @property string|null $remark_shop text
- * @property string|null $header text
- * @property int|null $is_checked int default '0'
- * @property int|null $checked_by int default '0'
+ * @property int|null $header int
  * @property \Carbon\CarbonImmutable|null $date_section datetime default '0000-00-00 00:00:00'
+ * @property int|null $is_takeapic int default '0'
+ * @property string|null $subuser varchar(225)
  */
 abstract class TrackingBase extends Model
 {
@@ -70,7 +70,7 @@ abstract class TrackingBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'no', 'tracking', 'order', 'price_kg', 'price_cubic', 'price_shipping', 'price_amount', 'rate_kg', 'rate_cubic', 'product_type_id', 'lot_id', 'user', 'weight', 'width', 'height', 'long', 'amount', 'ship', 'payment_id', 'is_craft', 'is_qc', 'quote', 'price_qc', 'price_repack', 'price_express', 'price_else', 'price_craft', 'date_warehouse', 'date_outofchina', 'date_thai', 'date_finish', 'remark', 'remark_shop', 'header', 'is_checked', 'checked_by', 'date_section'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'no', 'tracking', 'order', 'price_kg', 'price_cubic', 'price_shipping', 'price_amount', 'rate_kg', 'rate_cubic', 'product_type_id', 'lot_id', 'user', 'weight', 'width', 'height', 'long', 'amount', 'ship', 'payment_id', 'is_craft', 'is_qc', 'quote', 'price_qc', 'price_repack', 'price_express', 'price_else', 'price_craft', 'date_warehouse', 'date_outofchina', 'date_thai', 'date_finish', 'remark', 'remark_shop', 'header', 'date_section', 'is_takeapic', 'subuser'];
 
     protected function casts(): array
     {

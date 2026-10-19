@@ -78,6 +78,5 @@ Route::middleware(['legacy.ajax', 'legacy.auth'])->group(function () {
 });
 
 // ---------- หน้าสาธารณะที่ไม่มีข้อมูล (PUBLIC ใน RouteSecurityTest) ----------
-Route::get('/gateway', [PublicPageController::class, 'gateway']);
 Route::get('/index_close', [PublicPageController::class, 'indexClose']);
 Route::get('/get_resource', [PublicPageController::class, 'resource']);

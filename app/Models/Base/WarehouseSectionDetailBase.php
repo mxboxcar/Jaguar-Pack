@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $warehouse_id int
  * @property string|null $weight decimal(10,1)
  * @property string|null $weight_thai decimal(10,1)
+ * @property int|null $user_agent int default '0'
  */
 abstract class WarehouseSectionDetailBase extends Model
 {
@@ -42,7 +43,7 @@ abstract class WarehouseSectionDetailBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'section_id', 'width', 'height', 'long', 'user', 'tracking_id', 'warehouse_id', 'weight', 'weight_thai'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'section_id', 'width', 'height', 'long', 'user', 'tracking_id', 'warehouse_id', 'weight', 'weight_thai', 'user_agent'];
 
     protected function casts(): array
     {

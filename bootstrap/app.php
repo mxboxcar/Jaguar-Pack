@@ -24,8 +24,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         // routes/modules/*.php = 1 ไฟล์ต่อ 1 กลุ่ม (โหลดอัตโนมัติ เรียงตามชื่อไฟล์) อยู่ใต้ middleware group "legacy"
         then: function () {
-            // เว็บหน้าแรก jlcargoth.com (ผูกโดเมน, ไม่ต้องใช้ session ของ portal) — ต้องมาก่อน route ของ portal ที่ไม่ผูกโดเมน
-            Route::group([], base_path('routes/www.php'));
             Route::middleware('legacy')->group(base_path('routes/legacy.php'));
             foreach (glob(base_path('routes/modules/*.php')) ?: [] as $file) {
                 Route::middleware('legacy')->group($file);
@@ -35,8 +33,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // cookie ของเว็บเดิมเป็นค่าดิบ ต้องไม่ถูก Laravel เข้ารหัส/ถอดรหัส
         $middleware->encryptCookies(except: [
-            'PHPSESSID', 'jlcargo', 'jlcargo-role', 'jlcargo-lang', 'jlcargo-menu',
-            'jl-cargo-admin-menu', 'jlcargo-cart', 'jlcargo-portal',
+            'PHPSESSID', 'srshippingsystem', 'srshippingsystem-role', 'srshippingsystem-lang', 'srshippingsystem-menu',
+            'srshippingsystem-admin-menu', 'srshippingsystem-cart', 'srshippingsystem-portal',
         ]);
 
         // group สำหรับทุกหน้าที่พอร์ตจากเว็บเดิม: ไม่ใช้ session/CSRF token ของ Laravel

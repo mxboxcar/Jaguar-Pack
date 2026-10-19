@@ -36,7 +36,6 @@ class RouteSecurityTest extends TestCase
         '_register/lost_password' => 'ขอรหัสผ่านใหม่ทางอีเมล (ajax)',
         'system_check_username' => 'validationEngine ตรวจ username ซ้ำตอนสมัคร',
         'password' => 'password.php เดิม (สคริปต์ย้ายรหัส ตาราง user_copy ไม่มีแล้ว) ตอบว่างเสมอ',
-        'gateway' => 'settings: ประกาศย้ายระบบ 2017 (ข้อความคงที่ เดิมสาธารณะ)',
         'index_close' => 'settings: หน้าปิดปรับปรุง (ข้อความคงที่ เดิมสาธารณะ)',
         'get_resource' => 'settings: ข้อความภาษาของระบบ (lang/*, เดิมสาธารณะ)',
     ];
@@ -48,11 +47,6 @@ class RouteSecurityTest extends TestCase
         $missing = [];
         foreach (Route::getRoutes() as $route) {
             if (array_key_exists($route->uri(), self::PUBLIC)) {
-                continue;
-            }
-            // เว็บหน้าแรก (routes/www.php) ผูกโดเมน jlcargoth.com/www — หน้า public อ่านอย่างเดียว ไม่มี POST
-            if (in_array($route->getDomain(), (array) config('legacy.www.hosts'), true)
-                && $route->methods() === ['GET', 'HEAD']) {
                 continue;
             }
             $mw = $route->gatherMiddleware();

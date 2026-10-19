@@ -39,23 +39,22 @@
         <link href="{{ legacy_href() }}assets/datepicker/css/bootstrap-datetimepicker.min.css?v={{ config('legacy.version') }}" rel="stylesheet" >
         <link rel="stylesheet" href="{{ legacy_href() }}assets/cart/css/style.css?v={{ config('legacy.version') }}"> <!-- Gem style -->
         <link href="{{ legacy_href() }}assets/plugins/switchery/dist/switchery.min.css?v={{ config('legacy.version') }}" rel="stylesheet" />
-        <script type="text/javascript" src="{{ legacy_href() }}assets/ckeditor/ckeditor.js"></script>
         <style>
         body {
             font-family: 微软雅黑!important;
             color:#000!important;
-           /* font-size:13px!important;*/
+            font-size:13px!important;
         }
         table {
-           /*font-size:13px!important;*/
+           font-size:13px!important;
             color:#000!important;
         }
         td, th {
-            /*font-size:13px!important;*/
+            font-size:13px!important;
             color:#000!important;
         }
         a {
-            /*font-size:13px!important;*/
+            font-size:13px!important;
         }
         #sidebar-menu ul ul a , #sidebar-menu > ul > li > a {
             color:#000!important;
@@ -65,6 +64,7 @@
             border: none;
             width:100%;
         }
+        <?php if($isMobile) { echo ".card-box { overflow-x: scroll!important; }"; } ?>
         </style>
 
         <script src="{{ legacy_href() }}assets/js/modernizr.min.js?v={{ config('legacy.version') }}"></script>
@@ -109,6 +109,21 @@
             var rooturl_blob = '{{ legacy_blob() }}';
             var fn_public = '';
 
+
+            {{-- เดิม: $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'http' → JS ส่งไป https (host จาก href ไม่ใช่ Host header) --}}
+            @if (request()->header('X-Forwarded-Proto') === 'http')
+            window.location.href = {!! json_encode('https://'.parse_url(legacy_href(), PHP_URL_HOST).request()->getRequestUri(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES) !!};
+            @endif
+
+            jQuery.fn.preventDoubleSubmission = function() {
+              $(this).on('submit',function(e){
+                var $form = $(this);
+                  e.preventDefault();
+              });
+              return this;
+            };
+            $('form').preventDoubleSubmission();
+            
             function keypressInBox(e) {
                 var code = (e.keyCode ? e.keyCode : e.which);
                 if (code == 13) { //Enter keycode                        
@@ -272,7 +287,7 @@
 
                 setTimeout(function() {
                     if(document.URL.indexOf('admin') != -1) {
-                        $(".content-page .content").css("background-color", "#ffdddd");
+                        $(".content-page .content").css("background-color", "#FDE498");
                     }
                 }, 500);
 
@@ -677,115 +692,6 @@
 
             function searchlink() {
                 window.location.href = rooturl + '?l=' + encodeURIComponent($("#searchlink").val()) + '&page=checkout_product';
-                // OpenLoading()
-                // $.ajax({
-                //     timeout: 30000,
-                //     error: function(xhr, textStatus, errorThrown){
-                //        ErrorBox("พบข้อผิดพลาด" , true);
-                //        setTimeout(function() { CloseLoading(); }, 3000);
-                //     },
-                //     type: 'POST',
-                //     async: true,
-                //     data : 'url=' + encodeURIComponent($("#searchlink").val()),
-                //     url: rooturl + '_api/load_product',
-                //     success: function(data) {
-                //         CloseLoading();
-                        
-
-                //         $.ajax({
-                //             timeout: 30000,
-                //             error: function(xhr, textStatus, errorThrown){
-                //                ErrorBox("พบข้อผิดพลาด" , true);
-                //                setTimeout(function() { CloseLoading(); }, 3000);
-                //             },
-                //             type: 'POST',
-                //             async: true,
-                //             url: rooturl + '_cart/load_choose_product',
-                //             success: function(page) {
-                //                 $("#searchdetail .panel-body").html(page);
-
-                //                 data = $.parseJSON(data);
-
-                //                 //hiddpath
-                //                 $("input[name='search_main_image']").val(data.main_image);
-                //                 $("input[name='search_price']").val(data.price);
-                //                 $("input[name='search_product_name']").val(data.product_name);
-                //                 $("input[name='search_shop_name']").val(data.shop_name);
-                //                 $("input[name='search_url']").val(data.url);
-
-                //                 $("#search_main_image").attr('src', data.main_image);
-                //                 $("#search_product_name").text(data.product_name);
-                //                 $("#search_main_image_href").attr('href', data.main_image);
-
-                //                 $("#search_external_image_div").html('');
-                //                 $("#search_external_image").html('');
-
-                //                 if(data.external_image != undefined) {
-                //                     for (var i = 0; i < data.external_image.length; i++) {
-                //                         if(data.external_image.indexOf('lazyload.png') == -1) {
-                //                             var html = '<div style="margin-top:3px;" class="col-xs-3"><img src="'+ data.external_image[i] +'" onclick="switchimage($(this))" style="cursor:pointer" class="img-responsive" /></div>';
-                //                             $("#search_external_image_div").append(html);
-                //                             html = '<input type="hidden" value="'+ data.external_image[i] +'" name="search_external_image[]" />'
-                //                             $("#search_external_image").append(html);
-                //                         }
-                //                     }
-                //                 }
-                                
-
-
-                //                 $("#search_price").text('¥' + data.price);
-
-                //                 $("#search_color").html('');
-                                
-                //                 if(data.color.length != 0) {
-                //                     if(data.color_type == 'radio') {
-                //                         for (var i = 0; i < data.color.length; i++) {
-                //                             if(data.color[i].search("//") == -1) {
-                //                                 var html = '<div class="search_color_item " onclick="switchcolor($(this))" >'+ data.color[i] +'</div>';
-                //                                 $("#search_color").append(html);
-                //                             } else {
-                //                                 var html = '<div class="search_color_item col-xs-2" onclick="switchcolorimage($(this))" ><img src="'+ data.color[i] +'" class="img-responsive" /></div>';
-                //                                 $("#search_color").append(html);
-                //                             }
-                //                         }
-                                        
-                //                     } else {
-                //                         //option
-                //                         for (var i = 0; i < data.color.length; i++) {
-                //                             if(data.color[i].search("//") == -1) {
-                //                                 var html = '<div class="search_color_item " onclick="switchcolor($(this))" >'+ data.color[i] +'</div>';
-                //                                 $("#search_color").append(html);
-                //                             } else {
-                //                                 var html = '<div class="search_color_item col-xs-2" onclick="switchcolorimage($(this))" ><img src="'+ data.color[i] +'" class="img-responsive" /></div>';
-                //                                 $("#search_color").append(html);
-                //                             }
-                //                         }
-                //                     }
-                //                 } else {
-                //                     $("#search_color").parent('.form-group').css('display', 'none');
-                //                 }
-                                
-                //                 if(data.size.length != 0) {
-                //                     for (var i = 0; i < data.size.length; i++) {
-                //                         if(data.size[i].search("//") == -1) {
-                //                             var html = '<div class="search_size_item " onclick="switchsize($(this))" >'+ data.size[i] +'</div>';
-                //                             $("#search_size").append(html);
-                //                         } else {
-                //                             var html = '<div class="search_size_item col-xs-2" onclick="switchsizeimage($(this))" ><img src="'+ data.size[i] +'" class="img-responsive" /></div>';
-                //                             $("#search_size").append(html);
-                //                         }
-                                        
-                //                     }
-                //                 } else {
-                //                     $("#search_size").parent('.form-group').css('display', 'none');
-                //                 }
-
-
-                //                 $("#searchdetail .modal").modal('show');
-                //             }
-                //         });
-                //     }
-                // });
             }
 
             function switchimage(element) {
@@ -799,6 +705,8 @@
                 $(".search_color_item").removeClass("select");
                 element.addClass("select");
                 $("input[name='search_color']").val(element.text());
+                $("input[name='search_color_a']").val(element.attr('a'));
+                changesku();
             }
 
             function switchsize(element) {
@@ -806,7 +714,7 @@
                 element.addClass("select");
                 $("input[name='search_size']").val(element.text());
                 $("input[name='search_size_a']").val(element.attr('a'));
-                if (typeof changesku === 'function') { changesku(); }
+                changesku();
             }
 
             function switchcolorimage(element) {
@@ -815,11 +723,11 @@
                 var href = element.find('img').attr('src');
                 $("#search_main_image").attr('src', href);
                 $("#search_main_image_href").attr('href', href);
-                // val = ชื่อตัวเลือกจริง ถ้าไม่มีค่อยถอยไปใช้ URL รูป (ของเดิมเก็บ URL เสมอ)
+                // val = ชื่อตัวเลือกจริง ถ้าไม่มีค่อยถอยไปใช้ URL รูป
                 $("input[name='search_color']").val(element.attr('val') || element.find('img').attr('src'));
                 $("input[name='search_main_image']").val(element.find('img').attr('src'));
                 $("input[name='search_color_a']").val(element.attr('a'));
-                if (typeof changesku === 'function') { changesku(); }
+                changesku();
             }
 
             function switchsizeimage(element) {
@@ -828,11 +736,11 @@
                 var href = element.find('img').attr('src');
                 $("#search_main_image").attr('src', href);
                 $("#search_main_image_href").attr('href', href);
-                // val = ชื่อตัวเลือกจริง ถ้าไม่มีค่อยถอยไปใช้ URL รูป (ของเดิมเก็บ URL เสมอ)
+                // val = ชื่อตัวเลือกจริง ถ้าไม่มีค่อยถอยไปใช้ URL รูป
                 $("input[name='search_size']").val(element.attr('val') || element.find('img').attr('src'));
                 $("input[name='search_main_image']").val(element.find('img').attr('src'));
                 $("input[name='search_size_a']").val(element.attr('a'));
-                if (typeof changesku === 'function') { changesku(); }
+                changesku();
             }
 
             function switchpricedown() {
@@ -844,6 +752,15 @@
                 }
 
                 $("#search_amount").val(oldval);
+                if (priceRange && priceRange.length > 0) {
+                    var amount = eval($("#search_amount").val());
+                    for(var i in priceRange) {
+                        if (amount >= priceRange[i][0]) {
+                            $("#search_price").val(priceRange[i][1]);
+                        }
+                    }
+                }
+                cal_thaiprice_cart();
             }
 
             function switchpricedown_in(ele, id) {
@@ -871,6 +788,15 @@
                 var oldval = $("#search_amount").val();
                 oldval = eval(oldval) + 1;
                 $("#search_amount").val(oldval);
+                if (priceRange && priceRange.length > 0) {
+                    var amount = eval($("#search_amount").val());
+                    for(var i in priceRange) {
+                        if (amount >= priceRange[i][0]) {
+                            $("#search_price").val(priceRange[i][1]);
+                        }
+                    }
+                }
+                cal_thaiprice_cart();
             }
 
             function switchpriceup_in(ele , id) {
@@ -892,16 +818,20 @@
 
 
             function submittingtocart() {
-                if($("input[name='search_color']").val() == "" && $(".search_color_item").length != 0) {
-                    ErrorBox('{!! res('please_select_color') !!}');
-                    return;
+                if($("#search_amount").val() != "0") {
+                    if($("input[name='search_color']").val() == "" && $(".search_color_item").length != 0) {
+                        ErrorBox('{!! res('please_select_color') !!}');
+                        return;
+                    }
+                    if($("input[name='search_size']").val() == "" && $(".search_size_item").length != 0) {
+                        ErrorBox('{!! res('please_select_size') !!}');
+                        return;
+                    }
+                    $("#searchdetail").submit();
+                    $("#searchlink").val('');
+                } else {
+                    ErrorBox('กรุณาใส่จำนวนสินค้า');
                 }
-                if($("input[name='search_size']").val() == "" && $(".search_size_item").length != 0) {
-                    ErrorBox('{!! res('please_select_size') !!}');
-                    return;
-                }
-                $("#searchdetail").submit();
-                $("#searchlink").val('');
             }
 
             setTimeout(function() {
@@ -1081,7 +1011,13 @@
     </head>
 
 
-    <body class="widescreen fixed-left" style="min-width: 1024px!important;">
+    <?php 
+    if($page == 'admin_lot_detail') {
+        echo '<body class="widescreen fixed-left" style="min-width: 1224px!important;">';
+    } else {
+        echo '<body class="widescreen fixed-left" style="min-width: 1024px!important;">';
+    }
+    ?>
         <div id="wrapper" class="<?php if($isMobile) { echo "enlarged"; } ?> forced">
             <!-- Top Bar Start -->
             <div class="topbar">
@@ -1091,9 +1027,9 @@
                     <div class="text-center">
                         <a href="{{ legacy_href() }}" class="logo">
 
-                        <span><img  src="{{ legacy_href() }}assets/images/logo2.png" style="width: 110px;" /></span>
+                        <span><img  src="{{ legacy_href() }}assets/images/logo_mini.png?v={{ config('legacy.version') }}" style="width: 135px;" /></span>
 
-                        <img style="margin-top: 5px;margin-left: 12px;width: 57px;" style="margin-top: 10px;margin-left: 12px;" class="icon-c-logo " src="{{ legacy_href() }}assets/images/fav.png" />
+                        <img style="margin-top: 5px;margin-left: 12px;width: 135px;" style="margin-top: 10px;margin-left: 12px;" class="icon-c-logo " src="{{ legacy_href() }}assets/images/logo_mini.png?v={{ config('legacy.version') }}" />
                         </a>
                     </div>
                 </div>
@@ -1113,7 +1049,13 @@
                                 @include('legacy.partials.menu_mobile')
                             @endif 
 
-                            <ul class="nav navbar-nav navbar-right pull-right" id="notification" >
+                            <ul
+                                <?php
+                                    // if($isMobile) {
+                                    //     echo 'style="width: 70%;height: 58px;overflow-x: scroll;"';
+                                    // }
+                                ?>
+                             class="nav navbar-nav navbar-right pull-right" id="notification" >
                                 
                             </ul>
                         </div>
@@ -1151,8 +1093,11 @@
             <!-- Start right Content here -->
             <!-- ============================================================== -->
             <div class="content-page" <?php if($isMobile) { echo "style='margin-left: 0px!important;'"; } ?>>
+
                 <!-- Start content -->
                 <div class="content">
+                   
+
                     <div class="container">
 
 
@@ -1209,7 +1154,7 @@
                 </div> <!-- content -->
 
                 <footer class="footer text-right">
-                    © 2017-{{ date('Y') }} {{ config('legacy.project_name') }} All rights reserved.  
+                    © 2016-{{ date('Y') }} {{ config('legacy.project_name') }} All rights reserved. 
                 </footer>
 
             </div>

@@ -1,7 +1,7 @@
 <?php
 
 // สร้างอัตโนมัติด้วย `php8.4 artisan legacy:make-models` จาก information_schema — ห้ามแก้ไฟล์นี้ด้วยมือ
-// ต้องการเพิ่ม relation/scope/accessor ให้แก้ที่ app/Models/MallStock.php
+// ต้องการเพิ่ม relation/scope/accessor ให้แก้ที่ app/Models/UserSetting.php
 
 namespace App\Models\Base;
 
@@ -9,7 +9,7 @@ use App\Casts\LegacyDateTime;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * ตาราง `mall_stock` ของระบบเดิม
+ * ตาราง `user_setting` ของระบบเดิม
  *
  * @property \Carbon\CarbonImmutable|null $create_date datetime
  * @property int|null $create_by int
@@ -17,17 +17,13 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $mod_by int
  * @property int|null $is_delete int
  * @property int $id int
- * @property int $mall_id int default '0'
- * @property int $mall_detail_id int default '0'
- * @property int $amount int default '0'
- * @property \Carbon\CarbonImmutable|null $date datetime
- * @property string $detail varchar(225)
- * @property int|null $user int
- * @property int|null $pay_type int
+ * @property string $key varchar(225) default '0'
+ * @property string $value varchar(225) default '0'
+ * @property int $user int default '0'
  */
-abstract class MallStockBase extends Model
+abstract class UserSettingBase extends Model
 {
-    protected $table = 'mall_stock';
+    protected $table = 'user_setting';
 
     protected $primaryKey = 'id';
 
@@ -40,14 +36,13 @@ abstract class MallStockBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'mall_id', 'mall_detail_id', 'amount', 'date', 'detail', 'user', 'pay_type'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'key', 'value', 'user'];
 
     protected function casts(): array
     {
         return [
             'create_date' => LegacyDateTime::class.':datetime',
             'mod_date' => LegacyDateTime::class.':datetime',
-            'date' => LegacyDateTime::class.':datetime,zero',
         ];
     }
 }

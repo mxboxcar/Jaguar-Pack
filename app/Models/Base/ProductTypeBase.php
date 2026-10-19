@@ -27,7 +27,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $sale_kg decimal(20,2)
  * @property string|null $sale_cubic decimal(20,2)
  * @property string|null $sale_amount decimal(20,2)
- * @property int|null $is_show int
+ * @property int|null $is_show int default '0'
+ * @property string|null $thaiword varchar(225)
  */
 abstract class ProductTypeBase extends Model
 {
@@ -44,7 +45,7 @@ abstract class ProductTypeBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'name', 'desc', 'kg', 'cubic', 'amount', 'type', 'is_default', 'sale_kg', 'sale_cubic', 'sale_amount', 'is_show'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'name', 'desc', 'kg', 'cubic', 'amount', 'type', 'is_default', 'sale_kg', 'sale_cubic', 'sale_amount', 'is_show', 'thaiword'];
 
     protected function casts(): array
     {

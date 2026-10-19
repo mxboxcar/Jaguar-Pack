@@ -27,10 +27,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $name_admin text
  * @property string|null $attachment varchar(50)
  * @property string|null $attachment_name varchar(225)
- * @property int|null $is_print int
- * @property int|null $is_mail int
- * @property int|null $shipping_amount int
- * @property int|null $is_verified int
+ * @property int|null $is_print int default '0'
+ * @property int|null $is_mail int default '0'
+ * @property int|null $shipping_amount int default '0'
+ * @property int|null $is_verified int default '0'
  */
 abstract class LotBase extends Model
 {

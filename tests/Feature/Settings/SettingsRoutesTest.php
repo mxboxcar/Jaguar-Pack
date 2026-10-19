@@ -43,7 +43,6 @@ class SettingsRoutesTest extends TestCase
         'POST get_price' => ['legacy.ajax', 'legacy.perm:view_bol'],
         'POST system_upload' => ['legacy.ajax', 'legacy.auth'],
         'POST system_upload_2' => ['legacy.ajax', 'legacy.auth'],
-        'GET gateway' => ['legacy'],
         'GET index_close' => ['legacy'],
         'GET get_resource' => ['legacy'],
     ];

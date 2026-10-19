@@ -1,5 +1,5 @@
 #!/bin/bash
-# วัดความเร็ว 1:1 หน้าเดิม (PHP 7.4 :8101) เทียบหน้าใหม่ (Laravel) ด้วย cookie ล็อกอินเดียวกัน
+# วัดความเร็ว 1:1 หน้าเดิม (PHP 7.4 :8111) เทียบหน้าใหม่ (Laravel) ด้วย cookie ล็อกอินเดียวกัน
 # กติกาเครื่อง production: concurrency <= 2, requests <= 50 ต่อรอบ
 #
 # ใช้: bin/bench <old-url> <new-url> [-n 50] [-c 1] [--user <id> | --sid <PHPSESSID>] [--post 'a=1&b=2'] [--ajax] [--rounds 2]

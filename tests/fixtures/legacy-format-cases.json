@@ -886,7 +886,7 @@
         [
             "jl"
         ],
-        true
+        false
     ],
     [
         "normalizeText",
@@ -898,16 +898,44 @@
     [
         "isBlockedName",
         [
-            "j1"
+            "srs"
         ],
         true
     ],
     [
         "normalizeText",
         [
-            "j1"
+            "srs"
         ],
-        "ji"
+        "srs"
+    ],
+    [
+        "isBlockedName",
+        [
+            "srshipping"
+        ],
+        true
+    ],
+    [
+        "normalizeText",
+        [
+            "srshipping"
+        ],
+        "srshiping"
+    ],
+    [
+        "isBlockedName",
+        [
+            "s-r-s"
+        ],
+        true
+    ],
+    [
+        "normalizeText",
+        [
+            "s-r-s"
+        ],
+        "srs"
     ],
     [
         "isBlockedName",

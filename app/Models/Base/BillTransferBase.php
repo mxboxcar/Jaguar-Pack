@@ -32,6 +32,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $approved_upload varchar(50)
  * @property string|null $approved_remark text
  * @property \Carbon\CarbonImmutable|null $approved_date datetime
+ * @property string|null $usecash_cn decimal(20,2)
  */
 abstract class BillTransferBase extends Model
 {
@@ -48,7 +49,7 @@ abstract class BillTransferBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'acc_name', 'acc_no', 'acc_bank', 'acc_branch', 'attachment', 'total', 'rate', 'usecash', 'remark', 'status', 'cancel_remark', 'user', 'approved_upload', 'approved_remark', 'approved_date'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'acc_name', 'acc_no', 'acc_bank', 'acc_branch', 'attachment', 'total', 'rate', 'usecash', 'remark', 'status', 'cancel_remark', 'user', 'approved_upload', 'approved_remark', 'approved_date', 'usecash_cn'];
 
     protected function casts(): array
     {

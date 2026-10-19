@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * grid บิล (bill_payment ~31k แถวบน bench, ไม่มี index `user`): GridQuery::idPage + rowsInOrder ต้องได้จำนวนและแถวของหน้า
  * เท่ากับ query เดิม (LEFT JOIN + COUNT(*) แล้ว ORDER BY id DESC LIMIT) ทุกกรณี และอ่าน bill_payment รอบเดียวต่อ request
- * รันกับ admin_jl_bench (opt-in JL_BENCH_DB_TESTS=1) — อ่านอย่างเดียว
+ * รันกับ admin_sr_bench (opt-in JL_BENCH_DB_TESTS=1) — อ่านอย่างเดียว
  */
 class BillGridDbTest extends BenchDbTestCase
 {

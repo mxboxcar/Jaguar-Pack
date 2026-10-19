@@ -6,42 +6,28 @@
 */
 
 return [
-    // เว็บหน้าแรก (routes/www.php) — host ที่ Laravel รับหน้า www
-    'www' => [
-        'hosts' => array_filter(array_map('trim', explode(',', (string) env('LEGACY_WWW_HOSTS', 'jlcargoth.com,www.jlcargoth.com')))),
-    ],
-
-
     // define('href', ...) เดิม: URL หลักของพอร์ทัล ต้องลงท้ายด้วย /
     // dev ปล่อยว่าง = ใช้ APP_URL ของ request ปัจจุบัน (จะได้ใช้ได้ทั้ง :8100 และ worktree :82xx)
     'href' => env('LEGACY_HREF'),
 
     // define('href_blob', ...) เดิม: ที่อยู่ไฟล์แนบ (Azure blob ผ่าน CDN)
-    'href_blob' => env('LEGACY_HREF_BLOB', 'https://image.jlcargoth.com/upload/'),
+    'href_blob' => env('LEGACY_HREF_BLOB', 'https://image.srshippingsystem.com/upload/'),
 
-    'project_name' => 'JLcargo ',
-    'proj_name' => 'JLcargo',
-    'admin_email' => 'jlcargoth@hotmail.com',
-    'version' => '2',
+    'project_name' => 'SRShippingSystem',
+    'proj_name' => '',                      // SR เดิมไม่มี define('proj_name') → ค่าว่าง
+    'admin_email' => 'ship2you@outlook.co.th',   // define ใน system_db.php เดิมของ SR
+    'version' => '4.9',
     'cookie_path' => '/',
 
     // ชื่อ cookie เดิม (ต้องตรงเป๊ะ เว็บเดิมกับใหม่ใช้ร่วมกัน)
     'cookies' => [
-        'main' => 'jlcargo',
-        'role' => 'jlcargo-role',
-        'lang' => 'jlcargo-lang',
-        'menu' => 'jlcargo-menu',
-        'admin_menu' => 'jl-cargo-admin-menu',
-        'cart' => 'jlcargo-cart',
-        'portal' => 'jlcargo-portal',
-    ],
-
-    // บัญชีรับโอนที่แสดงให้ลูกค้าเห็น (ไม่ใช่ความลับ — define payment_acc_* เดิม)
-    'payment_account' => [
-        'owner' => env('LEGACY_PAYMENT_ACC_OWNER', 'wiriyapunt wiriya'),
-        'no' => env('LEGACY_PAYMENT_ACC_NO', '7582200463'),
-        'bank' => env('LEGACY_PAYMENT_ACC_BANK', 'กสิกรไทย'),
-        'branch' => env('LEGACY_PAYMENT_ACC_BRANCH', 'เซ็นทรัลปิ่นเกล้า'),
+        'main' => 'srshippingsystem',
+        'role' => 'srshippingsystem-role',
+        'lang' => 'srshippingsystem-lang',
+        'menu' => 'srshippingsystem-menu',
+        'admin_menu' => 'srshippingsystem-admin-menu',
+        'cart' => 'srshippingsystem-cart',
+        'portal' => 'srshippingsystem-portal',
     ],
 
     // session ร่วมกับเว็บเดิม (programster/mysql-session-handler บนตาราง sessions_v2)
@@ -55,7 +41,7 @@ return [
         'salt' => env('LEGACY_SESSION_SALT'),
     ],
 
-    // legacy.csrf: host อื่นที่ยอมให้ POST มาได้ (คั่นด้วย ,) เช่น portal.jlcargoth.com — ปกติไม่ต้องตั้ง
+    // legacy.csrf: host อื่นที่ยอมให้ POST มาได้ (คั่นด้วย ,) เช่น portal.srshippingsystem.com — ปกติไม่ต้องตั้ง
     'trusted_origins' => env('LEGACY_TRUSTED_ORIGINS', ''),
 
     // clientIp(): เชื่อ X-Real-IP เฉพาะเมื่อ REMOTE_ADDR เป็น loopback/private หรืออยู่ในรายการนี้ (คั่นด้วย ,)
@@ -79,9 +65,9 @@ return [
 
     // notify-server (socket.io) — secret อยู่ในไฟล์นอก repo เท่านั้น
     'notify' => [
-        'site' => 'jlcargoth',
+        'site' => 'srshippingsystem',
         'secret_file' => env('LEGACY_NOTIFY_SECRET_FILE'),          // prod: /home/admin/tmp/notify.secret
-        'counts_file' => env('LEGACY_NOTIFY_COUNTS_FILE'),          // prod: /home/admin/tmp/notify/counts-jlcargoth.json
+        'counts_file' => env('LEGACY_NOTIFY_COUNTS_FILE'),          // prod: /home/admin/tmp/notify/counts-srshippingsystem.json
         'counts_max_age' => 30,
         'counts_stale_max' => 600,
     ],
@@ -108,7 +94,7 @@ return [
         'host' => env('LEGACY_REDIS_HOST'),
         'port' => env('LEGACY_REDIS_PORT', 6379),
         'password' => env('LEGACY_REDIS_PASSWORD'),
-        'prefix' => 'jl',
+        'prefix' => 'sr',
     ],
 
     // บริการภายนอกอื่นๆ (getcache/savecache, LINE push) — dev ห้ามเรียกจริง
@@ -116,12 +102,6 @@ return [
         'enabled' => env('LEGACY_EXTERNAL_ENABLED', false),
         'cache_api' => env('LEGACY_CACHE_API_URL'),
         'line_channel_token' => env('LEGACY_LINE_CHANNEL_TOKEN'),
-        // LINE Notify OAuth (_linenotify/*.php เดิมฝังค่าไว้ในโค้ด) — ค่าจริงอยู่ใน .env เท่านั้น
-        'line_notify' => [
-            'client_id' => env('LEGACY_LINE_NOTIFY_CLIENT_ID', ''),
-            'client_secret' => env('LEGACY_LINE_NOTIFY_CLIENT_SECRET', ''),
-            'callback_url' => env('LEGACY_LINE_NOTIFY_CALLBACK_URL', 'http://portal.jlcargoth.com/_linenotify/callback'),
-        ],
     ],
 
     // กลุ่ม shop: endpoint ที่ crawler/cron เรียกด้วย token (_api/*) — เดิมฝัง token ในโค้ด ที่นี่อ่านจาก .env เท่านั้น
@@ -132,7 +112,7 @@ return [
         'unban_token' => env('LEGACY_SHOP_UNBAN_TOKEN'),                  // unban
     ],
 
-    // dev: ส่งต่อ URL ที่ยังไม่พอร์ตไปเว็บเดิม (เช่น http://127.0.0.1:8101) เพื่อให้เมนู/แจ้งเตือนใช้ได้
+    // dev: ส่งต่อ URL ที่ยังไม่พอร์ตไปเว็บเดิม (เช่น http://127.0.0.1:8111) เพื่อให้เมนู/แจ้งเตือนใช้ได้
     // production ไม่ใช้ — nginx เป็นคนเลือกว่า URL ไหนไป Laravel
     'proxy_url' => env('LEGACY_PROXY_URL'),
 
@@ -156,14 +136,8 @@ return [
     | - ปิดทั้งหมด: LEGACY_PERMISSION_FALLBACKS=false · เปลี่ยน/ลบรายการ: แก้ array นี้ (เหตุผลและ role ที่ได้ ดู docs/CONVENTIONS.md ข้อ 3.1)
     */
     'permission_fallbacks_enabled' => env('LEGACY_PERMISSION_FALLBACKS', true),
+    // SR (admin_sr 2026-10-20): ไม่มีสิทธิ์กำพร้า — ทุกสิทธิ์ที่โค้ดตรวจมี role ถืออยู่ใน role_on_detail แล้ว
+    // map ของ jl (admin_point ← admin_shop_cashback ฯลฯ) จะให้สิทธิ์เกินที่ SR ตั้งไว้ จึงว่าง (ดู docs/CONVENTIONS.md ข้อ 3.1)
     'permission_fallbacks' => [
-        'admin_point' => ['admin_shop_cashback'],              // ดูแต้มลูกค้าทุกคน ← แอดมินคืนเงินร้านค้า/รางวัล (role 1, 5)
-        'admin_withdrawpoint' => ['admin_exchange'],           // อนุมัติ/ยกเลิกแลกแต้ม + ยกเลิก exchange ← ผู้อนุมัติ exchange (role 1, 5)
-        'admin_nobilling' => ['admin_report'],                 // รายงานพัสดุค้างไม่ออกบิล ← รายงาน (role 1, 5, 7)
-        'admin_balance_company' => ['admin_balance'],          // บัญชีบริษัท (ดู/บันทึกยอดติดลบ) ← แอดมินยอดเงิน (role 1, 5)
-        'admin_balance_company_add' => ['admin_balance_cn_add'],    // (ยังไม่มีโค้ดตรวจ) ← เพิ่มยอดหยวน (role 1)
-        'admin_balance_company_delete' => ['admin_balance_cn_add'], // บัญชีบริษัท ยอดบวก/แก้ไข ← เพิ่มยอดหยวน (role 1)
-        'admin_change_sender' => ['admin_payment'],            // แก้ผู้ส่ง/ประเภทส่งในบิล ← แอดมินบิล (role 1, 5, 7)
-        'admin_mall_category' => ['admin_mall'],               // หมวดหมู่ร้านค้า ← แอดมินร้านค้า (role 1, 6)
     ],
 ];

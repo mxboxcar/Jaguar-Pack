@@ -24,7 +24,7 @@ class SubmitGuardTest extends TestCase
         '_payment/save_create' => 'legacy.once', '_payment/save_submit_payment' => 'legacy.once',
         '_payment/save_create_receiptaddress' => 'legacy.once', '_point/save_withdraw' => 'legacy.once',
         '_lost_package/save' => 'legacy.once', '_cart/save_checkout' => 'legacy.once', '_export/save_approved' => 'legacy.once',
-        '_tracking/save' => 'legacy.once', '_alipay/save' => 'legacy.once', '_mall/save' => 'legacy.once',
+        '_tracking/save' => 'legacy.once', '_alipay/save' => 'legacy.once',
         '_shop_cashback/save' => 'legacy.once', '_order/save_payment' => 'legacy.once',
         // แอดมิน
         '_admin/_refill/save' => 'legacy.once', '_admin/_balance/save_amount' => 'legacy.once',
@@ -35,8 +35,7 @@ class SubmitGuardTest extends TestCase
         '_admin/_order/save_add_new_track' => 'legacy.once:lock,html',
         // E2E admin writes (2026-10-18): สร้างรายการซ้ำเมื่อดับเบิลคลิก (ผู้ใช้ username ซ้ำ, role/กลุ่มราคา/สินค้า/สี-ขนาด/ชั้นวางซ้ำ)
         '_admin/_user/save' => 'legacy.once', '_admin/_role/save' => 'legacy.once', '_admin/_user_type/save' => 'legacy.once',
-        '_admin/_mall/save' => 'legacy.once', '_admin/_mall/save_sizecolor' => 'legacy.once',
-        '_admin/_mall_category/save' => 'legacy.once', '_admin/_warehouse_section/save' => 'legacy.once',
+        '_admin/_warehouse_section/save' => 'legacy.once',
     ];
 
     protected function setUp(): void

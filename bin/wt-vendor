@@ -4,7 +4,7 @@
 #
 # ทำไมห้าม symlink ทั้งโฟลเดอร์ vendor: autoloader ของ composer หา base dir จาก realpath ของ vendor/composer
 #   → ถ้า vendor เป็น symlink ไป repo หลัก คลาส App\* (controller/model/Support) และ helpers.php
-#     จะถูกโหลดจาก /home/admin/laravel/jl/app ไม่ใช่ของ worktree (คลาสใหม่ใน worktree = "Class does not exist",
+#     จะถูกโหลดจาก /home/admin/laravel/sr/app ไม่ใช่ของ worktree (คลาสใหม่ใน worktree = "Class does not exist",
 #     คลาสที่แก้ใน worktree = รันโค้ดของ main แบบเงียบๆ)
 #
 # ใช้: bin/wt-vendor <worktree>     (รันด้วย root; wt-new เรียกให้เอง — รันซ้ำเมื่อ composer.lock ของ main เปลี่ยน)

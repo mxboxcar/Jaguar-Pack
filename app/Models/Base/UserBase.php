@@ -27,17 +27,17 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
  * @property int|null $is_enable int default '1'
  * @property int|null $type int default '1'
  * @property string|null $identity varchar(50)
- * @property string|null $address mediumtext
+ * @property string|null $address text
  * @property int|null $is_approved int default '0'
  * @property \Carbon\CarbonImmutable|null $approved_date datetime default '0000-00-00 00:00:00'
- * @property string|null $cancel_remark mediumtext
- * @property string|null $phone2 varchar(45)
+ * @property string|null $cancel_remark text
+ * @property string|null $phone2 varchar(50)
  * @property int|null $option_price int
- * @property string|null $diff decimal(10,2)
- * @property string|null $lineid varchar(45)
+ * @property string|null $diff decimal(20,2)
+ * @property string|null $line_uid varchar(100)
+ * @property string|null $lineid varchar(100)
  * @property string|null $pin varchar(10)
- * @property int|null $commission int default '0'
- * @property string|null $line_uid varchar(225)
+ * @property string|null $wechatid varchar(100)
  */
 abstract class UserBase extends Authenticatable
 {
@@ -54,7 +54,7 @@ abstract class UserBase extends Authenticatable
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'username', 'password', 'code', 'role', 'name', 'email', 'phone', 'is_enable', 'type', 'identity', 'address', 'is_approved', 'approved_date', 'cancel_remark', 'phone2', 'option_price', 'diff', 'lineid', 'pin', 'commission', 'line_uid'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'username', 'password', 'code', 'role', 'name', 'email', 'phone', 'is_enable', 'type', 'identity', 'address', 'is_approved', 'approved_date', 'cancel_remark', 'phone2', 'option_price', 'diff', 'line_uid', 'lineid', 'pin', 'wechatid'];
 
     protected function casts(): array
     {

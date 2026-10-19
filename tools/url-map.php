@@ -1,10 +1,10 @@
 <?php
 /*
 | สร้าง docs/url-map.md: ทุก RewriteRule ใน .htaccess + ทุกไฟล์ PHP ของเว็บเดิม → กลุ่มที่รับผิดชอบ
-| ใช้: php8.4 tools/url-map.php /home/admin/bench/jl-old > docs/url-map.md
+| ใช้: php8.4 tools/url-map.php /home/admin/bench/sr-old > docs/url-map.md
 */
 
-[$_, $src] = $argv + [null, '/home/admin/bench/jl-old'];
+[$_, $src] = $argv + [null, '/home/admin/bench/sr-old'];
 
 const GROUPS = ['tracking', 'shop', 'order', 'payment', 'balance', 'money-move', 'points', 'lot', 'warehouse', 'users', 'messaging', 'reports', 'settings'];
 
@@ -113,10 +113,10 @@ foreach (file("$src/.htaccess") as $n => $line) {
 $out = [];
 $out[] = '# URL map: เว็บเดิม → กลุ่มที่รับผิดชอบ';
 $out[] = '';
-$out[] = 'สร้างอัตโนมัติด้วย `php8.4 tools/url-map.php /home/admin/bench/jl-old > docs/url-map.md` — ห้ามแก้มือ (แก้ตารางใน tools/url-map.php แล้วสร้างใหม่)';
+$out[] = 'สร้างอัตโนมัติด้วย `php8.4 tools/url-map.php /home/admin/bench/sr-old > docs/url-map.md` — ห้ามแก้มือ (แก้ตารางใน tools/url-map.php แล้วสร้างใหม่)';
 $out[] = '';
 $out[] = '- กลุ่ม: '.implode(', ', array_map(fn ($g) => "`$g`", GROUPS)).' · `foundation` = ฐานร่วม (ทำแล้ว)';
-$out[] = '- bench เดิม (:8101) ไม่มี rewrite: เปิดหน้าด้วย `http://127.0.0.1:8101/index.php?page=<page>` และ ajax ด้วย `/<path>.php`';
+$out[] = '- bench เดิม (:8111) ไม่มี rewrite: เปิดหน้าด้วย `http://127.0.0.1:8111/index.php?page=<page>` และ ajax ด้วย `/<path>.php`';
 $out[] = '- กฎท้ายไฟล์ `^(.*?)/?$ → $1.php` ทำให้ทุกไฟล์ `.php` เรียกได้โดยไม่ต้องมี `.php` (ajax ทั้งหมดใช้แบบนี้) — ดูตารางที่ 2';
 $out[] = '';
 $out[] = '## 1. RewriteRule ทั้งหมด ('.count($rules).' บรรทัด)';

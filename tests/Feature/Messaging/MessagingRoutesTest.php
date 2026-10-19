@@ -47,9 +47,6 @@ class MessagingRoutesTest extends TestCase
         'GET _admin/_notice/cron_notice_mail' => ['legacy.perm:admin_notice', false],
         'GET admin/send' => ['legacy.perm:admin_export', false],
         'GET _admin/_send/index_self' => ['legacy.perm:admin_export', false],
-        'GET linenotify' => ['legacy.perm:profile', false],
-        'GET _linenotify/callback' => ['legacy.perm:profile', false],
-        'GET _linenotify/revoke' => ['legacy.perm:profile', false],
         'POST notifications' => ['legacy.auth', true],
         'POST notification' => ['legacy.auth', true],
         'GET notify_counts' => ['legacy.auth', false],
@@ -116,7 +113,7 @@ class MessagingRoutesTest extends TestCase
         $pages = [
             'message' => 'message', 'admin/message' => 'admin_message', 'notice' => 'notice', 'notice/{id}' => 'notice_detail',
             'admin/notice' => 'admin_notice', 'admin/notice/create' => 'admin_notice_detail', 'admin/notice/{id}' => 'admin_notice_detail',
-            'admin/send' => 'admin_send', 'linenotify' => 'linenotify',
+            'admin/send' => 'admin_send',
         ];
         $seen = [];
         foreach (Route::getRoutes() as $r) {

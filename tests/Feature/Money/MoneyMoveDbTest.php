@@ -13,7 +13,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
- * money-move (ข้อ 9–12 ของรายงาน): สถานะที่ยอมให้เปลี่ยน + ไม่คืน/หักเงินซ้ำ — รันกับ admin_jl_bench ใน transaction ที่ rollback (opt-in)
+ * money-move (ข้อ 9–12 ของรายงาน): สถานะที่ยอมให้เปลี่ยน + ไม่คืน/หักเงินซ้ำ — รันกับ admin_sr_bench ใน transaction ที่ rollback (opt-in)
  */
 class MoneyMoveDbTest extends BenchDbTestCase
 {

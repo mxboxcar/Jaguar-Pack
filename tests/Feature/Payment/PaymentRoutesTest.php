@@ -157,7 +157,7 @@ class PaymentRoutesTest extends TestCase
 
     public function test_vat_formula_matches_legacy(): void
     {
-        // ค่าจาก php7.4 + โค้ดเดิม (_payment/save_submit_payment.php, _admin/_payment/save_vat.php) บน admin_jl_bench
+        // ค่าจาก php7.4 + โค้ดเดิม (_payment/save_submit_payment.php, _admin/_payment/save_vat.php) บน admin_sr_bench
         $t = PaymentTotals::vat(30, 155.72, '0.00', '7', false);
         $this->assertSame(['13.00', '198.72', '5.57', '193.15'], [$t['vat_before'], $t['vat'], $t['shipvat_before'], $t['shipvat']]);
         $t = PaymentTotals::vat('30.00', 155.72, '0.00', '7', true);

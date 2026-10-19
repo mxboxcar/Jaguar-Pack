@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $cancel_remark text
  * @property string|null $approved_upload varchar(50)
  * @property string|null $approved_remark text
+ * @property string|null $admin_quote text
  */
 abstract class LostPackageBase extends Model
 {
@@ -43,7 +44,7 @@ abstract class LostPackageBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'order_id', 'attachment', 'submit_remark', 'cashback', 'user', 'status', 'approved_date', 'cancel_remark', 'approved_upload', 'approved_remark'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'order_id', 'attachment', 'submit_remark', 'cashback', 'user', 'status', 'approved_date', 'cancel_remark', 'approved_upload', 'approved_remark', 'admin_quote'];
 
     protected function casts(): array
     {

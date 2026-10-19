@@ -69,8 +69,7 @@
         <div class="wrapper-page">
             <div class=" card-box">
             <div class="panel-heading text-center"> 
-               <!--  <h3 class="text-center"> {!! res('sign_in') !!} <strong class="text-custom">UBold</strong> </h3> -->
-                <img style="width: 270px;" src="{{ legacy_href() }}assets/images/logo.png" />
+                <img style="width: 330px;" src="{{ legacy_href() }}assets/images/logo_orange.png?s=s" />
             </div> 
 
 
@@ -114,8 +113,8 @@
             </div>                              
                 <div class="row">
                 <div class="col-sm-12 text-center">
-                    
-                    © 2017-{{ date('Y') }} {{ config('legacy.project_name') }} All rights reserved.  
+                    © 2026-{{ date('Y') }} {{ config('legacy.project_name') }} All rights reserved. &nbsp;&nbsp;&nbsp;
+                    <a href="#" onclick="Language('th');return false;">ภาษาไทย</a>, <a href="#" onclick="Language('cn');return false;">中国</a>
                 </div>
             </div>
             
@@ -156,6 +155,12 @@
             var rooturl_blob = '{{ legacy_blob() }}';
             var fn_public = '';
 
+
+            {{-- เดิม: $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'http' → JS ส่งไป https (host จาก href ไม่ใช่ Host header) --}}
+            @if (request()->header('X-Forwarded-Proto') === 'http')
+            window.location.href = {!! json_encode('https://'.parse_url(legacy_href(), PHP_URL_HOST).request()->getRequestUri(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES) !!};
+            @endif
+
             $.fn.enterKey = function (fnc) {
                 return this.each(function () {
                     $(this).keypress(function (ev) {
@@ -165,6 +170,18 @@
                         }
                     })
                 })
+            }
+
+            function Language(lang) {
+                $.ajax({
+                    type: 'POST',
+                    async: true,
+                    data: 'lang=' + lang,
+                    url: rooturl + "system_change_language",
+                    success: function(data) {
+                        location.reload(true);
+                    }
+                });
             }
 
             $("#username, #password").enterKey(function () {
@@ -202,6 +219,10 @@
                 var _b = document.querySelector('.ladda-button');
                 if (_b) { _b.disabled = false; _b.style.opacity = ''; }
                 if (window._loginPending) { window._loginPending = false; doCheckLoginReal(); }
+
+                $(".dropper-input").css({"margin-top": "-34px",
+                    "height": "34px",
+                    "width": "125px"});
             });
 
             function OpenLoading() {

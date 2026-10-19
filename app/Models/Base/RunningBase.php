@@ -1,7 +1,7 @@
 <?php
 
 // สร้างอัตโนมัติด้วย `php8.4 artisan legacy:make-models` จาก information_schema — ห้ามแก้ไฟล์นี้ด้วยมือ
-// ต้องการเพิ่ม relation/scope/accessor ให้แก้ที่ app/Models/MallCart.php
+// ต้องการเพิ่ม relation/scope/accessor ให้แก้ที่ app/Models/Running.php
 
 namespace App\Models\Base;
 
@@ -9,7 +9,7 @@ use App\Casts\LegacyDateTime;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * ตาราง `mall_cart` ของระบบเดิม
+ * ตาราง `running` ของระบบเดิม
  *
  * @property \Carbon\CarbonImmutable|null $create_date datetime
  * @property int|null $create_by int
@@ -17,13 +17,13 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $mod_by int
  * @property int|null $is_delete int
  * @property int $id int
- * @property int $mall_detail_id int default '0'
- * @property int $user int default '0'
- * @property int $amount int default '0'
+ * @property string $name varchar(225)
+ * @property int $no int
+ * @property int $position int
  */
-abstract class MallCartBase extends Model
+abstract class RunningBase extends Model
 {
-    protected $table = 'mall_cart';
+    protected $table = 'running';
 
     protected $primaryKey = 'id';
 
@@ -36,7 +36,7 @@ abstract class MallCartBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'mall_detail_id', 'user', 'amount'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'name', 'no', 'position'];
 
     protected function casts(): array
     {

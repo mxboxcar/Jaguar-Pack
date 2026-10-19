@@ -19,31 +19,8 @@ class ShopRoutesTest extends TestCase
         ['GET', 'cart/checkout', 'legacy.perm:order', 'checkout'],
         ['GET', 'cart/checkout/{ids}', 'legacy.perm:order', 'checkout'],
         ['GET', 'cart/product/{url?}', 'legacy.perm:order', 'checkout_product'],
-        ['GET', 'mall', 'legacy.auth', 'mall'],
-        ['GET', 'mall/{search}', 'legacy.auth', 'mall'],
-        ['GET', 'mall/create', 'legacy.auth', 'mall_detail'],
-        ['GET', 'mall/cart', 'legacy.auth', 'mall_cart'],
-        ['GET', 'mall/{id}', 'legacy.auth', 'mall_detail'],
-        ['GET', 'admin/mall', 'legacy.perm:admin_mall', 'admin_mall'],
-        ['GET', 'admin/mall/{id}', 'legacy.perm:admin_mall', 'admin_mall_detail'],
         ['GET', 'admin/mall_stock', 'legacy.perm:admin_mall_stock', 'admin_mall_stock'],
-        ['GET', 'admin/mall/create', 'legacy.perm:admin_mall', 'admin_mall_detail'],
-        ['GET', 'admin/mall_category', 'legacy.perm:admin_mall_category', 'admin_mall_category'],
-        ['GET', 'admin/mall_category/{id}', 'legacy.perm:admin_user_type', 'admin_mall_category_detail'],
-        ['GET', 'admin/mall_category/create', 'legacy.perm:admin_user_type', 'admin_mall_category_detail'],
         // ajax
-        ['POST', '_admin/_mall/delete', 'legacy.perm:admin_product_type', null],
-        ['POST', '_admin/_mall/grid', 'legacy.perm:admin_mall', null],
-        ['POST', '_admin/_mall/load_detail', 'legacy.perm:admin_mall', null],
-        ['POST', '_admin/_mall/load_sizecolor', 'legacy.perm:admin_mall', null],
-        ['POST', '_admin/_mall/load_stock', 'legacy.perm:admin_mall', null],
-        ['POST', '_admin/_mall/save', 'legacy.perm:admin_mall', null],
-        ['POST', '_admin/_mall/save_delsizecolor', 'legacy.perm:admin_mall', null],
-        ['POST', '_admin/_mall/save_isshow', 'legacy.perm:admin_mall', null],
-        ['POST', '_admin/_mall/save_sizecolor', 'legacy.perm:admin_mall', null],
-        ['POST', '_admin/_mall_category/delete', 'legacy.perm:admin_user_type', null],
-        ['POST', '_admin/_mall_category/grid', 'legacy.perm:admin_mall_category', null],
-        ['POST', '_admin/_mall_category/save', 'legacy.perm:admin_mall_category', null],
         ['POST', '_admin/_mallstock/grid', 'legacy.perm:admin_mall_stock', null],
         ['POST', '_admin/_mallstock/load_amount', 'legacy.perm:admin_mall_stock', null], // แก้จากเดิม (admin_balance)
         ['POST', '_admin/_mallstock/save_amount', 'legacy.perm:admin_mall_stock', null], // แก้จากเดิม (admin_balance)
@@ -73,11 +50,6 @@ class ShopRoutesTest extends TestCase
         ['POST', '_cart/save_craft', 'legacy.perm:order', null],
         ['POST', '_cart/save_product', 'legacy.perm:order', null],
         ['POST', '_cart/save_qc', 'legacy.perm:order', null],
-        ['POST', '_mall/addtocart', 'legacy.perm:mall', null],
-        ['POST', '_mall/delete_cart', 'legacy.perm:mall', null],
-        ['POST', '_mall/grid', 'legacy.auth', null],
-        ['POST', '_mall/load_detail', 'legacy.perm:mall', null],
-        ['POST', '_mall/save', 'legacy.perm:mall', null],
         ['POST', '_taobao/delete', 'legacy.auth', null],
         ['POST', '_taobao/grid', 'legacy.auth', null],
         ['POST', '_taobao/load_calculator', 'legacy.perm:taobao', null],
@@ -114,13 +86,6 @@ class ShopRoutesTest extends TestCase
             }
         }
         $this->assertSame([], $problems);
-    }
-
-    public function test_specific_mall_paths_win_over_search(): void
-    {
-        $this->assertSame('mall_cart', Route::getRoutes()->match(request()->create('/mall/cart'))->defaults['legacy_page']);
-        $this->assertSame('mall_detail', Route::getRoutes()->match(request()->create('/mall/12'))->defaults['legacy_page']);
-        $this->assertSame('mall', Route::getRoutes()->match(request()->create('/mall/abc/def'))->defaults['legacy_page']);
     }
 
     public function test_page_checkout_product_is_named_for_index_redirect(): void

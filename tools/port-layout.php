@@ -2,11 +2,11 @@
 /*
 | แปลง index.php / menu.php / menu_mobile.php / login.php / assets/validate/validationengine.php ของเว็บเดิม
 | → resources/views/legacy/*.blade.php แบบกลไก (หน้าตา/JS เหมือนเดิมทุกบรรทัด)
-| ใช้: php8.4 tools/port-layout.php /home/admin/bench/jl-old
+| ใช้: php8.4 tools/port-layout.php /home/admin/bench/sr-old
 | แปลงแล้วตรวจด้วย: grep -n 'mysqlquerys\|\$_GET\|\$_COOKIE\|\$resource\|href;' resources/views/legacy  (ต้องว่าง)
 */
 
-[$_, $src] = $argv + [null, '/home/admin/bench/jl-old'];
+[$_, $src] = $argv + [null, '/home/admin/bench/sr-old'];
 $dst = dirname(__DIR__).'/resources/views/legacy';
 @mkdir($dst.'/partials', 0750, true);
 

@@ -19,8 +19,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id int
  * @property int $user int
  * @property string $total decimal(20,2)
- * @property string|null $remark varchar(225)
- * @property string|null $remark_admin varchar(225)
+ * @property string $remark varchar(225)
+ * @property string $remark_admin varchar(225)
  */
 abstract class ShopCashbackBase extends Model
 {

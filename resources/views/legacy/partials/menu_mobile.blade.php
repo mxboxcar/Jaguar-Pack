@@ -21,9 +21,11 @@ if(perm('admin_order') ||
     perm('admin_balance_company') ||
     perm('admin_point') ||
     perm('admin_withdrawpoint') ||
+    perm('admin_withdrawcash') ||
     perm('admin_warehouse') ||
     perm('admin_warehouse_section') ||
     perm('admin_goodsconfirm') ||
+    perm('admin_exchange') ||
     perm('admin_report') ||
     perm('admin_lot_view')) { 
     $is_admin = true;
@@ -41,6 +43,8 @@ if(perm('admin_order') ||
                 <li class="<?php if($page == 'admin_user' || $page == 'admin_user_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/user"><i class="md  md-location-history"></i> <span>{!! res('user') !!}</span></a></li>
                 <?php } if(perm('admin_payment_create')) { ?>
                 <li class="<?php if($page == 'admin_payment_create') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/payment/create"><i class="md  md-location-history"></i> <span>{!! res('export_creating') !!}</span></a></li>
+                <?php } if(perm('admin_printorder')) { ?>
+                <li class="<?php if($page == 'admin_printorder') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/printorder"><i class="md  md-location-history"></i> <span>{!! res('printorder') !!}</span></a></li>
                 <?php } if(perm('admin_user_type')) { ?>
                 <li class="<?php if($page == 'admin_user_type' || $page == 'admin_user_type_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/user_type"><i class="md  md-local-library"></i> <span>{!! res('user_type') !!}</span></a></li>
                 <?php } if(perm('admin_role')) { ?>
@@ -89,10 +93,6 @@ if(perm('admin_order') ||
                 <li class="<?php if($page == 'admin_goodsconfirm' || $page == 'admin_goodsconfirm_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/goodsconfirm"><i class="fa fa-close"></i> <span>{!! res('goodsconfirm') !!}</span></a></li>
                 <?php } if(perm('admin_report')) { ?>
                 <li class="<?php if($page == 'admin_report' || $page == 'admin_report_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/report"><i class="fa fa-bar-chart-o"></i> <span>{!! res('report') !!}</span></a></li>
-                <?php } if(perm('admin_mall')) { ?>
-                <li class="<?php if($page == 'admin_mall' || $page == 'admin_mall_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/mall"><i class="fa fa-cube"></i> <span>{!! res('mall') !!}</span></a></li>
-                <?php } if(perm('admin_mall_stock')) { ?>
-                <li class="<?php if($page == 'admin_mallstock' || $page == 'admin_mall_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/mall_stock"><i class="fa fa-cube"></i> <span>ความเคลื่อนไหวสินค้า</a></li>
                 <?php }  ?>
       </ul>
     </li>
@@ -105,14 +105,15 @@ if(perm('admin_order') ||
     <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">{!! res('menu') !!} <span class="caret"></span></a>
     <ul class="dropdown-menu">
       <li class=""><a class="<?php if($page == 'dashboard' ) { echo "active"; } ?>" href="{{ legacy_href() }}dashboard"><i class="fa fa-bar-chart-o"></i> <span>{!! res('dashboard') !!}</a></li>
-        <li class=""><a class="<?php if($page == 'linenotify' ) { echo "active"; } ?>" href="{{ legacy_href() }}linenotify"><img src="http://www.yd-cargo.com/images/icon/LINE-icon-30x30.png" width="20" height="20"> เชื่อมต่อ Line Notify</a></li>
-
-      <?php 
-            $count = \App\Support\Legacy\LayoutData::noticeCount();
-        ?>
-      <li class=""><a class="<?php if($page == 'notice' ) { echo "active"; } ?>" href="{{ legacy_href() }}notice"><div class="badge badge-xs badge-danger " style="position: relative;top:0px;" ><?php echo $count; ?></div><i class="fa fa-hand-paper-o "></i> <span>{!! res('notice') !!}</a></li>
-         
         <?php if(perm('profile')) { ?>
+
+
+          <?php 
+                $count = \App\Support\Legacy\LayoutData::noticeCount();
+            ?>
+          <li class=""><a class="<?php if($page == 'notice' ) { echo "active"; } ?>" href="{{ legacy_href() }}notice"><div class="badge badge-xs badge-danger " style="position: relative;top:0px;" ><?php echo $count; ?></div><i class="fa fa-hand-paper-o "></i> <span>{!! res('notice') !!}</a></li>
+             
+        <?php } if(perm('profile')) { ?>
         <li class=""><a class="<?php if($page == 'profile') { echo "active"; } ?>" href="{{ legacy_href() }}profile"><i class="fa fa-sliders"></i> <span>{!! res('profile') !!}</span></a></li>
         <?php }
             $data = ['c' => \App\Support\Legacy\LayoutData::chatUnreadAdmin()];
@@ -123,7 +124,7 @@ if(perm('admin_order') ||
             }
         ?>
         <?php if(perm('admin_message')) { ?>
-        <li class=""><a class="<?php if($page == 'admin_message') { echo "active"; } ?>" href="{{ legacy_href() }}admin/message"><div class="badge badge-xs badge-danger" style="position: absolute;margin: -5px 20px;" ><?php echo $count; ?></div><i class="md  md-message"></i> <span>{!! res('admin_message') !!}</span></a></li>
+        <li class=""><a class="<?php if($page == 'admin_message') { echo "active"; } ?>" href="{{ legacy_href() }}admin/message"><div class="badge badge-xs badge-danger" style="position: relative;top:0px;" ><?php echo $count; ?></div><i class="md  md-message"></i> <span>{!! res('admin_message') !!}</span></a></li>
         <?php } if(perm('message')) {
             $data = ['c' => \App\Support\Legacy\LayoutData::chatUnreadUser()];
 
@@ -134,8 +135,6 @@ if(perm('admin_order') ||
         ?>
         <?php } if(perm('message')) { ?>
         <li class="<?php if($page == 'message') { echo "active"; } ?>"><a class="" href="{{ legacy_href() }}message"><div class="badge badge-xs badge-danger " style="position: absolute;margin: -5px 20px;" ><?php echo $count; ?></div><i class="md  md-message"></i> <span>{!! res('message') !!}</span></a></li>
-        <?php } if(perm('mall')) { ?>
-        <li class="<?php if($page == 'mall') { echo "active"; } ?>"><a class="" href="{{ legacy_href() }}mall"><div class="badge badge-xs badge-danger " style="position: absolute;margin: -5px 20px;" ><?php echo $count; ?></div><img src="{{ legacy_href() }}assets/images/icon/shopping-basket.png" style="width:20px;height:20px" /> <span>{!! res('mall') !!}</span></a></li>
         <?php } if(perm('order')) { ?>
         <li class="<?php if($page == 'order' || $page == 'order_detail') { echo "active"; } ?>"><a class="" href="{{ legacy_href() }}order"><img src="{{ legacy_href() }}assets/images/icon/order.png" style="width:20px;height:20px" /> <span>{!! res('order_list') !!}</span></a></li>
         <?php } if(perm('payment')) { ?>

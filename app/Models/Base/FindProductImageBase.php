@@ -1,7 +1,7 @@
 <?php
 
 // สร้างอัตโนมัติด้วย `php8.4 artisan legacy:make-models` จาก information_schema — ห้ามแก้ไฟล์นี้ด้วยมือ
-// ต้องการเพิ่ม relation/scope/accessor ให้แก้ที่ app/Models/MallCategory.php
+// ต้องการเพิ่ม relation/scope/accessor ให้แก้ที่ app/Models/FindProductImage.php
 
 namespace App\Models\Base;
 
@@ -9,7 +9,7 @@ use App\Casts\LegacyDateTime;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * ตาราง `mall_category` ของระบบเดิม
+ * ตาราง `find_product_image` ของระบบเดิม
  *
  * @property \Carbon\CarbonImmutable|null $create_date datetime
  * @property int|null $create_by int
@@ -17,11 +17,12 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $mod_by int
  * @property int|null $is_delete int
  * @property int $id int
- * @property string $name varchar(225)
+ * @property int|null $type int default '0'
+ * @property string|null $attachment varchar(50)
  */
-abstract class MallCategoryBase extends Model
+abstract class FindProductImageBase extends Model
 {
-    protected $table = 'mall_category';
+    protected $table = 'find_product_image';
 
     protected $primaryKey = 'id';
 
@@ -34,7 +35,7 @@ abstract class MallCategoryBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'name'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'type', 'attachment'];
 
     protected function casts(): array
     {

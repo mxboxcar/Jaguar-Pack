@@ -20,13 +20,13 @@ abstract class UserCountBase extends Model
 
     protected $primaryKey = 'id';
 
-    public $incrementing = true;
+    public $incrementing = false;
 
     protected $keyType = 'int';
 
     public $timestamps = false;
 
-    protected $guarded = ['id'];
+    protected $guarded = [];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
     public const COLUMNS = ['id', 'count'];

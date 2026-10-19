@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * _cart/save_checkout: กดสั่งซื้อซ้ำ (รายการถูกตัดออกจากตะกร้าไปแล้ว) ต้องไม่สร้างใบสั่งซื้อเปล่ายอด 0 (e2e 2026-10-18)
- * รันกับ admin_jl_bench ใน transaction ที่ rollback (opt-in JL_BENCH_DB_TESTS=1)
+ * รันกับ admin_sr_bench ใน transaction ที่ rollback (opt-in JL_BENCH_DB_TESTS=1)
  */
 class CartCheckoutDbTest extends BenchDbTestCase
 {

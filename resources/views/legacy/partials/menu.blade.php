@@ -27,10 +27,11 @@ if(perm('admin_order') ||
     perm('admin_warehouse') ||
     perm('admin_warehouse_section') ||
     perm('admin_goodsconfirm') ||
+    perm('admin_exchange') ||
+    perm('admin_receipt') ||
+    perm('admin_printorder') ||
     perm('admin_report') ||
-    perm('admin_lot_view') ||
-    perm('admin_iden') ||
-    perm('admin_log')) { 
+    perm('admin_lot_view')) { 
     $is_admin = true;
 }
 ?>
@@ -47,7 +48,10 @@ if(perm('admin_order') ||
                 <li class="<?php if($page == 'admin_user' || $page == 'admin_user_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/user"><i class="md  md-location-history"></i> <span>{!! res('user') !!}</span></a></li>
                 <?php } if(perm('admin_payment_create')) { ?>
                 <li class="<?php if($page == 'admin_payment_create') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/payment/create"><i class="md  md-location-history"></i> <span>{!! res('export_creating') !!}</span></a></li>
-                
+                <?php } if(perm('admin_receipt')) { ?>
+                <li class="<?php if($page == 'admin_receipt') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/receipt"><i class="md  md-location-history"></i> <span>{!! res('receipt') !!}</span></a></li>
+                <?php } if(perm('admin_printorder')) { ?>
+                <li ><a class="<?php if($page == 'admin_printorder') { echo "active"; } ?>" href="{{ legacy_href() }}admin/printorder"><i class="md  md-location-history"></i> <span>{!! res('printorder') !!}</span></a></li>
                 <?php } if(perm('admin_user_type')) { ?>
                 <li class="<?php if($page == 'admin_user_type' || $page == 'admin_user_type_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/user_type"><i class="md  md-local-library"></i> <span>{!! res('user_type') !!}</span></a></li>
                 <?php } if(perm('admin_role')) { ?>
@@ -88,21 +92,20 @@ if(perm('admin_order') ||
                 <li class="<?php if($page == 'admin_shipping_type' || $page == 'admin_shipping_type_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/shipping_type"><i class="fa fa-car"></i> <span>{!! res('shipping_type') !!}</span></a></li>
                 <?php } if(perm('admin_notice')) { ?>
                 <li class="<?php if($page == 'admin_notice' || $page == 'admin_notice_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/notice"><i class="fa fa-map-signs"></i> <span>{!! res('notice') !!}</span></a></li>
+                <?php } if(perm('admin_point')) { ?>
+                <li class="<?php if($page == 'admin_point' || $page == 'admin_point_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/point"><i class="fa fa-star-half-o"></i> <span>{!! res('point_list') !!}</span></a></li>
+                <?php } if(perm('admin_withdrawpoint')) { ?>
+                <li class="<?php if($page == 'admin_withdrawpoint' || $page == 'admin_withdrawpoint_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/withdrawpoint"><i class="fa fa-star-half-o"></i> <span>{!! res('withdrawpoint') !!}</span></a></li>
                 <?php } if(perm('admin_withdrawcash')) { ?>
                 <li class="<?php if($page == 'admin_withdrawcash' || $page == 'admin_withdrawcash_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/withdrawcash"><i class="fa fa-star-half-o"></i> <span>{!! res('withdrawcash') !!}</span></a></li>
+                <?php } if(perm('admin_exchange')) { ?>
+                <li class="<?php if($page == 'admin_exchange' || $page == 'admin_exchange_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/exchange"><i class="md md-import-export"></i> <span>{!! res('exchange') !!}</span></a></li>
                 <?php } if(perm('admin_goodsconfirm')) { ?>
                 <li class="<?php if($page == 'admin_goodsconfirm' || $page == 'admin_goodsconfirm_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/goodsconfirm"><i class="fa fa-close"></i> <span>{!! res('goodsconfirm') !!}</span></a></li>
                 <?php } if(perm('admin_report')) { ?>
                 <li class="<?php if($page == 'admin_report' || $page == 'admin_report_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/report"><i class="fa fa-bar-chart-o"></i> <span>{!! res('report') !!}</span></a></li>
                 <?php } if(perm('admin_log')) { ?>
                 <li class="<?php if($page == 'admin_log') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/log"><i class="fa fa-bar-chart-o"></i> <span>{!! res('log') !!}</span></a></li>
-                <?php } if(perm('admin_mall')) { ?>
-                <li class="<?php if($page == 'admin_mall' || $page == 'admin_mall_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/mall"><i class="fa fa-cube"></i> <span>{!! res('mall') !!}</span></a></li>
-                <?php } if(perm('admin_mall_stock')) { ?>
-                <li class="<?php if($page == 'admin_mallstock' || $page == 'admin_mall_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/mall_stock"><i class="fa fa-cube"></i> <span>ความเคลื่อนไหวสินค้า</a></li>
-                <?php } if(perm('admin_coupon')) { ?>
-                <li class="<?php if($page == 'admin_coupon' || $page == 'admin_coupon_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/coupon"><i class="fa fa-cube"></i> <span>{!! res('coupon') !!}</a></li>
-                
                 <?php } ?>
             </ul>
         </li>
@@ -114,16 +117,6 @@ if(perm('admin_order') ||
 
     
         <li class=""><a class="<?php if($page == 'dashboard' ) { echo "active"; } ?>" href="{{ legacy_href() }}dashboard"><i class="fa fa-bar-chart-o"></i> <span>{!! res('dashboard') !!}</a></li>
-            
-        <li class=""><a class="<?php if($page == 'linenotify') { echo "active"; } ?>" href="{{ legacy_href() }}linenotify"> <img src="{{ legacy_href() }}assets/images/icon/LINE-icon-30x30.png" width="20" height="20"> เชื่อมต่อ Line Notify</span></a></li>
-
-
-        <?php 
-            $count = \App\Support\Legacy\LayoutData::noticeCount();
-        ?>
-        <li class=""><a class="<?php if($page == 'notice' ) { echo "active"; } ?>" href="{{ legacy_href() }}notice"><div class="badge badge-xs badge-danger " style="position: absolute;margin: -5px 20px;" ><?php echo $count; ?></div><i class="fa fa-hand-paper-o "></i> <span>{!! res('notice') !!}</a></li>
-        
-        
         <?php if(perm('profile')) { ?>
         <li class=""><a class="<?php if($page == 'profile') { echo "active"; } ?>" href="{{ legacy_href() }}profile"><i class="fa fa-sliders"></i> <span>{!! res('profile') !!}</span></a></li>
         <?php }
@@ -134,7 +127,7 @@ if(perm('admin_order') ||
                 $count = $data['c'];
             }
         ?>
-        <?php if(perm('admin_message')) { ?>
+       <?php if(perm('admin_message')) { ?>
         <li class=""><a class="<?php if($page == 'admin_message') { echo "active"; } ?>" href="{{ legacy_href() }}admin/message"><div class="badge badge-xs badge-danger" style="position: absolute;margin: -5px 20px;" ><?php echo $count; ?></div><i class="md  md-message"></i> <span>{!! res('admin_message') !!}</span></a></li>
         <?php } if(perm('message')) {
             $data = ['c' => \App\Support\Legacy\LayoutData::chatUnreadUser()];
@@ -143,21 +136,13 @@ if(perm('admin_order') ||
             if($data['c'] != 0) {
                 $count = $data['c'];
             }
+        }
         ?>
 
 
-        <?php } if(perm('message')) { ?>
+        <?php  if(perm('message')) { ?>
         <li class=""><a class="<?php if($page == 'message') { echo "active"; } ?>" href="{{ legacy_href() }}message"><div class="badge badge-xs badge-danger " style="position: absolute;margin: -5px 20px;" ><?php echo $count; ?></div><i class="md  md-message"></i> <span>{!! res('message') !!}</span></a></li>
-        <?php } ?>
-        
-        
-        <li  class="">
-            <a class="<?php if($page == 'mall' ) { echo "active"; } ?>" href="{{ legacy_href() }}mall">
-                <img src="{{ legacy_href() }}assets/images/icon/shopping-basket.png" style="width:20px;height:20px" /> {!! res('mall') !!}
-            </a>
-        </li>
-
-        <?php if(perm('order')) { ?>
+        <?php } if(perm('order')) { ?>
         <li class=""><a class="<?php if($page == 'order' || $page == 'order_detail') { echo "active"; } ?>" href="{{ legacy_href() }}order"><img src="{{ legacy_href() }}assets/images/icon/order.png" style="width:20px;height:20px" /> <span>{!! res('order_list') !!}</span></a></li>
         <?php } if(perm('payment')) { ?>
         <li class=""><a class="<?php if($page == 'payment_create') { echo "active"; } ?>" href="{{ legacy_href() }}payment/create"><img src="{{ legacy_href() }}assets/images/icon/lot.png" style="width:20px;height:20px" /> <span>{!! res('payment_create') !!}</span></a></li>
@@ -177,6 +162,8 @@ if(perm('admin_order') ||
         <li class=""><a class="<?php if($page == 'taobao' || $page == 'taobao_detail' || $page == 'shop_cashback' || $page == 'shop_cashback_detail' || $page == 'balance_cn') { echo "active"; } ?>" href="{{ legacy_href() }}taobao"><img src="{{ legacy_href() }}assets/images/icon/shopping-basket.png" style="width:20px;height:20px" /> <span>{!! res('taobao') !!}</span></a></li>
         <?php } if(perm('balance')) { ?>
         <li class=""><a class="<?php if($page == 'balance' || $page == 'balance_detail') { echo "active"; } ?>" href="{{ legacy_href() }}balance"><img src="{{ legacy_href() }}assets/images/icon/balance.png" style="width:20px;height:20px" /> <span>{!! res('balance') !!}</span></a></li>
+        <?php } if(perm('point')) { ?>
+        <li class=""><a class="<?php if($page == 'point' || $page == 'point_detail') { echo "active"; } ?>" href="{{ legacy_href() }}point"><img src="{{ legacy_href() }}assets/images/icon/medal.png" style="width:20px;height:20px" /> <span>{!! res('point_list') !!}</span></a></li>
         <?php } if(perm('goodsconfirm')) { 
             $data = ['count' => \App\Support\Legacy\LayoutData::goodsconfirmPending()];
         ?>

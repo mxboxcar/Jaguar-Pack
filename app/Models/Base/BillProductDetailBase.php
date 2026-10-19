@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $is_delete int
  * @property int $id int
  * @property int|null $bill_product_id int
- * @property string|null $url text
+ * @property string $url text
  * @property string|null $product_name text
  * @property string|null $shop_name text
  * @property string|null $main_image text
@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $amount_before varchar(50) default '0'
  * @property string|null $admin_remark text
  * @property string|null $cashback_remark text
+ * @property int|null $is_takeapic int default '0'
  */
 abstract class BillProductDetailBase extends Model
 {
@@ -53,7 +54,7 @@ abstract class BillProductDetailBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'bill_product_id', 'url', 'product_name', 'shop_name', 'main_image', 'price', 'color', 'amount', 'remark', 'upload_file', 'size', 'color_tr', 'user', 'is_craft', 'is_qc', 'th_price', 'exchange_rate', 'amount_before', 'admin_remark', 'cashback_remark'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'bill_product_id', 'url', 'product_name', 'shop_name', 'main_image', 'price', 'color', 'amount', 'remark', 'upload_file', 'size', 'color_tr', 'user', 'is_craft', 'is_qc', 'th_price', 'exchange_rate', 'amount_before', 'admin_remark', 'cashback_remark', 'is_takeapic'];
 
     protected function casts(): array
     {

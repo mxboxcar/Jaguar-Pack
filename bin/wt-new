@@ -1,5 +1,5 @@
 #!/bin/bash
-# สร้าง git worktree สำหรับพอร์ต 1 กลุ่ม: branch mod/<group> ที่ /home/admin/laravel/jl-wt/<group>
+# สร้าง git worktree สำหรับพอร์ต 1 กลุ่ม: branch mod/<group> ที่ /home/admin/laravel/sr-wt/<group>
 #   - .env   = symlink ไปที่ .env ของ repo หลัก (secret มีที่เดียว; ต้องการค่าต่างให้ใช้ --copy-env)
 #   - vendor = แพ็กเกจ symlink ไป vendor ของ repo หลัก + autoload ของ worktree เอง (bin/wt-vendor)
 #              ห้าม composer require ใน worktree — แจ้งเจ้าของก่อน
@@ -17,7 +17,7 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
-# zz-<ชื่อ> = worktree ทดลอง/ทิ้งได้ (ไม่ใช่กลุ่มจริง, port 8299) — ลบด้วย bin/wt-rm zz-<ชื่อ>
+# zz-<ชื่อ> = worktree ทดลอง/ทิ้งได้ (ไม่ใช่กลุ่มจริง, port 8399) — ลบด้วย bin/wt-rm zz-<ชื่อ>
 case " $JL_GROUPS " in
     *" $G "*) ;;
     *) [[ "$G" =~ ^zz-[a-z0-9-]{1,20}$ ]] || { echo "ใช้: bin/wt-new <group>   group = $JL_GROUPS (หรือ zz-<ชื่อ> สำหรับทดลอง)" >&2; exit 1; } ;;
@@ -27,7 +27,7 @@ esac
 REPO=$(cd "$(dirname "$0")/.." && git rev-parse --show-toplevel)
 # ถ้าเรียกจาก worktree ให้ใช้ repo หลักเสมอ
 REPO=$(cd "$REPO" && cd "$(git rev-parse --git-common-dir)/.." && pwd)
-ROOT=${JL_WT_ROOT:-/home/admin/laravel/jl-wt}
+ROOT=${JL_WT_ROOT:-/home/admin/laravel/sr-wt}
 WT=$ROOT/$G
 BR=mod/$G
 
@@ -59,5 +59,5 @@ ok: worktree $WT (branch $BR จาก $BASE)
 ต่อไป:
   cd $WT
   bin/wt-serve $G          # เสิร์ฟที่ http://127.0.0.1:$PORT
-  bin/bench http://127.0.0.1:8101/index.php?page=... http://127.0.0.1:$PORT/...
+  bin/bench http://127.0.0.1:8111/index.php?page=... http://127.0.0.1:$PORT/...
 MSG

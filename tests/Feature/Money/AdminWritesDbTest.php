@@ -9,7 +9,6 @@ use App\Http\Controllers\Balance\Admin\AdminBalanceCompanyController;
 use App\Http\Controllers\Balance\Admin\AdminBalanceController;
 use App\Http\Controllers\Payment\Admin\AdminPaymentController;
 use App\Http\Controllers\Points\Admin\AdminShopCashbackController;
-use App\Http\Controllers\Shop\Admin\MallCategoryController;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -86,21 +85,6 @@ class AdminWritesDbTest extends BenchDbTestCase
         $deduct = DB::table('balance')->where('user', $cust->id)->where('type', 3)->where('prefix_ref_id', $billId)->value('amount');
         $this->assertSame(-1 * (float) $bill->total, (float) $deduct, 'แถวตัดเงิน = ยอดบิลใหม่');
         $this->assertStringContainsString('ไม่พบข้อมูล', $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost(2147483000)));
-    }
-
-    public function test_mall_category_delete_never_touches_price_groups(): void
-    {
-        $this->admin();
-        $typeId = $this->insertRow('user_type', ['name' => 'zz_price_group', 'is_default' => 0, 'is_show' => 1]);
-        $catId = $this->insertRow('mall_category', ['name' => 'zz_cat']);
-
-        // ปุ่มลบส่ง id ของหมวด — เดิม id เดียวกันใน user_type (กลุ่มราคาลูกค้า) ถูกลบ
-        $this->assertStringContainsString('SuccessBox(', $this->act(MallCategoryController::class, 'delete', ['id' => (string) $typeId]));
-        $this->assertSame(0, (int) DB::table('user_type')->where('id', $typeId)->value('is_delete'), 'กลุ่มราคาต้องไม่ถูกลบ');
-
-        $this->act(MallCategoryController::class, 'delete', ['id' => (string) $catId]);
-        $this->assertSame(1, (int) DB::table('mall_category')->where('id', $catId)->value('is_delete'));
-        $this->assertSame(0, (int) DB::table('user_type')->where('id', $typeId)->value('is_delete'));
     }
 
     public function test_shelf_allocation_repeat_does_not_duplicate_rows(): void

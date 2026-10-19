@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $user int
  * @property int|null $is_craft int default '0'
  * @property int|null $is_qc int default '0'
+ * @property int|null $is_takeapic int default '0'
  */
 abstract class CartDetailBase extends Model
 {
@@ -47,7 +48,7 @@ abstract class CartDetailBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'cart_id', 'url', 'product_name', 'shop_name', 'main_image', 'price', 'color', 'amount', 'remark', 'upload_file', 'size', 'user', 'is_craft', 'is_qc'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'cart_id', 'url', 'product_name', 'shop_name', 'main_image', 'price', 'color', 'amount', 'remark', 'upload_file', 'size', 'user', 'is_craft', 'is_qc', 'is_takeapic'];
 
     protected function casts(): array
     {

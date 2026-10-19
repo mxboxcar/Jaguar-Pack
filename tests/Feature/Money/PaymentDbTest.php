@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * payment (รายงานข้อ 13): ราคาติดลบตอนแอดมินสร้างบิล + getShippingTypePrice_EditSender join คอลัมน์ผิด
- * รันกับ admin_jl_bench ใน transaction ที่ rollback (opt-in JL_BENCH_DB_TESTS=1)
+ * รันกับ admin_sr_bench ใน transaction ที่ rollback (opt-in JL_BENCH_DB_TESTS=1)
  */
 class PaymentDbTest extends BenchDbTestCase
 {
