@@ -75,19 +75,19 @@
 			            </div>
 			        </div>
 			        <div class="form-group">
+			            <label class="col-md-4 control-label"> WeChat ID</label>
+			            <div class="col-md-8">
+			                <input type="text" name="wechatid" class="form-control" value="{{ $data->wechatid ?? '' }}" >
+			            </div>
+			        </div>
+			        <div class="form-group">
 			            <label class="col-md-4 control-label"> {!! res('address') !!}</label>
 			            <div class="col-md-8">
 
 			            	<textarea rows="5" name="address" class="form-control validate[required]">{{ $data->address ?? '' }}</textarea>
 			            </div>
 			        </div>
-			        <div class="form-group">
-			            <label class="col-md-4 control-label"> {!! res('identity') !!}</label>
-			            <div class="col-md-8">
-			                @if ((string) ($data->identity ?? '') === '')<div class="col-md-7  form-control-static">-</div>@else{!! \App\Domain\Users\UploadBox::single('file', $data->identity) !!}@endif
 
-			            </div>
-			        </div>
 			        <div class="form-group">
 			            <label class="col-md-4 control-label"> {!! res('status') !!}</label>
 			            <div class="col-md-8 form-control-static">
