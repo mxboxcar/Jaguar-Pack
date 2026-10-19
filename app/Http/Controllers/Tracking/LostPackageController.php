@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Tracking;
 
 use App\Domain\Money\Money;
 use App\Domain\Tracking\Php74;
+use App\Domain\Tracking\TempUpload;
 use App\Domain\Tracking\TrackingLookups;
 use App\Domain\Tracking\UploadBox;
 use App\Http\Controllers\Controller;
@@ -101,10 +102,16 @@ class LostPackageController extends Controller
         }
         $s = explode('|', $this->in($request, 'txtsearch'));
         $sp = explode('|', $this->php($request, 'txtsearch'));
-        $q = DB::table('lost_package')->where('lost_package.is_delete', 0)
-            ->where('lost_package.id', 'like', '%'.addcslashes($s[0], '%_\\').'%');
-        if (! $admin) {
-            $q->where('lost_package.user', Legacy::userId());
+        $like = '%'.addcslashes($s[0], '%_\\').'%';
+        $q = DB::table('lost_package')->where('lost_package.is_delete', 0);
+        if ($admin) {
+            // SR: แอดมินค้นได้ทั้งเลขรายการ เลขออเดอร์ และรหัสลูกค้า (ต้อง join user ตั้งแต่ตอนนับ)
+            $q->leftJoin('user', 'user.id', '=', 'lost_package.user')
+                ->where(fn ($w) => $w->where('lost_package.id', 'like', $like)
+                    ->orWhere('lost_package.order_id', 'like', $like)
+                    ->orWhere('user.code', 'like', $like));
+        } else {
+            $q->where('lost_package.id', 'like', $like)->where('lost_package.user', Legacy::userId());
         }
         $st = $s[1] ?? null;
         if ($st !== null && Php74::neq($st, '-2') && Php74::neq($st, '')) {
@@ -115,9 +122,6 @@ class LostPackageController extends Controller
         $offset = TrackingLookups::offset($page);
         $items = collect();
         if ($offset !== null) {
-            if ($admin) {
-                $q->leftJoin('user', 'user.id', '=', 'lost_package.user');
-            }
             $items = $q->orderByDesc('lost_package.id')->offset($offset)->limit(10)
                 ->get($admin ? ['lost_package.*', 'user.code'] : ['lost_package.*']);
         }
@@ -190,28 +194,6 @@ class LostPackageController extends Controller
         return response("<div class=\"row\">\n    ".UploadBox::single('uploadfile', '', true).'</div>');
     }
 
-    /** ชื่อไฟล์ใน temp ที่ปลอดภัย (เดิม file_exists('../upload/temp/'.$img) ตรงๆ = path traversal) */
-    private static function safeName(string $name): bool
-    {
-        return $name !== '' && preg_match('/^[A-Za-z0-9._-]+$/', $name) === 1 && ! str_contains($name, '..');
-    }
-
-    private static function tempFileExists(string $name): bool
-    {
-        if (! self::safeName($name)) {
-            return false;
-        }
-
-        return is_file(rtrim((string) config('legacy.upload.temp_dir'), '/').'/'.$name);
-    }
-
-    /** JS ที่เดิมตอบให้เบราว์เซอร์ไปเรียก _api/blockblob_ajax (ย้ายไฟล์ขึ้น storage) — ไม่มีการเรียก API ภายนอกจากฝั่งนี้ */
-    private static function blobJs(string $name): string
-    {
-        return "$.ajax({ \n                type: 'POST', \n                async: true, \n                data : 'path=../upload/temp/".Alerts::js($name)."', \n"
-            ."                url: rooturl + '_api/blockblob_ajax', \n                success: function(data) { \n                  \n                } });";
-    }
-
     /** POST /_lost_package/save — สร้างรายการใหม่เท่านั้น (id ไม่ว่าง = เดิมไม่ทำอะไรและไม่ตอบอะไร) */
     public function save(Request $request): Response
     {
@@ -224,9 +206,8 @@ class LostPackageController extends Controller
         if ($this->in($request, 'id') !== '') {
             return response('');
         }
-        $imgs = LegacyInput::post($request, 'upload_file_mul', []);
         // เดิมบันทึกทุกค่าที่ส่งมา (รวม ../../x) — รับเฉพาะชื่อไฟล์ธรรมดาแบบที่ system_upload ออกให้
-        $imgs = is_array($imgs) ? array_values(array_filter($imgs, fn ($v) => is_string($v) && $v !== '' && self::safeName($v))) : [];
+        $imgs = TempUpload::names(LegacyInput::post($request, 'upload_file_mul', []));
 
         $out = '';
         $id = DB::transaction(function () use ($uid, $billId, $request, $imgs, &$out) {
@@ -236,8 +217,8 @@ class LostPackageController extends Controller
                 'cashback' => $this->in($request, 'cashback'), 'user' => $uid, 'status' => '1', 'approved_date' => null, 'cancel_remark' => '',
             ]);
             foreach ($imgs as $img) {
-                if (self::tempFileExists($img)) {
-                    $out .= self::blobJs($img);
+                if (TempUpload::exists($img)) {
+                    $out .= TempUpload::blobJs($img);
                 }
                 DB::table('lost_package_detail')->insert([
                     'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
@@ -256,7 +237,7 @@ class LostPackageController extends Controller
     public function saveImage(Request $request): Response
     {
         $image = $this->in($request, 'image');
-        $out = ($image !== '' && self::tempFileExists($image)) ? self::blobJs($image) : '';
+        $out = ($image !== '' && TempUpload::exists($image)) ? TempUpload::blobJs($image) : '';
         $u = e(Legacy::hrefBlob($image));
         $out .= '<div class="img_list_detail col-xs-12" style="margin-left: 10px;width:85px"><a style="float:left" class="fancybox" href="'.$u.'">'
             ."\n\t\t<img src=\"".$u."\" style=\"max-width: 50px;max-height: 50px;\">\n\t\t<input type=\"hidden\" name=\"img[]\" value=\"".e($image)."\" />\n\t\t</a>\n"

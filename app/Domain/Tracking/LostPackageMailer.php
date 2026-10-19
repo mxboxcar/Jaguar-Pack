@@ -14,14 +14,17 @@ use Illuminate\Support\Facades\Mail;
  * - อีเมล: เดิม sendmail() ผ่าน Mailgun → ที่นี่ใช้ Mail ของ Laravel (dev: MAIL_MAILER=log = ไม่ส่งจริง) ห่อ try/catch เหมือนเดิม
  * - LINE: เดิม sendLine() เป็นฟังก์ชันว่าง (โค้ดถูก comment ทั้งหมด) และ push_notification() ว่าง → ไม่ส่งอะไร (log ข้อความไว้ตรวจเท่านั้น)
  * - แม่แบบ email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → คัดข้อความคงที่มาไว้ที่นี่
+ * - SR: ปุ่ม "ดูรายละเอียด" สี #a3b2f1, ผู้ส่ง SRShippingSystem<no-reply@srshippingsystem.com> (sendmail() ของ SR)
  */
 final class LostPackageMailer
 {
-    private const HEADER = "<div style=\"font-family: arial,sans-serif;font-size:13px;\"><div>\n<?php require_once('system_config.php'); ?>\n";
+    // SR: email_header/center/footer.php ของ SR (ก่อน hotfix 2026-10-18 — หลัง hotfix ไฟล์มีบรรทัดโค้ด PHP กันเปิดตรง
+    // ซึ่ง file_get_contents เดิมจะติดไปในอีเมลด้วย: ไม่เลียนแบบ)
+    private const HEADER = '<div style="font-family: arial,sans-serif;font-size:13px;max-width: 560px">';
 
-    private const CENTER = "</div>\n<br />";
+    private const CENTER = '<div style="text-indent: 30px;">';
 
-    private const FOOTER = "\n* หากมีข้อสงสัยกรุณาติดต่อ<br />\nE-mail : jlcargoth@hotmail.com<br />\nPhone : 095-550-4009<br />\nLineID : @jlcargo\n<br />\n<br />\nขอแสดงความนับถือ<br />\nJLcargo\n</div>";
+    private const FOOTER = "</div>\r\nขอแสดงความนับถือ<br />\r\nSRShippingSystem\r\n</div>";
 
     public static function approved(int|string $id): void
     {
@@ -45,7 +48,7 @@ final class LostPackageMailer
         $body = "\n<p>แจ้งรายการไม่ได้สินค้า หมายเลขรายการ <a href='".$link."'>".$no."</a>\n"
             .($cancel ? "มีเหตุขัดข้องบางประการที่ไม่สามารถดำเนินการได้ </p>\n" : 'ได้รับการยืนยันแล้ว </p>');
         $body .= "<div style=\"height:20px\"></div>\n";
-        $body .= "<p style=\"width:200px;text-align:center;font-size:15px;background-color:#991b1e;padding:10px 25px;\" >\n"
+        $body .= "<p style=\"width:200px;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 25px 10px 0px;\" >\n"
             ."<a style=\"color:#ffffff;text-decoration:none\" href=\"".$link."\" >ดูรายละเอียด</a></p>\n";
         $html = self::HEADER.'<strong>'.$subject.'</strong>'.self::CENTER.$body.self::FOOTER;
 
@@ -61,7 +64,7 @@ final class LostPackageMailer
                 throw new \RuntimeException('no recipient');
             }
             Mail::html($html, function ($m) use ($to, $subject) {
-                $m->to($to)->subject($subject)->from('no-reply@jlcargoth.com', 'JLcargoTH');
+                $m->to($to)->subject($subject)->from('no-reply@srshippingsystem.com', 'SRShippingSystem');
             });
         } catch (\Throwable $e) {
             // เดิม catch (exception $e) {} เงียบ
