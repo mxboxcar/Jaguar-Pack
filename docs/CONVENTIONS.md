@@ -193,8 +193,8 @@ Route::middleware('legacy.perm:admin_tracking')->group(function () {
 |---|---|---|
 | `CombineTrack()` | tracking | ~250 บรรทัด เขียนหลายตาราง |
 | `getPinBox()`, `getNewPinBox()` | payment | HTML+JS กล่อง PIN |
-| `getupload()`, `getupload_inline()`, `getuploadmultiple()`, `system_upload*.php` | settings (ใช้ร่วม) | dev ต้องเขียนลง `storage/app/legacy-upload` (`LEGACY_UPLOAD_DRIVER=local`) ห้ามขึ้น Azure จริง |
-| `sendmail()`, `dosendmail()` | messaging | ใช้ Mail ของ Laravel (`MAIL_MAILER=log` ใน dev) |
+| `getupload()`, `getupload_inline()`, `getuploadmultiple()`, `system_upload*.php` | settings (ใช้ร่วม) | dev ต้องเขียนลง `storage/app/legacy-upload` (`LEGACY_UPLOAD_DRIVER=local`) ห้ามขึ้น Azure จริง; ย้าย temp → ถาวร = `App\Support\Legacy\BlobStore` (ข้อ 9) |
+| `sendmail()`, `dosendmail()` | messaging | ใช้ Mail ของ Laravel (`MAIL_MAILER=log` ใน dev; production `MAIL_MAILER=mailgun` — ดูข้อ 9) |
 | `notify_message()`, `sendLine()`, `sendLineImage()`, `pushMsgLine()` | messaging | ต้องผ่าน config `legacy.external.enabled` (dev = false → ไม่ยิงจริง) |
 | `getcache()`, `savecache()`, `readRedis()`, `writeRedis()` | ผู้ใช้คนแรก | ใช้ `Cache` ของ Laravel ใน dev; ค่าเชื่อมต่อจริงอยู่ใน .env เท่านั้น |
 | `getproducttype()` | settings | HTML `<select>` ประเภทสินค้า |
@@ -210,6 +210,20 @@ Route::middleware('legacy.perm:admin_tracking')->group(function () {
 - secret (token, รหัส, key, salt) อยู่ใน `.env` หรือไฟล์นอก repo เท่านั้น อ่านผ่าน `config('legacy.*')` — ห้ามเขียนค่าลงโค้ด/เอกสาร/test (โค้ดเดิมมี secret ฝังอยู่ ห้ามคัดลอกมา)
 - ก่อน commit ทุกครั้ง: `git diff --cached` แล้วตรวจหา secret
 - ห้ามพิมพ์ไฟล์ที่มีรหัสออกจอโดยไม่ mask (เช่น `grep -o '^[A-Z_]*=' .env`)
+
+**อัปโหลดถาวร (Azure Blob)** — `App\Support\Legacy\BlobStore::uploadFromTemp()` ที่เดียว (ใช้โดย `_api/blockblob_ajax` และ `_register/save`)
+- `LEGACY_UPLOAD_DRIVER=local` (ค่าเริ่มต้น, dev/test): คัดลอก `upload/temp/<ชื่อ>` → `LEGACY_UPLOAD_LOCAL_DIR`
+- `LEGACY_UPLOAD_DRIVER=azure`: `App\Support\Legacy\AzureBlob` = REST Put Blob (BlockBlob) + Shared Key (x-ms-version 2021-12-02, Content-MD5) ด้วย Http client ของ Laravel (ไม่มี SDK)
+  ชื่อ blob = ชื่อไฟล์ใน temp, container `LEGACY_AZURE_CONTAINER` (upload), เสิร์ฟที่ `LEGACY_HREF_BLOB` (https://image.jlcargoth.com/upload/<ชื่อ>)
+  key: `LEGACY_AZURE_KEY_FILE` (แนะนำ, อ่านตอนอัป ไม่เข้า config cache) หรือ `LEGACY_AZURE_KEY`
+- ผลแบบเดิม: `temp empty` / `exists` (มี blob ขนาด > 0 แล้ว หรือ HEAD เช็คไม่ได้) / `` (สำเร็จ) / `<status>: <Azure error code><br />`
+- Content-Type: ใส่ชนิดจริงเฉพาะรูป/PDF/ข้อความล้วน อื่นๆ `application/octet-stream` (กัน HTML/SVG render บนโดเมนรูป)
+
+**อีเมล (Mailgun)** — Mailer ของทุกกลุ่มใช้ `Mail` default mailer (from `JLcargoTH <no-reply@jlcargoth.com>` แบบเดิม)
+- `MAIL_MAILER` ไม่ตั้ง = `log` (ไม่ส่งจริง) · production: `MAIL_MAILER=mailgun`
+- `MAILGUN_DOMAIN` (mg.jlcargoth.com), `MAILGUN_ENDPOINT` (api.mailgun.net), `MAILGUN_SCHEME` (api = messages API แบบเดิม)
+- secret: `MAILGUN_SECRET_FILE` (ไฟล์นอก repo ที่ user ของ php-fpm อ่านได้ — อ่านเมื่อสร้าง mailer ครั้งแรก ไม่เข้า config cache) หรือ `MAILGUN_SECRET`
+- ทดสอบกับ API จริงเท่านั้นต้องใส่ header `o:testmode: yes` (Mailgun รับแต่ไม่ส่ง) — test ใน repo ใช้ MockHttpClient
 
 ## 10. ความเร็ว / bench
 

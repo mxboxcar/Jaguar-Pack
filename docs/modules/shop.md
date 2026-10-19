@@ -7,7 +7,7 @@ branch `mod/shop` · worktree `/home/admin/laravel/jl-wt/shop` · dev `http://12
 |---|---|
 | routes | `routes/modules/shop.php` |
 | controller | `app/Http/Controllers/Shop/{Cart,Taobao,Mall,Api}Controller.php`, `Shop/Admin/{MallAdmin,MallCategory,MallStock}Controller.php` (ฐาน `ShopController`) |
-| domain | `app/Domain/Shop/` — `CartRepo`, `CartHtml` (HTML ตะกร้า), `Php74` (เลขคณิต/เทียบแบบ 7.4), `Upload` (getupload + JS blob), `BlobStore`, `CrawlGuard`, `ProductCrawler`, `UserAgent`, `ImageShrink`, `Unjail` |
+| domain | `app/Domain/Shop/` — `CartRepo`, `CartHtml` (HTML ตะกร้า), `Php74` (เลขคณิต/เทียบแบบ 7.4), `Upload` (getupload + JS blob), `CrawlGuard`, `ProductCrawler`, `UserAgent`, `ImageShrink`, `Unjail` |
 | view | `resources/views/shop/{cart,taobao,mall,admin/*}` |
 | test | `tests/Feature/Shop/ShopRoutesTest.php`, `ShopHelpersTest.php` |
 
@@ -76,7 +76,7 @@ ajax (`/<ไฟล์>` ไม่มี `.php`, POST + `legacy.ajax` ถ้า�
   - หน้า `admin/mall_stock` ยังเรียก `_admin/_balance/*` ตัวจริงแบบเดิม (กลุ่ม balance — ไม่ได้แก้)
 - สิทธิ์ `admin_mall_category` (เดิมไม่มี role ใดถือ): ใช้งานได้แล้วผ่าน fallback ← `admin_mall` (role 1, 6) — ดู CONVENTIONS ข้อ 3.1
 - **ภายนอก (dev ไม่ยิงจริง)**: `_api/load_product` เรียก crawler (`setting.apiurls`) เฉพาะเมื่อ `LEGACY_EXTERNAL_ENABLED=true`; dev ตอบสินค้าปลอม `[DEV STUB]` (ยังบันทึก crawl_guard_log และ log แบบเดิม). `load_product_v2` (vcanbuy) ก็ปิดใน dev
-- **อัปโหลด**: `_api/blockblob_ajax` driver `local` คัดลอกจาก `legacy.upload.temp_dir` ไป `local_dir` (ผล `temp empty`/`exists`/`` เหมือนเดิม); **driver `azure` ยังไม่พอร์ต** (ไม่มี SDK ใน vendor และห้ามยิง Azure จาก dev) → ตอบ error + log — ต้องทำร่วมกับกลุ่ม settings ก่อนสลับ production
+- **อัปโหลด**: `_api/blockblob_ajax` driver `local` คัดลอกจาก `legacy.upload.temp_dir` ไป `local_dir` (ผล `temp empty`/`exists`/`` เหมือนเดิม); driver `azure` = `App\Support\Legacy\BlobStore` → `AzureBlob` (REST Put Blob + Shared Key, ไม่ใช้ SDK) — ดู docs/modules/settings.md "อัปโหลดถาวร"
 - **`_api/submit_order_number_v2`** ต้องใช้ `CombineTrack()` ของกลุ่ม tracking (ยังไม่พอร์ต): เรียก `App\Domain\Tracking\CombineTrack::run($tracking, $order)` ถ้ามี ไม่มี = 501 ไม่เขียนอะไร
 - **token API**: token เดิมฝังในโค้ด → อ่านจาก `.env` (`LEGACY_SHOP_*`), ไม่ตั้ง = ปิด (ตอบว่าง) และเทียบด้วย `hash_equals`
 - `_api/send_sms`: เดิมใครเปิดก็ส่ง SMS ทดสอบด้วยบัญชี thaibulksms ที่ฝังในโค้ด → ไม่ส่งอะไร (log อย่างเดียว)
@@ -154,7 +154,7 @@ ajax (`/<ไฟล์>` ไม่มี `.php`, POST + `legacy.ajax` ถ้า�
 
 ## 7. ข้อเสนอ / ค้าง
 
-- Azure driver ของ `BlobStore` (ร่วมกับ settings) และ `CombineTrack` (tracking) ต้องมีก่อนสลับ `_cart/save_product`(แนบรูป), `_admin/_mall/save`(รูป), `_api/submit_order_number_v2` ไป production
+- `BlobStore` ย้ายไป `App\Support\Legacy\BlobStore` (ใช้ร่วมทุกกลุ่ม) และมี Azure driver แล้ว (REST Put Blob, 2026-10-19); `CombineTrack` (tracking) ยังต้องมีก่อนสลับ `_api/submit_order_number_v2` ไป production
 - ตั้ง `LEGACY_SHOP_ORDER_API_TOKEN`, `LEGACY_SHOP_IMAGE_PREFIX_TOKEN`, `LEGACY_SHOP_UNBAN_TOKEN` ใน `.env` production (ค่าใหม่ — ค่าเดิมหลุดอยู่ในโค้ด) และแจ้ง crawler/cron
 - เจ้าของตัดสินใจ: สิทธิ์ `admin_mall_category`, ไฟล์ mall_category ที่เป็นสำเนา user_type, `getPayType()` ใน load_stock, `bill_product_on_tracking.bill_product_id`
 - index ที่ควรมี (ตอนนี้มีแค่ PRIMARY): `cart(user)`, `cart_detail(cart_id)`, `mall_stock(mall_id, mall_detail_id)` — `crawl_guard_log` มีครบแล้ว (ยังไม่ได้สร้าง — ห้ามแก้ schema)

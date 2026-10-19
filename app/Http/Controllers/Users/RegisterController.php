@@ -8,6 +8,7 @@ use App\Domain\Users\UsersMailer;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Users\Concerns\ReadsLegacyInput;
 use App\Support\Legacy\Alerts;
+use App\Support\Legacy\BlobStore;
 use App\Support\Legacy\Blocklist;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
@@ -128,29 +129,19 @@ class RegisterController extends Controller
     }
 
     /**
-     * ไฟล์บัตรประชาชนจาก upload/temp → ที่เก็บถาวร (เดิม UploadAzure / copy)
+     * ไฟล์บัตรประชาชนจาก upload/temp → ที่เก็บถาวร (เดิม UploadAzure() ฝั่ง server ทับเลย / debug_mail = copy)
      * เดิม file_exists('../upload/temp/'.$upload_file) โดยไม่กรอง → ส่ง ../../system_config.php ได้ (ไฟล์ใดๆ บนเครื่องขึ้น Azure สาธารณะ)
-     * ที่นี่รับเฉพาะชื่อไฟล์ล้วนใน temp_dir; driver azure ยังไม่พอร์ต (กลุ่ม settings เป็นเจ้าของ) → log ไว้
+     * ที่นี่รับเฉพาะชื่อไฟล์ล้วนใน temp_dir แล้วส่งต่อ BlobStore (ตัวเดียวกับ _api/blockblob_ajax)
      */
     private function storeIdentity(string $file): void
     {
         if ($file === '' || $file !== basename($file) || str_starts_with($file, '.')) {
             return;
         }
-        $src = rtrim((string) config('legacy.upload.temp_dir'), '/').'/'.$file;
-        if (! is_file($src)) {
-            return;
+        $res = BlobStore::uploadFromTemp($file, skipExisting: false);
+        if ($res !== '' && $res !== 'temp empty') {
+            Log::warning('users: register identity upload failed', ['file' => $file, 'result' => $res]);
         }
-        if (config('legacy.upload.driver') !== 'local') {
-            Log::warning('users: register identity upload (azure) not ported', ['file' => $file]);
-
-            return;
-        }
-        $dir = rtrim((string) config('legacy.upload.local_dir'), '/');
-        if (! is_dir($dir)) {
-            @mkdir($dir, 0775, true);
-        }
-        @copy($src, $dir.'/'.$file);
     }
 
     /** _register/lost_password.php */

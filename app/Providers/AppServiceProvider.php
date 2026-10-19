@@ -20,6 +20,22 @@ class AppServiceProvider extends ServiceProvider
         // สถานะต่อ request (scoped = ล้างทุก request / ทุก test)
         $this->app->scoped(LegacySession::class);
         $this->app->scoped(Permissions::class);
+
+        // Mailgun secret จากไฟล์ (MAILGUN_SECRET_FILE) — อ่านเมื่อใช้ mailer ครั้งแรก ไม่เข้า config cache / .env
+        $this->app->afterResolving('mail.manager', fn () => self::loadMailgunSecret());
+    }
+
+    /** services.mailgun.secret ว่าง + ตั้ง secret_file ที่อ่านได้ → ใส่ค่าจากไฟล์ (trim) */
+    public static function loadMailgunSecret(): void
+    {
+        $file = (string) config('services.mailgun.secret_file');
+        if ((string) config('services.mailgun.secret') !== '' || $file === '' || ! is_readable($file)) {
+            return;
+        }
+        $secret = trim((string) @file_get_contents($file));
+        if ($secret !== '') {
+            config(['services.mailgun.secret' => $secret]);
+        }
     }
 
     public function boot(): void

@@ -53,6 +53,14 @@ return [
             'transport' => 'ses',
         ],
 
+        // ค่า domain/secret/endpoint อยู่ใน config/services.php (mailgun)
+        'mailgun' => [
+            'transport' => 'mailgun',
+            // 'client' => [
+            //     'timeout' => 5,
+            // ],
+        ],
+
         'postmark' => [
             'transport' => 'postmark',
             // 'message_stream_id' => env('POSTMARK_MESSAGE_STREAM_ID'),
@@ -111,8 +119,9 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
+        // เดิม 'from' => 'JLcargoTH<no-reply@jlcargoth.com>' (Mailer ของแต่ละกลุ่มยังใส่ from เองแบบเดิม)
+        'address' => env('MAIL_FROM_ADDRESS', 'no-reply@jlcargoth.com'),
+        'name' => env('MAIL_FROM_NAME', 'JLcargoTH'),
     ],
 
 ];
