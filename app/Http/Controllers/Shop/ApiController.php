@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Shop;
 
-use App\Domain\Shop\BlobStore;
 use App\Domain\Shop\CrawlGuard;
 use App\Domain\Shop\CrawlPrices;
 use App\Domain\Shop\ProductCrawler;
 use App\Domain\Shop\Unjail;
+use App\Support\Legacy\BlobStore;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * _api/*.php เดิม
  *  - load_product: ดึงสินค้าผ่าน crawler (dev = STUB ไม่ยิงภายนอก) + โควตา crawl_guard
- *  - blockblob_ajax: ส่งไฟล์ upload/temp ขึ้นที่เก็บถาวร (dev = คัดลอกในเครื่อง)
+ *  - blockblob_ajax: ส่งไฟล์ upload/temp ขึ้นที่เก็บถาวร (App\Support\Legacy\BlobStore: dev = คัดลอกในเครื่อง, production = Azure)
  *  - get_order_number_v2/v3, submit_order_number_v2, updateImagePrefix, unban: API ของ crawler/cron ด้วย token
  *    (เดิมฝัง token ในโค้ด → ย้ายไป .env: config legacy.shop.*; ไม่ตั้ง = ปิด)
  *  - blockblob, crawl_guard, image_shrink, useragent: ไฟล์ไลบรารี (เปิดตรง = ว่าง) → app/Domain/Shop/*

@@ -71,7 +71,7 @@ user_type grid ยังใช้ subquery นับผู้ใช้ต่อ�
 - btn_unbanned/resetpassword: IP ว่างใน `ips.text` ไม่ถูกใช้ทำ `LIKE '%%'` (เดิมลบทั้งตาราง ips/ips_ban)
 - ข้อความ "ไม่อนุญาตให้ใช้คำ" ตอนสมัคร: เดิมเป็น UTF-8 ซ้อน (อ่านไม่ออก) → ภาษาไทยปกติ
 - `_profile/pin`: callback/eq escape ก่อนฝังใน JS, ตั้ง PIN ใหม่มีเงื่อนไข `pin` ว่างใน WHERE, log PIN ที่ผิดเป็น `***`
-- `_register/save` upload_file: รับเฉพาะชื่อไฟล์ใน temp_dir; driver azure ยังไม่พอร์ต (log warning — กลุ่ม settings)
+- `_register/save` upload_file: รับเฉพาะชื่อไฟล์ใน temp_dir แล้วส่ง `App\Support\Legacy\BlobStore::uploadFromTemp($f, skipExisting: false)` (= UploadAzure เดิม: อัปทับ; driver azure/local)
 - อีเมล: Laravel Mail (dev = log), escape ค่าจาก DB, dev ปิดรหัสผ่านใน log เป็น `***`
 - rate history: ไม่ CREATE TABLE เอง (ไม่มีตาราง = ข้าม)
 - user_type/role delete ที่เดิม PHP fatal (`getError()` ไม่มีอาร์กิวเมนต์) → HTTP 500 ว่างเหมือนเดิม (role ที่มีอยู่ลบไม่ได้เลย, user_type ที่ id ตรงกับ role ลบไม่ได้) — ให้เจ้าของตัดสินใจว่าจะแก้หรือไม่
