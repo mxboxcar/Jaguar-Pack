@@ -1,4 +1,4 @@
-{{-- _admin/_user/form.php เดิม — admin_user = แก้ไขได้, admin_user_view = ดูอย่างเดียว (ตรวจที่ middleware + controller) --}}
+{{-- _admin/_user/form.php ของ SR — ฟอร์มเดียวกันทั้ง admin_user และ admin_user_view (SR ไม่มีหน้าอ่านอย่างเดียว); การบันทึกทุกปุ่มต้องมี admin_user (ตรวจที่ route/controller) --}}
 @php($eq = [\App\Domain\Users\Php74::class, 'eq'])
 @extends('legacy.layout')
 
@@ -35,117 +35,6 @@
 </div>
 @endif
 
-@if (! $permission)
-	<div class="col-sm-5 pull-right">
-		<div class="button-list">
-		    <a type="button" href="{{ legacy_href() }}admin/user" class="pull-right btn btn-warning waves-effect waves-light">
-			    <span class="btn-label"><i class="fa fa-arrow-left"></i></span>
-			    {!! res('back_to_list') !!}
-		    </a>
-		</div>
-	</div>
-
-
-
-<div class="row">
-	<div class="col-lg-6">
-		<div class="col-lg-12">
-			<div class="card-box">
-				<h4 class="m-t-0 header-title"><b>{!! res('profile_info') !!}</b></h4>
-				<p class="text-muted font-13 m-b-30">
-		        </p>
-				<div class="form-horizontal" role="form">
-					<div class="form-group">
-			            <label class="col-md-4 control-label"> {!! res('customer_code') !!}</label>
-			            <div class="col-md-8 form-control-static">
-			                {{ $data->code ?? '' }}
-			            </div>
-			        </div>
-			        <div class="form-group">
-			            <label class="col-md-4 control-label"> {!! res('name_lastname') !!}</label>
-			            <div class="col-md-8 form-control-static">
-			               {{ $data->name ?? '' }}
-			            </div>
-			        </div>
-
-			        <div class="form-group">
-			            <label class="col-md-4 control-label"> {!! res('email') !!}</label>
-			            <div class="col-md-8 form-control-static">
-			                {{ $data->email ?? '' }}
-			            </div>
-			        </div>
-			        <div class="form-group">
-			            <label class="col-md-4 control-label"> {!! res('phone') !!}</label>
-			            <div class="col-md-8 form-control-static">
-			                {{ $data->phone ?? '' }}
-			            </div>
-			        </div>
-			        <div class="form-group">
-			            <label class="col-md-4 control-label"> {!! res('phone') !!}</label>
-			            <div class="col-md-8 form-control-static">
-			                {{ $data->phone2 ?? '' }}
-			            </div>
-			        </div>
-			        <div class="form-group">
-			            <label class="col-md-4 control-label"> {!! res('address') !!}</label>
-			            <div class="col-md-8 form-control-static">
-							{{ $data->address ?? '' }}
-			            </div>
-			        </div>
-
-			        <div class="form-group">
-			            <label class="col-md-4 control-label"> รหัสผู้แนะนำ</label>
-			            <div class="col-md-8">
-			                <input type="text" name="commission" class="form-control  " value="{{ $memberCode }}" >
-			            </div>
-			        </div>
-
-			        <div class="form-group">
-			            <label class="col-md-4 control-label"> {!! res('status') !!}</label>
-			            <div class="col-md-8 form-control-static">
-							{!! \App\Support\Legacy\Status::getstatususer($data->is_approved ?? null) !!}
-			            </div>
-			        </div>
-			    </div>
-			</div>
-		</div>
-	</div>
-
-	<div class="col-lg-6">
-		<div class="col-lg-12">
-			<div class="card-box">
-			        <h4 class="m-t-0 header-title"><b>{!! res('user_type') !!}</b></h4>
-					<p class="text-muted font-13 m-b-30">
-			        </p>
-			        <div class="form-horizontal" role="form">
-				        <div class="form-group">
-				            <label class="col-md-4 control-label"> {!! res('user_type') !!}</label>
-				            <div class="col-md-8 form-control-static">
-@foreach ($userTypes as $row)@if ($eq($data->type ?? null, $row->id) || $eq($parentTypeId, $row->id)){{ $row->name }}@endif @endforeach
-				            </div>
-				        </div>
-				        <div class="form-group">
-				            <label class="col-md-4 control-label"> {!! res('type') !!}</label>
-				            <div class="col-md-8 form-control-static">
-				                <div class="radio radio-primary" style="padding:0px">
-								@if ($eq($data->option_price ?? null, 1)){!! res('use_price_2') !!}@else{!! res('use_price_1') !!}@endif
-				                </div>
-				            </div>
-				        </div>
-			        </div>
-			        <div class="form-group" id="user_type_detail" @if ($eq($data->option_price ?? null, 0))style="display:block"@else style="display:none"@endif>
-
-			        </div>
-			        <div class="form-group" id="user_type_detail_own" @if ($eq($data->option_price ?? null, 1))style="display:block"@else style="display:none"@endif>
-@include('users.admin.partials.pricing', ['m' => $m, 'amount' => false])
-			        </div>
-			    </div>
-			</div>
-		</div>
-</div>
-
-
-@else
 <form action="{{ legacy_href() }}_admin/_user/save" method="post" >
 <input type="hidden" name="id" value="{{ $data->id ?? '' }}">
 
@@ -214,6 +103,18 @@
 			            </div>
 			        </div>
 			        <div class="form-group">
+			            <label class="col-md-4 control-label"> LINE ID</label>
+			            <div class="col-md-8">
+			                <input type="text" name="lineid" class="form-control  " value="{{ $data->lineid ?? '' }}" >
+			            </div>
+			        </div>
+			        <div class="form-group">
+			            <label class="col-md-4 control-label"> WeChat ID</label>
+			            <div class="col-md-8">
+			                <input type="text" name="wechatid" class="form-control  " value="{{ $data->wechatid ?? '' }}" >
+			            </div>
+			        </div>
+			        <div class="form-group">
 			            <label class="col-md-4 control-label"> {!! res('address') !!}</label>
 			            <div class="col-md-8">
 
@@ -221,16 +122,12 @@
 			            </div>
 			        </div>
 			        <div class="form-group">
-			            <label class="col-md-4 control-label"> {!! res('identity2') !!}</label>
+			            <label class="col-md-4 control-label"> {!! res('identity') !!}</label>
 			            <div class="col-md-8">
-			                @if ((string) ($data->identity ?? '') === '')<div class="col-md-7  form-control-static">-</div>@else{!! \App\Domain\Users\UploadBox::single('file', $data->identity) !!}@endif
+			                {{-- SR: บัตรประชาชนเสิร์ฟจาก upload/ ของเว็บ (ไม่ใช่ Azure) — ลิงก์ไม่เปิดแท็บใหม่ตามที่เจ้าของสั่ง --}}
+			                @php($idf = (string) ($data->identity ?? ''))
+			                @if ($idf === '')<div class="col-md-7  form-control-static">-</div>@elseif (preg_match('/\.(jpg|jpeg|png|gif)$/i', $idf))<a class='fancybox' href='{{ legacy_href('upload/'.$idf) }}'><img src='{{ legacy_href('upload/'.$idf) }}' style='max-width:200px;max-height:200px;' /></a>@else<a download href='{{ legacy_href('upload/'.$idf) }}'>{{ $idf }}</a>@endif
 
-			            </div>
-			        </div>
-			        <div class="form-group">
-			            <label class="col-md-4 control-label"> รหัสผู้แนะนำ</label>
-			            <div class="col-md-8">
-			                <input type="text" name="commission" class="form-control  " value="{{ $memberCode }}" >
 			            </div>
 			        </div>
 			        <div class="form-group">
@@ -347,7 +244,38 @@
 
 			        </div>
 			        <div class="form-group" id="user_type_detail_own" @if ($eq($data->option_price ?? null, 1))style="display:block"@else style="display:none"@endif>
-@include('users.admin.partials.pricing', ['m' => $m, 'amount' => false])
+{{-- SR: ตารางเรตแบบแนวตั้ง (ชื่อ / กิโล / คิว) --}}
+
+<table class="table  table-bordered">
+			<thead>
+				<tr>
+					<th style="width:120px">{!! res('car') !!}</th>
+					<th>{!! res('kg') !!}</th>
+					<th>{!! res('cubic') !!}</th>
+				</tr>
+			</thead>
+			<tbody>@foreach ($m['car'] as $k => $item)<tr>
+				<td class="text-center">{{ $m['head_car'][$k]->name }}</td>
+				<td class="text-right"><input  name="product_type_kg_id_{{ $item->id }}" type="text" value="{{ $item->kg }}" /></td>
+				<td class="text-right"><input  name="product_type_cubic_id_{{ $item->id }}" type="text" value="{{ $item->cubic }}" /></td>
+			</tr>@endforeach</tbody>
+		</table>
+
+
+<table class="table  table-bordered" style="margin-top:10px">
+			<thead>
+				<tr>
+					<th style="width:120px">{!! res('ship') !!}</th>
+					<th>{!! res('kg') !!}</th>
+					<th>{!! res('cubic') !!}</th>
+				</tr>
+			</thead>
+			<tbody>@foreach ($m['ship'] as $k => $item)<tr>
+				<td class="text-center">{{ $m['head_ship'][$k]->name }}</td>
+				<td class="text-right"><input  name="product_type_kg_id_{{ $item->id }}" type="text" value="{{ $item->kg }}" /></td>
+				<td class="text-right"><input  name="product_type_cubic_id_{{ $item->id }}" type="text" value="{{ $item->cubic }}" /></td>
+			</tr>@endforeach</tbody>
+		</table>
 			        </div>
 			    </div>
 			</div>
@@ -355,7 +283,6 @@
 
 	</div>
 </form>
-@endif
 
 <div id="panel-modal" class="cancel_remark_form modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="display: none;">
     <div class="modal-dialog modal-xs">
@@ -384,10 +311,6 @@
 		LoadRoleDetail($("select[name='role']").val());
 		@if ($eq($data->option_price ?? null, 0))
 		LoadUserType($("select[name='user_type']").val());
-		@endif
-
-		@if ($permissionView)
-		LoadUserType('{{ $data->type ?? '' }}');
 		@endif
 	})
 

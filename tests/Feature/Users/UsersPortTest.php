@@ -105,6 +105,36 @@ class UsersPortTest extends TestCase
         $this->assertSame('2001:db8:1:2::/64', SignupGuard::net('2001:db8:1:2:3:4:5:6'));
     }
 
+    /** SR: แม่แบบอีเมล + ผู้ส่ง = email_header/center/footer.php และ sendmail() ของ SR (ไม่มีข้อความ jl เหลือ) */
+    public function test_mail_template_and_sender_are_sr(): void
+    {
+        $this->assertSame('no-reply@srshippingsystem.com', config('legacy.mail.from_address'));
+        $this->assertSame('SRShippingSystem', config('legacy.mail.from_name'));
+        $html = \App\Domain\Users\UsersMailer::wrap('S', '<p>B</p>');
+        $this->assertSame('<div style="font-family: arial,sans-serif;font-size:13px;max-width: 560px"><strong>S</strong><div style="text-indent: 30px;"><p>B</p>'
+            ."</div>\r\nขอแสดงความนับถือ<br />\r\nSRShippingSystem\r\n</div>", $html);
+        $src = (string) file_get_contents(app_path('Domain/Users/UsersMailer.php'));
+        foreach (['JLcargo', 'jlcargoth', '991b1e', 'target='] as $jl) {
+            $this->assertStringNotContainsString($jl, $src, $jl);
+        }
+    }
+
+    /** SR ไม่มีคอลัมน์ user.commission / ช่องรหัสผู้แนะนำ — ห้ามโค้ดกลุ่มนี้อ่าน/เขียน */
+    public function test_no_commission_or_jl_branding_left(): void
+    {
+        $files = array_merge(
+            glob(app_path('Http/Controllers/Users/{,*/}*.php'), GLOB_BRACE) ?: [],
+            glob(resource_path('views/users/{,*/,*/*/}*.blade.php'), GLOB_BRACE) ?: [],
+        );
+        $this->assertNotEmpty($files);
+        foreach ($files as $f) {
+            $src = (string) file_get_contents($f);
+            foreach (["'commission'", 'comcode', 'JLCARGO', 'JLCargo', 'target="_blank"', "target='_blank'"] as $bad) {
+                $this->assertStringNotContainsString($bad, $src, basename($f).': '.$bad);
+            }
+        }
+    }
+
     public function test_php74_comparisons_used_by_forms(): void
     {
         $this->assertTrue(Php74::eq(0, ''));        // _admin/_user/form.php: $id == "" เมื่อ id = 0 (สร้างใหม่)

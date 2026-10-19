@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Users;
 
+use App\Domain\Payment\PinBox;
 use App\Domain\Users\Php74;
 use App\Domain\Users\PinThrottle;
 use App\Http\Controllers\Controller;
@@ -22,7 +23,7 @@ use Illuminate\Support\Facades\DB;
  *   POST /_profile/load_user_type_detail = เรตราคาของกลุ่มตัวเอง (id ที่ส่งมาไม่ถูกใช้ เหมือนเดิม)
  *   POST /_profile/load_role_detail      = รายการสิทธิ์ของ role ตัวเอง
  *   POST /_profile/pin                   = ตั้ง PIN ใหม่ / ยืนยัน PIN (กล่อง getPinBox/getNewPinBox)
- *   POST /_profile/save                  = บันทึกชื่อ/LINE/ที่อยู่/รหัสผ่าน
+ *   POST /_profile/save                  = (ยืนยัน PIN) บันทึกชื่อ/อีเมล/โทร/LINE/WeChat/ที่อยู่/รหัสผ่าน
  */
 class ProfileController extends Controller
 {
@@ -228,9 +229,21 @@ class ProfileController extends Controller
         return str_replace(['\\', '"', "\r", "\n", '</'], ['\\\\', '\\"', '\\r', '\\n', '<\\/'], $s);
     }
 
-    /** _profile/save.php — เดิมไม่บันทึก email/phone/phone2 ที่อยู่ในฟอร์ม (คงไว้) */
+    /**
+     * _profile/save.php ของ SR — ต้องยืนยัน PIN จ่ายเงินก่อน (getNewPinBox / getPinBox(0) / PIN ผิด) ผ่าน PinBox::guard (ตัวนับร่วม PinThrottle)
+     * แล้วบันทึกชื่อ/อีเมล/โทร/LINE/WeChat/ที่อยู่/รหัสผ่าน ของแถวตัวเองเท่านั้น
+     */
     public function save(Request $request): Response
     {
+        $js = PinBox::guard($request, Legacy::user());
+        if ($js !== null) {
+            if (str_starts_with($js, 'ErrorBox(') && str_contains($js, 'PIN จ่ายเงินไม่ถูกต้อง')) {
+                // เดิม log PIN ที่พิมพ์ผิดเป็น plaintext → ปิดค่า
+                LegacyLog::goLog($request->getRequestUri(), "paymentpin: '***', PIN จ่ายเงินไม่ถูกต้อง");
+            }
+
+            return response($js);
+        }
         $password = $this->php($request, 'password');
         if ($password !== '' && str_contains($password, '&')) {
             return response(Alerts::error('CloseLoading()', 'รหัสผ่านห้ามมีเครื่องหมาย & (ampersand)'));
@@ -241,7 +254,11 @@ class ProfileController extends Controller
         }
         $set = [
             'name' => $this->in($request, 'name'),
+            'email' => $this->in($request, 'email'),
+            'phone' => $this->in($request, 'phone'),
+            'phone2' => $this->in($request, 'phone2'),
             'lineid' => $this->in($request, 'lineid'),
+            'wechatid' => $this->in($request, 'wechatid'),
             'address' => $this->in($request, 'address'),
         ];
         if ($password !== '') {

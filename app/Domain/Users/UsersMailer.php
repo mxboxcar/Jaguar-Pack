@@ -15,35 +15,37 @@ use Illuminate\Support\Facades\Mail;
  *   _admin/_user/email.php, email_approved.php, email_cancel.php, btn_email_lost_password.php
  *
  * - เดิม sendmail() → Mailgun; ที่นี่ใช้ Mail ของ Laravel (dev: MAIL_MAILER=log = ไม่ส่งจริง) ห่อ try/catch เงียบเหมือนเดิม
- * - แม่แบบ email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → ข้อความคงที่ด้านล่าง (CRLF ตามไฟล์เดิม)
+ * - แม่แบบ email_header/center/footer.php ของ SR + ผู้ส่ง = config('legacy.mail') (ร่วมกับกลุ่มอื่น)
+ * - ข้อความ/สีปุ่มตามไฟล์เดิมของ SR (sr-prehotfix); ลิงก์ "ดูรายละเอียด" ไม่เปิดแท็บใหม่ (เจ้าของสั่งไม่ใช้ทั้งระบบ)
  * - เนื้อหาเหมือนเดิม รวมถึง "รหัสผ่าน : <plaintext>" (เดิมเก็บรหัสแบบถอดรหัสได้แล้วส่งทางอีเมล — บันทึกเป็นช่องโหว่เดิมในรายงาน)
  *   ยกเว้นเมื่อ mailer = log (dev): แทนรหัสผ่านด้วย *** ไม่ให้รหัสจริงไปค้างใน storage/logs
  * - ค่าจาก DB (ชื่อสินค้า, เหตุผลยกเลิก, username) escape ก่อนใส่ HTML (เดิมต่อดิบ)
  */
 final class UsersMailer
 {
-    private const HEADER = '<div style="font-family: arial,sans-serif;font-size:13px;">';
-
-    private const CENTER = '<div>';
-
-    private const FOOTER = "<?php require_once('system_config.php'); ?>\r\n</div>\r\n<br />\r\n* หากมีข้อสงสัยกรุณาติดต่อ<br />\r\nE-mail : jlcargoth@hotmail.com<br />\r\nPhone : 095-550-4009<br />\r\nLineID : @jlcargo\r\n<br />\r\n<br />\r\nขอแสดงความนับถือ<br />\r\nJLcargo\r\n</div>";
-
-    /** _register/email.php — หลังสมัครสมาชิก (เดิม $data['emil'] พิมพ์ผิด = ว่างเสมอ) */
+    /** _register/email.php ของ SR — หลังสมัครสมาชิก (ไทย + จีน, ไม่มีรหัสผ่าน) */
     public static function registered(int $id): void
     {
         $u = self::user($id);
-        $subject = 'แจ้งการสมัครสมาชิก '.($u->username ?? '');
-        $body = "\n<p>ท่านได้ยื่ยการสมัครสมาชิกกับทาง JLcargo ไว้เป็นที่เรียบร้อยแล้ว การตรวจสอบข้อมูลจะใช้เวลา 1-2 วันทำการ รหัสผ่านเข้าสู่ระบบจะถูกส่งไปยัง  หากต้องการเปลี่ยนแปลงข้อมูลใดๆ กรุณาแจ้งให้เราทราบ</p>";
+        $name = e((string) ($u->username ?? ''));
+        $subject = 'เเจ้งสถานะการสมัครสมาชิก SRShippingSystem';
+        $body = "\n<p>เรียน ท่านผู้สมัครสมาชิก ".$name."</p>\n"
+            ."<p style='text-indent:40px'>ตามที่ท่านได้ยื่นหลักฐานการสมัครสมาชิกกับทาง SRShippingSystem นั้น ขณะนี้ผลการสมัครสมาชิกของท่านอยู่ระหว่างการตรวจสอบความถูกต้องของข้อมูล โดยจะใช้เวลาในการตรวจสอบประมาณ1-2วัน เมื่อผลการสมัครสมาชิกของท่านผ่านการอนุมัติแล้ว ระบบจะทำการส่งข้อความยืนยันการอนุมัติให้ท่านทราบทาง E-mail ค่ะ</p>\n"
+            ."\n<p>* หากมีข้อสงสัยหรือไม่ได้รับE-mailอนุมัติผลการสมัคร <br />\nกรุณาติดต่อหมายเลขโทรศัพท์ : <br />\nเวลาทำการ วันจันทร์-เสาร์ เวลา 9.30-17.30 น.\n</p>\n"
+            ."\n<p style='margin-top:20px'>关于审核 SRShippingSystem 会员申请的通知</p>\n"
+            .'<p>尊敬的 '.$name." 您好：</p>\n"
+            ."<p style='text-indent:40px'>根据您所提交的申请 SRShippingSystem 会员的信息，工作人员将需要1～2天的时间来审核您的信息。若您提交的申请通过审核后，系统将会通过电子邮件的方式通知您成功申请会员。</p>\n"
+            ."\n<p>* 若您没有收到成功申请会员的电子邮件 <br />\n请致电：<br />\n时间：周一至周六  09：30～17：30\n</p>";
         self::send('register', $id, $subject, $body, $u);
     }
 
-    /** _register/email_lost_password.php — ลืมรหัสผ่าน (ปุ่มสีแดง) */
+    /** _register/email_lost_password.php — ลืมรหัสผ่าน */
     public static function lostPassword(int $id): void
     {
         $u = self::user($id);
         $subject = 'แจ้งรหัสผ่านใหม่ '.($u->code ?? '').' (Success)';
         $body = self::credentials($u, "\n<p>ระบบได้ทำการรีเซตรหัสผ่านของท่านแล้ว</p>\n<p>ท่านสามารถเข้าระบบโดย ผู้ใช้งานและรหัสผ่านดังต่อไปนี้</p>")
-            .self::button('background-color:#991b1e;padding: 10px 25px;');
+            .self::button('background-color:#a3b2f1;padding: 10px 25px 10px 0px;');
         self::send('lost password', $id, $subject, $body, $u);
     }
 
@@ -57,14 +59,14 @@ final class UsersMailer
         self::send('admin reset password', $id, $subject, $body, $u);
     }
 
-    /** _admin/_user/email_approved.php — อนุมัติ / แอดมินสร้างผู้ใช้ใหม่ */
+    /** _admin/_user/email_approved.php — อนุมัติ (เฉพาะ type 3) / แอดมินสร้างผู้ใช้ใหม่ */
     public static function approved(int $id): void
     {
         $u = self::user($id);
         $code = (string) ($u->code ?? '');
-        $subject = 'แจ้งการอนุมัติสมัครสมาชิก '.$code.' (Success)';
+        $subject = 'แจ้งผลอนุมัติการสมัครสมาชิก '.$code.' (Success)';
         $body = self::credentials($u, "\n<p>ผลการสมัครสมาชิกของท่านได้อนุมัติเป็นที่เรียบร้อยแล้ว โดยรหัสลูกค้าที่ใช้ในการสั่งซื้อและจัดส่งสินค้าของท่านคือ ".e($code)."\nท่านสามารถเข้าระบบโดย ผู้ใช้งานและรหัสผ่านดังต่อไปนี้</p>")
-            .self::button('background-color:#991b1e;padding:10px 25px;');
+            .self::button('background-color:#a3b2f1;padding:10px 25px 10px 0px;');
         self::send('approved', $id, $subject, $body, $u);
     }
 
@@ -96,7 +98,7 @@ final class UsersMailer
         $body = self::credentials($u, "\n<p>ทางทีมงานได้มีการแก้ไขข้อมูลของลูกค้า รายละเอียดดังต่อไปนี้</p>");
         $body .= '<div style="text-indent:0px!important;"><p style="margin-top: 40px;">ค่าขนส่งทางรถ (4-6 วัน)</p>'."\n".self::rateTable($car)
             ."\n".'<div style="height:20px"></div>'."\n".'<p>ค่าขนส่งทางเรือ</p>'."\n".self::rateTable($ship).'</div>';
-        $body .= self::button('background-color:#991b1e;padding:10px 25px;');
+        $body .= self::button('background-color:#a3b2f1;padding:10px 25px 10px 0px;');
         self::send('update', $id, $subject, $body, $u);
     }
 
@@ -143,19 +145,25 @@ final class UsersMailer
         return DB::table('user')->where('id', $id)->first();
     }
 
+    /** ประกอบแม่แบบ email_header + <strong>หัวเรื่อง</strong> + email_center + เนื้อหา + email_footer (ของ SR) */
+    public static function wrap(string $subject, string $body): string
+    {
+        return config('legacy.mail.header').'<strong>'.$subject.'</strong>'.config('legacy.mail.center').$body.config('legacy.mail.footer');
+    }
+
     private static function send(string $kind, int $id, string $subject, string $body, ?object $u): void
     {
         $to = (string) ($u->email ?? '');
-        $html = self::HEADER.'<strong>'.$subject.'</strong>'.self::CENTER.$body.self::FOOTER;
+        $html = self::wrap($subject, $body);
         try {
             if ($to === '') {
                 throw new \RuntimeException('no recipient');
             }
             Mail::html($html, function ($m) use ($to, $subject) {
-                $m->to($to)->subject($subject)->from('no-reply@jlcargoth.com', 'JLcargoTH');
+                $m->to($to)->subject($subject)->from(config('legacy.mail.from_address'), config('legacy.mail.from_name'));
             });
         } catch (\Throwable $e) {
-            // เดิม catch (exception $e) {} เงียบ
+            // เดิม catch (exception $e) { echo $e; } — ไม่ให้หน้าเว็บพัง
             Log::warning('users mail failed', ['kind' => $kind, 'id' => $id, 'error' => $e->getMessage()]);
         }
     }

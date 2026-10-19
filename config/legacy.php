@@ -119,6 +119,18 @@ return [
     // ค่าที่ debug_mail เดิมใช้ (false = ทำงานจริง)
     'debug_mail' => false,
 
+    // อีเมลของเว็บเดิม SR: sendmail() ใน system_config.php ส่งผ่าน Mailgun (domain mg.srshippingsystem.com)
+    //   from = 'SRShippingSystem<no-reply@srshippingsystem.com>' ตายตัว — Mailer ทุกกลุ่มใช้ค่านี้ (ไม่ใช้ MAIL_FROM_* ของ Laravel)
+    // แม่แบบ email_header.php / email_center.php / email_footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → ข้อความคงที่ (CRLF ตามไฟล์เดิม)
+    //   ใช้: header.'<strong>'.$subject.'</strong>'.center.$body.footer
+    'mail' => [
+        'from_address' => env('LEGACY_MAIL_FROM_ADDRESS', 'no-reply@srshippingsystem.com'),
+        'from_name' => env('LEGACY_MAIL_FROM_NAME', 'SRShippingSystem'),
+        'header' => '<div style="font-family: arial,sans-serif;font-size:13px;max-width: 560px">',
+        'center' => '<div style="text-indent: 30px;">',
+        'footer' => "</div>\r\nขอแสดงความนับถือ<br />\r\nSRShippingSystem\r\n</div>",
+    ],
+
     // _profile/pin (method=verified): ผิดครบ max_attempts ครั้งใน decay_minutes นาที ต่อ (ผู้ใช้ + IP) = ล็อก
     // และต่อผู้ใช้ทุก IP รวมกันครบ max_attempts_per_user = ล็อก (กันเปลี่ยน IP) — App\Domain\Users\PinThrottle
     'pin_throttle' => [

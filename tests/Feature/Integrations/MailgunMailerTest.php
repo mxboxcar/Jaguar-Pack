@@ -11,7 +11,7 @@ use Symfony\Component\Mailer\Bridge\Mailgun\Transport\MailgunApiTransport;
 use Tests\TestCase;
 
 /**
- * Mailgun (เดิม sendmail() → Mailgun API mg.jlcargoth.com) — ไม่ยิงเครือข่ายจริง (MockHttpClient)
+ * Mailgun (เดิม sendmail() → Mailgun API mg.srshippingsystem.com) — ไม่ยิงเครือข่ายจริง (MockHttpClient)
  * secret ใน test = ค่าปลอม ไม่ใช่ key จริง
  */
 class MailgunMailerTest extends TestCase
@@ -20,7 +20,7 @@ class MailgunMailerTest extends TestCase
     {
         $src = file_get_contents(config_path('mail.php'));
         $this->assertStringContainsString("'default' => env('MAIL_MAILER', 'log')", $src);
-        $this->assertStringContainsString("env('MAIL_FROM_ADDRESS', 'no-reply@jlcargoth.com')", $src);
+        $this->assertStringContainsString("env('MAIL_FROM_ADDRESS', 'no-reply@srshippingsystem.com')", $src);
         $this->assertSame('mailgun', config('mail.mailers.mailgun.transport'));
         $this->assertSame('api.mailgun.net', config('services.mailgun.endpoint'));
     }
@@ -31,14 +31,14 @@ class MailgunMailerTest extends TestCase
         File::ensureDirectoryExists($dir);
         file_put_contents($dir.'/mg.key', "fixture-not-a-real-key\n");
         try {
-            config(['services.mailgun.secret' => null, 'services.mailgun.secret_file' => $dir.'/mg.key', 'services.mailgun.domain' => 'mg.jlcargoth.com']);
+            config(['services.mailgun.secret' => null, 'services.mailgun.secret_file' => $dir.'/mg.key', 'services.mailgun.domain' => 'mg.srshippingsystem.com']);
             $this->app->forgetInstance('mail.manager');
             Mail::clearResolvedInstances();
 
             $transport = Mail::mailer('mailgun')->getSymfonyTransport();
             $this->assertSame('fixture-not-a-real-key', config('services.mailgun.secret'));
             $this->assertInstanceOf(MailgunApiTransport::class, $transport);
-            $this->assertSame('mailgun+api://api.mailgun.net?domain=mg.jlcargoth.com', (string) $transport);
+            $this->assertSame('mailgun+api://api.mailgun.net?domain=mg.srshippingsystem.com', (string) $transport);
 
             // MAILGUN_SECRET ตรงๆ ชนะไฟล์
             config(['services.mailgun.secret' => 'from-env']);
@@ -62,23 +62,23 @@ class MailgunMailerTest extends TestCase
             }
             $seen = compact('method', 'url', 'options', 'body');
 
-            return new MockResponse('{"id":"<20261019.1@mg.jlcargoth.com>","message":"Queued. Thank you."}', ['http_code' => 200]);
+            return new MockResponse('{"id":"<20261019.1@mg.srshippingsystem.com>","message":"Queued. Thank you."}', ['http_code' => 200]);
         });
-        $transport = new MailgunApiTransport('fixture-key', 'mg.jlcargoth.com', null, $http);
+        $transport = new MailgunApiTransport('fixture-key', 'mg.srshippingsystem.com', null, $http);
         $mailer = Mail::mailer('array');
         $mailer->setSymfonyTransport($transport);
 
         $sent = $mailer->html('<p>สวัสดี</p>', function ($m) {
-            $m->to('nobody@example.invalid')->subject('ทดสอบ')->from('no-reply@jlcargoth.com', 'JLcargoTH');
+            $m->to('nobody@example.invalid')->subject('ทดสอบ')->from(config('legacy.mail.from_address'), config('legacy.mail.from_name'));
             $m->getSymfonyMessage()->getHeaders()->addTextHeader('o:testmode', 'yes');
         });
 
-        $this->assertSame('<20261019.1@mg.jlcargoth.com>', $sent->getMessageId());
+        $this->assertSame('<20261019.1@mg.srshippingsystem.com>', $sent->getMessageId());
         $this->assertSame('POST', $seen['method']);
-        $this->assertSame('https://api.mailgun.net/v3/mg.jlcargoth.com/messages', $seen['url']);
+        $this->assertSame('https://api.mailgun.net/v3/mg.srshippingsystem.com/messages', $seen['url']);
         $this->assertContains('Authorization: Basic '.base64_encode('api:fixture-key'), $seen['options']['headers']);
         $body = (string) $seen['body'];
-        foreach (['name="from"' => 'JLcargoTH <no-reply@jlcargoth.com>', 'name="to"' => 'nobody@example.invalid', 'name="o:testmode"' => 'yes', 'name="html"' => '<p>สวัสดี</p>'] as $field => $value) {
+        foreach (['name="from"' => 'SRShippingSystem <no-reply@srshippingsystem.com>', 'name="to"' => 'nobody@example.invalid', 'name="o:testmode"' => 'yes', 'name="html"' => '<p>สวัสดี</p>'] as $field => $value) {
             $this->assertMatchesRegularExpression('~'.preg_quote($field, '~').'.*?\r\n\r\n'.preg_quote($value, '~').'\r\n~s', $body, $field);
         }
     }

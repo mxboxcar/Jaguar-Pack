@@ -1,4 +1,4 @@
-{{-- lost_password.php เดิม (แปลงด้วย tools/port-layout.php convert()) --}}
+{{-- lost_password.php ของ SR (แปลงจาก sr-prehotfix/lost_password.php) --}}
 <!DOCTYPE html>
 <html>
     <head>
@@ -43,8 +43,9 @@
         <div class="wrapper-page">
             <div class=" card-box">
             <div class="panel-heading text-center"> 
-               <!--  <h3 class="text-center"> {!! res('sign_in') !!} <strong class="text-custom">UBold</strong> </h3> -->
-                <img style="width: 270px;" src="{{ legacy_href() }}assets/images/logo.png" />
+                
+                <img style="width: 170px;" src="{{ legacy_href() }}assets/images/logo_mini.png" />
+                <h1 class="text-center" style="font-size: 45px!important;"> S h i p <strong class="text-custom"> 2 </strong> Y o u </h1>
             </div> 
 
 
@@ -77,7 +78,7 @@
             </div>                              
                 <div class="row">
                 <div class="col-sm-12 text-center">
-                    © 2017-{{ date('Y') }} {{ config('legacy.project_name') }} All rights reserved.  
+                    © 2016-{{ date('Y') }} {{ config('legacy.project_name') }} All rights reserved. 
                 </div>
             </div>
             

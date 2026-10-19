@@ -8,7 +8,6 @@ use App\Domain\Users\UsersMailer;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Users\Concerns\ReadsLegacyInput;
 use App\Support\Legacy\Alerts;
-use App\Support\Legacy\BlobStore;
 use App\Support\Legacy\Blocklist;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
@@ -63,7 +62,7 @@ class RegisterController extends Controller
         return response('');
     }
 
-    /** _register/save.php */
+    /** _register/save.php ของ SR */
     public function save(Request $request): Response
     {
         $username = $this->in($request, 'username');
@@ -74,25 +73,27 @@ class RegisterController extends Controller
         $upload = $this->in($request, 'upload_file');
         $userType = $this->in($request, 'user_type');
         $phone2 = $this->in($request, 'phone2');
-        $comcode = $this->in($request, 'comcode');
+        $lineid = $this->in($request, 'lineid');
+        $wechatid = $this->in($request, 'wechatid');
+        $password = Format::randd(6);
 
+        // SR: รหัสผ่านสุ่ม 6 ตัว — เทียบกับ username แบบเดิม (แทบไม่มีทางตรง)
+        if (Php74::eq($password, $this->php($request, 'username'))) {
+            return $this->js(Alerts::error('CloseLoading()', 'ชื่อผู้ใข้และรหัสผ่านต้องไม่ตรงกัน'));
+        }
         if (Blocklist::isBlockedName($this->php($request, 'username'))) {
             // เดิมข้อความภาษาไทยถูกบันทึกเป็น UTF-8 ซ้อน 2 ชั้น (แสดงเป็นตัวอักษรเพี้ยน) → แก้เป็นข้อความที่อ่านได้
             return $this->js("ErrorBox('ไม่อนุญาตให้ใช้คำ ".htmlspecialchars($this->php($request, 'username'), ENT_QUOTES)."', 'CloseLoading()'); ");
         }
         if (DB::table('user')->where('username', trim($username))->exists()) {
-            return $this->js("ErrorBox('ผู้ใช้งานซ้ำ', 'CloseLoading()'); ");
+            return $this->js("ErrorBox('ผู้ใช้งานนี้มีในระบบแล้ว', 'CloseLoading()'); ");
         }
-        $commission = '';
-        if ($comcode !== '') {
-            $ref = DB::table('user')->where('code', trim($comcode))->orderBy('id')->first(['id']);
-            if (! $ref) {
-                return $this->js("ErrorBox('ไม่มีรหัสผู้แนะนำนี้', 'CloseLoading()'); ");
-            }
-            $commission = (string) $ref->id;
+        // SR: อีเมลซ้ำไม่ได้ (ทุกแถว รวมที่ลบแล้ว แบบเดิม)
+        if (DB::table('user')->where('email', trim($email))->exists()) {
+            return $this->js("ErrorBox('อีเมล์นี้มีในระบบแล้ว', 'CloseLoading()'); ");
         }
         $type = DB::table('user_type')->where('id', $userType)->orderBy('id')->first(['is_show', 'child', 'is_delete']);
-        // เดิมตรวจแค่ is_show → ส่ง user_type เป็นกลุ่มราคาตั้งเองของลูกค้าคนอื่น (child <> 0, is_show = 1 ทั้งหมด ~1,690 กลุ่ม) หรือกลุ่มที่ลบแล้วได้
+        // เดิมตรวจแค่ is_show → ส่ง user_type เป็นกลุ่มราคาตั้งเองของลูกค้าคนอื่น (child <> 0, is_show = 1) หรือกลุ่มที่ลบแล้วได้
         //   → รับเฉพาะกลุ่มที่หน้าสมัครแสดงให้เลือก (child = 0, is_delete = 0, is_show <> 0)
         if (! $type || Php74::eq($type->is_show, 0) || Php74::neq($type->child, 0) || Php74::neq($type->is_delete, 0)) {
             return $this->js("ErrorBox('".Lang::get('invalid_user_type')."', 'CloseLoading()'); ");
@@ -102,17 +103,16 @@ class RegisterController extends Controller
             return $this->js("ErrorBox('".$err."', 'CloseLoading()'); ");
         }
 
-        $password = Format::randd(6);
         // เดิมอ่าน user_count แล้วค่อย +1 แยกกัน (สมัครพร้อมกัน 2 คนได้รหัสลูกค้าซ้ำ) → ล็อกแถว user_count ใน transaction
-        $id = DB::transaction(function () use ($request, $username, $password, $name, $email, $phone, $userType, $upload, $address, $phone2, $commission) {
+        $id = DB::transaction(function () use ($request, $username, $password, $name, $email, $phone, $userType, $upload, $address, $phone2, $lineid, $wechatid) {
             $count = DB::table('user_count')->where('id', '1')->lockForUpdate()->value('count');
             $next = Php74::num($count) + 1;
             $id = (int) DB::table('user')->insertGetId([
                 'create_date' => DB::raw('NOW()'), 'create_by' => '', 'mod_date' => DB::raw('NOW()'), 'mod_by' => '',
                 'is_delete' => 0, 'id' => null, 'username' => $username, 'password' => LegacyCrypt::encrypt($password),
-                'code' => 'JL'.str_pad((string) $next, 4, '0', STR_PAD_LEFT), 'role' => '0', 'name' => $name, 'email' => $email,
+                'code' => 'SU'.str_pad((string) $next, 4, '0', STR_PAD_LEFT), 'role' => '0', 'name' => $name, 'email' => $email,
                 'phone' => $phone, 'is_enable' => '1', 'type' => $userType, 'identity' => $upload, 'address' => $address,
-                'is_approved' => '0', 'approved_date' => null, 'phone2' => $phone2, 'commission' => $commission,
+                'is_approved' => '0', 'approved_date' => null, 'phone2' => $phone2, 'lineid' => $lineid, 'wechatid' => $wechatid,
             ]);
             SignupGuard::log($request, $id);
             DB::table('user_count')->where('id', '1')->update(['count' => (string) $next]);
@@ -129,18 +129,25 @@ class RegisterController extends Controller
     }
 
     /**
-     * ไฟล์บัตรประชาชนจาก upload/temp → ที่เก็บถาวร (เดิม UploadAzure() ฝั่ง server ทับเลย / debug_mail = copy)
-     * เดิม file_exists('../upload/temp/'.$upload_file) โดยไม่กรอง → ส่ง ../../system_config.php ได้ (ไฟล์ใดๆ บนเครื่องขึ้น Azure สาธารณะ)
-     * ที่นี่รับเฉพาะชื่อไฟล์ล้วนใน temp_dir แล้วส่งต่อ BlobStore (ตัวเดียวกับ _api/blockblob_ajax)
+     * ไฟล์บัตรประชาชน upload/temp/<f> → upload/<f> ในเครื่อง (SR เดิม copy() ไม่ขึ้น Azure — หน้าแอดมินเปิดที่ href.'upload/<f>')
+     * เดิม file_exists('../upload/temp/'.$upload_file) โดยไม่กรอง → ส่ง ../../system_config.php ได้ (คัดลอกไฟล์ใดๆ บนเครื่องไปไว้ใต้ upload/ ที่เปิดสาธารณะ)
+     * ที่นี่รับเฉพาะชื่อไฟล์ล้วนใน legacy.upload.temp_dir แล้วคัดลอกไป legacy.upload.local_dir (production ต้องชี้ไป upload/ ของเว็บ)
      */
     private function storeIdentity(string $file): void
     {
-        if ($file === '' || $file !== basename($file) || str_starts_with($file, '.')) {
+        if ($file === '' || $file !== basename($file) || str_starts_with($file, '.') || str_contains($file, "\0")) {
             return;
         }
-        $res = BlobStore::uploadFromTemp($file, skipExisting: false);
-        if ($res !== '' && $res !== 'temp empty') {
-            Log::warning('users: register identity upload failed', ['file' => $file, 'result' => $res]);
+        $src = rtrim((string) config('legacy.upload.temp_dir'), '/').'/'.$file;
+        if (! is_file($src)) {
+            return;
+        }
+        $dir = rtrim((string) config('legacy.upload.local_dir'), '/');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        if (! @copy($src, $dir.'/'.$file)) {
+            Log::warning('users: register identity copy failed', ['file' => $file]);
         }
     }
 
