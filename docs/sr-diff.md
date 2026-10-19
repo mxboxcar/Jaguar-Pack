@@ -655,3 +655,57 @@
 | `_admin/_mall/save_isshow.php` | JL-only |
 | `assets/validate/validationengine.php` | JL-only |
 
+## schema: admin_jl_bench → admin_sr_bench
+
+- ตารางที่ jl มีแต่ SR ไม่มี: `_user`, `mall`, `mall_cart`, `mall_category`, `mall_detail`, `mall_stock`
+- ตารางที่ SR มีแต่ jl ไม่มี: `find_product`, `find_product_image`, `running`, `tracking_check`, `tracking_image`, `user_setting`
+
+| ตาราง | คอลัมน์ | jl | SR |
+|---|---|---|---|
+| `bill_alipay` | `usecash_cn` | **ไม่มี** | decimal(20,2) |
+| `bill_payment` | `is_vat` | int | **ไม่มี** |
+| `bill_payment` | `receipt_address` | **ไม่มี** | varchar(225) |
+| `bill_payment` | `receipt_date` | **ไม่มี** | datetime |
+| `bill_payment` | `receipt_id` | **ไม่มี** | varchar(50) |
+| `bill_payment` | `receipt_is_vat` | **ไม่มี** | int |
+| `bill_payment` | `receipt_name` | **ไม่มี** | varchar(225) |
+| `bill_payment` | `receipt_tax` | **ไม่มี** | varchar(50) |
+| `bill_payment` | `receipt_total` | **ไม่มี** | decimal(10,2) |
+| `bill_payment` | `shipv` | decimal(12,2) | **ไม่มี** |
+| `bill_payment` | `shipvat` | decimal(12,2) | **ไม่มี** |
+| `bill_payment` | `shipvat_before` | decimal(12,2) | **ไม่มี** |
+| `bill_payment` | `v` | decimal(12,2) | **ไม่มี** |
+| `bill_payment` | `vat` | decimal(12,2) | **ไม่มี** |
+| `bill_payment` | `vat_before` | decimal(12,2) | **ไม่มี** |
+| `bill_payment_detail` | `amount` | tinyint | int |
+| `bill_payment_detail` | `checked_by` | int | **ไม่มี** |
+| `bill_payment_detail` | `is_checked` | int | **ไม่มี** |
+| `bill_payment_detail` | `is_takeapic` | **ไม่มี** | int |
+| `bill_payment_detail` | `subuser` | **ไม่มี** | varchar(225) |
+| `bill_product` | `is_print` | **ไม่มี** | int |
+| `bill_product` | `is_vat` | int | **ไม่มี** |
+| `bill_product` | `run_id` | **ไม่มี** | varchar(50) |
+| `bill_product` | `total_vat` | decimal(20,2) | **ไม่มี** |
+| `bill_product` | `vat` | decimal(20,2) | **ไม่มี** |
+| `bill_product_detail` | `is_takeapic` | **ไม่มี** | int |
+| `bill_transfer` | `usecash_cn` | **ไม่มี** | decimal(20,2) |
+| `cart_detail` | `is_takeapic` | **ไม่มี** | int |
+| `lost_package` | `admin_quote` | **ไม่มี** | text |
+| `product_type` | `thaiword` | **ไม่มี** | varchar(225) |
+| `refill` | `approved_user` | **ไม่มี** | int |
+| `tracking` | `amount` | tinyint | int |
+| `tracking` | `checked_by` | int | **ไม่มี** |
+| `tracking` | `header` | text | int |
+| `tracking` | `is_checked` | int | **ไม่มี** |
+| `tracking` | `is_takeapic` | **ไม่มี** | int |
+| `tracking` | `subuser` | **ไม่มี** | varchar(225) |
+| `user` | `address` | mediumtext | text |
+| `user` | `cancel_remark` | mediumtext | text |
+| `user` | `commission` | int | **ไม่มี** |
+| `user` | `diff` | decimal(10,2) | decimal(20,2) |
+| `user` | `line_uid` | varchar(225) | varchar(100) |
+| `user` | `lineid` | varchar(45) | varchar(100) |
+| `user` | `phone2` | varchar(45) | varchar(50) |
+| `user` | `wechatid` | **ไม่มี** | varchar(100) |
+| `warehouse_section_detail` | `user_agent` | **ไม่มี** | int |
+

@@ -45,4 +45,17 @@ for g in ['tracking','shop','order','payment','balance','money-move','points','l
     summary.append(f"| {g} | {cnt['same']} | {cnt['diff']} | {cnt['SR-only']} | {len(jlonly)} |")
     out += [f'## {g}', '', '| ไฟล์ | สถานะ |', '|---|---|'] + rows + ['']
 out[5:5] = ['| กลุ่ม | same | diff | SR-only | JL-only |', '|---|---:|---:|---:|---:|'] + summary + ['']
+# ความต่างของ schema (information_schema ของ admin_jl_bench เทียบ admin_sr_bench)
+def cols(db):
+    r = subprocess.run(['mysql', '-N', '-e', f"select table_name, column_name, column_type from information_schema.columns where table_schema='{db}' order by 1,2"], capture_output=True, text=True)
+    return {tuple(l.split('\t')[:2]): l.split('\t')[2] for l in r.stdout.splitlines() if l}
+J, Sr = cols('admin_jl_bench'), cols('admin_sr_bench')
+jt, st = {t for t, _ in J}, {t for t, _ in Sr}
+out += ['## schema: admin_jl_bench → admin_sr_bench', '', f"- ตารางที่ jl มีแต่ SR ไม่มี: {', '.join(f'`{t}`' for t in sorted(jt - st)) or '-'}",
+        f"- ตารางที่ SR มีแต่ jl ไม่มี: {', '.join(f'`{t}`' for t in sorted(st - jt)) or '-'}", '', '| ตาราง | คอลัมน์ | jl | SR |', '|---|---|---|---|']
+for k in sorted(set(J) | set(Sr)):
+    if k[0] not in jt or k[0] not in st: continue
+    a, b = J.get(k), Sr.get(k)
+    if a != b: out.append(f'| `{k[0]}` | `{k[1]}` | {a or "**ไม่มี**"} | {b or "**ไม่มี**"} |')
+out.append('')
 print('\n'.join(out))
