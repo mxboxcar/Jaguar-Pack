@@ -50,6 +50,11 @@ class RouteSecurityTest extends TestCase
             if (array_key_exists($route->uri(), self::PUBLIC)) {
                 continue;
             }
+            // เว็บหน้าแรก (routes/www.php) ผูกโดเมน jlcargoth.com/www — หน้า public อ่านอย่างเดียว ไม่มี POST
+            if (in_array($route->getDomain(), (array) config('legacy.www.hosts'), true)
+                && $route->methods() === ['GET', 'HEAD']) {
+                continue;
+            }
             $mw = $route->gatherMiddleware();
             $ok = false;
             foreach ($mw as $m) {

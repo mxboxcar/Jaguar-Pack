@@ -6,6 +6,11 @@
 */
 
 return [
+    // เว็บหน้าแรก (routes/www.php) — host ที่ Laravel รับหน้า www
+    'www' => [
+        'hosts' => array_filter(array_map('trim', explode(',', (string) env('LEGACY_WWW_HOSTS', 'jlcargoth.com,www.jlcargoth.com')))),
+    ],
+
 
     // define('href', ...) เดิม: URL หลักของพอร์ทัล ต้องลงท้ายด้วย /
     // dev ปล่อยว่าง = ใช้ APP_URL ของ request ปัจจุบัน (จะได้ใช้ได้ทั้ง :8100 และ worktree :82xx)
