@@ -20,7 +20,7 @@
 @if(Php74::eq($d['lot_id'] ?? null, '0'))
 -
 @else
-    	<a target="_blank" href="{{ legacy_href() }}admin/lot/{{ $d['lot_id'] ?? '' }}">{{ $d['lot_name'] ?? '' }}</a>/{{ $d['no'] ?? '' }}
+    	<a href="{{ legacy_href() }}admin/lot/{{ $d['lot_id'] ?? '' }}">{{ $d['lot_name'] ?? '' }}</a>/{{ $d['no'] ?? '' }}
 @endif
     </div>
 </div>

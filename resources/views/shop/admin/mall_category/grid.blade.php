@@ -47,7 +47,7 @@
 @if (count($data) !== 0)
 @foreach ($data as $item)
                         <tr>
-                            <td><a target="_blank" href="{{ legacy_href() }}admin/mall_category/{{ $item->id }}">
+                            <td><a href="{{ legacy_href() }}admin/mall_category/{{ $item->id }}">
                                 {{ $prefix }}{{ $item->id }}</a></td>
                             <td>{{ $item->name }}</td>
                             <td class="text-center">{!! Format::numberformatzero($count[$item->id] ?? 0) !!}</td>

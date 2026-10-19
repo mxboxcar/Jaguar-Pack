@@ -30,9 +30,9 @@ final class UploadInline
         $html .= '<div style="float:left;clear: none;margin-left: 10px;" class=" upload_'.$rand.'_preview">';
         if ($filename !== '') {
             if (Format::uploadIsImage($filename)) {
-                $html .= "<a class='fancybox' style='float:left;' target='_blank' href='".$blob.$f."'><img src='".$blob.$f."' style='max-width: 120px;max-height: 120px;' /></a>";
+                $html .= "<a class='fancybox' style='float:left;' href='".$blob.$f."'><img src='".$blob.$f."' style='max-width: 120px;max-height: 120px;' /></a>";
             } else {
-                $html .= "<a style='float:left;' target='_blank' download='".$f."' href='".$blob.$f."'>".$f.'</a>';
+                $html .= "<a style='float:left;' download='".$f."' href='".$blob.$f."'>".$f.'</a>';
             }
         }
         $html .= '</div>';
@@ -61,9 +61,9 @@ final class UploadInline
             $html .= ' ErrorBox(response.toLowerCase(), "CloseLoading()"); $(".upload_'.$rand.'_preview").html("");$("input[name=\'upload_'.$rand.'\']").val("") ';
             $html .= ' } else {';
             $html .= ' if(/\.(jpg|jpeg|png)$/i.test(response)) { ';
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" target="_blank" href="'.$href.'upload/temp/\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 21px;max-height: 21px;" /></a>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 21px;max-height: 21px;" /></a>\'); ';
             $html .= ' } else {';
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a style="float:left" download target="_blank" href="'.$href.'upload/temp/\' + response + \'">\' + response + \'</a>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a style="float:left" download href="'.$href.'upload/temp/\' + response + \'">\' + response + \'</a>\'); ';
             $html .= ' } ';
             $html .= ' $("input[name=\'upload_'.$rand.'\']").val(response);';
             $html .= ' $(".upload_'.$rand.'_delete").css("display", "block");';

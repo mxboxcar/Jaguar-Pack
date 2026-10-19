@@ -58,9 +58,9 @@ final class Upload
         if ($filename !== '') {
             $blob = $e(Legacy::hrefBlob($filename));
             if (Format::uploadIsImage($filename)) {
-                $html .= "<a class='fancybox' style='float:left;' target='_blank' href='".$blob."'><img src='".$blob."' style='max-width: 120px;max-height: 120px;' /></a>";
+                $html .= "<a class='fancybox' style='float:left;' href='".$blob."'><img src='".$blob."' style='max-width: 120px;max-height: 120px;' /></a>";
             } else {
-                $html .= "<a style='float:left;' target='_blank' download='".$e($filename)."' href='".$blob."'>".$e($filename).'</a>';
+                $html .= "<a style='float:left;' download='".$e($filename)."' href='".$blob."'>".$e($filename).'</a>';
             }
         }
         $html .= '</div>';
@@ -85,9 +85,9 @@ final class Upload
             $html .= ' ErrorBox(response.toLowerCase(), "CloseLoading()"); $(".upload_'.$rand.'_preview").html("");$("input[name=\'upload_'.$rand.'\']").val("") ';
             $html .= ' } else {';
             $html .= ' if(/\.(jpg|jpeg|png)$/i.test(response)) { ';
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" target="_blank" href="'.$href.'upload/temp/\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a>\'); ';
             $html .= ' } else {';
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a style="float:left" download target="_blank" href="'.$href.'upload/temp/\' + response + \'">\' + response + \'</a>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a style="float:left" download href="'.$href.'upload/temp/\' + response + \'">\' + response + \'</a>\'); ';
             $html .= ' } ';
             $html .= ' $("input[name=\'upload_'.$rand.'\']").val(response);';
             $html .= ' $(".upload_'.$rand.'_delete").css("display", "block");';

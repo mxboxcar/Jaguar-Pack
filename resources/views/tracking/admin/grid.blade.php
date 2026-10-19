@@ -76,14 +76,14 @@
                                     <tr>
                                         <td class="text-right left">{!! res('lot_and_no') !!} : </td>
                                         <td style="padding-left:3px" class="text-left">
-                                            {!! Status::getShipType($item->ship) !!} <a target='_blank' href='{{ legacy_href() }}admin/lot/{{ $item->lot_id }}'>{{ $item->lot_name }}</a>/{{ $item->no }}
+                                            {!! Status::getShipType($item->ship) !!} <a href='{{ legacy_href() }}admin/lot/{{ $item->lot_id }}'>{{ $item->lot_name }}</a>/{{ $item->no }}
                                         </td>
                                     </tr>
                                     @include('tracking.partials.flags', ['typeName' => $item->product_type_name])
                                     <tr>
                                         <td class="text-right left">{!! res('admin_remark') !!} : </td>
                                         <td style="padding-left:3px" class="text-left">
-                                        {{ $quotes[$tid] ?? '' }}@isset($goods[$tid]) <a target='_blank' href='{{ legacy_href() }}admin/goodsconfirm/{{ $goods[$tid] }}'>{{ $goodsPrefix.$goods[$tid] }}</a>@endisset
+                                        {{ $quotes[$tid] ?? '' }}@isset($goods[$tid]) <a href='{{ legacy_href() }}admin/goodsconfirm/{{ $goods[$tid] }}'>{{ $goodsPrefix.$goods[$tid] }}</a>@endisset
 
                                        </td>
                                     </tr>
@@ -122,7 +122,7 @@
                                 @elseif (Php74::eq($item->payment_id, '-3'))
 <i class='text-danger' >claim</i>
                                 @else
-<i class='fa fa-check-circle text-success' ></i><div><a href='{{ legacy_href() }}admin/payment/{{ $item->payment_id }}' target='_blank'>{{ $payPrefix.$item->payment_id }}</a></div>
+<i class='fa fa-check-circle text-success' ></i><div><a href='{{ legacy_href() }}admin/payment/{{ $item->payment_id }}'>{{ $payPrefix.$item->payment_id }}</a></div>
                                 @endif
                             </td>
 

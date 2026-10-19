@@ -21,7 +21,7 @@
 
 <div class="col-sm-6">
 	<div class="card-box">
-		@foreach ($types as $row)<p><a target='_blank' href='{{ legacy_href() }}admin/report/{{ $row->id }}'>- {{ $row->name }}</a></p>@endforeach<p><a target='_blank' target='_blank' href='{{ legacy_href() }}admin/report/preorder_working' />- สรุปการทำงาน</a></p><p><a target='_blank' target='_blank' href='{{ legacy_href() }}_admin/_report/current_cash' />- {!! res('customer_balance') !!}</a></p><p><a target='_blank' target='_blank' href='{{ legacy_href() }}_admin/_report/current_cash_cn' />- {!! res('customer_balance_cn') !!}</a></p>@foreach ($months as $mm => $mname)<p><a target='_blank' target='_blank' href='{{ legacy_href() }}_admin/_report/cashmove?m={{ $year }}-{{ $mm }}' />- รายงานยอดเงินเคลื่อนไหวประจำเดือน {{ $mname }} {{ $year }}</a></p>@endforeach
+		@foreach ($types as $row)<p><a href='{{ legacy_href() }}admin/report/{{ $row->id }}'>- {{ $row->name }}</a></p>@endforeach<p><a href='{{ legacy_href() }}admin/report/preorder_working' />- สรุปการทำงาน</a></p><p><a href='{{ legacy_href() }}_admin/_report/current_cash' />- {!! res('customer_balance') !!}</a></p><p><a href='{{ legacy_href() }}_admin/_report/current_cash_cn' />- {!! res('customer_balance_cn') !!}</a></p>@foreach ($months as $mm => $mname)<p><a href='{{ legacy_href() }}_admin/_report/cashmove?m={{ $year }}-{{ $mm }}' />- รายงานยอดเงินเคลื่อนไหวประจำเดือน {{ $mname }} {{ $year }}</a></p>@endforeach
 	</div>
 </div>
 @endsection

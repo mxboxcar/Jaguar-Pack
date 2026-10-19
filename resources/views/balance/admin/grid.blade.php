@@ -46,11 +46,11 @@
                             </td>
                             <td class="text-center">{{ $item->name }}</td>
                             <td class="text-left">
-                                <a target="_blank" href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">
+                                <a href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">
                                     {{ $item->detail }}
                                 </a>
 @if((string) $item->type === '12' && (string) $item->w_upload !== '')
-<a class="fancybox" target="_blank" href="{{ legacy_blob($item->w_upload) }}">
+<a class="fancybox" href="{{ legacy_blob($item->w_upload) }}">
                                             <img src="{{ legacy_blob($item->w_upload) }}" style="border:1px solid #a0a0a0;max-width: 26px;max-height: 26px;margin-right: 10px;">
                                         </a>
 @endif
@@ -70,7 +70,7 @@
 @endif
                             </td>
                             <td class="text-center">
-                                <a target="_blank"  href="#" onclick="load_amount({{ (int) $item->id }});return false;" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
+                                <a  href="#" onclick="load_amount({{ (int) $item->id }});return false;" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
                             </td>
                         </tr>
 @empty

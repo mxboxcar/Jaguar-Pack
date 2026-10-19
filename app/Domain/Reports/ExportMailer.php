@@ -36,7 +36,7 @@ final class ExportMailer
         $att = (string) ($data->export_attachment ?? '');
         if ($att !== '') {
             $img = e(Legacy::hrefBlob($att));
-            $body .= "<p><a target='_blank' href='".$img."' >\n\t\t<img src='".$img."' style='height:120px' /></a></p>";
+            $body .= "<p><a href='".$img."' >\n\t\t<img src='".$img."' style='height:120px' /></a></p>";
         }
         self::send('export success', $id, $subject, $body.self::button($link), (string) ($data->email ?? ''));
     }
@@ -63,7 +63,7 @@ final class ExportMailer
     {
         return "<div style=\"height:20px\"></div>\n"
             ."<p style=\"width:200px;text-align:center;font-size:15px;background-color:#991b1e;padding:10px 25px;\" >\n"
-            .'<a target="_blank" style="color:#ffffff;text-decoration:none" href="'.$link."\" >ดูรายละเอียด</a></p>\n";
+            .'<a style="color:#ffffff;text-decoration:none" href="'.$link."\" >ดูรายละเอียด</a></p>\n";
     }
 
     private static function send(string $kind, int|string $id, string $subject, string $body, string $to): void

@@ -103,7 +103,7 @@ final class Lookups
             foreach ($rows as $item) {
                 $exp = explode(' ', (string) $item->create_date);
                 $h .= ($o['tr'] ? '<tr>' : '').'<td>'.Format::getthaidate($exp[0]).$o['br'].e($exp[1] ?? '').'</td>';
-                $h .= '<td class="text-left"><a target="_blank" href="'.e($href.$item->link.$item->prefix_ref_id).'">'.e($item->detail).'</a></td>';
+                $h .= '<td class="text-left"><a href="'.e($href.$item->link.$item->prefix_ref_id).'">'.e($item->detail).'</a></td>';
                 $h .= '<td class="text-right">';
                 if ((float) $item->amount >= 0) {
                     $h .= '<span class="text-success">+'.Format::numberformat($item->amount).'</span>';

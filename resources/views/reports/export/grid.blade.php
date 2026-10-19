@@ -48,7 +48,7 @@
                     <tbody>
                     @forelse ($items as $item)
                         <tr>
-                            <td><a target="_blank" href="{{ legacy_href() }}export/{{ $item->id }}">{{ $prefix.$item->id }}</a></td>
+                            <td><a href="{{ legacy_href() }}export/{{ $item->id }}">{{ $prefix.$item->id }}</a></td>
                             <td class="text-center">
                                 {!! Rows::dateCell($item->create_date) !!}
                             </td>

@@ -56,7 +56,7 @@
                             $count = $counts[$item->id] ?? null;
                         @endphp
                         <tr>
-                            <td><a target="_blank" href="{{ legacy_href() }}admin/lot/{{ $item->id }}">
+                            <td><a href="{{ legacy_href() }}admin/lot/{{ $item->id }}">
                             @if (Php74::neq($item->name, ''))
 {!! Status::getShipType($item->type) !!} {{ $item->name }}@endif </a></td>
                             <td class="text-left">{{ $item->name_admin }}</td>
@@ -80,7 +80,7 @@
     width: 60px;
     white-space: nowrap;
     overflow: hidden !important;
-    text-overflow: ellipsis;" target="_blank" href="{{ legacy_href() }}download_file?path={{ urlencode(legacy_blob().$item->attachment) }}&filename={{ urlencode((string) $item->attachment_name) }}">{{ $item->attachment_name }}</a></div>@endif
+    text-overflow: ellipsis;" href="{{ legacy_href() }}download_file?path={{ urlencode(legacy_blob().$item->attachment) }}&filename={{ urlencode((string) $item->attachment_name) }}">{{ $item->attachment_name }}</a></div>@endif
                             </td>
                             <!-- <td class="text-center">{!! Status::getlotstatus($item->status) !!}</td> -->
                             <td class="text-right">
@@ -90,20 +90,20 @@
 
                                 
                                 @if (Php74::eq($item->is_mail, 1))
-                                <a target="_blank"  href="#" onclick="Sendmail({{ $item->id }});return false;"  data-toggle="tooltip" title="ส่งอีเมล์แล้ว"  class="table-action-btn"><i class="fa fa-envelope text-danger"></i></a>
+                                <a  href="#" onclick="Sendmail({{ $item->id }});return false;"  data-toggle="tooltip" title="ส่งอีเมล์แล้ว"  class="table-action-btn"><i class="fa fa-envelope text-danger"></i></a>
                                 @else
-                                <a target="_blank"  href="#" onclick="Sendmail({{ $item->id }});return false;"  data-toggle="tooltip" title="ส่งอีเมล์"  class="table-action-btn"><i class="fa fa-envelope-o text-primary"></i></a>
+                                <a  href="#" onclick="Sendmail({{ $item->id }});return false;"  data-toggle="tooltip" title="ส่งอีเมล์"  class="table-action-btn"><i class="fa fa-envelope-o text-primary"></i></a>
                                 @endif
 
-                                <a target="_blank" href="{{ legacy_href() }}/_admin/_lot/print_all?lot={{ $item->id }}"  data-toggle="tooltip" title="ดาวน์โหลดไฟล์ Lot"  class="table-action-btn" ><i class="fa fa-file-o text-primary"></i></a>
+                                <a href="{{ legacy_href() }}/_admin/_lot/print_all?lot={{ $item->id }}"  data-toggle="tooltip" title="ดาวน์โหลดไฟล์ Lot"  class="table-action-btn" ><i class="fa fa-file-o text-primary"></i></a>
 
                                 @if (Php74::eq($item->is_print, 1))
-                                <a target="_blank"  href="#" onclick="LoadRefPrint({{ $item->id }});return false;" data-toggle="tooltip" title="พิมพ์แล้ว" class="table-action-btn"><i class="fa fa-print text-danger"></i></a>
+                                <a  href="#" onclick="LoadRefPrint({{ $item->id }});return false;" data-toggle="tooltip" title="พิมพ์แล้ว" class="table-action-btn"><i class="fa fa-print text-danger"></i></a>
                                 @else
-                                <a target="_blank"  href="#" onclick="LoadRefPrint({{ $item->id }});return false;" data-toggle="tooltip" title="พิมพ์" class="table-action-btn"><i class="fa fa-print text-primary"></i></a>
+                                <a  href="#" onclick="LoadRefPrint({{ $item->id }});return false;" data-toggle="tooltip" title="พิมพ์" class="table-action-btn"><i class="fa fa-print text-primary"></i></a>
                                 @endif
                                 
-                                <a target="_blank"  href="{{ legacy_href() }}_admin/_lot/print_receive?id={{ $item->id }}" data-toggle="tooltip" title="พิมพ์ใบรับสินค้า" class="table-action-btn"><i class="fa fa-print text-danger"></i></a>
+                                <a  href="{{ legacy_href() }}_admin/_lot/print_receive?id={{ $item->id }}" data-toggle="tooltip" title="พิมพ์ใบรับสินค้า" class="table-action-btn"><i class="fa fa-print text-danger"></i></a>
 
                                 
                             </td>

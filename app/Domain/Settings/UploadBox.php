@@ -44,9 +44,9 @@ final class UploadBox
             : '<div style="float:left;clear: both;margin-top: 10px;" class=" upload_'.$rand.'_preview">';
         if ($filename !== '') {
             if (Format::uploadIsImage($filename)) {
-                $html .= "<a class='fancybox' style='float:left;' target='_blank' href='".$blob."'><img src='".$blob."' style='max-width: 120px;max-height: 120px;' /></a>";
+                $html .= "<a class='fancybox' style='float:left;' href='".$blob."'><img src='".$blob."' style='max-width: 120px;max-height: 120px;' /></a>";
             } else {
-                $html .= "<a style='float:left;' target='_blank' download='".$f."' href='".$blob."'>".$f.'</a>';
+                $html .= "<a style='float:left;' download='".$f."' href='".$blob."'>".$f.'</a>';
             }
         }
         $html .= '</div>';
@@ -81,14 +81,14 @@ final class UploadBox
         $html .= ' } else {';
         $html .= ' if(/\.(jpg|jpeg|png)$/i.test(response)) { ';
         if ($variant === 'multiple') {
-            $html .= ' $(".upload_'.$rand.'_preview").append(\'<div class="image_list_items"><a class="fancybox" style="float:left" target="_blank" href="'.$temp.'\' + response + \'"><input type="hidden" class="" id="upload_'.$rand.'" name="upload_'.$rand.'_mul[]" value="\' + response + \'"><img src="'.$temp.'\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a><div onclick="$(this).parent().remove()" style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">'.$del.'</div></div></div>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview").append(\'<div class="image_list_items"><a class="fancybox" style="float:left" href="'.$temp.'\' + response + \'"><input type="hidden" class="" id="upload_'.$rand.'" name="upload_'.$rand.'_mul[]" value="\' + response + \'"><img src="'.$temp.'\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a><div onclick="$(this).parent().remove()" style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">'.$del.'</div></div></div>\'); ';
             $html .= ' } else {';
-            $html .= ' $(".upload_'.$rand.'_preview").append(\'<div class="image_list_items"><a style="float:left" download target="_blank" href="'.$temp.'\' + response + \'"><input type="hidden" class="" id="upload_'.$rand.'" name="upload_'.$rand.'_mul[]" value="\' + response + \'">\' + response + \'</a><div onclick="$(this).parent().remove()" style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">'.$del.'</div></div></div>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview").append(\'<div class="image_list_items"><a style="float:left" download href="'.$temp.'\' + response + \'"><input type="hidden" class="" id="upload_'.$rand.'" name="upload_'.$rand.'_mul[]" value="\' + response + \'">\' + response + \'</a><div onclick="$(this).parent().remove()" style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">'.$del.'</div></div></div>\'); ';
         } else {
             $size = $variant === 'inline' ? '21px' : '120px';
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" target="_blank" href="'.$temp.'\' + response + \'"><img src="'.$temp.'\' + response + \'" style="max-width: '.$size.';max-height: '.$size.';" /></a>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" href="'.$temp.'\' + response + \'"><img src="'.$temp.'\' + response + \'" style="max-width: '.$size.';max-height: '.$size.';" /></a>\'); ';
             $html .= ' } else {';
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a style="float:left" download target="_blank" href="'.$temp.'\' + response + \'">\' + response + \'</a>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a style="float:left" download href="'.$temp.'\' + response + \'">\' + response + \'</a>\'); ';
         }
         $html .= ' } ';
         $html .= ' $("input[name=\'upload_'.$rand.'\']").val(response);';

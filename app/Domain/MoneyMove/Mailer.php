@@ -28,7 +28,7 @@ final class Mailer
 
     private const FOOTER = "<?php require_once('system_config.php'); ?>\n</div>\n<br />\n* หากมีข้อสงสัยกรุณาติดต่อ<br />\nE-mail : jlcargoth@hotmail.com<br />\nPhone : 095-550-4009<br />\nLineID : @jlcargo\n<br />\n<br />\nขอแสดงความนับถือ<br />\nJLcargo\n</div>";
 
-    private const BUTTON = "<div style=\"height:20px\"></div>\n<p style=\"width:200px;text-align:center;font-size:15px;background-color:#991b1e;padding:10px 25px;\" >\n<a target=\"_blank\" style=\"color:#ffffff;text-decoration:none\" href=\"%s\" >ดูรายละเอียด</a></p>\n";
+    private const BUTTON = "<div style=\"height:20px\"></div>\n<p style=\"width:200px;text-align:center;font-size:15px;background-color:#991b1e;padding:10px 25px;\" >\n<a style=\"color:#ffffff;text-decoration:none\" href=\"%s\" >ดูรายละเอียด</a></p>\n";
 
     public static function refillApproved(int|string $id): void
     {
@@ -72,7 +72,7 @@ final class Mailer
         $up = (string) ($d->approved_upload ?? '');
         if ($up !== '') {
             $u = e(Legacy::hrefBlob($up));
-            $body .= "<p><a target='_blank' href='".$u."' >\n\t\t<img src='".$u."' style='height:120px' /></a></p>";
+            $body .= "<p><a href='".$u."' >\n\t\t<img src='".$u."' style='height:120px' /></a></p>";
         }
         self::send('transfer', $id, $d, $subject, $body.sprintf(self::BUTTON, $link));
     }

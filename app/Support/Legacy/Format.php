@@ -329,13 +329,13 @@ final class Format
         }
         $u = Legacy::hrefBlob($image);
 
-        return '<a class="fancybox" target="_blank" href="'.$u.'"><img src="'.$u.'" style="max-width: 40px;max-height: 40px;"></a>';
+        return '<a class="fancybox" href="'.$u.'"><img src="'.$u.'" style="max-width: 40px;max-height: 40px;"></a>';
     }
 
     public static function goLogImg(?string $image): string
     {
         $u = Legacy::hrefBlob((string) $image);
 
-        return '<a class="fancybox" target="_blank" href="'.$u.'"><img src="'.$u.'" style="max-width: 60px;max-height: 60px;"></a>';
+        return '<a class="fancybox" href="'.$u.'"><img src="'.$u.'" style="max-width: 60px;max-height: 60px;"></a>';
     }
 }

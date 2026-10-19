@@ -24,7 +24,7 @@
                     <tbody>
                     @forelse ($items as $item)
                         <tr>
-                            <td><a target="_blank" href="{{ legacy_href() }}admin/withdrawcash/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a></td>
+                            <td><a href="{{ legacy_href() }}admin/withdrawcash/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a></td>
                             <td class="text-center">{{ $item->code }}</td>
                             <td class="text-center">
                                 {!! Lookups::gridDate($item->date) !!}

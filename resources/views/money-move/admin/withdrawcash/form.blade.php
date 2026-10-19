@@ -80,7 +80,7 @@
 		        <div class="form-group">
 		            <label class="col-md-5 control-label">{!! res('customer_code') !!}</label>
 		            <div class="col-md-4 form-control-static">
-		            	<a target="_blank" href="{{ legacy_href() }}admin/user/{{ $d['user_id'] ?? '' }}">{{ $d['code'] ?? '' }}</a>
+		            	<a href="{{ legacy_href() }}admin/user/{{ $d['user_id'] ?? '' }}">{{ $d['code'] ?? '' }}</a>
 		            </div>
 		        </div>
 		        <div class="form-group">

@@ -100,7 +100,7 @@
 					<a href="#" onclick="onedit('{{ Alerts::js($trk) }}');return false;" class="table-action-btn"><i class="fa  fa-pencil text-primary"></i></a>
 					<a href="#" onclick="ondelete({{ $item->id }});return false;" class="table-action-btn"><i class="fa  fa-close text-danger"></i></a>
 				</div>
-			</td><td rowspan="1" class="text-center" style="vertical-align:top">{{ $item->no }}</td><td style="white-space: nowrap;{{ Php74::eq($item->is_checked, 0) ? '' : 'background-color:#eaeaea' }}" class="showdetailbox"><a href="{{ legacy_href() }}admin/order/{{ $item->bill_product_id }}/{{ $trk }}" target="_blank">{{ $trk }}</a>
+			</td><td rowspan="1" class="text-center" style="vertical-align:top">{{ $item->no }}</td><td style="white-space: nowrap;{{ Php74::eq($item->is_checked, 0) ? '' : 'background-color:#eaeaea' }}" class="showdetailbox"><a href="{{ legacy_href() }}admin/order/{{ $item->bill_product_id }}/{{ $trk }}">{{ $trk }}</a>
 				<div class="text-right lot_table_in" style="display:none;position:absolute;background-color:#fff">
 						<table class="lot_table ">
 						<thead>

@@ -43,7 +43,7 @@
                     <tbody>
                     @forelse ($items as $item)
                         <tr>
-                            <td><a target="_blank" href="{{ legacy_href() }}admin/user_type/{{ $item->id }}">
+                            <td><a href="{{ legacy_href() }}admin/user_type/{{ $item->id }}">
                                 {{ $prefix }}{{ $item->id }}</a></td>
                             <td>{{ $item->name }}</td>
                             <td class="text-center">{!! \App\Support\Legacy\Format::numberformatzero($item->count) !!}</td>

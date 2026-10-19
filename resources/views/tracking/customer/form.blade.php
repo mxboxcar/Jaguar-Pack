@@ -170,7 +170,7 @@
 		            	@if ($isNew)
 -
 		            	@else
-<a target="_blank" href="{{ legacy_href() }}export/{{ $g('payment_id') }}">{{ $payPrefix.$g('payment_id') }}</a>
+<a href="{{ legacy_href() }}export/{{ $g('payment_id') }}">{{ $payPrefix.$g('payment_id') }}</a>
 		            	@endif
 		                
 		            </div>
@@ -181,7 +181,7 @@
 		            	@if ($isNew)
 -/-
 		            	@else
-<a target="_blank" href="{{ legacy_href() }}lot/{{ $g('lot_id') }}">{{ $g('lot_name') }}</a>/{{ $g('no') }}
+<a href="{{ legacy_href() }}lot/{{ $g('lot_id') }}">{{ $g('lot_name') }}</a>/{{ $g('no') }}
 		            	@endif
 		            </div>
 		        </div>

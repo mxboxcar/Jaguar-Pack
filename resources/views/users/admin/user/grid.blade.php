@@ -50,7 +50,7 @@
                     <tbody>
                     @forelse ($items as $item)
                         <tr>
-                            <td><a target="_blank" href="{{ legacy_href() }}admin/user/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a></td>
+                            <td><a href="{{ legacy_href() }}admin/user/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a></td>
                             <td>{{ $item->code }}</td>
                             <td>{{ $item->name }}</td>
                             <td>{{ $item->email }}</td>

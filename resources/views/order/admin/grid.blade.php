@@ -80,7 +80,7 @@
                         @endphp
                         <tr {!! $locked ? "class='danger'" : '' !!}>
                             
-                            <td><a target="_blank" href="{{ legacy_href() }}admin/order/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a>
+                            <td><a href="{{ legacy_href() }}admin/order/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a>
                             <div class="text-center">
                                 @if ($item->create_date === '0000-00-00 00:00:00' || (string) $item->create_date === '')
 -&nbsp;|&nbsp;-

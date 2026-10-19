@@ -130,7 +130,7 @@ final class LotMailer
         $link = Legacy::href('payment/create');
         $body .= $t("\n</tbody>\n</table>\n\n\n<div style=\"height:20px\"></div>\n"
             ."<p style=\"width:200px;text-align:center;font-size:15px;background-color:#991b1e;padding:10px 25px;\" >\n"
-            .'<a target="_blank" style="color:#ffffff;text-decoration:none" href="').$link.$t("\" >ดูรายละเอียด</a></p>\n");
+            .'<a style="color:#ffffff;text-decoration:none" href="').$link.$t("\" >ดูรายละเอียด</a></p>\n");
         $html = self::HEADER.'<strong>'.$subject.'</strong>'.self::CENTER.$body.self::FOOTER;
 
         try {

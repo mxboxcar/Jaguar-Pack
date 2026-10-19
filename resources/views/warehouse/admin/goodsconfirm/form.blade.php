@@ -166,7 +166,7 @@
 		        <div class="form-group">
 		            <label class="col-md-3 control-label"> {!! res('customer_code_goodsconfirm') !!}</label>
 		            <div class="col-md-7 form-control-static">
-		            	<a target="_blank" href="{{ legacy_href() }}admin/user/{{ $d['user'] ?? '' }}">{{ $d['code'] ?? '' }}</a>
+		            	<a href="{{ legacy_href() }}admin/user/{{ $d['user'] ?? '' }}">{{ $d['code'] ?? '' }}</a>
 		            </div>
 		        </div>
 		        @endif
@@ -190,7 +190,7 @@
 		        </div>
 		        <div class="form-group">
 		            <div class="col-xs-9 col-xs-offset-3" id="image_list">
-				        @foreach($images as $img)<div class="img_list_detail" style="float:left;margin-left: 10px;width:85px"><a style="float:left" class="fancybox" target="_blank" href="{{ legacy_blob((string) $img) }}">
+				        @foreach($images as $img)<div class="img_list_detail" style="float:left;margin-left: 10px;width:85px"><a style="float:left" class="fancybox" href="{{ legacy_blob((string) $img) }}">
 				                <img src="{{ legacy_blob((string) $img) }}" style="max-width: 50px;max-height: 50px;">
 				                <input type="hidden" name="img[]" value="{{ $img }}" />
 				                </a>
@@ -205,7 +205,7 @@
 		        </div>
 		        <div class="form-group">
 		            <div class="col-xs-9 col-xs-offset-3" id="image_list">
-				        @foreach($images as $img)<div class="img_list_detail" style="float:left;margin-left: 10px;width:85px"><a style="float:left" class="fancybox" target="_blank" href="{{ legacy_blob((string) $img) }}">
+				        @foreach($images as $img)<div class="img_list_detail" style="float:left;margin-left: 10px;width:85px"><a style="float:left" class="fancybox" href="{{ legacy_blob((string) $img) }}">
 				                <img src="{{ legacy_blob((string) $img) }}" style="max-width: 50px;max-height: 50px;">
 				                <input type="hidden" name="img[]" value="{{ $img }}" />
 				                </a>

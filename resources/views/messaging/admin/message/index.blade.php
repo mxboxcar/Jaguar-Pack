@@ -247,7 +247,7 @@ function on_uploadcomplate(lot, value)
                 eval(data);
             }
         });
-        var htmls = '<a class="fancybox" target="_blank" href="' + urls +'"><img src="' + urls + '" style="max-width: 120px;max-height: 120px;"></a>';
+        var htmls = '<a class="fancybox" href="' + urls +'"><img src="' + urls + '" style="max-width: 120px;max-height: 120px;"></a>';
 
         $(".chat-input").val(htmls);
         $("form").submit();

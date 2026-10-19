@@ -63,14 +63,14 @@
                     <tbody>
                     @forelse ($items as $item)
                         <tr>
-                            <td><a target="_blank" href="{{ legacy_href() }}{{ $base }}lost_package/{{ $item->id }}">{{ $prefix.$item->id }}</a></td>
+                            <td><a href="{{ legacy_href() }}{{ $base }}lost_package/{{ $item->id }}">{{ $prefix.$item->id }}</a></td>
                             <td class="text-center">
                                 {!! $dt($item->create_date) !!}
                             </td>
                             <td class="text-center">
                                 {!! $dt($item->approved_date) !!}
                             </td>
-                            <td class="text-left"><a href="{{ legacy_href() }}{{ $base }}order/{{ $item->order_id }}" target="_blank" >{{ $orderPrefix.$item->order_id }}</a></td>
+                            <td class="text-left"><a href="{{ legacy_href() }}{{ $base }}order/{{ $item->order_id }}" >{{ $orderPrefix.$item->order_id }}</a></td>
 @if ($admin)
                             <td class="text-center">{{ $item->code }}</td>
 @endif

@@ -55,7 +55,7 @@
 @endif
                             </td>
                             <td class="text-center">
-                                <a target="_blank"  href="#" onclick="load_amount({{ (int) $item->id }});return false;" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
+                                <a  href="#" onclick="load_amount({{ (int) $item->id }});return false;" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
                             </td>
                         </tr>
 @empty

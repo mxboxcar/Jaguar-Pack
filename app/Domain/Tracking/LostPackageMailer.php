@@ -46,7 +46,7 @@ final class LostPackageMailer
             .($cancel ? "มีเหตุขัดข้องบางประการที่ไม่สามารถดำเนินการได้ </p>\n" : 'ได้รับการยืนยันแล้ว </p>');
         $body .= "<div style=\"height:20px\"></div>\n";
         $body .= "<p style=\"width:200px;text-align:center;font-size:15px;background-color:#991b1e;padding:10px 25px;\" >\n"
-            ."<a target=\"_blank\" style=\"color:#ffffff;text-decoration:none\" href=\"".$link."\" >ดูรายละเอียด</a></p>\n";
+            ."<a style=\"color:#ffffff;text-decoration:none\" href=\"".$link."\" >ดูรายละเอียด</a></p>\n";
         $html = self::HEADER.'<strong>'.$subject.'</strong>'.self::CENTER.$body.self::FOOTER;
 
         $line = "แจ้งรายการไม่ได้สินค้า\nวันที่ ".Format::getthaidate(date('Y-m-d'), false, true)."\n\nหมายเลขรายการ : ".$no."\n"

@@ -60,7 +60,7 @@ final class CartHtml
                 <div class="col-xs-12 '.$e($item->shop_name).'" style="margin:10px 0px">
                 <input onclick="calselectcart()" type="checkbox" price="'.$totalThai.'" pricecn="'.$totalCn.'" value="'.$e($item->id).'" name="selected_cart[]" style="position: absolute;margin-left: -5px;z-index: 999;" />
                 <div class="col-xs-3">
-                    <a class="fancybox" target="_blank" href="'.$e($item->main_image).'">
+                    <a class="fancybox" href="'.$e($item->main_image).'">
                         <img style="border:1px #ccc solid" src="'.$e($item->main_image).'" class="img-responsive" />
                     </a>
                 </div>
@@ -68,7 +68,7 @@ final class CartHtml
 
                     $html .= '<div style="margin:0px 5px;float:left">';
                     if (str_contains($color, '//')) {
-                        $html .= 'สี : <a class="fancybox" target="_blank" href="'.$e($color).'">
+                        $html .= 'สี : <a class="fancybox" href="'.$e($color).'">
                                 <img src="'.$e($color).'" style="width:20px;height:20px;border:1px #ccc solid" /> <span>'.$e(explode('?r=', $color)[1] ?? '').'</span>
                             </a>';
                     } elseif ($color !== '') {
@@ -78,7 +78,7 @@ final class CartHtml
 
                     $html .= '<div style="margin:0px 5px;float:left">';
                     if (str_contains($size, '//')) {
-                        $html .= 'ขนาด : <a class="fancybox" target="_blank" href="'.$e($size).'">
+                        $html .= 'ขนาด : <a class="fancybox" href="'.$e($size).'">
                                 <img src="'.$e($size).'" style="width:20px;height:20px;border:1px #ccc solid" />
                             </a>';
                     } elseif ($size !== '') {
@@ -92,13 +92,13 @@ final class CartHtml
                     if ((string) $item->upload_file !== '') {
                         $blob = $e(Legacy::hrefBlob((string) $item->upload_file));
                         $html .= '<div style="margin:0px 5px;float:left">';
-                        $html .= 'รูปแนบ : <a class="fancybox" target="_blank" href="'.$blob.'">
+                        $html .= 'รูปแนบ : <a class="fancybox" href="'.$blob.'">
                                     <img src="'.$blob.'" style="width:20px;height:20px;border:1px #ccc solid" />
                                 </a>';
                         $html .= '</div>';
                     }
                     $html .= ' '.$e($item->remark).'';
-                    $html .= '<p style="margin:0px 5px;float;left"><a href="'.$e($item->url).'" target="_blank"><i class="fa fa-external-link"></i></a></p>';
+                    $html .= '<p style="margin:0px 5px;float;left"><a href="'.$e($item->url).'"><i class="fa fa-external-link"></i></a></p>';
                     $html .= '</div>
                 <div class="col-xs-9" style="margin-top:5px">
                     <div class="pull-left" style="color: #f40;font-size: 18px;font-weight: bold;">
@@ -203,7 +203,7 @@ final class CartHtml
                 $second = '';
 
                 if (str_contains($size, '//')) {
-                    $second .= '<a class="fancybox" target="_blank" href="'.$e($size).'">
+                    $second .= '<a class="fancybox" href="'.$e($size).'">
                                     <img src="'.$e($size).'" style="margin-top: -5px;border:1px solid #a0a0a0;max-width: 13px;max-height: 13px;"> <span>'.$e(explode('?r=', $color)[1] ?? '').'</span>
                                 </a>';
                 } elseif ($size !== '') {
@@ -212,7 +212,7 @@ final class CartHtml
                 }
 
                 if (str_contains($color, '//')) {
-                    $second .= '<a class="fancybox" target="_blank" href="'.$e($color).'">
+                    $second .= '<a class="fancybox" href="'.$e($color).'">
                                     <img src="'.$e($color).'" style="margin-top: -5px;border:1px solid #a0a0a0;max-width: 13px;max-height: 13px;"> <span>'.$e(explode('?r=', $color)[1] ?? '').'</span>
                                 </a>';
                 } elseif (str_contains($color, '#') && strlen($color) === 7) {
@@ -241,7 +241,7 @@ final class CartHtml
                         $second .= ' / ';
                     }
                     $blob = $e(Legacy::hrefBlob((string) $item->upload_file));
-                    $second .= '<a class="fancybox" target="_blank" href="'.$blob.'">
+                    $second .= '<a class="fancybox" href="'.$blob.'">
 			                        <img src="'.$blob.'" style="margin-top: -5px;border:1px solid #a0a0a0;max-width: 13px;max-height: 13px;">
 			                    </a>';
                 }
@@ -249,13 +249,13 @@ final class CartHtml
                 $newShop = $shopName != $item->shop_name;
                 $html .= '<tr>';
                 $html .= '<td>'.$no.'.</td>';
-                $html .= '<td class="text-center"><a class="fancybox" target="_blank" href="'.$e($item->main_image).'">
+                $html .= '<td class="text-center"><a class="fancybox" href="'.$e($item->main_image).'">
                         <img src="'.$e($item->main_image).'" style="max-width: 46px;max-height: 46px;">
                     </a></td>';
                 if ($newShop) {
                     $html .= '<td rowspan="'.$e($item->count).'"><div style="width: 150px;overflow: hidden;word-break: break-all;">'.$e($item->shop_name).'</div></td>';
                 }
-                $html .= '<td ><a target="_blank" href="'.$e($item->url).'">'.$e($productName).'</a>';
+                $html .= '<td ><a href="'.$e($item->url).'">'.$e($productName).'</a>';
                 if ($second !== '') {
                     $html .= '<div class="cd-price">'.$second.'</div>';
                 }

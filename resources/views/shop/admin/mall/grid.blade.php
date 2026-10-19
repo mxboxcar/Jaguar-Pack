@@ -33,7 +33,7 @@
 @if (count($data) !== 0)
 @foreach ($data as $item)
                         <tr>
-                            <td><a target="_blank" href="{{ legacy_href() }}admin/mall/{{ $item->id }}">
+                            <td><a href="{{ legacy_href() }}admin/mall/{{ $item->id }}">
                                 {{ $prefix }}{{ $item->id }}</a></td>
                             <td>{{ $item->name }}</td>
                             <td>{{ $item->code }}</td>

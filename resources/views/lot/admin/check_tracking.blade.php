@@ -11,7 +11,7 @@
     $links = $orders[(int) $item->id] ?? [];
     $orderLink = '';
     foreach ($links as $o) {
-        $orderLink .= ' / <a target="_blank" href="'.e(legacy_href('admin/order/'.$o)).'">'.e($orderPrefix.$o).'</a>';
+        $orderLink .= ' / <a href="'.e(legacy_href('admin/order/'.$o)).'">'.e($orderPrefix.$o).'</a>';
     }
 @endphp
     <tr>
@@ -41,7 +41,7 @@
                 <tr>
                     <td class="text-right left">{!! res('lot_and_no') !!} : </td>
                     <td style="padding-left:3px" class="text-left">
-                        {!! Status::getShipType($item->lot_type) !!} <a target='_blank' href='{{ legacy_href() }}admin/lot/{{ $item->lot_id }}'>{{ $item->lot_name }}</a>/{{ $item->no }}
+                        {!! Status::getShipType($item->lot_type) !!} <a href='{{ legacy_href() }}admin/lot/{{ $item->lot_id }}'>{{ $item->lot_name }}</a>/{{ $item->no }}
                     </td>
                 </tr>
                 <tr>
@@ -142,12 +142,12 @@
         <td class="text-center boxcar-td" style="vertical-align:top">
             @if (Php74::eq($item->payment_id, 0) || Php74::eq($item->payment_id, '-2'))
 <i class='fa  fa-close text-danger' ></i>@else
-<i class='fa fa-check-circle text-success' ></i><div><a href='{{ legacy_href() }}admin/payment/{{ $item->payment_id }}' target='_blank'>{{ $payPrefix.$item->payment_id }}</a></div>@endif
+<i class='fa fa-check-circle text-success' ></i><div><a href='{{ legacy_href() }}admin/payment/{{ $item->payment_id }}'>{{ $payPrefix.$item->payment_id }}</a></div>@endif
         </td>
 
 
         <td class="text-center">
-            <a target="_blank" href="{{ legacy_href() }}admin/tracking/{{ $item->id }}" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
+            <a href="{{ legacy_href() }}admin/tracking/{{ $item->id }}" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
         </td>
         
         

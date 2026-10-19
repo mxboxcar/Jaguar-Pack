@@ -51,7 +51,7 @@
                         @foreach ($items as $item)
                         @php $exp = explode(' ', (string) $item->create_date); @endphp
                         <tr>
-                            <td><a target="_blank" href="{{ legacy_href() }}admin/taobao/{{ $item->id }}">
+                            <td><a href="{{ legacy_href() }}admin/taobao/{{ $item->id }}">
                                 {{ $prefix }}{{ $item->id }}</a></td>
                             <td class="text-center">{!! Format::getthaidate($exp[0], true) !!}<br />{!! Format::gettime($exp[1] ?? '') !!}</td>
                             <td class="text-center">{!! Html::h($item->code) !!}</td>

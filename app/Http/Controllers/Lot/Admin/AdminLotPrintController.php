@@ -28,7 +28,7 @@ class AdminLotPrintController extends Controller
     /**
      * print / print_all / email_lot เป็น GET ที่เขียนข้อมูล (is_print, เข้าคิวส่งเมลถึงลูกค้าทั้งล็อต) — LegacyCsrf ไม่ตรวจ GET
      * → ไม่ยอมคำขอที่มาจากเว็บอื่น (เช่น <img src=".../email_lot?id=N"> ในหน้าเว็บที่แอดมินเปิด)
-     * JS/ลิงก์เดิมเปิดจากหน้าเดียวกัน (window.open / <a target=_blank>) = Sec-Fetch-Site: same-origin; พิมพ์ URL เอง = none
+     * JS/ลิงก์เดิมเปิดจากหน้าเดียวกัน (window.open / <a>) = Sec-Fetch-Site: same-origin; พิมพ์ URL เอง = none
      */
     public static function crossSite(Request $request): bool
     {

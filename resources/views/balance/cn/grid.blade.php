@@ -38,7 +38,7 @@
                             <td>{{ $prefix.$item->id }}</td>
                             <td class="text-center">{!! Format::getthaidate($exp[0], true) !!}<br />{!! Format::gettime(e($exp[1] ?? '')) !!}</td>
                             <td class="text-center">{{ $item->name }}</td>
-                            <td class="text-left"><a target="_blank" href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">{{ $item->detail }}</a></td>
+                            <td class="text-left"><a href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">{{ $item->detail }}</a></td>
                             <td class="text-right">
 @if(Ledger::nonNegative($item->amount))
 <span class="text-success">+{!! Format::numberformat($item->amount, true, true, true) !!}</span>

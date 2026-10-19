@@ -169,10 +169,10 @@ final class OrderDetailRenderer
         $color = (string) ($item['color'] ?? '');
         if (str_contains($size, '//')) {
             $s .= $admin
-                ? '<a class="fancybox" target="_blank" href="'.Html::url($size).'">
+                ? '<a class="fancybox" href="'.Html::url($size).'">
 	                        <img src="'.Html::h($size).'" style="border:1px solid #a0a0a0;max-width: 26px;max-height: 26px;margin-right: 10px;">
 	                    </a>'
-                : '<a class="fancybox" target="_blank" href="'.Html::url($size).'">
+                : '<a class="fancybox" href="'.Html::url($size).'">
                             <img src="'.Html::h($size).'" style="border:1px solid #a0a0a0;max-width: 26px;max-height: 26px;margin-right: 10px;">
                         </a>';
         } elseif ($size !== '') {
@@ -181,10 +181,10 @@ final class OrderDetailRenderer
         }
         if (str_contains($color, '//')) {
             $s .= $admin
-                ? '<a class="fancybox" target="_blank" href="'.Html::url($color).'">
+                ? '<a class="fancybox" href="'.Html::url($color).'">
 	                        <img src="'.Html::h($color).'" style="border:1px solid #a0a0a0;max-width: 26px;max-height: 26px;margin-right: 10px;"> <span>'.Html::h(explode('?r=', $color)[1] ?? '').'</span>
 	                    </a>'
-                : '<a class="fancybox" target="_blank" href="'.Html::url($color).'">
+                : '<a class="fancybox" href="'.Html::url($color).'">
                             <img src="'.Html::h($color).'" style="border:1px solid #a0a0a0;max-width: 26px;max-height: 26px;margin-right: 10px;">
                         </a>';
         } else {
@@ -207,10 +207,10 @@ final class OrderDetailRenderer
             }
             $u = Html::h($this->blob.$item['upload_file']);
             $s .= $admin
-                ? '<a class="fancybox" target="_blank" href="'.$u.'">
+                ? '<a class="fancybox" href="'.$u.'">
 	                        <img src="'.$u.'" style="border:1px solid #a0a0a0;width: 15px;height: 15px;margin-right: 10px;">
 	                    </a>'
-                : '<a class="fancybox" target="_blank" href="'.$u.'">
+                : '<a class="fancybox" href="'.$u.'">
 	                        <img src="'.$u.'" style="margin-top: -5px;border:1px solid #a0a0a0;width: 15px;height: 15px;margin-right: 10px;">
 	                    </a>';
         }
@@ -343,10 +343,10 @@ final class OrderDetailRenderer
                 $color = self::trColor($item);
                 $html .= '<tr>';
                 $html .= '<td style="width:50px;'.$color.'">'.$mainNo.'.'.$no.'.</td>';
-                $html .= '<td style="width:70px;'.$colors.'" class="text-center"><a class="fancybox" target="_blank" href="'.Html::url($item['main_image']).'">
+                $html .= '<td style="width:70px;'.$colors.'" class="text-center"><a class="fancybox" href="'.Html::url($item['main_image']).'">
                 <img src="'.Html::h($item['main_image']).'" style="max-width: 46px;max-height: 46px;">
             </a></td>';
-                $html .= '<td style="'.$color.'" ><a target="_blank" href="'.Html::url($item['url']).'">'.Html::h($pname).'</a>';
+                $html .= '<td style="'.$color.'" ><a href="'.Html::url($item['url']).'">'.Html::h($pname).'</a>';
                 if ($second !== '') {
                     $html .= '<div class="cd-price">'.$second.'</div>';
                 }
@@ -515,7 +515,7 @@ final class OrderDetailRenderer
         $html .= '<div class="" style="float:left;clear:both;">'.Format::getthaidate($exp1, true).'</div>';
         $html .= '<div class="" style="float:left;clear:both;">'.Format::getthaidate($exp2, true).'</div>';
         if ($pay) {
-            $html .= '<div class="" style="float:left;clear:both;"><a target="_blank" href="'.$this->href.'admin/export/'.Html::h($row['payment_id']).'" >'.OrderLookups::prefix('payment').Html::h($row['payment_id']).'</a></div>';
+            $html .= '<div class="" style="float:left;clear:both;"><a href="'.$this->href.'admin/export/'.Html::h($row['payment_id']).'" >'.OrderLookups::prefix('payment').Html::h($row['payment_id']).'</a></div>';
         }
         $html .= '</td>';
         if ($first) {
@@ -632,10 +632,10 @@ final class OrderDetailRenderer
                 $color = self::trColor($item);
                 $html .= '<tr>';
                 $html .= '<td style="width:50px;'.$color.'">'.$mainNo.'.'.$no.'.</td>';
-                $html .= '<td style="width:70px;'.$colors.'" class="text-center"><a class="fancybox" target="_blank" href="'.Html::url($item['main_image']).'">
+                $html .= '<td style="width:70px;'.$colors.'" class="text-center"><a class="fancybox" href="'.Html::url($item['main_image']).'">
                 <img src="'.Html::h($item['main_image']).'" style="max-width: 46px;max-height: 46px;">
             </a></td>';
-                $html .= '<td style="'.$color.'" ><a target="_blank" href="'.Html::url($item['url']).'">'.Html::h($pname).'</a>';
+                $html .= '<td style="'.$color.'" ><a href="'.Html::url($item['url']).'">'.Html::h($pname).'</a>';
                 if ($second !== '') {
                     $html .= '<div class="cd-price">'.$second.'</div>';
                 }
@@ -829,7 +829,7 @@ final class OrderDetailRenderer
         $html .= '<div class="" style="float:left;clear:both;">'.Format::getthaidate($exp1, true).'</div>';
         $html .= '<div class="" style="float:left;clear:both;">'.Format::getthaidate($exp2, true).'</div>';
         if ($pay) {
-            $html .= '<div class="" style="float:left;clear:both;"><a target="_blank" href="'.$this->href.'admin/export/'.Html::h($row['payment_id']).'" >'.OrderLookups::prefix('payment').Html::h($row['payment_id']).'</a></div>';
+            $html .= '<div class="" style="float:left;clear:both;"><a href="'.$this->href.'admin/export/'.Html::h($row['payment_id']).'" >'.OrderLookups::prefix('payment').Html::h($row['payment_id']).'</a></div>';
         }
         $html .= '</td>';
         $indent = $first ? "\t\t\t\t\t\t\t\t" : "\t\t\t\t\t\t\t";

@@ -29,7 +29,7 @@
 		        </tr>
 		    </thead>
 		    <tbody>
-		    	@foreach($rows as $item)@if((int) $item->id !== 0)<tr><td><a target="_blank" href="{{ legacy_href() }}admin/payment/{{ (int) $item->id }}" >{{ $payPrefix }}{{ (int) $item->id }}</a></td><td class="text-center">{{ $item->code }}</td><td >{{ $item->send_name ?? '' }}</td><td class="text-center">{{ $item->ship_name }}</td><td class="text-right">{!! Format::numberformat($item->total) !!}</td><td class="text-center"><a target="_blank"  href="{{ legacy_href() }}_admin/_export/print/?id={{ (int) $item->id }}" class="table-action-btn"><i class="fa fa-print text-primary"></i></a></td></tr>@endif @endforeach
+		    	@foreach($rows as $item)@if((int) $item->id !== 0)<tr><td><a href="{{ legacy_href() }}admin/payment/{{ (int) $item->id }}" >{{ $payPrefix }}{{ (int) $item->id }}</a></td><td class="text-center">{{ $item->code }}</td><td >{{ $item->send_name ?? '' }}</td><td class="text-center">{{ $item->ship_name }}</td><td class="text-right">{!! Format::numberformat($item->total) !!}</td><td class="text-center"><a  href="{{ legacy_href() }}_admin/_export/print/?id={{ (int) $item->id }}" class="table-action-btn"><i class="fa fa-print text-primary"></i></a></td></tr>@endif @endforeach
 
 		    </tbody>
 		</table>

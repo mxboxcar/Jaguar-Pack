@@ -40,7 +40,7 @@
                     <tbody>
                     @forelse ($items as $item)
                         <tr>
-                            <td><a target="_blank" href="{{ legacy_href() }}lot/{{ $item->id }}">
+                            <td><a href="{{ legacy_href() }}lot/{{ $item->id }}">
                             @if (Php74::neq($item->name, ''))
 {!! Status::getShipType($item->type) !!} {{ $item->name }}@endif </a></td>
                             <td class="text-left">

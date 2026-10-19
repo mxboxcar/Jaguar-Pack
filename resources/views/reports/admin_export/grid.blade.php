@@ -50,7 +50,7 @@
                     <tbody>
                     @forelse ($items as $item)
                         <tr>
-                            <td><a target="_blank" href="{{ legacy_href() }}admin/export/{{ $item->id }}">{{ $prefix.$item->id }}</a></td>
+                            <td><a href="{{ legacy_href() }}admin/export/{{ $item->id }}">{{ $prefix.$item->id }}</a></td>
                             <td class="text-center">{{ $item->code }}</td>
                             <td class="text-center">{{ $item->send_name }}</td>
                             <td class="text-center">
@@ -76,9 +76,9 @@
                             	<a href="{{ legacy_href() }}admin/export/{{ $item->id }}" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
                                 
                                 @if (Php74::eq($item->is_print, 0))
-                                <a target="_blank"  href="{{ legacy_href() }}_admin/_export/print/?id={{ $item->id }}" class="table-action-btn"><i class="fa fa-print text-primary"></i></a>
+                                <a  href="{{ legacy_href() }}_admin/_export/print/?id={{ $item->id }}" class="table-action-btn"><i class="fa fa-print text-primary"></i></a>
                                 @else
-                                <a target="_blank"  href="{{ legacy_href() }}_admin/_export/print/?id={{ $item->id }}" class="table-action-btn"><i class="fa fa-print text-danger"></i></a>
+                                <a  href="{{ legacy_href() }}_admin/_export/print/?id={{ $item->id }}" class="table-action-btn"><i class="fa fa-print text-danger"></i></a>
                                 @endif
                             </td>
                         </tr>

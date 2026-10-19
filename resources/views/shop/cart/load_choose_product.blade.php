@@ -12,7 +12,7 @@
 
     <div class="form-horizontal col-xs-4" role="form">    
         <div class="form-group col-xs-12">
-            <a class="fancybox" id="search_main_image_href" target="_blank" href="">
+            <a class="fancybox" id="search_main_image_href" href="">
                 <img src="" id="search_main_image" class="img-responsive" />
             </a>
         </div>
@@ -23,7 +23,7 @@
         </div>
 
         <div>
-        <a id="search_url" href="" target="_blank" type="button" class="btn btn-primary waves-effect waves-light">{!! res('view_this_item') !!}</a>
+        <a id="search_url" href="" type="button" class="btn btn-primary waves-effect waves-light">{!! res('view_this_item') !!}</a>
         </div>
     </div>
     <div class="form-horizontal col-xs-8" role="form">    

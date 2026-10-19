@@ -144,8 +144,11 @@ class MessagingRoutesTest extends TestCase
 
     public function test_chat_text_allows_only_the_image_attachment_markup(): void
     {
-        $img = '<a class="fancybox" target="_blank" href="https://x.blob.core.windows.net/upload/a.png"><img src="https://x.blob.core.windows.net/upload/a.png" style="max-width: 120px;max-height: 120px;"></a>';
+        $img = '<a class="fancybox" href="https://x.blob.core.windows.net/upload/a.png"><img src="https://x.blob.core.windows.net/upload/a.png" style="max-width: 120px;max-height: 120px;"></a>';
         $this->assertSame($img, ChatText::render($img));
+        // ข้อความเก่าใน DB ที่ยังมี target="_blank" → แสดงได้ แต่ตัด target ออก
+        $old = str_replace('class="fancybox" href', 'class="fancybox" target="_blank" href', $img);
+        $this->assertSame($img, ChatText::render($old));
         $this->assertSame('&lt;script&gt;alert(1)&lt;/script&gt;', ChatText::render('<script>alert(1)</script>'));
         $bad = str_replace('a.png"><img', 'a.png" onmouseover="x"><img', $img);
         $this->assertStringNotContainsString('<a', ChatText::render($bad));

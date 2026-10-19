@@ -22,7 +22,7 @@
 @if(count($rows) != 0)
 @foreach($rows as $item)
                         <tr>
-                            <td><a target="_blank" href="{{ legacy_href() }}admin/notice/{{ (int) $item->id }}">
+                            <td><a href="{{ legacy_href() }}admin/notice/{{ (int) $item->id }}">
                                 {{ $prefix }}{{ (int) $item->id }}</a></td>
                             <td>{!! NoticeText::excerpt($item->text) !!}</td>
                             <td class="text-center">
@@ -41,7 +41,7 @@
 @endif
                             </td>
                             <td class="text-center">
-                                <a target="_blank"  href="#" onclick="Sendmail({{ (int) $item->id }});return false;" class="table-action-btn"><i class="fa fa-envelope-o text-primary"></i></a>
+                                <a  href="#" onclick="Sendmail({{ (int) $item->id }});return false;" class="table-action-btn"><i class="fa fa-envelope-o text-primary"></i></a>
                             	<a href="{{ legacy_href() }}admin/notice/{{ (int) $item->id }}" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
                             	<a type="button" href="#" onclick="Delete({{ (int) $item->id }});return false;" class="table-action-btn"><i class="md  md-cancel text-danger"></i></a>
                             </td>

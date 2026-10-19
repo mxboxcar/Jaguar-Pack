@@ -10,14 +10,14 @@
 
 <p>หลังจากวันที่ 12 กุมภาพันธ์ 2017 บริษัทจะเปลี่ยนแปลงการให้บริการ เริ่มใช้ระบบใหม่ </p>
 <p>ซึ่งลูกค้ายังสามารถสร้างรายการชำระเงินของระบบเก่าเพื่อเคลียร์รายการที่ค้างอยู่ภายในระบบเก่า</p>
-<p>หลังจากเคลียร์รายการที่ค้างแล้ว รบกวนลูกค้าทุกท่านเข้าไปสมัครสมาชิกที่ <a href="#" target="_blank" onclick="setcookie(0);return false;">http://portal.gogo-cargo.com</a></p>
+<p>หลังจากเคลียร์รายการที่ค้างแล้ว รบกวนลูกค้าทุกท่านเข้าไปสมัครสมาชิกที่ <a href="#" onclick="setcookie(0);return false;">http://portal.gogo-cargo.com</a></p>
 <br />
 <p> หากลูกค้าต้องการแสดงความจำนงโอนย้าย<u>ยอดเงิน</u>ที่คงค้างอยู่ในระบบเก่าไประบบใหม่ </p>
 <p>สามารถยื่นหลักฐานต่างๆได้ที่ gogo-cargo@hotmail.com</p>
 <br />
 <p>การเข้าถึงระบบเก่าจะเปลี่ยนจาก 
-<a href="#" target="_blank" onclick="setcookie(0);return false;">http://portal.gogo-cargo.com</a> เป็น 
-<a href="#" target="_blank" onclick="setcookie(1);return false;">http://old.gogo-cargo.com</a></p>
+<a href="#" onclick="setcookie(0);return false;">http://portal.gogo-cargo.com</a> เป็น 
+<a href="#" onclick="setcookie(1);return false;">http://old.gogo-cargo.com</a></p>
 <p>การเข้าถึงระบบใหม่ 
 <a href="#" onclick="setcookie(0);return false;">http://portal.gogo-cargo.com</a></p>
 

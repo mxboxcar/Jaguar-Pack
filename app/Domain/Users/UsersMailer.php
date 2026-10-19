@@ -135,7 +135,7 @@ final class UsersMailer
     {
         return "<div style=\"height:20px\"></div>\n"
             .'<p style="width:200px;text-align:center;font-size:15px;'.$style."\" >\n"
-            .'<a target="_blank" style="color:#ffffff;text-decoration:none" href="'.Legacy::href('profile/')."\" >ดูรายละเอียด</a></p>\n";
+            .'<a style="color:#ffffff;text-decoration:none" href="'.Legacy::href('profile/')."\" >ดูรายละเอียด</a></p>\n";
     }
 
     private static function user(int $id): ?object

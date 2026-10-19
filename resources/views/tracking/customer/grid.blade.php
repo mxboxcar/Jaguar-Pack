@@ -107,7 +107,7 @@
                                 @elseif (Php74::eq($item->payment_id, '-3'))
 <i class='text-danger' >claim</i>
                                 @else
-<i class='fa fa-check-circle text-success' ></i><div><a href='{{ legacy_href() }}payment/{{ $item->payment_id }}' target='_blank'>{{ $payPrefix.$item->payment_id }}</a></div>
+<i class='fa fa-check-circle text-success' ></i><div><a href='{{ legacy_href() }}payment/{{ $item->payment_id }}'>{{ $payPrefix.$item->payment_id }}</a></div>
                                 @endif
                             </td>
                             

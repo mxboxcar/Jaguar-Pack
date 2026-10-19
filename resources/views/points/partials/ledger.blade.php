@@ -16,7 +16,7 @@
                     <tbody>
 @forelse($ledger as $item)
 @php $exp = explode(' ', (string) $item->create_date); $fmt = $item->kind === 'point' ? Format::numberformatpoint($item->amount) : ($item->kind === 'balance' ? Format::numberformat($item->amount) : Format::numberformat($item->amount, true, true, true)); @endphp
-<tr><td>{!! Format::getthaidate($exp[0]) !!}<br/>{{ $exp[1] ?? '' }}</td><td class="text-left"><a target="_blank" href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">{{ $item->detail }}</a>@if(! empty($cnRate) && $item->kind === 'balance_cn') ({!! Format::numberformat((float) $item->amount * 0) !!})@endif</td><td class="text-right">@if(Grid::nonNegative($item->amount))<span class="text-success">+{!! $fmt !!}</span>@else<span class="text-danger">{!! $fmt !!}</span>@endif</td>
+<tr><td>{!! Format::getthaidate($exp[0]) !!}<br/>{{ $exp[1] ?? '' }}</td><td class="text-left"><a href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">{{ $item->detail }}</a>@if(! empty($cnRate) && $item->kind === 'balance_cn') ({!! Format::numberformat((float) $item->amount * 0) !!})@endif</td><td class="text-right">@if(Grid::nonNegative($item->amount))<span class="text-success">+{!! $fmt !!}</span>@else<span class="text-danger">{!! $fmt !!}</span>@endif</td>
 @empty
 <tr><td colspan="3" class="text-center">{!! res('no_data') !!}</td></tr>
 @endforelse

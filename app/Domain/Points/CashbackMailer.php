@@ -63,7 +63,7 @@ final class CashbackMailer
     {
         return "<div style=\"height:20px\"></div>\r\n"
             ."<p style=\"width:200px;text-align:center;font-size:15px;background-color:#991b1e;padding:10px 25px;\" >\r\n"
-            .'<a target="_blank" style="color:#ffffff;text-decoration:none" href="'.$link."\" >ดูรายละเอียด</a></p>\r\n";
+            .'<a style="color:#ffffff;text-decoration:none" href="'.$link."\" >ดูรายละเอียด</a></p>\r\n";
     }
 
     private static function send(string $kind, mixed $id, string $subject, string $body, string $to): void

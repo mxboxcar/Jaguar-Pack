@@ -330,7 +330,7 @@
 				                    <tbody>@if (count($balance) !== 0)
 @foreach ($balance as $item)
 @php $exp = explode(' ', (string) $item->create_date); @endphp
-<tr><td>{!! Format::getthaidate($exp[0]) !!}<br/>{{ $exp[1] ?? '' }}</td><td class="text-left"><a target="_blank" href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">{{ $item->detail }}</a>@if ($item->types === 'balance_cn') ({!! Format::numberformat($n($item->amount) * $n($data->rate ?? '')) !!})@endif</td><td class="text-right">@if ($item->types === 'balance')
+<tr><td>{!! Format::getthaidate($exp[0]) !!}<br/>{{ $exp[1] ?? '' }}</td><td class="text-left"><a href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">{{ $item->detail }}</a>@if ($item->types === 'balance_cn') ({!! Format::numberformat($n($item->amount) * $n($data->rate ?? '')) !!})@endif</td><td class="text-right">@if ($item->types === 'balance')
 @if ($n($item->amount) >= 0)<span class="text-success">+{!! Format::numberformat($item->amount) !!}</span>@else<span class="text-danger">{!! Format::numberformat($item->amount) !!}</span>@endif
 @else
 @if ($n($item->amount) >= 0)<span class="text-success">+{!! Format::numberformat($item->amount, true, true, true) !!}</span>@else<span class="text-danger">{!! Format::numberformat($item->amount, true, true, true) !!}</span>@endif

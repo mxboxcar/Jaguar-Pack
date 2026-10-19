@@ -258,7 +258,7 @@ class LostPackageController extends Controller
         $image = $this->in($request, 'image');
         $out = ($image !== '' && self::tempFileExists($image)) ? self::blobJs($image) : '';
         $u = e(Legacy::hrefBlob($image));
-        $out .= '<div class="img_list_detail col-xs-12" style="margin-left: 10px;width:85px"><a style="float:left" class="fancybox" target="_blank" href="'.$u.'">'
+        $out .= '<div class="img_list_detail col-xs-12" style="margin-left: 10px;width:85px"><a style="float:left" class="fancybox" href="'.$u.'">'
             ."\n\t\t<img src=\"".$u."\" style=\"max-width: 50px;max-height: 50px;\">\n\t\t<input type=\"hidden\" name=\"img[]\" value=\"".e($image)."\" />\n\t\t</a>\n"
             ."\t\t<div style=\"float:left;position:absolute;margin-left:53px;\">\n\t\t\t<div onclick=\"$(this).parent().parent().parent().remove();\" class=\"btn btn-danger btn-xs\">ลบ</div>\n\t\t</div>\n\t\t</div>";
 

@@ -47,7 +47,7 @@
                             $c = $counts[(int) $item->id] ?? null;
                         @endphp
                             <tr>
-                                <td><a target="_blank" href="{{ legacy_href() }}admin/warehouse/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a></td>
+                                <td><a href="{{ legacy_href() }}admin/warehouse/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a></td>
                                 <td class="text-left">{{ implode(',', $lots[(int) $item->id] ?? []) }}</td>
                                 <td class="text-center">
                                     @if($cd === '0000-00-00 00:00:00' || $cd === '')

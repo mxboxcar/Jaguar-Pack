@@ -64,7 +64,7 @@
     $tTotal = $tTotal + ($n($item->price) * $n($item->amount));
     $no++;
 @endphp
-<tr><td>{{ $no }}.</td><td class="text-center"><a class="fancybox" target="_blank" href="{{ legacy_blob($item->main_image) }}">
+<tr><td>{{ $no }}.</td><td class="text-center"><a class="fancybox" href="{{ legacy_blob($item->main_image) }}">
                                 <img src="{{ legacy_blob($item->main_image) }}" style="max-width: 46px;max-height: 46px;">
                             </a></td><td class="text-center">{{ $item->code }}</td><td >{{ $item->name }}</td><td >{{ $item->color.((string) $item->size !== '' ? ' - '.$item->size : '') }}</td><td class="text-center">{{ $item->amount }}</td><td class="text-right">{!! Format::numberformat($item->price) !!}</td><td class="text-right">{!! Format::numberformat($n($item->price) * $n($item->amount)) !!}</td><td class="text-center">
                                 <a type="button" href="#" onclick="RemoveShopCart({{ $item->ids }});return false;" class="table-action-btn"><i class="md  md-cancel text-danger"></i></a>

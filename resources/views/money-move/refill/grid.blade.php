@@ -29,7 +29,7 @@
                     <tbody>
                     @forelse ($items as $item)
                         <tr>
-                            <td><a target="_blank" href="{{ legacy_href() }}{{ $base }}refill/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a></td>
+                            <td><a href="{{ legacy_href() }}{{ $base }}refill/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a></td>
 @if ($admin)
                             <td class="text-center">{{ $item->code }}</td>
 @endif
@@ -46,7 +46,7 @@
                                 -
 @elseif ($admin)
 @php $fname = pathinfo($item->attachment, PATHINFO_FILENAME); $u = Legacy::hrefBlob($item->attachment); @endphp
-                                <a class="fancybox" target="_blank" href="{{ $u }}">
+                                <a class="fancybox" href="{{ $u }}">
                                                 <img id="{{ $fname }}" src="{{ $u }}" style="max-width: 50px;max-height: 33px;">
                                             </a>
                                             <script>
@@ -61,7 +61,7 @@
                                                     } })
                                             </script>
 @else
-                                <a class="fancybox" target="_blank" href="{{ Legacy::hrefBlob($item->attachment) }}">
+                                <a class="fancybox" href="{{ Legacy::hrefBlob($item->attachment) }}">
                                                 <img src="{{ Legacy::hrefBlob($item->attachment) }}" style="max-width: 50px;max-height: 33px;">
                                             </a>
 @endif

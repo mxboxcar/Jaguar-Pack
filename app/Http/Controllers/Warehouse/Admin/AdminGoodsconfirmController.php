@@ -216,7 +216,7 @@ class AdminGoodsconfirmController extends Controller
         }
         $u = e(Legacy::hrefBlob($image));
         $v = e($image);
-        $out .= '<div class="img_list_detail col-xs-12" style="margin-left: 10px;width:85px"><a style="float:left" class="fancybox" target="_blank" href="'.$u."\">\r\n"
+        $out .= '<div class="img_list_detail col-xs-12" style="margin-left: 10px;width:85px"><a style="float:left" class="fancybox" href="'.$u."\">\r\n"
             ."\t\t<img src=\"".$u."\" style=\"max-width: 50px;max-height: 50px;\">\r\n"
             ."\t\t<input type=\"hidden\" name=\"img[]\" value=\"".$v."\" />\r\n"
             ."\t\t</a>\r\n"
