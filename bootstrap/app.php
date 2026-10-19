@@ -66,4 +66,22 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // เว็บเดิม: nginx error_page 404 → 302 กลับหน้าแรก (ไม่มีหน้า 404) — เจ้าของสั่งให้คงแบบเดิม (2026-10-19)
+        // ใช้กับ 404 และ method ไม่ตรง route (เช่น GET ไปที่ grid ที่รับแค่ POST) · เก็บ log ไว้ตามหาหน้าที่ขาด
+        $exceptions->dontReport([
+            \Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class,
+            \Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException::class,
+        ]);
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e, Request $request) {
+            $status = $e->getStatusCode();
+            if ($status !== 404 && $status !== 405) {
+                return null;
+            }
+            \Illuminate\Support\Facades\Log::warning('legacy: '.$status.' redirected to home', [
+                'method' => $request->method(), 'path' => '/'.ltrim($request->path(), '/'),
+            ]);
+
+            return redirect()->to(legacy_href());
+        });
     })->create();

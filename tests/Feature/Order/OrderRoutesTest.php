@@ -105,8 +105,9 @@ class OrderRoutesTest extends TestCase
 
     public function test_status_routes_only_accept_numbers(): void
     {
-        $this->assertSame(404, $this->get('/order/status/abc')->getStatusCode());
-        $this->assertSame(404, $this->get('/admin/order/abc')->getStatusCode());
+        // ไม่มี route = 404 → พากลับหน้าแรกแบบเว็บเดิม (nginx error_page 404 → 302 /)
+        $this->get('/order/status/abc')->assertRedirect(legacy_href());
+        $this->get('/admin/order/abc')->assertRedirect(legacy_href());
     }
 
     public function test_mysqli_style_rows_are_strings(): void
