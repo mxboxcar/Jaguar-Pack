@@ -20,7 +20,8 @@
 
                 <div class="col-xs-2 col-sm-2 col-lg-2">
                     <select name="role" class="form-control " id="user_type" onchange="GenerateWhere()">
-<option value="-1">- {!! res('all') !!} -</option>@foreach ($userTypes as $row)@if ($eq($row->id, $s[2] ?? null))<option selected="selected" value="{{ $row->id }}">{{ $row->name }}</option>@else<option value="{{ $row->id }}">{{ $row->name }}</option>@endif @endforeach
+<option value="-1">- {!! res('all') !!} -</option>@foreach ($userTypes as $row)@if ($eq($row->id, $s[2] ?? null))<option selected="selected" value="{{ $row->id }}">{{ $row->name }}</option>@else<option value="{{ $row->id }}">{{ $row->name }}</option>@endif @endforeach @if ($eq($s[2] ?? null, '99'))<option selected="selected" value="99">{!! res('use_price_2') !!}</option>@else<option value="99">{!! res('use_price_2') !!}</option>@endif
+
                     </select>
                 </div>
 
@@ -41,6 +42,8 @@
                             <th class="text-center">{!! res('name_lastname') !!}</th>
                             <th class="text-center">{!! res('email') !!}</th>
                             <th class="text-center">{!! res('phone') !!}</th>
+                            <th class="text-center">Line ID</th>
+                            <th class="text-center">{!! res('your_balance') !!}</th>
                             <th class="text-center">{!! res('role') !!}</th>
                             <th class="text-center">{!! res('user_type') !!}</th>
                             <th class="text-center" style="width: 60px;">{!! res('action') !!}</th>
@@ -55,6 +58,8 @@
                             <td>{{ $item->name }}</td>
                             <td>{{ $item->email }}</td>
                             <td>{{ $item->phone }}</td>
+                            <td class="text-center">{{ $item->lineid }}</td>
+                            <td class="text-right">{!! \App\Support\Legacy\Format::numberformat($cash[$item->id] ?? 0) !!}</td>
                             <td class="text-center">{{ $item->role_name }}</td>
                             <td class="text-center">
                             {{ $eq($item->option_price, 1) ? $item->parent_type_name : $item->user_type_name }}

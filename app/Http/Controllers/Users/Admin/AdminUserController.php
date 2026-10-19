@@ -47,7 +47,6 @@ class AdminUserController extends Controller
     public function form(Request $request)
     {
         $id = (int) ($request->route('id') ?? 0);
-        $permission = perm('admin_user');
         $data = DB::table('user')->where('id', $id)->first();
 
         $parentTypeId = null;
@@ -55,21 +54,17 @@ class AdminUserController extends Controller
             $parentTypeId = DB::table('user_type as t')->leftJoin('user_type as t2', 't2.id', '=', 't.child')
                 ->where('t.id', (string) $data->type)->orderBy('t.id')->value('t2.id');
         }
-        $memberCode = DB::table('user')->where('id', (string) ($data->commission ?? ''))->orderBy('id')->value('code');
-
         // ปุ่ม view pass / reset pass / pin reset / unbanned: เฉพาะรหัสลูกค้าที่อยู่ใน setting read_password_pin
-        $allowpass = $permission && $this->allowPass();
+        // (SR แสดงปุ่มแม้มีแค่ admin_user_view — แต่ endpoint btn_* ยังต้องมี admin_user)
+        $allowpass = $this->allowPass();
 
         return view('users.admin.user.form', [
             'id' => $id,
             'data' => $data,
-            'permission' => $permission,
-            'permissionView' => true,
             'prefix' => (string) Lookup::getPrefix('user'),
-            'memberCode' => $memberCode,
             'parentTypeId' => $parentTypeId,
             'userTypes' => DB::table('user_type')->where('is_delete', 0)->where('child', 0)->orderBy('id')->get(['id', 'name']),
-            'roles' => $permission ? DB::table('role')->where('is_delete', 0)->orderBy('id')->get(['id', 'role_name']) : collect(),
+            'roles' => DB::table('role')->where('is_delete', 0)->orderBy('id')->get(['id', 'role_name']),
             'm' => PricingMatrix::forUserType($data->type ?? null),
             'allowpass' => $allowpass,
         ]);
@@ -98,32 +93,44 @@ class AdminUserController extends Controller
         $sp = explode('|', $this->php($request, 'txtsearch'));
         $page = $this->php($request, 'page');
 
+        // SR: ไม่แสดงผู้ใช้ที่ยกเลิกแล้ว (is_approved = -1) เลย, ค้นหา lineid/wechatid ด้วย
         $q = DB::table('user')->leftJoin('role', 'user.role', '=', 'role.id')
             ->leftJoin('user_type', 'user_type.id', '=', 'user.type')
-            ->where('user.is_delete', 0);
+            ->where('user.is_delete', 0)->where('user.is_approved', '!=', -1);
         $term = '%'.addcslashes($s[0], '%_\\').'%';
         $q->where(function ($w) use ($term) {
-            foreach (['id', 'email', 'name', 'code', 'phone', 'phone2', 'username'] as $c) {
+            foreach (['id', 'email', 'code', 'name', 'phone', 'phone2', 'lineid', 'wechatid', 'username'] as $c) {
                 $w->orWhere('user.'.$c, 'like', $term);
             }
         });
         if (($s[1] ?? '') !== '-1' && ($s[1] ?? '') !== '') {
             $q->where('user.role', $s[1]);
         }
-        if (($s[2] ?? '') !== '-1' && ($s[2] ?? '') !== '') {
+        if (($s[2] ?? '') !== '-1' && ($s[2] ?? '') !== '' && Php74::neq($s[2] ?? '', '99')) {
             $q->where('user.type', $s[2]);
         }
         if (($s[3] ?? '') !== '-2' && ($s[3] ?? '') !== '') {
             $q->where('user.is_approved', $s[3]);
         }
+        $userTypes = DB::table('user_type')->where('is_delete', 0)->where('child', 0)->orderBy('id')->get(['id', 'name']);
+        if (Php74::eq($s[2] ?? '', '99')) {
+            // SR: 99 = "ตั้งเอง" — กลุ่มที่ไม่ใช่กลุ่มหลัก (เดิม NOT IN (id ของ user_type หลัก))
+            $q->whereNotIn('user.type', $userTypes->pluck('id')->map(fn ($v) => (string) $v)->all());
+        }
         $rows = (clone $q)->count();
         $items = collect();
+        $cash = collect();
         $offset = $this->pageOffset($page);
         if ($offset !== null) {
             // กลุ่มราคาตั้งเอง (option_price = 1) แสดงชื่อกลุ่มแม่ — เดิม query ต่อแถว → join
             $items = $q->leftJoin('user_type as pt', 'pt.id', '=', 'user_type.child')
-                ->orderByDesc('user.code')->offset($offset)->limit(10)
+                ->orderByDesc('user.id')->offset($offset)->limit(10)
                 ->get(['user.*', 'role.role_name', 'user_type.name as user_type_name', 'pt.name as parent_type_name']);
+            // ยอดเงินในระบบ (getCurrentCash ต่อแถวเดิม) → query เดียว
+            if ($items->isNotEmpty()) {
+                $cash = DB::table('balance')->whereIn('user', $items->pluck('id')->all())->where('is_delete', '0')
+                    ->groupBy('user')->selectRaw('user, SUM(amount) as c')->pluck('c', 'user');
+            }
         }
 
         return response(view('users.admin.user.grid', [
@@ -136,7 +143,8 @@ class AdminUserController extends Controller
             'txtsearch' => $this->php($request, 'txtsearch'),
             'prefix' => (string) Lookup::getPrefix('user'),
             'roles' => DB::table('role')->where('is_delete', 0)->orderBy('id')->get(['id', 'role_name']),
-            'userTypes' => DB::table('user_type')->where('is_delete', 0)->where('child', 0)->orderBy('id')->get(['id', 'name']),
+            'userTypes' => $userTypes,
+            'cash' => $cash,
         ])->render());
     }
 
@@ -165,27 +173,38 @@ class AdminUserController extends Controller
 </a></div>');
     }
 
-    /** POST /_admin/_user/load_user_type_detail (สิทธิ์ admin_user_view || admin_user) */
+    /**
+     * POST /_admin/_user/load_user_type_detail — SR: สิทธิ์ admin_user เท่านั้น (ไม่มี = ว่าง)
+     * แสดงทุก product_type (is_delete = 0) ของรถ/เรือ: เรตของกลุ่มถ้ามี (แถวแรกตาม id, ไม่กรอง is_delete แบบเดิม) ไม่งั้นเรตตั้งต้นของ product_type
+     */
     public function loadUserTypeDetail(Request $request): Response
     {
-        if (! perm('admin_user_view', 'admin_user')) {
+        if (! perm('admin_user')) {
             return response('');
         }
         $id = $this->in($request, 'id');
-        $rows = DB::table('user_type_detail')->leftJoin('product_type', 'user_type_detail.product_type_id', '=', 'product_type.id')
-            ->whereIn('user_type_detail.type', ['0', '1'])->where('user_type_detail.user_type_id', $id)
-            ->orderBy('user_type_detail.id')
-            ->get(['user_type_detail.type', 'user_type_detail.kg', 'user_type_detail.cubic', 'product_type.name']);
-        $body = function (int $t) use ($rows): string {
+        $types = DB::table('product_type')->where('is_delete', '0')->whereIn('type', [0, 1])->orderBy('id')
+            ->get(['id', 'name', 'kg', 'cubic', 'type']);
+        $own = [];
+        foreach (DB::table('user_type_detail')->whereIn('type', ['0', '1'])->where('user_type_id', $id)
+            ->orderBy('id')->get(['type', 'product_type_id', 'kg', 'cubic']) as $r) {
+            // เดิม: วนหาแถวแรกที่ product_type_id ตรง (ในชุดรถ/เรือของตัวเอง)
+            $own[(int) $r->type][(string) $r->product_type_id] ??= $r;
+        }
+        $body = function (int $t) use ($types, $own): string {
             $h = '';
-            foreach ($rows as $row) {
-                if ((int) $row->type === $t) {
-                    $h .= '<tr>
-				<td>'.Php74::h($row->name).'</td>
-				<td>'.$row->kg.'</td>
-				<td>'.$row->cubic.'</td>
-			</tr>';
+            foreach ($types as $item) {
+                if ((int) $item->type !== $t) {
+                    continue;
                 }
+                $it = $own[$t][(string) $item->id] ?? null;
+                $kg = $it ? $it->kg : $item->kg;
+                $cubic = $it ? $it->cubic : $item->cubic;
+                $h .= '<tr>
+				<td class="text-center">'.Php74::h($item->name).'</td>
+				<td class="text-right">'.Format::numberformat($kg, true, true).'</td>
+				<td class="text-right">'.Format::numberformat($cubic, true, false).'</td>
+			</tr>';
             }
 
             return $h;
@@ -259,30 +278,21 @@ class AdminUserController extends Controller
         $before = RateHistory::snapshot((int) $id);
         $actor = (int) Legacy::userId();
 
-        $commission = $this->in($request, 'commission');
-        $member = DB::table('user')->where('code', $commission)->orderBy('id')->first(['id']);
-        if ($commission === '') {
-            $memberId = '0';
-        } elseif (! $member) {
-            return response("ErrorBox('ไม่มีผู้แนะนำ code นี้', 'CloseLoading()'); ");
-        } else {
-            $memberId = (string) $member->id;
-        }
-
+        // SR: ไม่มีผู้แนะนำ (คอลัมน์ user.commission ไม่มีใน SR) — มี lineid / wechatid แทน
         $f = fn (string $k) => $this->in($request, $k);
         $optionPrice = $f('option_price');
         $userType = $f('user_type');
         $uid = Legacy::userId();
 
         if ($id === '') {
-            $newId = DB::transaction(function () use ($f, $password, $uid, $optionPrice, $userType, $memberId, $request) {
+            $newId = DB::transaction(function () use ($f, $password, $uid, $optionPrice, $userType, $request) {
                 $newId = (int) DB::table('user')->insertGetId([
                     'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
                     'is_delete' => 0, 'id' => null, 'username' => $f('username'), 'password' => LegacyCrypt::encrypt($password),
                     'role' => $f('role'), 'name' => $f('name'), 'email' => $f('email'), 'phone' => $f('phone'), 'is_enable' => '1',
-                    'type' => $userType, 'phone2' => $f('phone2'), 'option_price' => $optionPrice, 'address' => $f('address'),
-                    // เดิม code = username
-                    'code' => $f('username'), 'diff' => $f('diff'), 'commission' => $memberId,
+                    'type' => $userType, 'phone2' => $f('phone2'), 'lineid' => $f('lineid'), 'option_price' => $optionPrice,
+                    // SR: code = ช่อง code ของฟอร์ม (jl ใช้ username)
+                    'address' => $f('address'), 'code' => $f('code'), 'diff' => $f('diff'), 'wechatid' => $f('wechatid'),
                 ]);
                 $this->ownPriceGroup($request, $newId, $optionPrice, $userType);
 
@@ -296,17 +306,19 @@ class AdminUserController extends Controller
             return response(Alerts::success('window.location.href = "'.Legacy::href('admin/user').'";', Lang::get('success_process_no').Lookup::getPrefix('user').$newId));
         }
 
-        DB::transaction(function () use ($f, $password, $uid, $optionPrice, $userType, $memberId, $id, $request) {
+        // SR: เปลี่ยนรหัสผ่านได้เฉพาะผู้บันทึกที่ role = 1 (checkUser()['role'] == 1)
+        $canSetPassword = Php74::eq(Legacy::user()?->getRawOriginal('role'), 1);
+        DB::transaction(function () use ($f, $password, $uid, $optionPrice, $userType, $id, $request, $canSetPassword) {
             // เดิมไม่บันทึก email / phone / phone2 ตอนแก้ไข (คงไว้)
             $set = [
-                'name' => $f('name'), 'role' => $f('role'), 'type' => $userType, 'code' => $f('code'), 'username' => $f('username'),
+                'name' => $f('name'), 'role' => $f('role'), 'code' => $f('code'), 'lineid' => $f('lineid'), 'wechatid' => $f('wechatid'),
+                'type' => $userType, 'username' => $f('username'),
                 'option_price' => $optionPrice, 'address' => $f('address'), 'diff' => $f('diff'),
                 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
             ];
-            if ($password !== '') {
+            if ($canSetPassword && $password !== '') {
                 $set['password'] = LegacyCrypt::encrypt($password);
             }
-            $set['commission'] = $memberId;
             DB::table('user')->where('id', $id)->update($set);
             $this->ownPriceGroup($request, $id, $optionPrice, $userType);
         });
@@ -361,16 +373,26 @@ class AdminUserController extends Controller
         }
     }
 
-    /** POST /_admin/_user/save_approved */
+    /**
+     * POST /_admin/_user/save_approved — SR:
+     *   อีเมลอนุมัติส่งเฉพาะผู้ใช้ type = 3; type = 4 เดิม require_once('email_approved2.php') ที่ไม่มีไฟล์ → PHP fatal (500 ว่าง, อนุมัติแล้วแต่หน้าไม่ทำอะไร)
+     *   ตอบ "$('form').submit();" (ส่งฟอร์มผู้ใช้ต่อ = บันทึกผ่าน _admin/_user/save) แทนข้อความสำเร็จของ jl
+     */
     public function saveApproved(Request $request): Response
     {
         $id = $this->in($request, 'id');
         DB::table('user')->where('id', $id)->update(['is_approved' => '1', 'mod_date' => DB::raw('NOW()'), 'mod_by' => Legacy::userId()]);
         if (! config('legacy.debug_mail')) {
-            UsersMailer::approved((int) Php74::num($id));
+            $type = DB::table('user')->where('id', $id)->orderBy('id')->value('type');
+            if (Php74::eq($type, 3)) {
+                UsersMailer::approved((int) Php74::num($id));
+            }
+            if (Php74::eq($type, 4)) {
+                return response('', 500);
+            }
         }
 
-        return response(Alerts::success('window.location.href = "'.Legacy::href('admin/user').'";', Lang::get('success_process_no').Lookup::getPrefix('user').Alerts::js($id)));
+        return response("$('form').submit();");
     }
 
     /** POST /_admin/_user/cancel */
