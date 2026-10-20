@@ -19,8 +19,9 @@ use Illuminate\View\View;
  * (เดิมมีแค่ deletechat / save_file ที่ตรวจ; index, load, load_dept, load_user, send, send_endconversation
  *  ไม่ตรวจสิทธิ์ และ load.php ไม่ตรวจแม้แต่การล็อกอิน = ใครก็อ่านแชทของลูกค้าคนไหนก็ได้)
  *
- * JSON ของเดิมเป็น urldecode(json_encode(...)) — ที่นี่ urldecode ทีละค่าแล้วค่อย escape + json_encode
+ * JSON ของ load_dept / load_user เดิมเป็น urldecode(json_encode(...)) — ที่นี่ urldecode ทีละค่าแล้วค่อย escape + json_encode
  * (ผลเท่ากันในกรณีปกติ: "+" → ช่องว่าง, %xx → อักขระ; แต่ไม่สร้าง JSON พัง/HTML แทรกจาก %3C ได้อีก)
+ * SR: load.php ตอบ json_encode(['html' => htmlentities($html), ...]) ไม่มี urldecode (JS decodeHtml() ก่อนแสดง) — เหมือน _message/load
  */
 class AdminMessageController extends Controller
 {
@@ -96,10 +97,10 @@ class AdminMessageController extends Controller
                             <div class="conversation-text">
                                 <div style="text-align:right;display: inline-block;padding: 2px 10px;position: relative;font-size: 9px;">'.Chat::stamp($row->create_date).'</div>
                                 <div class="ctext-wrap" style="float: right;clear: both;">
-                                    <i>'.$this->u($row->owner).' <span onclick="deletechat('.(int) $row->id.');" class="fa fa-close text-danger"></span></i>
+                                    <i>'.ChatText::e($row->owner).' <span onclick="deletechat('.(int) $row->id.');" class="fa fa-close text-danger"></span></i>
 
                                     <p style="font-size: 13px;">
-                                       '.ChatText::render(urldecode((string) $row->text)).'
+                                       '.ChatText::render($row->text).'
                                     </p>
                                 </div>
                             </div>
@@ -109,9 +110,9 @@ class AdminMessageController extends Controller
                             <div class="conversation-text">
                                 <div style="display: inline-block;padding: 2px 10px;position: relative;font-size: 9px;">'.Chat::stamp($row->create_date).'</div>
                                 <div class="ctext-wrap" style="float: left;clear: both;">
-                                    <i>'.$this->u($row->from_code).'</i>
+                                    <i>'.ChatText::e($row->from_code).'</i>
                                     <p style="font-size: 13px;">
-                                       '.ChatText::render(urldecode((string) $row->text)).'
+                                       '.ChatText::render($row->text).'
                                     </p>
                                 </div>
                             </div>
@@ -129,10 +130,10 @@ class AdminMessageController extends Controller
             .' ORDER BY id DESC LIMIT '.$paging);
 
         return response((string) json_encode([
-            'html' => Chat::crlf($html),
-            'title' => $code === null ? null : urldecode((string) $code),
+            'html' => htmlentities(Chat::crlf($html), ENT_COMPAT | ENT_HTML401, 'UTF-8'),
+            'title' => $code === null ? null : ChatText::e($code), // JS .html(title) — escape (เดิมดิบ)
             'page' => null,
-            'sql' => urldecode($sql),
+            'sql' => $sql,
         ]));
     }
 

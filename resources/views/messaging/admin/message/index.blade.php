@@ -214,16 +214,22 @@ function Load(page, isnewload = false) {
 
             $("#title2").html(data.title);
             if(isnewload) {
-                $("#message").html(data.html);
+                $("#message").html(decodeHtml(data.html));
                 $("#message").scrollTop($('#message').prop("scrollHeight"));
             } else {
                 $(".load_more_btn").remove();
-                $("#message").prepend(data.html);
+                $("#message").prepend(decodeHtml(data.html));
                 $("#message").scrollTop($("#message>div").eq(1).prop("scrollHeight"));
             }
             //$("#message").scrollTop($('#message').prop("scrollHeight"));
         }
     });
+}
+
+function decodeHtml(html) {
+    var txt = document.createElement("textarea");
+    txt.innerHTML = html;
+    return txt.value;
 }
 
 function on_uploadcomplate(lot, value)
@@ -242,7 +248,7 @@ function on_uploadcomplate(lot, value)
             type: 'POST',
             async: true,
             data: 'value=' + x[0],
-            url: rooturl + '_message/save_file',
+            url: rooturl + '_admin/_message/save_file',
             success: function(data) {
                 eval(data);
             }
