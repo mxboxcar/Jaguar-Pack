@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Route;
 
 /*
 | กลุ่ม: settings — _admin/_setting, _admin/_exchange, _admin/_product_type, _admin/_shipping_type,
-|   get_price, get_resource, load_quick_search, gateway, index_close, system_upload(_2)
+|   get_price, get_resource, resource (SR), load_quick_search, index_close, system_upload(_2), system_ckupload (SR)
 | ดูรายการ URL/ไฟล์เดิมใน docs/url-map.md และรายงานใน docs/modules/settings.md
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 |
@@ -80,3 +80,4 @@ Route::middleware(['legacy.ajax', 'legacy.auth'])->group(function () {
 // ---------- หน้าสาธารณะที่ไม่มีข้อมูล (PUBLIC ใน RouteSecurityTest) ----------
 Route::get('/index_close', [PublicPageController::class, 'indexClose']);
 Route::get('/get_resource', [PublicPageController::class, 'resource']);
+Route::get('/resource', [PublicPageController::class, 'resourceTh']); // SR: resource.php

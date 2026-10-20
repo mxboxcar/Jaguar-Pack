@@ -47,7 +47,7 @@
             <div class="panel-body">
             <div class="form-horizontal m-t-20 text-center">
                 
-                ปิดปรับปรุงชั่วคราว จะเปิดให้บริการเวลา 04:00 น.
+                ปิดปรับปรุงชั่วคราว จะเปิดให้บริการเวลา 02:00 น.
             </div> 
 
             </div> 
