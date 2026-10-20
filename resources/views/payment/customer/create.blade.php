@@ -41,7 +41,7 @@
 				<div class="col-xs-12">
 			    	<div class="col-sm-3 col-xs-5">
 		                <div class="widget-panel widget-style-2 bg-white">
-		                	<i class="fa  fa-list-alt text-gray" style="background-color: #dc5b5e!important;"></i>
+		                	<i class="fa  fa-list-alt text-gray" style="background-color: #a3b2f1!important;"></i>
 		                    <h2 id="total_amount" class="addcommazero m-0 text-dark counter font-600">0</h2>
 		                    <div  class="text-muted m-t-5 ">{!! res('total_amount_list') !!}</div>
 		                </div>
@@ -50,7 +50,7 @@
 		            
 		            <div class="col-sm-3 col-xs-5">
 		                <div class="widget-panel widget-style-2 bg-white">
-		                	<i class="fa fa-btc text-gray" style="background-color: #dc5b5e!important;"></i>
+		                	<i class="fa fa-btc text-gray" style="background-color: #a3b2f1!important;"></i>
 		                    <h2   class=" m-0 text-dark counter font-600"><span class="addcomma" id="total_price"></span> {!! res('thai_currency') !!}</h2>
 		                    <div  class="text-muted m-t-5 addcommazero">{!! res('total_price_list') !!}</div>
 		                </div>
@@ -65,6 +65,7 @@
 				<b>{!! res('searching') !!} : </b>
 				<input style="width:180px" type="text" id="search_track" value="" placeholder="{!! res('tracking') !!}" >
 				<input style="width:180px" type="text" id="search_quote" value="" placeholder="{!! res('remark_for_this_order') !!}" >
+				<input style="width:180px" type="text" id="search_subuser" value="" placeholder="รหัสย่อย" >
 				<b style="margin-left:10px;">{!! res('lot') !!} : </b>
 				<span id="select_lot"></span>
 				<input type="checkbox" onclick="loaddata();" id="search_admit_thai" > {!! res('show_admit_thai') !!}
@@ -90,6 +91,7 @@ function keypressInBox(e) {
 }
 $("#search_track").bind("keypress", {}, keypressInBox);
 $("#search_quote").bind("keypress", {}, keypressInBox);
+$("#search_subuser").bind("keypress", {}, keypressInBox);
 
 $("form").eq(0).validationEngine();
 	$("form").eq(0).ajaxForm({ 
@@ -113,9 +115,16 @@ $(function() {
 
 
 function loadselect() {
+	OpenLoading();
+	var chk = $("#search_admit_thai").prop('checked');
+	var admit_thai = 0;
+	if(chk) {
+		admit_thai = 1;
+	}
 	$.ajax({
         type: 'POST',
         async: true,
+		data : 'track=' + $("#search_track").val() + '&quote=' + $("#search_quote").val() + '&admit_thai=' + admit_thai + '&subuser=' + $("#search_subuser").val() ,
         url: rooturl + '_payment/load_select_lot',
         success: function(data) {
            $("#select_lot").html(data);
@@ -135,7 +144,7 @@ function loaddata() {
 	$.ajax({
         type: 'POST',
         async: true,
-        data : 'track=' + $("#search_track").val() + '&quote=' + $("#search_quote").val() + '&admit_thai=' + admit_thai + '&search_lot=' + $("#search_lot").val() ,
+        data : 'track=' + $("#search_track").val() + '&quote=' + $("#search_quote").val() + '&admit_thai=' + admit_thai + '&search_lot=' + $("#search_lot").val() + '&subuser=' + $("#search_subuser").val() ,
         url: rooturl + '_payment/load_create',
         success: function(data) {
             $("#tracking_list").html(data);

@@ -43,7 +43,7 @@
 
                     <div class="col-sm-3 col-xs-5">
 		                <div class="widget-panel widget-style-2 bg-white">
-		                	<i class="md  md-local-library text-gray" style="background-color: #991b1e!important;"></i>
+		                	<i class="md  md-local-library text-gray" style="background-color: #a3b2f1!important;"></i>
 		                    <h2 class=" m-0 text-dark counter font-600">
                                 {{ $code }}
                             </h2>
@@ -54,7 +54,7 @@
                     
 			    	<div class="col-sm-3 col-xs-5">
 		                <div class="widget-panel widget-style-2 bg-white">
-		                	<i class="fa  fa-list-alt text-gray" style="background-color: #991b1e!important;"></i>
+		                	<i class="fa  fa-list-alt text-gray" style="background-color: #a3b2f1!important;"></i>
 		                    <h2 id="total_amount" class="addcommazero m-0 text-dark counter font-600">0</h2>
 		                    <div  class="text-muted m-t-5 ">{!! res('total_amount_list') !!}</div>
 		                </div>
@@ -63,7 +63,7 @@
 		            
 		            <div class="col-sm-3 col-xs-5">
 		                <div class="widget-panel widget-style-2 bg-white">
-		                	<i class="fa fa-btc text-gray" style="background-color: #991b1e!important;"></i>
+		                	<i class="fa fa-btc text-gray" style="background-color: #a3b2f1!important;"></i>
 		                    <h2   class=" m-0 text-dark counter font-600"><span class="addcomma" id="total_price"></span> {!! res('thai_currency') !!}</h2>
 		                    <div  class="text-muted m-t-5 addcommazero">{!! res('total_price_list') !!}</div>
 		                </div>
@@ -71,7 +71,7 @@
 
                     <div class="col-sm-3 col-xs-5">
 		                <div class="widget-panel widget-style-2 bg-white">
-		                	<i class="fa fa-btc text-gray" style="background-color: #991b1e!important;"></i>
+		                	<i class="fa fa-btc text-gray" style="background-color: #a3b2f1!important;"></i>
 		                    <h2   class=" m-0 text-dark counter font-600"><span class="addcomma" >{{ $cash }}</span></h2>
 		                    <div  class="text-muted m-t-5 addcommazero">{!! res('customer_cash') !!}</div>
 		                </div>

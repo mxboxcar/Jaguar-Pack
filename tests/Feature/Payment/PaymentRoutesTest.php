@@ -8,6 +8,7 @@ use App\Domain\Payment\PinBox;
 use App\Domain\Payment\TempUpload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Tests\TestCase;
 
 /**
@@ -28,14 +29,9 @@ class PaymentRoutesTest extends TestCase
         'POST _payment/load_create_sum' => 'legacy.perm:payment',
         'POST _payment/load_select_lot' => 'legacy.perm:payment',
         'POST _payment/load_shipping_price' => 'legacy.perm:payment',
-        'POST _payment/load_vat' => 'legacy.perm:payment',
-        'POST _payment/load_receipt_address' => 'legacy.perm:payment',
         'POST _payment/save_create' => 'legacy.perm:payment',
         'POST _payment/save_submit_payment' => 'legacy.perm:payment',
         'POST _payment/save_delete' => 'legacy.perm:payment',
-        'POST _payment/save_create_receiptaddress' => 'legacy.perm:payment',
-        'POST _payment/save_deleteaddress' => 'legacy.perm:payment',
-        'POST _payment/save_deletereceiptaddress' => 'legacy.perm:payment',
         'POST _payment/save' => 'legacy.perm:refill',
         'GET _payment/view_example' => 'legacy.auth',
         'POST _payment/view_example' => 'legacy.auth',
@@ -47,7 +43,6 @@ class PaymentRoutesTest extends TestCase
         'POST _admin/_payment/save_approved' => 'legacy.perm:admin_payment',
         'POST _admin/_payment/save_delete' => 'legacy.perm:admin_payment',
         'POST _admin/_payment/save_deletenopush' => 'legacy.perm:admin_payment',
-        'POST _admin/_payment/save_vat' => 'legacy.perm:admin_payment',
         'POST _admin/_payment/load_shipping_price' => 'legacy.perm:admin_payment',
         'POST _admin/_payment/save_new_sender' => 'legacy.perm:admin_change_sender',
         'GET _admin/_payment/email_approved' => 'legacy.perm:admin_payment',
@@ -80,7 +75,42 @@ class PaymentRoutesTest extends TestCase
         'POST _admin/_alipay/rollback' => 'legacy.perm:admin_alipay',
         'GET _admin/_alipay/email_cancel' => 'legacy.perm:admin_alipay',
         'GET _admin/_alipay/email_success' => 'legacy.perm:admin_alipay',
+        // แอดมิน: รายการใบเสร็จ (SR เท่านั้น)
+        'GET admin/receipt' => 'legacy.perm:admin_receipt',
+        'GET admin/receipt/status/{status}' => 'legacy.perm:admin_receipt',
+        'POST _admin/_receipt/grid' => 'legacy.auth',
     ];
+
+    /**
+     * ไฟล์ที่มีเฉพาะ jl (ระบบ VAT / ที่อยู่ใบกำกับ) — SR ไม่มีไฟล์เหล่านี้ → ต้องไม่มี route (404 → หน้าแรก)
+     * และหน้า admin/receipt/{id}, admin/receipt/create ชี้ไป _admin/_receipt/form.php ที่ไม่มีในเว็บเดิม (dead)
+     */
+    private const JL_ONLY = [
+        'POST _payment/load_vat', 'POST _payment/load_receipt_address', 'POST _payment/save_create_receiptaddress',
+        'POST _payment/save_deleteaddress', 'POST _payment/save_deletereceiptaddress', 'POST _admin/_payment/save_vat',
+        'GET admin/receipt/{id}', 'GET admin/receipt/create',
+    ];
+
+    public function test_jl_only_and_dead_urls_have_no_route(): void
+    {
+        $routes = $this->routes();
+        foreach (self::JL_ONLY as $key) {
+            $this->assertArrayNotHasKey($key, $routes, "$key ต้องไม่มี (SR ไม่มีไฟล์เดิม)");
+        }
+        $this->assertSame(404, $this->routeStatus('POST', '/_payment/load_vat'));
+        $this->assertSame(404, $this->routeStatus('GET', '/admin/receipt/5'));
+    }
+
+    private function routeStatus(string $method, string $uri): int
+    {
+        try {
+            Route::getRoutes()->match(Request::create($uri, $method));
+
+            return 200;
+        } catch (NotFoundHttpException) {
+            return 404;
+        }
+    }
 
     /** @return array<string, list<string>> */
     private function routes(): array
@@ -155,14 +185,11 @@ class PaymentRoutesTest extends TestCase
         $this->assertStringContainsString('$("form").eq(0)', PinBox::getNewPinBox(''));
     }
 
-    public function test_vat_formula_matches_legacy(): void
+    public function test_bill_total_formula_matches_legacy(): void
     {
-        // ค่าจาก php7.4 + โค้ดเดิม (_payment/save_submit_payment.php, _admin/_payment/save_vat.php) บน admin_sr_bench
-        $t = PaymentTotals::vat(30, 155.72, '0.00', '7', false);
-        $this->assertSame(['13.00', '198.72', '5.57', '193.15'], [$t['vat_before'], $t['vat'], $t['shipvat_before'], $t['shipvat']]);
-        $t = PaymentTotals::vat('30.00', 155.72, '0.00', '7', true);
-        $this->assertSame(['13.00', '198.72', '5.96', '192.76'], [$t['vat_before'], $t['vat'], $t['shipvat_before'], $t['shipvat']]);
+        // SR ไม่มี VAT: total = nfs(storage) + nfs(price_shipping) + nfs(extened) + nfs(thai_shipping)
         $this->assertEquals(265.72, PaymentTotals::plain('10.00', 155.72, '0.00', '100.00'));
+        $this->assertFalse(method_exists(PaymentTotals::class, 'vat'));
     }
 
     public function test_row_sums_follow_legacy_order_and_types(): void

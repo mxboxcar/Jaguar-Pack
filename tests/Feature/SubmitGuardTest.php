@@ -22,7 +22,7 @@ class SubmitGuardTest extends TestCase
         '_taobao/save' => 'legacy.once', '_transfer/save' => 'legacy.once', '_balance/save_withdraw' => 'legacy.once',
         '_balance_cn/save_withdraw' => 'legacy.once', '_refill/save' => 'legacy.once', '_payment/save' => 'legacy.once',
         '_payment/save_create' => 'legacy.once', '_payment/save_submit_payment' => 'legacy.once',
-        '_payment/save_create_receiptaddress' => 'legacy.once', '_point/save_withdraw' => 'legacy.once',
+        '_point/save_withdraw' => 'legacy.once',
         '_lost_package/save' => 'legacy.once', '_cart/save_checkout' => 'legacy.once', '_export/save_approved' => 'legacy.once',
         '_tracking/save' => 'legacy.once', '_alipay/save' => 'legacy.once',
         '_shop_cashback/save' => 'legacy.once', '_order/save_payment' => 'legacy.once',

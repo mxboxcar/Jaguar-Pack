@@ -200,7 +200,7 @@ Route::middleware('legacy.perm:admin_tracking')->group(function () {
 | `getproducttype()` | settings | HTML `<select>` ประเภทสินค้า |
 | `sortFunction()` (usort ตาม `create_date`) | shop / points | `->sortBy('create_date')` หรือ `usort` แบบเดิม (เทียบด้วย `strtotime`) |
 | `clearcookie()` | shop | `Cookie::queue(Cookie::forget($name, '/'))` + path `/cargo` แบบเดิม |
-| `calPoint()` | — | เดิมเป็นฟังก์ชันว่าง (โค้ดข้างในถูก comment) → payment/reports ที่เรียกไม่ต้องทำอะไร |
+| `calPoint()` | ฐานร่วม | **SR ทำงานจริง** (jl ว่าง) → `App\Support\Legacy\PointCalc::calPoint($id, $method, $text)` (ฐานร่วมแล้ว — payment: `save_approved`/`_payment/save_delete`, reports: `_export/save_delete`/`_admin/_export/save_delete`) เรียกใน transaction เดียวกับการเปลี่ยนสถานะบิล หลัง lock แถวบิล |
 | `check_unjail()` | settings | ไม่มีใครเรียกในโค้ดเดิม (น่าจะเป็น cron) |
 | `push_notification()` | — | เดิมเป็นฟังก์ชันว่าง |
 

@@ -1,4 +1,4 @@
-{{-- _admin/_payment/load_create.php เดิม (N+1 เดิม: เรท 2 query + เลขออเดอร์/tracking ลูกทีละแถว → ดึงครั้งเดียวใน controller) --}}
+{{-- _admin/_payment/load_create.php เดิม (N+1 เดิม: เลขออเดอร์/tracking ลูกทีละแถว → ดึงครั้งเดียวใน controller) — SR ไม่มีตารางเรทของลูกค้าด้านบน, มีรหัสย่อยใต้รหัสลูกค้า --}}
 @php
     use App\Domain\Payment\PaymentLookups as P;
     use App\Domain\Payment\Php74;
@@ -13,30 +13,6 @@
         <th class="text-right" colspan="9"></th>';
     $inp = fn (string $class, mixed $v, int $w, string $extra = '') => '<input '.$extra.'class="'.$class.'" style="height: 20px;width: '.$w.'px;text-align:right;background-color: transparent;border: 0px solid;" type="text" value="'.e((string) $v).'" />';
 @endphp
-
-<div class="col-xs-12">
-@if ($rates !== null)
-@foreach (['car' => 'car', 'ship' => 'ship'] as $key => $label)
-
-	<div class="col-xs-3"><table class="table table-striped table-bordered"{!! $key === 'ship' ? ' ' : '' !!}>
-				<thead>
-					<tr>
-						<th class="text-center" style="width:70px">{!! res($label) !!}</th>
-						<th class="text-center">{!! res('kg') !!}</th>
-						<th class="text-center">{!! res('cubic') !!}</th>
-					</tr>
-				</thead>
-				<tbody>@foreach ($rates[$key] as $row)<tr>
-					<td class="text-center">{{ $row->name }}</td>
-					<td class="text-right">{!! Format::numberformat($row->kg, true, true) !!}</td>
-					<td class="text-right">{!! Format::numberformat($row->cubic, true, false) !!}</td>
-				</tr>@endforeach</tbody>
-			</table>
-	</div>
-@endforeach
-@endif
-</div>
-
 
 <table class="lot_table form-group" >
     <thead>
@@ -85,7 +61,7 @@
 						<input type="hidden" class="s_total" value="{{ P::s(P::add($item, ['price_kg', 'price_cubic', 'price_amount', 'price_qc', 'price_repack', 'price_express', 'price_else', 'price_craft'])) }}" />
 						<input type="checkbox" name="tracking_id[]" class="cbxitem" value="{{ $item->id }}" onclick="Calculate()"/>
 				</td>@else<td rowspan="{{ $rs }}" class="text-center "></td>@endif
-<td style="vertical-align:top" rowspan="{{ $rs }}" class="text-center" style="white-space: nowrap;">{{ P::lotLabel($item, false) }}</td><td style="white-space: nowrap;"><a href="{{ $link }}">{{ $item->tracking }}</a></td><td style="vertical-align:top" rowspan="{{ $rs }}" style="white-space: nowrap;">@if ($bp !== '')<a href="{{ $link }}">{{ $orderPrefix.$bp }}</a>@else-@endif</td><td style="vertical-align:top" rowspan="{{ $rs }}" style="white-space: nowrap;padding: 0px">{{ $item->code }}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-right">{!! Format::getZero(Format::numberformatzero($item->amount)) !!}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-right">{!! Format::getZero(Format::numberformatone(Php74::num($item->weight) * Php74::num($item->amount))) !!}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-right">{!! Format::getZero(Format::numberformatone($item->width)) !!}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-right">{!! Format::getZero(Format::numberformatone($item->height)) !!}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-right">{!! Format::getZero(Format::numberformatone($item->long)) !!}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-right">{!! Format::cubicformat(P::cubic($item)) !!}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-center">{{ $item->type_name }}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-center"><strong style="color:#008000">{!! Format::getthaidate(explode(' ', (string) $item->date_thai)[0], true, true) !!}</strong></td><td class="text-right" style="vertical-align:top">
+<td style="vertical-align:top" rowspan="{{ $rs }}" class="text-center" style="white-space: nowrap;">{{ P::lotLabel($item) }}</td><td style="white-space: nowrap;"><a href="{{ $link }}">{{ $item->tracking }}</a></td><td style="vertical-align:top" rowspan="{{ $rs }}" style="white-space: nowrap;">@if ($bp !== '')<a href="{{ $link }}">{{ $orderPrefix.$bp }}</a>@else-@endif</td><td style="vertical-align:top" rowspan="{{ $rs }}" style="white-space: nowrap;padding: 0px">{{ $item->code }}<br/><span class="text-danger">{{ $item->subuser }}</span></td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-right">{!! Format::getZero(Format::numberformatzero($item->amount)) !!}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-right">{!! Format::getZero(Format::numberformatone(Php74::num($item->weight) * Php74::num($item->amount))) !!}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-right">{!! Format::getZero(Format::numberformatone($item->width)) !!}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-right">{!! Format::getZero(Format::numberformatone($item->height)) !!}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-right">{!! Format::getZero(Format::numberformatone($item->long)) !!}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-right">{!! Format::cubicformat(P::cubic($item)) !!}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-center">{{ $item->type_name }}</td><td style="vertical-align:top" rowspan="{{ $rs }}" class="text-center"><strong style="color:#008000">{!! Format::getthaidate(explode(' ', (string) $item->date_thai)[0], true, true) !!}</strong></td><td class="text-right" style="vertical-align:top">
 						{!! $inp('hid_price_qc', $item->price_qc, 60) !!}
 					</td>
 					<td class="text-right" style="vertical-align:top">

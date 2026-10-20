@@ -71,11 +71,11 @@ class AdminAlipayController extends Controller
     {
         $id = $this->in($request, 'id');
         $upload = $this->in($request, 'upload_file');
-        // เดิม UPDATE ทุกสถานะ (ปุ่มบันทึกแสดงทุกสถานะ): ยืนยันบิลที่ยกเลิก/คืนเงินแล้วเป็นสถานะ 2 ได้ แล้ว rollback (2 → 1 ไม่ตัดเงิน)
-        // + ลูกค้ายกเลิก = คืนเงินซ้ำ → ไม่ยอมบิลที่ยกเลิกแล้ว (-1) / ไม่มีอยู่, และล็อกแถวกันชนกับ cancel/rollback
+        // jl เดิม UPDATE ทุกสถานะ (ยืนยันบิลที่ยกเลิกแล้ว + rollback = คืนเงินซ้ำ) — SR แก้ในไฟล์เดิมแล้ว: เฉพาะสถานะ 1
+        // อื่นๆ (รวมไม่พบบิล) = ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้') — ล็อกแถวกันชนกับ cancel/rollback
         $billId = DB::transaction(function () use ($request, $id, $upload) {
             $data = DB::table('bill_alipay')->where('id', $id)->lockForUpdate()->first();
-            if ($data === null || Php74::eq((string) $data->status, -1)) {
+            if ($data === null || ! Php74::eq((string) $data->status, 1)) {
                 return null;
             }
             DB::table('bill_alipay')->where('id', $data->id)->update([
@@ -86,7 +86,7 @@ class AdminAlipayController extends Controller
             return (string) $data->id;
         });
         if ($billId === null) {
-            return response(Alerts::error('CloseLoading()', 'รายการนี้ถูกยกเลิกไปแล้ว'));
+            return response("ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();'); ");
         }
         $js = $upload !== '' ? TempUpload::jsIfExists($upload, "         \t\t") : '';
         if (! config('legacy.debug_mail')) {
@@ -111,11 +111,14 @@ class AdminAlipayController extends Controller
                 'status' => '-1', 'cancel_remark' => $remark.' ,ยกเลิกโดย '.(Legacy::user()->code ?? ''),
                 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
             ]);
-            DB::table('balance')->insert([
-                'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
-                'user' => (string) $data->user, 'amount' => (string) $data->usecash, 'detail' => 'ยกเลิกรายการ '.P::prefix('alipay').$data->id,
-                'type' => 6, 'prefix' => (string) Lookup::getPrefixID('alipay'), 'prefix_ref_id' => (string) $data->id,
-            ]);
+            // SR: คืนทั้งบาท (usecash) และหยวน (usecash_cn) ให้เจ้าของบิล — เดิมเขียนทั้งสองแถวเสมอ (ยอด 0 ก็เขียน)
+            foreach (['balance' => $data->usecash, 'balance_cn' => $data->usecash_cn ?? null] as $table => $amount) {
+                DB::table($table)->insert([
+                    'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
+                    'user' => (string) $data->user, 'amount' => (string) $amount, 'detail' => 'ยกเลิกรายการ '.P::prefix('alipay').$data->id,
+                    'type' => 6, 'prefix' => (string) Lookup::getPrefixID('alipay'), 'prefix_ref_id' => (string) $data->id,
+                ]);
+            }
 
             return true;
         });

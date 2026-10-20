@@ -3,12 +3,13 @@
 use App\Http\Controllers\Payment\Admin\AdminAlipayController;
 use App\Http\Controllers\Payment\Admin\AdminPaymentController;
 use App\Http\Controllers\Payment\Admin\AdminPaymentCreateController;
+use App\Http\Controllers\Payment\Admin\AdminReceiptController;
 use App\Http\Controllers\Payment\AlipayController;
 use App\Http\Controllers\Payment\PaymentController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| กลุ่ม: payment — _payment, _admin/_payment, _alipay, _admin/_alipay (+ กล่อง PIN: App\Domain\Payment\PinBox)
+| กลุ่ม: payment — _payment, _admin/_payment, _alipay, _admin/_alipay, _admin/_receipt (SR) (+ กล่อง PIN: App\Domain\Payment\PinBox)
 | ดูรายการ URL/ไฟล์เดิมใน docs/url-map.md และรายงานใน docs/modules/payment.md
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 |
@@ -33,12 +34,8 @@ Route::middleware('legacy.perm:payment')->group(function () {
         Route::post('/_payment/save_delete', [PaymentController::class, 'saveDelete']);
         // เดิมไม่ตรวจสิทธิ์/ล็อกอิน → payment
         Route::post('/_payment/load_shipping_price', [PaymentController::class, 'loadShippingPrice']);
-        Route::post('/_payment/load_vat', [PaymentController::class, 'loadVat']);
-        // ตาราง user_receipt_address / user_address ไม่มีใน DB — ตอบผลแบบเดิมโดยไม่ query
-        Route::post('/_payment/load_receipt_address', [PaymentController::class, 'loadReceiptAddress']);
-        Route::post('/_payment/save_create_receiptaddress', [PaymentController::class, 'saveCreateReceiptAddress'])->middleware('legacy.once');
-        Route::post('/_payment/save_deleteaddress', [PaymentController::class, 'saveDeleteAddress']);
-        Route::post('/_payment/save_deletereceiptaddress', [PaymentController::class, 'saveDeleteReceiptAddress']);
+        // SR ไม่มี _payment/load_vat, load_receipt_address, save_create_receiptaddress, save_deleteaddress,
+        // save_deletereceiptaddress (ระบบ VAT/ที่อยู่ใบกำกับของ jl) → ไม่มี route (404 → หน้าแรก)
     });
 });
 Route::middleware(['legacy.auth', 'legacy.ajax'])->group(function () {
@@ -59,7 +56,7 @@ Route::middleware('legacy.perm:admin_payment')->group(function () {
         Route::post('/_admin/_payment/save_approved', [AdminPaymentController::class, 'saveApproved']);
         Route::post('/_admin/_payment/save_delete', [AdminPaymentController::class, 'saveDelete']);
         Route::post('/_admin/_payment/save_deletenopush', [AdminPaymentController::class, 'saveDeleteNoPush']);
-        Route::post('/_admin/_payment/save_vat', [AdminPaymentController::class, 'saveVat']);
+        // SR ไม่มี _admin/_payment/save_vat (VAT ของ jl)
         Route::post('/_admin/_payment/load_shipping_price', [AdminPaymentController::class, 'loadShippingPrice']);
     });
     // ไฟล์ include ของ save_approved/save_delete ที่เดิมเปิดตรงได้ (ไม่ต้องล็อกอิน) — ที่นี่ต้องมีสิทธิ์ และไม่ส่งอะไร
@@ -119,3 +116,12 @@ Route::middleware('legacy.perm:admin_alipay')->group(function () {
     Route::match(['GET', 'POST'], '/_admin/_alipay/email_success', [AdminAlipayController::class, 'emailDirect']);
 });
 Route::post('/_admin/_alipay/grid', [AdminAlipayController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
+
+// ---------- แอดมิน: รายการใบเสร็จ (SR เท่านั้น — _admin/_receipt) ----------
+// admin/receipt/{id}, admin/receipt/create → _admin/_receipt/form.php ไม่มีในเว็บเดิม (dead) → ไม่มี route
+Route::middleware('legacy.perm:admin_receipt')->group(function () {
+    Route::get('/admin/receipt', [AdminReceiptController::class, 'index'])->defaults('legacy_page', 'admin_receipt');
+    Route::get('/admin/receipt/status/{status}', [AdminReceiptController::class, 'index'])->whereNumber('status')->defaults('legacy_page', 'admin_receipt');
+});
+// เดิมไม่มีสิทธิ์ = exit (ตอบว่าง) → ตรวจใน controller
+Route::post('/_admin/_receipt/grid', [AdminReceiptController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
