@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
- * ถอนเงินออกจากระบบ (แอดมิน): _admin/_withdrawcash/*.php เดิม — สิทธิ์ admin_withdrawcash
+ * ถอนเงินออกจากระบบ (แอดมิน): _admin/_withdrawcash/*.php เดิม — SR: หน้า list/อนุมัติ/ยกเลิก = admin_withdrawpoint, หน้ารายการ/grid = admin_withdrawcash
  * (รายการถูกสร้างโดยลูกค้าที่ _balance/save_withdraw ของกลุ่ม balance)
  * email_success.php / email_cancel.php ที่ไฟล์เดิม include ไม่มีอยู่จริง → ไม่เคยส่งอีเมล (ที่นี่ก็ไม่ส่ง)
  */
@@ -28,10 +28,14 @@ class AdminWithdrawCashController extends Controller
 
     private const AJAX = '_admin/_withdrawcash/grid';
 
-    /** GET /admin/withdrawcash, /admin/withdrawcash/status/{status} */
+    /**
+     * GET /admin/withdrawcash, /admin/withdrawcash/status/{status}
+     * SR index.php: หัวหน้า + กล่อง grid แล้ว if(!getPermission('admin_withdrawpoint')) getPermissionAlert_Page('admin_withdrawcash')
+     */
     public function index(Request $request): View
     {
         return view('money-move.admin.withdrawcash.index', [
+            'denied' => ! perm('admin_withdrawpoint'),
             'status' => $request->route('status') ?? (string) LegacyInput::query($request, 'status'),
         ]);
     }
