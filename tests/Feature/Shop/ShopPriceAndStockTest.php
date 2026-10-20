@@ -3,6 +3,7 @@
 namespace Tests\Feature\Shop;
 
 use App\Domain\Shop\CrawlPrices;
+use App\Http\Controllers\Balance\Admin\AdminBalanceController;
 use App\Http\Controllers\Shop\Admin\MallStockController;
 use App\Http\Controllers\Shop\CartController;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +15,7 @@ use Tests\TestCase;
 /**
  * แก้จากเดิม (เจ้าของอนุมัติ 2026-10-18 "ให้แอดมินแก้ไขก็พอ"):
  *   - _cart/save_product: ลูกค้ากำหนดราคาเองไม่ได้ (ราคาจาก crawler ที่เซิร์ฟเวอร์จำไว้) — admin_mall ใส่เองได้
- *   - _admin/_mallstock/load_amount, save_amount: สิทธิ์ admin_mall_stock และแตะเฉพาะ mall_stock (ไม่ใช่ balance)
+ *   - _admin/_mallstock/load_amount, save_amount (SR = สำเนา _admin/_balance): สิทธิ์ admin_balance ผ่าน AdminBalanceController
  */
 class ShopPriceAndStockTest extends TestCase
 {
@@ -116,42 +117,31 @@ class ShopPriceAndStockTest extends TestCase
         return $captured;
     }
 
-    public function test_mallstock_amount_routes_need_mall_stock_permission(): void
+    /**
+     * SR: _admin/_mallstock/load_amount|save_amount = _admin/_balance/load_amount|save_amount ทุกตัวอักษร (สิทธิ์ admin_balance)
+     * → ทำงานผ่าน AdminBalanceController (กฎเงินชุดเดียวกัน) ไม่มีทางเขียน balance นอกเหนือจากที่ admin/balance ทำได้
+     */
+    public function test_mallstock_amount_endpoints_delegate_to_admin_balance(): void
     {
         foreach (['_admin/_mallstock/load_amount', '_admin/_mallstock/save_amount'] as $uri) {
             $r = collect(Route::getRoutes()->getRoutes())->first(fn ($r) => $r->uri() === $uri);
             $this->assertNotNull($r, $uri);
-            $this->assertContains('legacy.perm:admin_mall_stock', $r->gatherMiddleware(), $uri);
-            $this->assertNotContains('legacy.perm:admin_balance', $r->gatherMiddleware(), $uri);
+            $this->assertContains('legacy.perm:admin_balance', $r->gatherMiddleware(), $uri);
         }
+        $req = $this->actAs(11938, ['admin_balance'], [], ['id' => '49', 'amount' => '-3', 'detail' => 'zz', 'type' => '2', 'code' => 'X']);
+        $bal = Mockery::mock(AdminBalanceController::class);
+        $bal->shouldReceive('loadAmount')->once()->with($req)->andReturn(response('L'));
+        $bal->shouldReceive('saveAmount')->once()->with($req)->andReturn(response('S'));
+        $this->app->instance(AdminBalanceController::class, $bal);
+        $c = app(MallStockController::class);
+        $this->assertSame('L', $c->loadAmount($req)->getContent());
+        $this->assertSame('S', $c->saveAmount($req)->getContent());
     }
 
-    public function test_mallstock_save_amount_updates_only_mall_stock(): void
-    {
-        DB::shouldReceive('table')->with('balance')->never();
-        DB::shouldReceive('raw')->andReturnUsing(fn ($v) => new \Illuminate\Database\Query\Expression($v));
-        $stock = Mockery::mock();
-        $stock->shouldReceive('where')->andReturnSelf();
-        $stock->shouldReceive('update')->once()->with(Mockery::on(
-            fn ($v) => $v['amount'] === -3 && $v['detail'] === 'zz adjust' && ! array_key_exists('type', $v) && ! array_key_exists('user', $v)
-        ))->andReturn(1);
-        DB::shouldReceive('table')->with('mall_stock')->andReturn($stock);
-
-        $req = $this->actAs(11938, ['admin_mall_stock'], [], ['id' => '49', 'amount' => '-3', 'detail' => 'zz adjust', 'type' => '2', 'code' => '']);
-        $this->assertStringContainsString('SuccessBox(', (string) app(MallStockController::class)->saveAmount($req)->getContent());
-    }
-
-    public function test_mallstock_save_amount_rejects_bad_input_without_touching_db(): void
+    public function test_mallstock_grid_without_admin_balance_is_empty_without_query(): void
     {
         DB::shouldReceive('table')->never();
-        DB::shouldReceive('raw')->andReturnUsing(fn ($v) => new \Illuminate\Database\Query\Expression($v));
-        $c = app(MallStockController::class);
-        foreach ([
-            ['id' => '1', 'amount' => '1.5'], ['id' => '1', 'amount' => 'abc'], ['id' => '1) OR (1=1', 'amount' => '1'],
-            ['id' => '', 'amount' => '1', 'mall_detail_id' => ''], ['id' => '', 'amount' => '1', 'mall_detail_id' => '4 OR 1'],
-        ] as $post) {
-            $req = $this->actAs(11938, ['admin_mall_stock'], [], $post + ['code' => '', 'detail' => '']);
-            $this->assertStringContainsString('ErrorBox(', (string) $c->saveAmount($req)->getContent(), json_encode($post));
-        }
+        $req = $this->actAs(137, ['order'], [], ['page' => '1', 'txtsearch' => '']);
+        $this->assertSame('', app(MallStockController::class)->grid($req)->getContent());
     }
 }

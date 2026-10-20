@@ -44,7 +44,17 @@ class DoubleSubmitDbTest extends BenchDbTestCase
 
     private function taobaoPost(string $price, string $remark = 'zz_dbl'): array
     {
-        return ['id' => '0', 'order' => ['zz_order_1'], 'price' => [$price], 'taobao_name' => 'zz', 'taobao_password' => 'zz', 'remark' => $remark];
+        // SR: _taobao/save ต้องยืนยัน PIN จ่ายเงิน (PinBox::guard) — ผู้ใช้ทดสอบตั้ง PIN ด้วย taobaoUser()
+        return ['id' => '0', 'order' => ['zz_order_1'], 'price' => [$price], 'taobao_name' => 'zz', 'taobao_password' => 'zz', 'remark' => $remark,
+            'paymentpin' => '135791'];
+    }
+
+    private function taobaoUser(): User
+    {
+        $u = $this->zzUser();
+        DB::table('user')->where('id', $u->id)->update(['pin' => '135791']);
+
+        return $u->refresh();
     }
 
     private function rows(string $table, User $u): int
@@ -54,7 +64,7 @@ class DoubleSubmitDbTest extends BenchDbTestCase
 
     public function test_double_click_taobao_creates_one_order_and_deducts_once(): void
     {
-        $cust = $this->zzUser();
+        $cust = $this->taobaoUser();
         $this->credit($cust, 100000);
         $this->actAs($cust);
         $before = $this->cash($cust);
@@ -88,7 +98,7 @@ class DoubleSubmitDbTest extends BenchDbTestCase
 
     public function test_failed_submit_is_not_remembered_so_the_user_can_retry(): void
     {
-        $cust = $this->zzUser();
+        $cust = $this->taobaoUser();
         $this->actAs($cust);
         // ยอดไม่พอ → ErrorBox (ไม่จำ payload) → เติมเงินแล้วส่ง payload เดิมได้ทันที
         $this->assertStringContainsString('ErrorBox(', $this->submit('_taobao/save', TaobaoController::class, 'save', $this->taobaoPost('10')));

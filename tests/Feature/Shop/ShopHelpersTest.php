@@ -6,11 +6,9 @@ use App\Domain\Shop\CartRepo;
 use App\Domain\Shop\CrawlGuard;
 use App\Domain\Shop\Php74;
 use App\Domain\Shop\ProductCrawler;
-use App\Domain\Shop\SafeHtml;
 use App\Domain\Shop\Upload;
 use App\Domain\Shop\UserAgent;
 use App\Http\Controllers\Shop\ApiController;
-use App\Http\Controllers\Shop\Admin\MallStockController;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -86,25 +84,9 @@ class ShopHelpersTest extends TestCase
         $this->assertStringNotContainsString('validate[requiredattachment]', $html);
     }
 
-    public function test_mall_stock_remain_matches_numbercal_echo(): void
-    {
-        $this->assertSame('-1', MallStockController::remain('-1', null));
-        $this->assertSame('17', MallStockController::remain('5', '12'));
-    }
-
     public function test_random_user_agent_comes_from_legacy_list(): void
     {
         $this->assertMatchesRegularExpression('/^(Mozilla|Opera)/', UserAgent::random());
         $this->assertNotSame('', UserAgent::random());
-    }
-
-    public function test_mall_detail_html_is_kept_unless_dangerous(): void
-    {
-        $ok = "<p>GeForce RTX 2060</p>\n\n<p style=\"color:red\">ราคา 100&nbsp;บาท &amp; ส่งฟรี</p><img src=\"https://a.b/x.jpg\">";
-        $this->assertSame($ok, SafeHtml::clean($ok));
-        $this->assertSame('<p>x</p><img src="x">', SafeHtml::clean('<p>x</p><img src=x onerror=alert(1)><script>alert(2)</script>'));
-        $this->assertSame('<img src="x">', SafeHtml::clean('<img/onerror=alert(1) src=x>'));
-        $this->assertSame('<a>z</a>', SafeHtml::clean("<a href=' jav&#x09;ascript:alert(1)'>z</a>"));
-        $this->assertStringNotContainsString('iframe', SafeHtml::clean('<p>a</p><iframe src="//evil"></iframe>'));
     }
 }

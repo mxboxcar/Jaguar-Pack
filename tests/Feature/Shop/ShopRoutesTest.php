@@ -19,11 +19,16 @@ class ShopRoutesTest extends TestCase
         ['GET', 'cart/checkout', 'legacy.perm:order', 'checkout'],
         ['GET', 'cart/checkout/{ids}', 'legacy.perm:order', 'checkout'],
         ['GET', 'cart/product/{url?}', 'legacy.perm:order', 'checkout_product'],
-        ['GET', 'admin/mall_stock', 'legacy.perm:admin_mall_stock', 'admin_mall_stock'],
+        ['GET', 'findproduct', 'legacy.auth', 'findproduct'],                     // SR เท่านั้น — ตรวจ findproduct ใน view
+        ['GET', 'findproduct/create', 'legacy.perm:findproduct', 'findproduct_detail'],
+        ['GET', 'findproduct/{id}', 'legacy.perm:findproduct', 'findproduct_detail'],
         // ajax
-        ['POST', '_admin/_mallstock/grid', 'legacy.perm:admin_mall_stock', null],
-        ['POST', '_admin/_mallstock/load_amount', 'legacy.perm:admin_mall_stock', null], // แก้จากเดิม (admin_balance)
-        ['POST', '_admin/_mallstock/save_amount', 'legacy.perm:admin_mall_stock', null], // แก้จากเดิม (admin_balance)
+        ['POST', '_admin/_mallstock/grid', 'legacy.auth', null],                 // SR: ตรวจ admin_balance ใน controller (เดิม exit เงียบ)
+        ['POST', '_admin/_mallstock/load_amount', 'legacy.perm:admin_balance', null], // SR = สำเนา _admin/_balance
+        ['POST', '_admin/_mallstock/save_amount', 'legacy.perm:admin_balance', null],
+        ['POST', '_findproduct/grid', 'legacy.auth', null],
+        ['POST', '_findproduct/save', 'legacy.perm:findproduct', null],
+        ['POST', '_findproduct/delete', 'legacy.perm:findproduct', null],
         ['POST', '_api/blockblob', 'legacy.auth', null],
         ['POST', '_api/blockblob_ajax', 'legacy.auth', null],
         ['POST', '_api/crawl_guard', 'legacy.auth', null],
@@ -37,9 +42,7 @@ class ShopRoutesTest extends TestCase
         ['POST', '_api/send_sms', 'legacy.auth', null],
         ['GET', '_api/submit_order_number_v2', null, null],
         ['GET', '_api/unban', null, null],
-        ['GET', '_api/updateImagePrefix', null, null],
         ['POST', '_api/useragent', 'legacy.auth', null],
-        ['POST', '_cart/cart', 'legacy.auth', null],
         ['POST', '_cart/delete_cart', 'legacy.perm:order', null],
         ['POST', '_cart/delete_carts', 'legacy.perm:order', null],
         ['POST', '_cart/load_cart', 'legacy.perm:order', null],
@@ -50,7 +53,7 @@ class ShopRoutesTest extends TestCase
         ['POST', '_cart/save_craft', 'legacy.perm:order', null],
         ['POST', '_cart/save_product', 'legacy.perm:order', null],
         ['POST', '_cart/save_qc', 'legacy.perm:order', null],
-        ['POST', '_taobao/delete', 'legacy.auth', null],
+        ['POST', '_cart/save_takeapic', 'legacy.perm:order', null],             // SR เท่านั้น
         ['POST', '_taobao/grid', 'legacy.auth', null],
         ['POST', '_taobao/load_calculator', 'legacy.perm:taobao', null],
         ['POST', '_taobao/load_new_line', 'legacy.perm:taobao', null],
@@ -80,12 +83,29 @@ class ShopRoutesTest extends TestCase
             if ($page !== null && ($route->defaults['legacy_page'] ?? null) !== $page) {
                 $problems[] = "$method $uri: legacy_page != $page";
             }
-            if (str_starts_with($uri, '_') && $mw !== null && ! str_starts_with($uri, '_api/') && $uri !== '_cart/cart'
-                && $uri !== '_taobao/delete' && ! in_array('legacy.ajax', $have, true)) {
+            if (str_starts_with($uri, '_') && $mw !== null && ! str_starts_with($uri, '_api/')
+                && ! in_array('legacy.ajax', $have, true)) {
                 $problems[] = "$method $uri: ajax ต้องมี legacy.ajax (system_check_ajax เดิม)";
             }
         }
         $this->assertSame([], $problems);
+    }
+
+    /** ไฟล์ที่มีแต่ใน jl (SR ไม่มี) และหน้าที่ไม่มีใน content.php ของ SR (dead) → ไม่มี route (404 → หน้าแรก) */
+    public function test_jl_only_and_dead_shop_urls_are_not_routed(): void
+    {
+        $gone = ['_cart/cart', '_cart/product_2', '_taobao/delete', '_api/updateImagePrefix', 'admin/mall_stock',
+            'admin/mall_stock/{id}', 'admin/findproduct', 'admin/findproduct/create', 'admin/findproduct/{id}',
+            '_admin/_findproduct/grid', 'mall', 'mall/cart', '_mall/grid', 'admin/mall', '_admin/_mall/grid'];
+        $uris = array_map(fn ($r) => $r->uri(), Route::getRoutes()->getRoutes());
+        $this->assertSame([], array_values(array_intersect($gone, $uris)));
+    }
+
+    public function test_mallstock_save_amount_has_double_submit_guard_like_admin_balance(): void
+    {
+        $r = collect(Route::getRoutes()->getRoutes())->first(fn ($r) => $r->uri() === '_admin/_mallstock/save_amount');
+        $this->assertContains('legacy.once', $r->gatherMiddleware());
+        $this->assertNotContains('legacy.perm:admin_mall_stock', $r->gatherMiddleware());
     }
 
     public function test_page_checkout_product_is_named_for_index_redirect(): void
