@@ -43,7 +43,8 @@ Route::middleware('legacy.perm:admin_product_type')->group(function () {
 });
 Route::post('/_admin/_product_type/grid', [ProductTypeController::class, 'grid'])->middleware(['legacy.ajax', 'legacy.auth']);
 Route::middleware(['legacy.ajax', 'legacy.perm:admin_product_type'])->group(function () {
-    Route::post('/_admin/_product_type/save', [ProductTypeController::class, 'save']);
+    // กดบันทึกซ้อน (ดับเบิลคลิก) = INSERT ซ้ำ 2 แถว (E2E SR 2026-10-20) → legacy.once (เจ้าของอนุมัติ double-submit guard)
+    Route::post('/_admin/_product_type/save', [ProductTypeController::class, 'save'])->middleware('legacy.once');
     Route::post('/_admin/_product_type/delete', [ProductTypeController::class, 'delete']);
 });
 
@@ -55,7 +56,7 @@ Route::middleware('legacy.perm:admin_shipping_type')->group(function () {
 });
 Route::post('/_admin/_shipping_type/grid', [ShippingTypeController::class, 'grid'])->middleware(['legacy.ajax', 'legacy.auth']);
 Route::middleware(['legacy.ajax', 'legacy.perm:admin_shipping_type'])->group(function () {
-    Route::post('/_admin/_shipping_type/save', [ShippingTypeController::class, 'save']);
+    Route::post('/_admin/_shipping_type/save', [ShippingTypeController::class, 'save'])->middleware('legacy.once');
     Route::post('/_admin/_shipping_type/save_listno', [ShippingTypeController::class, 'saveListno']);
     Route::post('/_admin/_shipping_type/delete', [ShippingTypeController::class, 'delete']);
     Route::post('/_admin/_shipping_type/delete_cal', [ShippingTypeController::class, 'deleteCal']);
