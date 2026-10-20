@@ -173,3 +173,12 @@
    - (ค) ต้องทำสำเนา key ของ Azure/Mailgun ให้ user ของ pool
    - (ง) ต้องสร้างโฟลเดอร์ upload root
 4. ทดสอบบน `/new/` ต่อ DB จริงด้วย gate cookie แล้วสลับทั้งเว็บ (สลับ cron mail worker พร้อมกัน, มี rollback คำสั่งเดียว) และเฝ้าดู 24 ชั่วโมง
+
+## 8. สลับเว็บจริง (2026-10-20)
+
+- 19:37 ขึ้น `/new/` (gate cookie) → ทดสอบบน production ด้วย session ของแอดมินและลูกค้า: หน้าอ่านอย่างเดียว 110 หน้าและ grid 24 ตัว ตรงกับเว็บเดิม (ต่างเฉพาะที่ตั้งใจ) ไม่มี error
+- hotfix `_admin/_refill/grid`/`index` บนเว็บเดิม SR (backup `/root/webroot-backups/refill-perm-20261020`) — ship2you มีช่องโหว่เดียวกัน ยังไม่แก้
+- **22:49 สลับทั้งเว็บไป Laravel** (`sr-live` = `79e03bd`, user `site_srlv`, pool `sr-live`), mail worker ย้ายไป `/etc/cron.d/sr-live`, Mailgun ส่งจริง · ถอยกลับ: `/root/sr-new-subfolder/rollback-switch.sh`
+- แก้ nginx หลังสลับ: `fastcgi_param REQUEST_URI` ต้องอยู่**หลัง** `include fastcgi_params` (php-fpm ใช้ค่าหลัง) ไม่งั้น URL `.php` เดิมไม่ถึง route — jl มีปัญหาเดียวกัน แจ้ง session jl แล้ว
+- autodeploy SR ทุก 2 นาที (เทสผ่าน + health check, พังถอยเอง) และเพิ่มใน Beacon หน้า Repo (`mxboxcar/Jaguar-SRShipping`), log Laravel เข้า filebeat (log_type sr)
+- เฝ้า 24 ชม.: `/var/lib/sr-autodeploy/watch.log` ทุก 15 นาที
