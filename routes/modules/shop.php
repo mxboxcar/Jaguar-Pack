@@ -3,11 +3,12 @@
 use App\Http\Controllers\Shop\Admin\MallStockController;
 use App\Http\Controllers\Shop\ApiController;
 use App\Http\Controllers\Shop\CartController;
+use App\Http\Controllers\Shop\FindProductController;
 use App\Http\Controllers\Shop\TaobaoController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| กลุ่ม: shop — _cart, _taobao, _api, _admin/_mallstock
+| กลุ่ม: shop — _cart, _taobao, _api, _findproduct (SR เท่านั้น), _admin/_mallstock
 | (SR ไม่มีร้านค้า _mall/_admin/_mall/_mall_category — ตารางไม่มีใน admin_sr; _admin/_mallstock ของ SR = สำเนา _admin/_balance)
 | ไฟล์ที่มีแต่ใน jl ไม่ทำ route: _cart/cart, _cart/product_2, _taobao/delete, _api/updateImagePrefix (SR ไม่มีไฟล์ = 404 → หน้าแรก)
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
@@ -58,6 +59,22 @@ Route::middleware('legacy.perm:taobao')->group(function () {
         Route::post('/_taobao/save_remark', [TaobaoController::class, 'saveRemark']);
         Route::post('/_taobao/save', [TaobaoController::class, 'save'])->middleware('legacy.once');
     });
+});
+
+// ================================================================ จัดหาสินค้า (_findproduct, SR เท่านั้น) — getPermission('findproduct')
+// สิทธิ์ findproduct ไม่มีใน role_detail ของ SR → ไม่มีใครใช้ได้ (เว็บเดิมก็เป็น) — ไม่มี fallback (ถามเจ้าของ)
+// admin/findproduct* ชี้ไฟล์ _admin/_findproduct/* ที่ไม่มีใน SR → dead (ไม่ทำ route)
+Route::middleware('legacy.auth')->group(function () {
+    // index ตรวจสิทธิ์ใน view (เดิมแสดงหัวหน้าแล้วค่อยเด้ง), grid ไม่มีสิทธิ์ = ตอบว่าง
+    Route::get('/findproduct', [FindProductController::class, 'index'])->defaults('legacy_page', 'findproduct');
+    Route::post('/_findproduct/grid', [FindProductController::class, 'grid'])->middleware('legacy.ajax');
+});
+Route::middleware('legacy.perm:findproduct')->group(function () {
+    Route::get('/findproduct/create', [FindProductController::class, 'form'])->defaults('legacy_page', 'findproduct_detail');
+    Route::get('/findproduct/{id}', [FindProductController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'findproduct_detail');
+    // save.php / delete.php เดิม require '../../system_check_ajax.php' (path ผิด) → fatal 500 ทุกครั้ง — คงผลเดิม ไม่แตะข้อมูล
+    Route::post('/_findproduct/save', [FindProductController::class, 'broken'])->middleware('legacy.ajax');
+    Route::post('/_findproduct/delete', [FindProductController::class, 'broken'])->middleware('legacy.ajax');
 });
 
 // ================================================================ แอดมิน: _admin/_mallstock (SR) — getPermission('admin_balance')
