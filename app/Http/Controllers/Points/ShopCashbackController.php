@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Points;
 
 use App\Domain\Money\Money;
+use App\Domain\Payment\PinBox;
 use App\Domain\Points\Cashback;
 use App\Domain\Points\Grid;
 use App\Domain\Points\Php74;
@@ -102,6 +103,12 @@ class ShopCashbackController extends Controller
     /** POST /_shop_cashback/save — _shop_cashback/save.php (สร้างรายการใหม่เท่านั้น เหมือนเดิม) */
     public function save(Request $request): Response
     {
+        // SR: ถาม PIN จ่ายเงินก่อนบันทึก (ของ jl ถูก comment ไว้) — getNewPinBox() / getPinBox(0) ต่อท้าย "form" แล้ว _profile/pin ส่งฟอร์มใหม่
+        // เทียบ PIN ผ่าน PinBox::guard() (hash_equals + PinThrottle) แทน != หลวมของเดิม
+        if (($js = PinBox::guard($request, Legacy::user())) !== null) {
+            return response($js);
+        }
+
         $uid = Legacy::userId();
         $orders = Grid::inArray($request, 'order');
         $dates = Grid::inArray($request, 'date');
