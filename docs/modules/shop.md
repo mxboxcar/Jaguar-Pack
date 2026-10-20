@@ -1,5 +1,127 @@
 # กลุ่ม shop — รายงานการพอร์ต
 
+## SR (2026-10-20)
+
+branch `mod/shop` ของ repo sr · worktree `/home/admin/laravel/sr-wt/shop` · dev http://127.0.0.1:8302 · เทียบกับ SR เดิม :8111 (`admin_sr_bench`)
+ข้อความด้านล่าง (ตั้งแต่ "โมดูลเดิม") เป็นรายงานเดิมของ jl — ยังใช้ได้กับ SR ยกเว้นที่ระบุในหัวข้อนี้ (ส่วน mall / `_admin/_mall*` / `admin_mall_stock` ของ jl ไม่มีใน SR แล้ว)
+
+### สิ่งที่เปลี่ยนสำหรับ SR (ตาม `docs/sr-diff.md` กลุ่ม shop)
+
+| ไฟล์เดิม | สถานะ | ที่ทำ |
+|---|---|---|
+| `_cart/product.php` | diff 64 | view ใหม่จากไฟล์ SR: สำเร็จเมื่อ `data.price != null && != ""` (jl: product_name), สีแบบ hex ใช้ `switchcolorborder` ทุกเว็บ (jl แยก alibaba), รูปสีไม่มี `?r=`/ชื่อ, `newcolor.length` (jl `!= null`), ไม่มี `calselectcart()` ในหน้า, `changesku()` ไม่ตรวจ `sku != ''` และคำนวณราคาไทยครั้งเดียวท้ายฟังก์ชัน — คง `_h()` escape ค่าจาก crawler และ `Alerts::js($link)` |
+| `_cart/checkout.php` | diff 25 | กล่องหมายเหตุ `text-left` + ข้อความเงื่อนไข (เป็น HTML comment แบบเดิม), modal "ไลน์ @" (jl: "ไลน์ jlcargo"), JS `SaveCartTakeapic()` |
+| `_cart/load_full_cart.php` | diff 23 | คอลัมน์ "ถ่ายรูป" + สวิตช์ `SaveCartTakeapic` ต่อร้าน (`cart_detail.is_takeapic`), รูปสี/ขนาดไม่มี `<span>` ชื่อจาก `?r=` |
+| `_cart/load_cart.php` | diff 17 | รูปสีไม่มี `<span>` ชื่อ, ช่องจำนวนไม่มี `onblur="switchpriceupdate_in(...)"` |
+| `_cart/load_choose_product.php` | diff 4 | ปุ่ม +/- ไม่เรียก `changesku()` |
+| `_cart/save_checkout.php` | diff 20 | รายการที่ `url` ว่างไม่ลง `bill_product_detail` (แต่ยังนับในยอด `bill_product.total` แบบเดิม), `is_takeapic` ลง `bill_product_detail` และ `tracking` (ค่าจากแถวแรกของร้าน — GROUP BY เดิม) |
+| `_cart/save_product.php` | diff 2 | `search_url` ว่าง = ไม่ INSERT `cart_detail` แต่ยังสร้างตะกร้า/ตั้ง cookie/ตอบสำเร็จแบบเดิม (ไม่ผ่านการตรวจราคา/จำนวน เพราะไม่เขียนรายการ) |
+| `_cart/save_takeapic.php` | SR-only | `POST /_cart/save_takeapic` (`legacy.perm:order`, `legacy.ajax`) — `UPDATE cart_detail SET is_takeapic WHERE id AND user = me` (bind) |
+| `_taobao/save.php` | diff 37 | **ต้องยืนยัน PIN จ่ายเงิน** (ทั้งสร้างและแก้หมายเหตุ) ผ่าน `PinBox::guard()` (getNewPinBox / getPinBox(0) / "PIN จ่ายเงินไม่ถูกต้อง" + ตัวนับ PinThrottle — ไม่ log PIN ที่พิมพ์ผิดแบบเดิม); ราคาช่องใด `== 0` แบบ PHP 7.4 (0, 0.00, ว่าง, ไม่ใช่ตัวเลข) = `ErrorBox('กรุณาใส่ราคา')` |
+| `_api/blockblob_ajax.php` | diff 21 | ต้องล็อกอิน (SR `checkUser()`), หลังสั่งอัป (สำเร็จหรือ error) ตอบต่อท้ายด้วย `<href>upload/temp/<ชื่อไฟล์>` (`temp empty`/`exists` ไม่มี); อัปผ่าน `BlobStore` เดิม (account ของ SR อยู่ใน `.env` — dev = local) |
+| `_api/blockblob.php` | diff 4 | ต่างแค่ account/key (ไลบรารี) — ไม่มีผลกับ route |
+| `_api/load_product.php` | diff 13 | timeout crawler 120/120 วินาที (jl 10/25) ใน `ProductCrawler`; STUB ของ dev มี `skus[0]` (JS ของ SR เรียก `sku[0].quantity` โดยไม่ตรวจ) |
+| `_api/get_order_number_v3.php` | diff 3 | ไม่มีบรรทัด `<order>[xx]tmall` เพิ่มสำหรับลิงก์ taobao |
+| `_api/unban.php` | diff 10 | รับ token จาก GET เท่านั้น (jl รับ POST ด้วย); token ยังอยู่ใน `.env` (`LEGACY_SHOP_UNBAN_TOKEN`) เทียบด้วย `hash_equals` — **token ของ SR เดิมอยู่ในโค้ดและ comment crontab → ต้องตั้งค่าใหม่** |
+| `_api/send_sms.php` | diff 2 | ไม่ส่ง SMS เหมือนเดิม (stub) |
+| `_admin/_mallstock/*` | diff 69/10, same | ดูหัวข้อถัดไป |
+| ไฟล์ `same` อีก 21 ไฟล์ | same | ไม่ต้องแก้โค้ด — เทียบผลกับ :8111 แล้ว (ด้านล่าง) |
+
+### `_admin/_mallstock` ของ SR (ตัดสินตามพฤติกรรม SR เดิม)
+
+SR ไม่มีร้านค้า (ไม่มีตาราง `mall`/`mall_stock`) — ทั้งโฟลเดอร์เป็น **สำเนาของ `_admin/_balance`**:
+- `index.php` = หน้า balance (ไม่มี page `admin_mall_stock` ใน `content.php` → **dead**: ลบ route `GET /admin/mall_stock` + view index; `admin/mall_stock/{id}` ก็ dead)
+- `grid.php` = grid บัญชีเงินบาทของลูกค้าทุกคน (รุ่นเก่า: ค้น `balance.id`/`detail`/`user.code` LIKE `%…%`, ไม่มีคอลัมน์ผู้ทำรายการ/รูปสลิปถอนเงิน, `$ajaxpage = "_admin/_balance/grid"`) ตรวจ `admin_balance` ไม่มีสิทธิ์ = ตอบว่าง → พอร์ตตามนี้ (`legacy.auth` + ตรวจใน controller), LIKE bind + escape, ยอดคงเหลือ = `GridQuery::attachPrevSums` (เดิม SUM ทีละแถว)
+- `load_amount.php` / `save_amount.php` = `_admin/_balance/load_amount|save_amount` ทุกตัวอักษร (`admin_balance`) → route `legacy.perm:admin_balance` (+ `legacy.once` ที่ save แบบ `_admin/_balance`) และ **เรียก `AdminBalanceController` ของกลุ่ม balance ตรงๆ** — กฎเงินชุดเดียวกัน (`Money::adminAmount`, bind, ไม่มี SQL injection) จึงไม่เปิดช่องเขียน `balance` เกินกว่าที่หน้า admin/balance ให้ผู้ถือ `admin_balance` ทำได้อยู่แล้ว
+- ของ jl (สิทธิ์ `admin_mall_stock` + ตาราง `mall_stock`) ใช้ใน SR ไม่ได้: ไม่มีตาราง (QueryException) และ `admin_mall_stock` ไม่มี role ใดถือ
+
+### SR-only ที่พอร์ตใหม่: จัดหาสินค้า (`_findproduct`)
+
+| ไฟล์เดิม | route | สิทธิ์ | หมายเหตุ |
+|---|---|---|---|
+| `_findproduct/index.php` | `GET /findproduct` (`findproduct`) | `legacy.auth` + ตรวจ `findproduct` ใน view | แสดงหัวหน้าแล้ว `getPermissionAlert_Page` แบบเดิม |
+| `_findproduct/form.php` | `GET /findproduct/create`, `/findproduct/{id}` (`findproduct_detail`) | `legacy.perm:findproduct` | ฟอร์มเป็นสำเนา product_type (ช่อง desc/kg/cubic/amount/sale_*/is_default ไม่มีใน `find_product` = ว่าง) |
+| `_findproduct/grid.php` | `POST /_findproduct/grid` | `legacy.auth` + ตรวจใน controller (ไม่มีสิทธิ์ = ว่าง) | ค้น `id`/`name` LIKE (bind+escape), คอลัมน์ kg/cubic/sale_* ว่าง, ลิงก์ไป `admin/product_type/{id}` แบบเดิม |
+| `_findproduct/save.php`, `delete.php` | `POST /_findproduct/save`, `/_findproduct/delete` | `legacy.perm:findproduct` | เดิม `require_once('../../system_check_ajax.php')` path ผิด → **fatal 500 ทุกครั้ง** ก่อนถึงโค้ด (ซึ่งจะแก้/ลบ `product_type` ด้วยสิทธิ์ `admin_product_type`) → ตอบ 500 ว่าง ไม่แตะข้อมูล |
+
+- สิทธิ์ `findproduct` **ไม่มีแถวใน `role_detail` ของ SR** → เว็บเดิมไม่มีใครใช้ได้แม้แอดมิน; Laravel ใช้ชื่อเดิม ไม่มี fallback (คำถามเจ้าของ) — ตาราง `find_product`/`find_product_image` ว่างใน bench
+- `admin/findproduct*` ชี้ `_admin/_findproduct/*` ที่ไม่มีไฟล์ใน SR → dead (ไม่ทำ route)
+
+### JL-only ที่ตัดออก
+
+- `_cart/cart` (route + `CartController::cartFragment` + view `shop/cart/cart`), `_cart/product_2` (ไม่มี route อยู่แล้ว), `_taobao/delete` (route + `TaobaoController::delete`), `_api/updateImagePrefix` (route + method) — SR ไม่มีไฟล์และไม่มีหน้า/JS ใดเรียก (`grep` ทั้ง webroot) → 404 → หน้าแรก
+- `App\Domain\Shop\SafeHtml` (ใช้แค่ `mall.detail` ของ jl) และ test ที่เกี่ยวกับ mall/mall_stock
+- (ยังเหลือในไฟล์ฐานร่วม — ไม่ได้แตะ: `RouteSecurityTest::PUBLIC['_api/updateImagePrefix']`, `config('legacy.shop.image_prefix_token')`)
+
+### ต่างจาก SR เดิมโดยตั้งใจ (เพิ่มจากของ jl ด้านล่าง)
+
+- escape ค่าจาก DB/ผู้ใช้ทุกตัว (ชื่อสินค้า, หมายเหตุ `<b>` ใน load_cart/load_full_cart ฯลฯ) และตัด `target="_blank"` ทุกจุด
+- หน้าไม่มีสิทธิ์/ไม่พบรายการ (`findproduct/*`, `taobao/{id ของคนอื่น}`) — เดิม `exit()` ตัด layout ครึ่งหน้า, ใหม่ layout ครบ + ข้อความเดิม
+- `_findproduct/save|delete` ไม่มีสิทธิ์ = ErrorBox (เดิม 500 สำหรับทุกคน); มีสิทธิ์ = 500 เหมือนเดิม
+- PIN ของ `_taobao/save`: ตัวนับเดา PIN (PinThrottle) และไม่บันทึก PIN ที่พิมพ์ผิดลง log (เดิม `goLog(... paymentpin: '<pin>')`)
+- ราคาในตะกร้า: ลูกค้ากำหนดเองไม่ได้ (ของ jl) — ข้อยกเว้น "ผู้ถือ `admin_mall`" ยังอยู่ แต่ใน SR **ไม่มี role ใดถือ `admin_mall`** จึงไม่มีใครใส่ราคาเองได้ (ราคาในบิลแก้ที่ฝั่งแอดมินออเดอร์)
+- layout (ฐานร่วม): ไม่มี `jquery.dashboard.js`, favicon ใหม่ — ไม่ใช่ของกลุ่มนี้
+
+### ช่องโหว่เดิมใน SR ที่พบ (แก้แล้วใน Laravel)
+
+| ช่องโหว่ | ไฟล์ SR | แก้ |
+|---|---|---|
+| ผู้ถือ `admin_balance` INSERT/UPDATE แถว `balance` ใดก็ได้ด้วย SQL ต่อ string (`id`, `amount`, `type`, `detail`, `code`) ผ่าน URL ที่ไม่มีหน้าใช้ | `_admin/_mallstock/save_amount.php`, `load_amount.php` | กฎเดียวกับ `_admin/_balance` (bind, `Money::adminAmount`, `legacy.once`) |
+| SQL injection ใน LIKE (`txtsearch`) | `_admin/_mallstock/grid.php`, `_findproduct/grid.php` | bind + escape |
+| `is_takeapic` จาก POST ต่อ string เข้า SQL | `_cart/save_takeapic.php` | bind + กรองเจ้าของ |
+| log PIN ที่พิมพ์ผิดเป็น plaintext | `_taobao/save.php` | ไม่ log PIN |
+| token cron unban อยู่ในโค้ด + comment crontab | `_api/unban.php` | `.env` |
+| `_api/send_sms.php` ของ SR ยังมี username/เบอร์ thaibulksms ในโค้ด (รหัสว่าง) | `_api/send_sms.php` | ไม่ส่งอะไร |
+
+### ตรวจเทียบกับ :8111 (session เดียวกัน, แทน host + ยุบช่องว่าง + ตัด `target="_blank"`)
+
+ผล "เหมือนกัน" ทุกจุด ยกเว้น escape ที่ตั้งใจและส่วน layout ของฐานร่วม:
+- ลูกค้า 3 / 2 / 11937 (zz_fdn_cust): `cart/product` (ว่าง, `?l=` มี `'`, `/{url}`), `cart/checkout[/ids]`, `_cart/load_cart`, `_cart/load_full_cart` (ids ว่าง/2 แถวจริง/4 แถว zz ที่มีรูปสี `?r=`, สี hex, รูปขนาด, ไฟล์แนบ, หมายเหตุ `<b>`, ชื่อ NULL, ถ่ายรูปเปิด/ปิด, 2 ร้าน — ต่างแค่ escape `<b>`), `_cart/load_choose_product`, `taobao`, `taobao/create`, `taobao/{id}` (ของตัวเอง/ของคนอื่น), `_taobao/grid` (หน้า 1/2, ค้น `TAO-97`), `_taobao/load_new_line`, `_taobao/load_calculator`, `_api/blockblob_ajax` (temp empty), `_api/blockblob|crawl_guard|image_shrink|useragent|load_product_v5`
+- role 7 (user 11, ไม่มี `order`): `_cart/load_cart` ErrorBox, `_cart/load_choose_product` script แจ้งสิทธิ์ — ตรง
+- แอดมิน 11938 / role 12 (user 6): `_admin/_mallstock/grid` หน้า 1/2/3, ค้น `SRC-A00|-2`, `BLA-17|`, `TAO`, `a%b_c`, กรองประเภท `|7`, page ว่าง; `_admin/_mallstock/load_amount` (มี/ไม่มีแถว) — ตรง; role 7 = grid ว่าง, load_amount ErrorBox — ตรง
+- `findproduct`, `findproduct/create`, `findproduct/5`, `_findproduct/grid` (แอดมิน/ลูกค้า: ไม่มีใครมีสิทธิ์) — index ตรง, form ต่างเฉพาะ layout ครบ
+- URL ที่ตัดออก (`_cart/cart`, `_taobao/delete`, `_api/updateImagePrefix`, `admin/mall_stock`) → 302 หน้าแรก
+
+### E2E เขียนข้อมูล (ฝั่ง Laravel เท่านั้น, ผู้ใช้ 11937/11938 + แถว zz_, ลบตาม id แล้ว)
+
+- `_taobao/save`: ไม่มี PIN → getNewPinBox; ไม่กรอก PIN → getPinBox; PIN ผิด → ErrorBox; ราคา 0/`abc` → "กรุณาใส่ราคา"; สำเร็จ (¥10+¥5, ยอดบาท 1000 zz): `taobao.price=405.60` (= use_cash × rate แบบเดิม), `usecash=78.00`, `usecash_cn=0.00`, detail 2 แถว, `balance -78.00 TAO-97 type 7 prefix 25` — ตรงกับ SQL ของ SR; ยิงซ้อน 2 คำขอ = 1 รายการ + "ส่งซ้ำ", ยิงซ้ำหลังจบ = "ส่งซ้ำ"; แก้หมายเหตุต้อง PIN; `_taobao/save_remark`
+- `_cart/save_product` (url ว่าง = ไม่เพิ่มแถว, STUB ราคา 0.01 → 10.00, `it's` → `it''s` แบบเดิม), `save_takeapic` (ของตัวเอง/ของคนอื่นไม่เปลี่ยน), `save_amount` (ติดลบไม่แก้), `save_craft`, `save_qc`, `delete_cart`, `delete_carts` (แถวของคนอื่นไม่ถูกลบ)
+- `_cart/save_checkout` 4 รายการ 2 ร้าน ยิงซ้อน 2 คำขอ: 1 บิล (`total 1747.19` = Σ ราคา×จำนวน×5.2), detail 4 แถวพร้อม `is_takeapic`, tracking 2 แถว (`is_takeapic/is_craft/is_qc` ของแถวแรกของร้าน), `bill_product_on_tracking.bill_product_id = cart.id` (แบบเดิม); คำขอที่สอง "กำลังดำเนินการ", ส่งซ้ำ = "กรุณาใส่รายการสินค้า"
+- `_admin/_mallstock/save_amount` (แอดมิน): เพิ่ม (ยิงซ้อน = 1 แถว), แก้, code ผิด = no_user, role 7 = ErrorBox สิทธิ์
+- `_api/blockblob_ajax` (local): ครั้งแรก = URL temp, ครั้งที่สอง = `exists`
+- ลบแล้ว: cart 29/41, cart_detail 346–350/372–374, taobao 97 + detail 109–110, balance 1773–1775, bill_product 122 + detail 410–413, tracking 1856–1857, bill_product_on_tracking 69–70, crawl_guard_log 402, ips 96 (PIN ผิด), ไฟล์ zz ใน storage/app/legacy-upload; `user.pin` ของ 11937 คืนเป็น `''`
+
+### bench (`bin/bench`, -n 30 -c 1, หลัง `artisan optimize`) — mean / p50 / p95 ms (รอบที่ 2)
+
+| หน้า | เดิม 7.4 | ใหม่ Laravel |
+|---|---|---|
+| `taobao` (หน้าเต็ม, user 2) | 462 / 392 / 764 | 42 / 39 / 55 |
+| `cart/checkout/{ids}` (user 2) | 475 / 428 / 815 | 37 / 36 / 41 |
+| `findproduct` (แอดมิน) | 530 / 422 / 1507 | 49 / 43 / 92 |
+| `_admin/_mallstock/grid` (แอดมิน, 700+ แถว) | 81 / 76 / 110 | 47 / 43 / 61 |
+| `_cart/load_cart` | 26 / 25 / 35 | 26 / 26 / 30 |
+| `_cart/load_full_cart` | 24 / 24 / 28 | 28 / 27 / 33 |
+| `_taobao/grid` (ไม่มีรายการ) | 23 / 21 / 33 | 29 / 28 / 36 |
+
+หน้าเต็มเร็วขึ้น ~10 เท่า (layout เดิมยิงสิทธิ์ ~120 query). ajax เล็ก (`load_full_cart`, `_taobao/grid` ที่ไม่มีข้อมูล) ช้ากว่าเดิม 4–6 ms จาก overhead คงที่ของ Laravel (boot + session/jail/สิทธิ์) — ตาม CONVENTIONS ข้อ 10
+
+### test
+
+ผล: `php8.4 vendor/bin/phpunit` ผ่าน (279 tests, skip 88 = DB tests) · `JL_BENCH_DB_TESTS=1` ผ่านทั้งหมดยกเว้น `BillGridDbTest::test_export_grids_show_the_same_rows_as_legacy_queries` (กลุ่ม reports: view export ยังอ่าน `is_vat` — ไม่ใช่ของกลุ่มนี้, ล้มบน main เหมือนกัน)
+
+- `tests/Feature/Shop/ShopRoutesTest.php` (route/สิทธิ์ของ SR + URL ที่ต้องไม่มี + `legacy.once` ที่ mallstock save), `ShopPriceAndStockTest.php` (mallstock → AdminBalanceController, grid ไม่มีสิทธิ์ = ว่างไม่ query), `ShopHelpersTest.php`
+- `tests/Feature/Shop/ShopSrDbTest.php` (JL_BENCH_DB_TESTS=1): ถ่ายรูป cart → bill/tracking, รายการไม่มีลิงก์, save_product url ว่าง, taobao PIN + ราคา 0, mallstock grid = balance grid รุ่นเก่า, findproduct ไม่มีใครมีสิทธิ์ + ฟอร์มแสดงแถว `find_product` (escape)
+- `tests/Feature/Money/DoubleSubmitDbTest.php`: ผู้ใช้ taobao ตั้ง PIN + ส่ง `paymentpin` (SR ต้องยืนยัน PIN)
+
+### คำถามถึงเจ้าของ
+
+1. **`findproduct`**: ไม่มีใน `role_detail` → ไม่มีใครใช้ได้ (เดิมก็เป็น) และ save/delete เดิมพังเสมอ (โค้ดข้างในจะแก้ `product_type`) — จะเปิดใช้ (เพิ่มสิทธิ์ใน DB + เขียน save/delete ให้บันทึก `find_product` จริง) หรือปล่อยไว้/ตัดเมนูทิ้ง?
+2. **`_admin/_mallstock/*`**: เป็นทางเข้าที่สองของ `_admin/_balance` (ไม่มีหน้าใช้) — คงไว้แบบเดิม (ตอนนี้) หรือปิดทิ้ง (404)?
+3. ราคาในตะกร้า: ข้อยกเว้น "ผู้ถือ `admin_mall` ใส่ราคาเองได้" — SR ไม่มี role ใดถือ `admin_mall` → ต้องการให้ role ไหนใส่ราคาเองได้หรือไม่ (เช่น ผู้ถือ `admin_order`)?
+4. ตั้ง `LEGACY_SHOP_UNBAN_TOKEN` / `LEGACY_SHOP_ORDER_API_TOKEN` ใหม่ใน `.env` production ของ SR และแก้ cron `wget .../_api/unban?token=` (token เดิมหลุดอยู่ในโค้ด SR)
+5. `_api/load_product` timeout 120 วินาทีแบบ SR (php-fpm worker ค้างได้นาน) — คงไว้หรือลดแบบ jl (10/25)?
+
+
 โมดูลเดิม: `_cart`, `_taobao`, `_api`, `_mall`, `_admin/_mall`, `_admin/_mall_category`, `_admin/_mallstock` (64 ไฟล์ + 18 RewriteRule)
 branch `mod/shop` · worktree `/home/admin/laravel/jl-wt/shop` · dev `http://127.0.0.1:8202` (`bin/wt-serve shop --bg`)
 
