@@ -1,4 +1,6 @@
-{{-- _admin/_lot/form.php เดิม (สิทธิ์ตรวจที่ middleware; $lotView = มีสิทธิ์ admin_lot_view → ซ่อนช่องราคา) --}}
+{{-- _admin/_lot/form.php เดิม (สิทธิ์ตรวจที่ middleware; $lotView = มีสิทธิ์ admin_lot_view → ซ่อนช่องราคา)
+     SR: ถ่ายรูป (is_takeapic), รหัสย่อย (subuser), รูปพัสดุ (tracking_image), รายการทีละ 10 แถว + ผลรวมจาก load_toptable,
+         รายการลูกค้าค้างจ่าย (load_unpaid), modal แนบรูปด่วน (load_quickfile/save_quickfile) --}}
 @extends('legacy.layout')
 
 @php
@@ -111,6 +113,17 @@
                         </select>
 		            </div>
 		        </div>
+
+
+		        <div class="form-group">
+		            <label class="col-xs-3 control-label"> ถ่ายรูป</label>
+		            <div class="col-xs-7">
+		            	<select name="is_takeapic" class="form-control " >
+		            		<option value="0">{!! res('disable') !!}</option> 
+                        	<option value="1">{!! res('active') !!}</option> 
+                        </select>
+		            </div>
+		        </div>
         	</div>        
         	<div class="col-xs-12 col-md-6">
         		<div class="form-group">
@@ -119,11 +132,23 @@
 		            	<input autocomplete='off'  type="text" name="code" onblur="onload_userrate()" class="form-control validate[required]" value="" />
 		            </div>
 		        </div>
+				<div class="form-group">
+		            <label class="col-xs-3 control-label"> รหัสย่อย</label>
+		            <div class="col-xs-7">
+		            	<input autocomplete='off'  type="text" name="subuser" class="form-control" value="" />
+		            </div>
+		        </div>
 		        <div class="form-group">
 		             <label class="col-xs-3 control-label"> {!! res('remark') !!}</label>
 		            <div class="col-xs-7 ">
 		            	<textarea name="remark" class="form-control"></textarea>
 		            </div>
+		        </div>
+
+
+		        {{-- เดิมแสดงรูปของ tracking_id = id ล็อต (ตัวแปร $data ของหน้าเป็นแถว lot) = รูปของพัสดุอื่น → เริ่มว่าง (ดู docs/modules/lot.md) --}}
+		        <div class="form-group" id="attachment_tracking">
+		            @include('lot.admin.attachment', ['list' => [], 'wrap' => true])
 		        </div>
 		        <div class="form-group" {!! $lotView ? "style='display:none;'" : '' !!}>
 		        	<label class="col-xs-3 control-label"> {!! res('price_saved') !!}</label>
@@ -312,8 +337,89 @@
         	</div>                                   
 	    </div>
 
-        <div id="lot_detail" >
-	    </div>
+	    <div class="col-xs-7" style="clear:both">
+			<div class="form-group">
+			    <label class="col-xs-4 control-label"> {!! res('customer_code') !!}/{!! res('tracking') !!}</label>
+			    <div class="col-xs-6 ">
+			    	<input type="text" class="form-control" value="" id="searching_lot_detail">
+			    </div>
+			    <div class="col-xs-2 ">
+			    	<button type="button" class="btn btn-primary" onclick="LoadDetail(0)">{!! res('search') !!}</button>
+			    </div>
+			</div>
+		</div>
+		<div class="col-xs-12 text-center" id="loadinglot" style="margin-top:10px;"></div>
+		<table class="lot_table" style="margin-top:20px;clear:both;float: left;">
+		    <thead>
+		        <tr>
+		            <th class="text-center " style="width:60px;"> 
+		            	<div class="text-center">
+		            		<input type="checkbox" class="cbxitem_head" onclick="CheckAll()" />
+		            	</div>
+		            </th>
+		            <th class="text-center" style="width: 30px;">{!! res('no') !!}</th>
+		            <th class="text-center">{!! res('tracking') !!}</th>
+		            <th class="text-center" style="width: 73px;">{!! res('date_warehouse') !!}</th>
+		            <th class="text-center" style="width: 73px;">{!! res('date_outofchina') !!}</th>
+		            <th class="text-center" style="width: 73px;">{!! res('date_thai') !!}</th>
+		            <th class="text-center" style="width: 70px;">{!! res('customer_code') !!}</th>
+		            <th class="text-center" style="width: 50px;">{!! res('amount') !!}</th>
+		            <th class="text-center" style="width: 50px;">{!! res('weight') !!}</th>
+		            <th class="text-center" style="width: 50px;">{!! res('width') !!}</th>
+		            <th class="text-center" style="width: 50px;">{!! res('height') !!}</th>
+		            <th class="text-center" style="width: 50px;">{!! res('long') !!}</th>
+		            <th class="text-center" style="width: 50px;">{!! res('cubic') !!}</th>
+		            <th class="text-center" style="width: 70px;">{!! res('type') !!}</th>
+		            <th class="text-center" style="width: 50px;">{!! res('qc') !!}</th>
+		            <th class="text-center" style="width: 50px;">{!! res('repack') !!}</th>
+		            <th class="text-center" style="width: 50px;">{!! res('express') !!}</th>
+		            <th class="text-center" style="width: 50px;">{!! res('else') !!}</th>
+		            <th class="text-center" style="width: 50px;">{!! res('price_craft') !!}</th>
+		            <th class="text-center" style="width: 50px;">{!! res('price_kg') !!}</th>
+		            <th class="text-center" style="width: 50px;">{!! res('price_cubic') !!}</th>
+		        </tr>
+		        <tr>
+		            <th colspan="7"></th>
+		            <th class="sum_amount text-right red"></th>
+		            <th class="sum_weight text-right red"></th>
+		            <th class="sum_width text-right red"></th>
+		            <th class="sum_height text-right red"></th>
+		            <th class="sum_long text-right red"></th>
+		            <th class="sum_cubic text-right red"></th>
+		            <th></th>
+		            <th class="sum_qc text-right red"></th>
+		            <th class="sum_repack text-right red"></th>
+		            <th class="sum_express text-right red"></th>
+		            <th class="sum_else text-right red"></th>
+		            <th class="sum_craft text-right red"></th>
+		            <th class="sum_kg text-right red"></th>
+		            <th class="sum_pcubic text-right red"></th>
+		        </tr>
+		    </thead>
+
+		    <tbody id="lot_detail">
+	    	</tbody>
+			<thead>
+				<tr>
+		            <th colspan="7"></th>
+		            <th class="sum_amount text-right red"></th>
+		            <th class="sum_weight text-right red"></th>
+		            <th class="sum_width text-right red"></th>
+		            <th class="sum_height text-right red"></th>
+		            <th class="sum_long text-right red"></th>
+		            <th class="sum_cubic text-right red"></th>
+		            <th></th>
+		            <th class="sum_qc text-right red"></th>
+		            <th class="sum_repack text-right red"></th>
+		            <th class="sum_express text-right red"></th>
+		            <th class="sum_else text-right red"></th>
+		            <th class="sum_craft text-right red"></th>
+		            <th class="sum_kg text-right red"></th>
+		            <th class="sum_pcubic text-right red"></th>
+		        </tr>
+			</thead>
+		</table>
+
 
 	    <div class="form-horizontal col-xs-12" role="form" style="margin-top:10px;z-index: 0">     
 			<div class="form-group">
@@ -337,6 +443,7 @@
 			<div class="form-group text-center col-xs-12">
 				<span style="padding:2px 5px;background-color:#f9ffa5;">{!! res('qc') !!}&{!! res('wood_protect') !!}</span>
 				<span style="padding:2px 5px;background-color:#a5ffc5;">{!! res('qc') !!}</span>
+				<span style="padding:2px 5px;background-color:#768cf2;">ถ่ายรูป</span>
 				<span style="padding:2px 5px;background-color:#ffdfa5;">{!! res('wood_protect') !!}</span>
 				<span style="padding:2px 5px;background-color:#ff0c00;">{!! res('no_price') !!}</span>
 				<span style="padding:2px 5px;background-color:#e789ff;">claim</span>
@@ -349,13 +456,42 @@
 <div id="lot_memo">
 	    </div>
 
+<div id="lot_unpayment">
+	
+</div>
+
+<div id="panel-modal" class="upload_form modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="display: none;">
+    <div class="modal-dialog modal-xs">
+        <div class="modal-content p-0 b-0">
+            <div class="panel panel-color panel-primary">
+                <div class="panel-heading"> 
+                    <button type="button" class="close m-t-5" data-dismiss="modal" aria-hidden="true">×</button> 
+                    <h3 class="panel-title">{!! res('attachment') !!}</h3> 
+                </div> 
+                <div class="panel-body"> 
+	                
+                </div> 
+                <div class="panel-footer text-right">
+                    <button type="button" class="btn btn-default waves-effect" type="button" onclick="$('.modal').modal('hide');">{!! res('close') !!}</button>
+                    <button type="button" class="btn btn-primary waves-effect waves-light" onclick="quicksavefile();" type="button">{!! res('ok') !!}</button>
+                </div>
+                
+            </div>
+
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
 
 <script>
 $(function() {
-	LoadDetail();
+	LoadDetail(0);
 	LoadMemo();
+	LoadUnpaid();
 	getTracking();
 	initialDatepicker2();
+
+	setTimeout(function() { $("#upload_upload_track").removeClass('validate[requiredattachment]'); }, 1000);
 
 	$("form").validationEngine();
 	$("form").ajaxForm({ 
@@ -398,6 +534,7 @@ function getTracking(is_editz) {
 
 		        	if(data[0] == null) {
 		        		$("input[name='code']").val('');
+						$("input[name='subuser']").val('');
 			            $("input[name='order']").val('');
 			            $("textarea[name='remark']").val('');
 			            $("input[name='weight']").val(0.00);
@@ -416,6 +553,7 @@ function getTracking(is_editz) {
 			            $(".product_type_html").html(data[1]);
 			            $("select[name='is_craft']").val(0);
 			            $("select[name='is_qc']").val(0);
+			            $("select[name='is_takeapic']").val(0);
 
 			            
 			            $(".get_tracking_kg").text('');
@@ -450,6 +588,13 @@ function getTracking(is_editz) {
 			                    setTimeout(function() { $(window).scrollTop($("#searchform").offset().top - 60); }, 500);
 			                });
 		        		}
+		        		if(data[0].is_takeapic == "1") {
+		        			ErrorBox("ถ่ายรูป");
+		        			is_alert = true;
+		        			$("button[class='confirm']").click(function() {
+			                    setTimeout(function() { $(window).scrollTop($("#searchform").offset().top - 60); }, 500);
+			                });
+		        		}
 		        		//checking match lot
 		        		if(data[0].ship != eval(data[6].type)) {
 		        			if(data[0].ship == 0) {
@@ -463,8 +608,9 @@ function getTracking(is_editz) {
 		        				CloseLoading();
 		        			}
 		        		}
-
+		        		$("#attachment_tracking").html(data[7]);
 		        		$("input[name='code']").val(data[0].code);
+						$("input[name='subuser']").val(data[0].subuser);
 			            $("input[name='order']").val(data[0].order);
 			            if(data[0].no != "0") {
 			            	$("input[name='no']").val(data[0].no);
@@ -486,6 +632,7 @@ function getTracking(is_editz) {
 			            $(".product_type_html").html(data[1]);
 			            $("select[name='is_craft']").val(data[0].is_craft);
 			            $("select[name='is_qc']").val(data[0].is_qc);
+			            $("select[name='is_takeapic']").val(data[0].is_takeapic);
 
 			            if(data[2] != "") {
 			            	var exp = data[2].split("|");
@@ -559,6 +706,7 @@ function getTracking(is_editz) {
 			            } else {
 			            	$("#is_craft_tracklist").css("display", "none");
 			            }
+			            setTimeout(function() { $("#upload_upload_track").removeClass('validate[requiredattachment]'); }, 1000);
 						
 		        	}
 		        	if(is_editz) {
@@ -627,15 +775,104 @@ function on_deletememo(id) {
 	});
 }
 
-function LoadDetail() {
+{{-- SR: เดิม LoadUnpaid() ใส่ผลลงกล่อง #lot_memo (ชนกับ LoadMemo — กล่องไหนตอบทีหลังทับอีกกล่อง) ทั้งที่มี #lot_unpayment ว่างไว้
+     → ใส่ลง #lot_unpayment ให้เห็นทั้งสองกล่อง (ดู docs/modules/lot.md) --}}
+function LoadUnpaid() {
     OpenLoading();
     $.ajax({
         type: 'POST',
         async: true,
-        data : 'id={{ $id }}&search=' + $("#searching_lot_detail").val(),
+        data : 'id={{ $id }}',
+        url: rooturl + '_admin/_lot/load_unpaid',
+        success: function(data) {
+            $("#lot_unpayment").html(data);
+			CloseLoading();
+        }
+    });
+}
+
+
+
+function load_quickfile(id) {
+	$.ajax({
+		type: 'POST',
+		async: true,
+		data : 'id=' + id,
+		url: rooturl + '_admin/_lot/load_quickfile',
+		success: function(data) {
+			$(".upload_form .panel-body").html(data);
+			$(".upload_form").modal('show');
+		}
+	});
+}
+
+function quicksavefile() {
+	var str = '';
+	$("input[name='upload_upload_trackquick_mul[]']").each(function() {
+		var t = $(this);
+		str += ',' + t.val();
+	}); 
+
+	$.ajax({
+		type: 'POST',
+		async: true,
+		data : 'id=' + $("#quicksave_tracking_id").val() + '&image=' + str,
+		url: rooturl + '_admin/_lot/save_quickfile',
+		success: function(data) {
+			data = $.parseJSON(data);
+			eval(data[0]);
+			$(".upload_form").modal('hide');
+			setTimeout(function () { $("#" + $("#quicksave_tracking_id").val()).html(data[1]); }, 1000);
+		}
+	});
+}
+
+function loadImage() {
+	$(".img_track").each(function() {
+		var th = $(this);
+		var id = $(this).attr('id');
+		if(th.html() == '') {
+			$.ajax({
+				type: 'POST',
+				async: true,
+				data : 'id=' + id,
+				url: rooturl + '_admin/_lot/load_image',
+				success: function(data) {
+					th.html(data);
+				}
+			});
+		}
+	});
+}
+
+
+function loadendtable() {
+    $.ajax({
+        type: 'POST',
+        async: true,
+        data : 'id={{ $id }}&search=' + $("#searching_lot_detail").val() ,
+        url: rooturl + '_admin/_lot/load_toptable',
+        success: function(data) {
+        	
+        	$("#lot_detail").append(data);
+            makeCurrency();
+            makeTopBottom();
+        }
+    });
+}
+
+function LoadDetail(page) {
+	if(page == 0) {
+		$("#lot_detail").html('');
+	}
+    $.ajax({
+        type: 'POST',
+        async: true,
+        data : 'id={{ $id }}&search=' + $("#searching_lot_detail").val() + '&page=' + page,
         url: rooturl + '_admin/_lot/load_lot_detail',
         success: function(data) {
-            $("#lot_detail").html(data);
+        	$("#loadinglot").html("กำลังโหลด " + (page * 10) + " แถวจากทั้งหมด " + $("#lot_detail").find('td').eq(1).text() + " แถว");
+            $("#lot_detail").append(data);
 
             $('.showdetailbox').on('touchstart mouseover', function (e) {
 			    $(this).css({'color':  '#ff0000'});
@@ -647,27 +884,23 @@ function LoadDetail() {
 			});
 
             makeCurrency();
-            CloseLoading();
-            makeTopBottom();
+            loadImage();
         }
     });
 }
 
+{{-- เดิม eval($(this).val()) ต่อ hidden input — ค่าเป็นตัวเลขไม่มีจุลภาค (numberformat*(x, false)) จึงใช้ parseFloat ได้ผลเท่ากัน --}}
 function makeTopBottom() {
-	$(".sum_amount").text($(".hid_sum_amount").val());
-	$(".sum_weight").text($(".hid_sum_weight").val());
-	$(".sum_cubic").text($(".hid_sum_cubic").val());
-	$(".sum_width").text($(".hid_sum_width").val());
-	$(".sum_height").text($(".hid_sum_height").val());
-	$(".sum_long").text($(".hid_sum_long").val());
-	$(".sum_kg").text($(".hid_sum_kg").val());
-	$(".sum_pcubic").text($(".hid_sum_pcubic").val());
+	var sums = ['amount', 'weight', 'cubic', 'width', 'height', 'long', 'kg', 'pcubic', 'qc', 'repack', 'express', 'else', 'craft'];
+	for (var i = 0; i < sums.length; i++) {
+		var total = 0;
+		$(".hid_sum_" + sums[i]).each(function() {
+			total = total + parseFloat($(this).val());
+		});
+		$(".sum_" + sums[i]).html("<span class='currency'>" + total.toFixed(sums[i] == 'cubic' ? 4 : 2) + "</span>");
+	}
 
-	$(".sum_qc").text($(".hid_sum_qc").val());
-	$(".sum_repack").text($(".hid_sum_repack").val());
-	$(".sum_express").text($(".hid_sum_express").val());
-	$(".sum_else").text($(".hid_sum_else").val());
-	$(".sum_craft").text($(".hid_sum_craft").val());
+	makeCurrency();
 }
 
 function LoadLastLot() {
@@ -697,6 +930,7 @@ function onclearform() {
 	$("input[name='tracking']").val('');
 	$("input[name='order']").val('');
 	$("input[name='code']").val('');
+	$("input[name='subuser']").val('');
 	$("input[name='remark']").val('');
 
 	$("input[name='weight']").val('0.0');
@@ -769,7 +1003,7 @@ function ondelete(id) {
 	        data : 'id=' + id ,
 	        url: rooturl + '_admin/_lot/save_remove_tracking',
 	        success: function(data) {
-	            LoadDetail();
+	            window.location.reload();
 	        }
 	    });
 	});
@@ -815,7 +1049,7 @@ function onstatussave() {
         data : 'id=' + allVals.toString() + '&status=' + $("#status").val() + '&date=' + $("#status_date").val(),
         url: rooturl + '_admin/_lot/save_status_tracking',
         success: function(data) {
-            LoadDetail();
+            window.location.reload();
         }
     });
 }
@@ -831,7 +1065,7 @@ function onstatusreset() {
         data : 'id=' + allVals.toString() + '&status=' + $("#status").val() + '&date=' + $("#status_date").val(),
         url: rooturl + '_admin/_lot/save_status_reset_tracking',
         success: function(data) {
-            LoadDetail();
+            window.location.reload();
         }
     });
 }

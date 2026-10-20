@@ -1,4 +1,4 @@
-{{-- _admin/_lot/grid.php เดิม --}}
+{{-- _admin/_lot/grid.php เดิม (SR: คอลัมน์ "ค้างจ่าย", ไม่มีปุ่มดาวน์โหลด print_all) --}}
 @php
     use App\Domain\Lot\Php74;
     use App\Support\Legacy\Format;
@@ -43,9 +43,10 @@
                             <th class="text-center" style="width: 60px;">{!! res('amount_shipping') !!}</th>
                             
                             <th class="text-center" style="width: 100px;">{!! res('edit_last') !!}</th>
+                            <th class="text-center" style="width: 70px;">ค้างจ่าย</th>
                             <th class="text-center" style="width: 70px;">{!! res('attachment') !!}</th>
                             <!-- <th class="text-center" style="width: 100px;">{!! res('status') !!}</th> -->
-                            <th class="text-center" style="width: 95px;">{!! res('action') !!}</th>
+                            <th class="text-center" style="width: 105px;">{!! res('action') !!}</th>
                         </tr>
                     </thead>
 
@@ -72,6 +73,7 @@
                             <td class="text-center">{!! Format::numberformatzero($count) !!}</td>
                             <td class="text-center">{!! Format::numberformatzero($item->shipping_amount) !!}</td>
                             <td class="text-center">{{ $item->code }}</td>
+                            <td class="text-center">{{ ($unpaid[(int) $item->id] ?? 0) ?: '-' }}</td>
                             <td class="text-center">
                             @if (Php74::eq($item->attachment, ''))
 <div>-</div>@else
@@ -94,8 +96,6 @@
                                 @else
                                 <a  href="#" onclick="Sendmail({{ $item->id }});return false;"  data-toggle="tooltip" title="ส่งอีเมล์"  class="table-action-btn"><i class="fa fa-envelope-o text-primary"></i></a>
                                 @endif
-
-                                <a href="{{ legacy_href() }}/_admin/_lot/print_all?lot={{ $item->id }}"  data-toggle="tooltip" title="ดาวน์โหลดไฟล์ Lot"  class="table-action-btn" ><i class="fa fa-file-o text-primary"></i></a>
 
                                 @if (Php74::eq($item->is_print, 1))
                                 <a  href="#" onclick="LoadRefPrint({{ $item->id }});return false;" data-toggle="tooltip" title="พิมพ์แล้ว" class="table-action-btn"><i class="fa fa-print text-danger"></i></a>
