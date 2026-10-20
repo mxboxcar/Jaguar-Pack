@@ -1,5 +1,98 @@
 # กลุ่ม settings — รายงานการพอร์ต
 
+## SR (2026-10-20)
+
+branch `mod/settings` · worktree `/home/admin/laravel/sr-wt/settings` · dev port 8313 · เทียบกับ :8111 (`/home/admin/bench/sr-old`, DB `admin_sr_bench`)
+
+### ไฟล์ตาม docs/sr-diff.md
+
+| ไฟล์เดิม | สถานะ | ผล |
+|---|---|---|
+| `_admin/_setting/index.php` | diff 2 | **ทำแล้ว** — textarea `address_cn` ไม่มี class `addcomma` |
+| `get_resource.php` | diff 2 | **ทำแล้ว** — SR `require resource/cn.php` ตรงๆ → ข้อความภาษาจีนเสมอ (jl: ตาม cookie); ค่าคงที่ `admin_email` ใน `unapproved_user` ไม่ได้ define (ไม่โหลด system_config) → พิมพ์ `admin_email` ตามเดิม — byte ตรงกับเดิมทุกภาษา cookie |
+| `index_close.php` | diff 2 | **ทำแล้ว** — เวลาเปิดบริการ 02:00 น. |
+| `resource.php` | SR-only | **พอร์ตใหม่** — `GET /resource` (สาธารณะเหมือนเดิม, `PUBLIC` ใน RouteSecurityTest — commit `foundation:` แยก) ข้อความภาษาไทยทุกตัวต่อด้วย `<br />` — byte ตรงกับเดิม |
+| `system_ckupload.php` | SR-only | **พอร์ตใหม่** — `POST /system_ckupload` (ดูด้านล่าง) |
+| `_admin/_product_type/delete.php`, `_admin/_shipping_type/{delete,delete_cal}.php` | same (+hotfix SR 2026-10-18 intval) | ไม่ต้องแก้ — ใหม่รับเฉพาะรายการเลขจำนวนเต็มอยู่แล้ว |
+| ไฟล์ `same` อื่น (23) | same | ไม่ต้องแก้ — เทียบผลกับ :8111 แล้วตรงกัน |
+
+ไม่มี JL-only · `gateway.php` ไม่มีใน SR (ตัดออกในฐานร่วมแล้ว ไม่มี route)
+
+### system_ckupload (SR-only)
+
+- เดิม: CKEditor (`assets/ckeditor/config.js` `filebrowserUploadUrl = rooturl + 'system_ckupload'` — ใช้ในฟอร์มประกาศ `_admin/_notice`) ส่ง form multipart ช่อง `upload` เข้า iframe + GET `CKEditorFuncNum`;
+  สิทธิ์ = admin_notice หรือ admin_mall หรือใครก็ได้ที่ล็อกอิน (= ผู้ที่ล็อกอินทุกคน); jpg/jpeg/png/gif ตามนามสกุล, 1 byte–10 MB, `getimagesize` ต้องเป็น JPEG/PNG/GIF,
+  ชื่อใหม่ `<time>_<randd 16>.<นามสกุลตามชนิดจริง>` ย้ายลง webroot `upload/` ตอบ `<script>window.parent.CKEDITOR.tools.callFunction(fn, 'url', 'message')</script>`
+- ใหม่: `UploadController::ckupload` ตรวจและตอบข้อความเหมือนเดิมทุกข้อ (No file. / Bad size. / Invalid. / Only JPG/PNG/GIF. / Not an image. / Move failed.)
+  route `legacy.auth` (ไม่ใช้ `legacy.ajax` เพราะไม่ใช่ XHR; CSRF = LegacyCsrf ตรวจ Origin/Referer — ต่างโดเมน = 403)
+- **ต่างจากเดิมโดยตั้งใจ**: เก็บไฟล์ผ่านทางเดียวกับไฟล์อัปโหลดอื่น — temp_dir → `BlobStore::uploadFromTemp()` (dev = `legacy.upload.local_dir`, production = Azure container upload, Content-Type รูปจริง) แล้วลบไฟล์ temp;
+  URL ที่ตอบ = `href_blob` (`https://image.srshippingsystem.com/upload/<ชื่อ>`) แทน `https://portal.srshippingsystem.com/upload/<ชื่อ>` (Laravel ไม่เขียนลง webroot เดิม; ไม่มีไฟล์ที่ไม่ใช่รูปถูกเก็บ/เสิร์ฟ ชื่อไฟล์สร้างเองล้วน)
+  · ไม่ล็อกอิน = redirect /login (เดิมตอบ script "No permission.") · ข้อความใน script escape `\ ' < CR LF` (เดิม escape ผิด แต่ค่าไม่เคยมีอักขระพวกนี้)
+- E2E (HTTP จริง, multipart): แอดมินและลูกค้า 3 อัป GIF ได้ URL blob + ไฟล์ลง local_dir (ลบแล้ว), ไฟล์ PHP ชื่อ .jpg = "Not an image.", ไม่ล็อกอิน = 302 /login, Origin ต่างโดเมน = 403
+
+### UploadBox (helper ที่ settings เป็นเจ้าของ — review ที่ jl ค้างไว้)
+
+- SR `getupload()` / `getupload_inline()` เหมือน jl (เทียบโค้ดแล้ว); `getuploadmultiple()` ของ SR อยู่ใน system_status_function.php และต่างจาก jl
+  → `App\Domain\Settings\UploadBox::getuploadmultiple()` ใช้ markup ของ SR (ผลเท่ากับ `App\Domain\Tracking\UploadBox::multiple()` ที่กลุ่ม tracking เทียบกับ :8111 แล้ว — ตรวจด้วยสคริปต์ 4 กรณี: ตรงกันทุกตัว) ไม่มี target=_blank
+- ยังไม่มีใครเรียก `App\Domain\Settings\UploadBox` (ทุกกลุ่มมีสำเนาของตัวเอง) — รวมเป็นตัวเดียวภายหลัง
+
+### `_admin/_setting/save` — การตัดสินใจ (ให้เจ้าของยืนยัน)
+
+- SR เดิมมีปัญหาเดียวกับ jl: `save.php` ของ SR เหมือน jl ทุกบรรทัด → อ่าน `$_POST` ทั้ง 16 คีย์ แล้ว UPDATE ทุกคีย์ — คีย์ที่ไม่ได้ส่งมา = `''` ทับ (POST ที่ไม่มีช่องครั้งเดียว = ล้างอัตราแลกเปลี่ยน/เลขบัญชี/ที่อยู่โกดังจีนทั้งหมด) และไม่ตรวจสิทธิ์
+- จึงคงการแก้ของ jl ไว้: **อัปเดตเฉพาะคีย์ที่อยู่ใน POST** (ค่าว่างที่ส่งมายังบันทึก `''`), ไม่มีคีย์เลย = ErrorBox ไม่แก้อะไร, ต้องมีสิทธิ์ admin_setting — ฟอร์มจริงส่งครบทุกช่อง ผลจึงเหมือนเดิม
+- E2E (snapshot ทั้งตาราง `setting` ก่อน แล้ว diff): บันทึกทั้งฟอร์มด้วยค่าเดิม = ไม่มีแถวเปลี่ยน; ส่ง `phone_th` อย่างเดียว (2 ครั้ง) = เปลี่ยนแถวเดียว; POST ว่าง = ErrorBox ไม่เปลี่ยน; คืนค่าด้วยฟอร์มเต็ม = ตรงกับ snapshot ทุกแถว
+
+### product_type.thaiword (คอลัมน์ SR)
+
+- โค้ดเดิมของ SR **ไม่มีไฟล์ใดใช้** `thaiword` (grep ทั้ง webroot) — ไม่แสดง ไม่บันทึก; INSERT เดิมไม่ระบุคอลัมน์ → NULL, UPDATE ไม่แตะ
+- ใหม่เหมือนเดิม: E2E สร้างแถว zz → thaiword NULL, ตั้ง thaiword แล้วแก้ผ่านฟอร์ม → ค่าเดิมคงอยู่
+
+### ผลเทียบกับเว็บเดิม (:8111 vs :8313, cookie เดียวกัน)
+
+- แอดมิน 11938: `/admin/setting`, `/admin/product_type` (+create, id 1, id ไม่มีจริง), `/admin/shipping_type` (+create, id 1/3/4/13/30/77), `/admin/exchange` (+status 1/2, form 2 id),
+  grid 3 ตัว (หน้า 1/2/8, page ว่าง, ค้นหา, สถานะ), load_cal_1/2 (id ต่างๆ/ว่าง), get_price, index_close, get_resource/resource (th/en/cn) — **ตรงกันทุกตัว** (index_close ต่างแค่ favicon ของเจ้าของ)
+- exchange: bench ไม่มีแถว → ใส่ balance_withdraw_cn zz 3 แถวชั่วคราว (ลบแล้ว)
+- quick search 13 รหัส × 2 current_href × (ลูกค้า 3, แอดมิน): แอดมินตรงกันทุกกรณี; ลูกค้าต่างเฉพาะกรณี IDOR ที่ jl ปิดไว้ (โหมดแอดมินจาก `admin` ใน href / `sa-` โดยไม่มีสิทธิ์)
+- ปฏิเสธสิทธิ์: user 6 (role 12: admin_exchange/admin_shipping_type ไม่มี admin_setting/product_type), 11 (role 7), 3 (ลูกค้า) — ตรงกัน ยกเว้นหน้าเดิมพิมพ์หัวหน้าก่อน alert (เดิมจาก jl)
+
+### E2E (Laravel เท่านั้น — snapshot `setting`, `product_type`, `shipping_type`, `shipping_type_rate`, `balance_withdraw_cn` ทั้งตารางก่อน, ลบแถว zz ตาม id, diff หลัง = ตรงกันทุกตาราง)
+
+- product_type: สร้าง zz (ดับเบิลคลิก **เดิมได้ 2 แถว** → เพิ่ม `legacy.once` ให้ `_admin/_product_type/save` และ `_admin/_shipping_type/save` ตามการตัดสินใจของเจ้าของเรื่อง double-submit; หลังแก้: คำขอซ้อน = "กำลังดำเนินการ", ส่งซ้ำใน 8 วินาที = "ส่งซ้ำ"), แก้, ลบ id / arr_id
+- shipping_type: สร้าง (ดับเบิลคลิก = แถวเดียว), save_new_price_by_kg/cubic (+ error ช่องว่าง, max ≤ min), load_cal_1, แก้เป็น is_use_rate 1 + rate_id[] (price_extened → 0, ไม่แตะ mod_date/mod_by แบบเดิม), save_listno, delete_cal, delete
+- exchange: อนุมัติ 10 หยวน (ดับเบิลคลิก) → balance +49.00 (×4.90) แถวเดียว, ยกเลิก (ดับเบิลคลิก) → balance_cn +20.50 แถวเดียว + cancel_remark "… ,ยกเลิกโดย <code>", อนุมัติรายการที่ยกเลิกแล้ว = ErrorBox, ยกเลิกรายการที่อนุมัติแล้ว = ไม่เปลี่ยน (การแก้ของ jl) — `admin_withdrawpoint` ใน SR มี role 1 ถือ จึงยกเลิกได้จริง (ใน jl ไม่มีใครถือ)
+- setting / system_ckupload: ดูหัวข้อด้านบน
+
+### Bench (`bin/bench -n 20`, แอดมิน, artisan optimize, 2 รอบ)
+
+| หน้า | เดิม mean ms | ใหม่ mean ms |
+|---|---|---|
+| `/admin/setting` | 377–384 | 38–40 |
+| `/admin/shipping_type` | 369–411 | 34–57 |
+| `/_admin/_shipping_type/grid` | 40–52 | 29–47 |
+| `/_admin/_product_type/grid` | 80–99 | 41–47 |
+| `/get_resource` | 0.5–1.2 | 17–21 |
+
+get_resource ช้ากว่าเดิม: ไฟล์เดิม include ไฟล์ภาษาไฟล์เดียวแล้ว echo (ไม่มี session/DB) — ใหม่มี overhead คงที่ของ Laravel (boot + middleware group legacy ~17 ms)
+
+### ช่องโหว่/ข้อสังเกตในโค้ดเดิมของ SR (อ่านโค้ด — ไม่ได้ยิงใส่เว็บเดิม)
+
+- `_admin/_setting/save.php` เหมือน jl: ไม่ตรวจสิทธิ์ + ล้างทุกคีย์เมื่อไม่ส่งมา (ข้างบน)
+- `system_ckupload.php` เขียนลง webroot `upload/` ตรงๆ (ปลอดภัยพอสมควร: ตรวจนามสกุล+getimagesize, ชื่อสุ่ม) แต่ escape ข้อความใน script ผิด (`'` → `\\'` ปิด string) — ไม่มีผลเพราะค่าคงที่
+- กดบันทึกซ้อนใน product_type / shipping_type = แถวซ้ำ (แก้ด้วย legacy.once)
+
+### คำถามถึงเจ้าของ
+
+1. ยืนยัน `_admin/_setting/save` อัปเดตเฉพาะคีย์ที่ส่งมา (SR เดิมเขียน `''` ทับทุกคีย์ที่ไม่ส่ง)
+2. รูปจาก CKEditor ใหม่เสิร์ฟจาก `image.srshippingsystem.com/upload/` (Azure) แทน `portal.srshippingsystem.com/upload/` — รูปเก่าในประกาศยังชี้ portal/upload (ต้องให้ nginx เสิร์ฟ `upload/` ของ webroot เดิมต่อหลังสลับ)
+3. ผู้ที่ล็อกอินทุกคน (รวมลูกค้า) อัปรูปผ่าน system_ckupload ได้ตามเดิม — ต้องการจำกัดเฉพาะ admin_notice หรือไม่
+4. product_type.thaiword ไม่มีโค้ดใช้ — ต้องการแสดง/แก้ในฟอร์มหรือไม่
+
+### ผลรวม test
+
+`php8.4 vendor/bin/phpunit` ผ่าน (310 tests, 104 skipped) · `JL_BENCH_DB_TESTS=1 php8.4 vendor/bin/phpunit` ผ่าน (310 tests, 2 skipped)
+
+---
+
 Worktree `/home/admin/laravel/jl-wt/settings` (branch `mod/settings`), dev server port 8213.
 
 ## Route ที่พอร์ต (URL เดิม → route ใหม่)
