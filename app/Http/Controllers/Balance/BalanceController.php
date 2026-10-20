@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Balance;
 use App\Domain\Balance\Ledger;
 use App\Domain\Balance\Withdraw;
 use App\Domain\Money\Money;
+use App\Domain\Payment\PinBox;
 use App\Http\Controllers\Controller;
 use App\Support\GridQuery;
 use App\Support\Legacy\Alerts;
@@ -56,13 +57,14 @@ class BalanceController extends Controller
             ->where('balance.is_delete', '0');
         $filter($q);
 
-        // รูปสลิปของรายการถอน (type 12) = join (เดิม 1 query ต่อแถว)
+        // รูปสลิป + (SR) สถานะ/เหตุผลยกเลิกของรายการถอน (type 12) = join (เดิม 1 query ต่อแถว)
         $q->leftJoin('balance_withdraw as bw', function ($j) {
             $j->on('bw.id', '=', 'balance.prefix_ref_id')->where('balance.type', '=', 12);
         });
         $page = Ledger::php($request, 'page');
         [$total, $items] = Ledger::page($q, 'balance', $page, [
             'balance.*', 'balance_type.name', 'prefix.link', 'bw.approved_upload as w_upload',
+            'bw.status as w_status', 'bw.cancel_remark as w_cancel_remark',
         ], GridQuery::liveCount('balance', $filter));
         // ยอดสะสมก่อนหน้า (เดิม SUM ต่อแถว = อ่านประวัติทั้งหมด 10 รอบ) → query เดียว
         GridQuery::attachPrevSums('balance', $items, fn () => (int) $uid);
@@ -90,13 +92,25 @@ class BalanceController extends Controller
         ])->render());
     }
 
-    /** POST /_balance/save_withdraw — _balance/save_withdraw.php */
+    /**
+     * POST /_balance/save_withdraw — _balance/save_withdraw.php ของ SR
+     * ลำดับเดิม: สิทธิ์ → PIN จ่ายเงิน → ถอนได้ 1 รายการ/สัปดาห์ (bypass_withdraw) → บัญชีดำ → ตรวจยอด → INSERT
+     */
     public function saveWithdraw(Request $request): Response
     {
         if (! perm('balance')) {
             return response('');
         }
+        // SR: ถาม PIN (ของ jl ถูก comment ไว้) — PinBox::guard = hash_equals + PinThrottle แทน != หลวมของเดิม
+        $user = Legacy::user();
+        if (($js = PinBox::guard($request, $user, '.cashback_form', 0, 'withdrawcashing()')) !== null) {
+            return response($js);
+        }
         $uid = Legacy::userId();
+        $weekly = fn () => Withdraw::weeklyAllowed($uid, $user->code ?? '') ? null : Alerts::error('CloseLoading()', Withdraw::WEEKLY_LIMIT);
+        if (($js = $weekly()) !== null) {
+            return response($js);
+        }
         $wantPhp = Withdraw::amount(Ledger::php($request, 'wantcash'));
         $wantSql = Withdraw::amount(Ledger::in($request, 'wantcash'));
         if ($wantPhp === null || $wantSql === null) {
@@ -108,10 +122,13 @@ class BalanceController extends Controller
         if (Blocklist::guard(Ledger::php($request, 'branch_name'), 'withdraw_thb', 'ธนาคาร='.Ledger::php($request, 'branch_bank')) !== false) {
             return response(Alerts::error('CloseLoading()', 'ไม่สามารถบันทึกข้อมูลบัญชีนี้ได้ กรุณาติดต่อเจ้าหน้าที่'));
         }
-        // เดิมนับรายการถอนในสัปดาห์นี้ + bypass_withdraw แต่ส่วนที่ใช้ผลถูก comment ไว้ (ไม่มีผล) → ไม่ทำ
 
+        // จำกัดรายสัปดาห์ตรวจซ้ำหลังล็อกแถว user (เดิมไม่มี lock: กดซ้อนกัน = ถอนได้ 2 รายการในสัปดาห์)
         $ok = Withdraw::submit($uid, $wantPhp, $wantSql, fn () => Withdraw::currentCash($uid), $bank,
-            'balance_withdraw', 'balance', 'withdrawcash', 'โอนเงินออกจากระบบ', 12);
+            'balance_withdraw', 'balance', 'withdrawcash', 'โอนเงินออกจากระบบ', 12, $weekly);
+        if (is_string($ok)) {
+            return response($ok);
+        }
         if (! $ok) {
             return response(Withdraw::errorJs());
         }
