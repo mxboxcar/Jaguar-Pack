@@ -139,7 +139,7 @@
 			<p class="text-muted font-13 m-b-30">
 	        </p>
 			<div class="form-horizontal" role="form">
-@include('money-move.transfer.cash_box')
+@include('money-move.transfer.cash_box', ['admin' => true])
 		    </div>
 		</div>
 	</div>
@@ -192,20 +192,6 @@
 		$(".cancel_remark_form").modal('show');
 	}
 
-	function canceling2() {
-		ConfirmBox(function () {
-			$.ajax({
-	            type: 'POST',
-	            async: true,
-	            data : 'id={{ $id }}&cancel_remark=' + $("#cancel_remark").val(),
-	            url: rooturl + '_admin/_transfer/cancel',
-	            success: function(data) {
-	            	eval(data);
-	            }
-	        });
-		});
-	}
-
 	function rollback() {
 		ConfirmBox(function () {
 			$.ajax({
@@ -213,6 +199,20 @@
 	            async: true,
 	            data : 'id={{ $id }}',
 	            url: rooturl + '_admin/_transfer/rollback',
+	            success: function(data) {
+	            	eval(data);
+	            }
+	        });
+		});
+	}
+
+	function canceling2() {
+		ConfirmBox(function () {
+			$.ajax({
+	            type: 'POST',
+	            async: true,
+	            data : 'id={{ $id }}&cancel_remark=' + $("#cancel_remark").val(),
+	            url: rooturl + '_admin/_transfer/cancel',
 	            success: function(data) {
 	            	eval(data);
 	            }

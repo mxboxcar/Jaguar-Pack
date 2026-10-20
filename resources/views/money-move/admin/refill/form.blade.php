@@ -102,6 +102,12 @@
 		            </div>
 		        </div>
 		        <div class="form-group">
+		            <label class="col-md-5 control-label">ผู้อนุมัติรายการ</label>
+		            <div class="col-md-4 form-control-static">
+		            	<a href="{{ legacy_href() }}admin/user/{{ $d['a_id'] ?? '' }}">{{ $d['a_code'] ?? '' }}</a>
+		            </div>
+		        </div>
+		        <div class="form-group">
 		            <label class="col-md-5 control-label">{!! res('status') !!}</label>
 		            <div class="col-md-4 form-control-static">
 		            	{!! Status::getstatus($st) !!}@if (Php74::eq($st, -1))<div style='margin-top: 10px;' class='text-danger'>* {{ $d['cancel_remark'] ?? '' }}</div>@endif

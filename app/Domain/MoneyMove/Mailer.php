@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Mail;
  *
  * - อีเมล: เดิม sendmail() ผ่าน Mailgun → ที่นี่ Mail ของ Laravel (dev: MAIL_MAILER=log = ไม่ส่งจริง) ห่อ try/catch เงียบเหมือนเดิม
  * - LINE: sendLine()/sendLineImage()/push_notification() เดิมเป็นฟังก์ชันว่าง → ไม่ส่งอะไร (log ไว้ตรวจเท่านั้น)
- * - แม่แบบ email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → คัดข้อความคงที่มา
+ * - แม่แบบ email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → SR: config('legacy.mail') (header/center/footer
+ *   + ผู้ส่ง SRShippingSystem <no-reply@srshippingsystem.com> ของ sendmail() เดิม — ใช้ร่วมกับทุกกลุ่ม)
  * - ข้อความที่แอดมินพิมพ์ (approved_remark / cancel_remark) ถูก escape (เดิมใส่ดิบลง HTML)
  * - id ที่ POST มาถูกแทนด้วย id ของแถวที่พบ (เดิมใส่ $_POST['id'] ดิบลงหัวเรื่อง/ลิงก์ HTML เช่น "123<img ...>" ที่ MySQL แปลงเป็น 123 แล้วส่งถึงลูกค้าเจ้าของรายการ 123);
  *   ไม่พบแถว = ไม่ส่ง (เดิมส่งไปที่อยู่ว่าง = ล้มเงียบ)
@@ -22,13 +23,8 @@ use Illuminate\Support\Facades\Mail;
  */
 final class Mailer
 {
-    private const HEADER = '<div style="font-family: arial,sans-serif;font-size:13px;">';
-
-    private const CENTER = '<div>';
-
-    private const FOOTER = "<?php require_once('system_config.php'); ?>\n</div>\n<br />\n* หากมีข้อสงสัยกรุณาติดต่อ<br />\nE-mail : jlcargoth@hotmail.com<br />\nPhone : 095-550-4009<br />\nLineID : @jlcargo\n<br />\n<br />\nขอแสดงความนับถือ<br />\nJLcargo\n</div>";
-
-    private const BUTTON = "<div style=\"height:20px\"></div>\n<p style=\"width:200px;text-align:center;font-size:15px;background-color:#991b1e;padding:10px 25px;\" >\n<a style=\"color:#ffffff;text-decoration:none\" href=\"%s\" >ดูรายละเอียด</a></p>\n";
+    /** SR: ปุ่ม "ดูรายละเอียด" สี #a3b2f1 padding ขวา 0 (ของ jl เป็นสีแดง); ลิงก์ไม่เปิดแท็บใหม่ตามนโยบาย */
+    private const BUTTON = "<div style=\"height:20px\"></div>\n<p style=\"width:200px;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 25px 10px 0px;\" >\n<a style=\"color:#ffffff;text-decoration:none\" href=\"%s\" >ดูรายละเอียด</a></p>\n";
 
     public static function refillApproved(int|string $id): void
     {
@@ -100,7 +96,8 @@ final class Mailer
 
     private static function send(string $module, int|string $id, ?object $d, string $subject, string $body): void
     {
-        $html = self::HEADER.'<strong>'.$subject.'</strong>'.self::CENTER.$body.self::FOOTER;
+        $mail = config('legacy.mail');
+        $html = $mail['header'].'<strong>'.$subject.'</strong>'.$mail['center'].$body.$mail['footer'];
         // sendLine()/sendLineImage()/push_notification() เดิมไม่ทำอะไร — ไม่ยิง LINE จริง
         Log::info('money-move notify (LINE disabled like legacy sendLine no-op)', [
             'module' => $module, 'id' => $id, 'line_uid_set' => (string) ($d->line_uid ?? '') !== '', 'date' => Format::getthaidate(date('Y-m-d'), false, true),
@@ -110,8 +107,8 @@ final class Mailer
             if ($to === '') {
                 throw new \RuntimeException('no recipient');
             }
-            Mail::html($html, function ($m) use ($to, $subject) {
-                $m->to($to)->subject($subject)->from('no-reply@jlcargoth.com', 'JLcargoTH');
+            Mail::html($html, function ($m) use ($to, $subject, $mail) {
+                $m->to($to)->subject($subject)->from($mail['from_address'], $mail['from_name']);
             });
         } catch (\Throwable $e) {
             // เดิม catch (exception $e) {} เงียบ

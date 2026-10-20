@@ -67,23 +67,25 @@ Route::middleware('legacy.perm:admin_transfer')->group(function () {
     Route::match(['GET', 'POST'], '/_admin/_transfer/email_success', [AdminTransferController::class, 'emailDirect']);
     Route::match(['GET', 'POST'], '/_admin/_transfer/email_cancel', [AdminTransferController::class, 'emailDirect']);
 });
-// form.php เดิมตรวจแค่ getPermission('transfer') (ลูกค้ามีทุกคน = IDOR) → ต้องมีทั้ง transfer และ admin_transfer
-// ตรวจ transfer ก่อน: ผู้ไม่มี transfer ได้ ErrorBox โมดูล "โอนเงินไปจีน" เหมือนเดิม (role 0/4/7);
-// ผู้มี transfer แต่ไม่มี admin_transfer (ลูกค้า, role 6) ได้ ErrorBox "ผู้ดูแล - โอนเงินไปจีน" (ต่างจากเดิมโดยตั้งใจ)
-Route::middleware(['legacy.perm:transfer', 'legacy.perm:admin_transfer'])->group(function () {
+// form.php: jl ตรวจแค่ getPermission('transfer') (ลูกค้ามีทุกคน = IDOR) — SR แก้ในไฟล์เดิมแล้วเป็น admin_transfer
+Route::middleware('legacy.perm:admin_transfer')->group(function () {
     Route::get('/admin/transfer/create', [AdminTransferController::class, 'form'])->defaults('legacy_page', 'admin_transfer_detail');
     Route::get('/admin/transfer/{id}', [AdminTransferController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_transfer_detail');
 });
 Route::post('/_admin/_transfer/grid', [AdminTransferController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 
 // ---------- แอดมิน: ถอนเงินออกจากระบบ ----------
-Route::middleware('legacy.perm:admin_withdrawcash')->group(function () {
+// SR: index.php / save_approved.php / cancel.php ตรวจ admin_withdrawpoint (index แจ้งปฏิเสธด้วยชื่อ admin_withdrawcash),
+//     form.php / grid.php ตรวจ admin_withdrawcash — ตามไฟล์เดิม (bench: admin_withdrawpoint = role 1, admin_withdrawcash = role 1/12/13)
+Route::middleware('legacy.auth')->group(function () {
     Route::get('/admin/withdrawcash', [AdminWithdrawCashController::class, 'index'])->defaults('legacy_page', 'admin_withdrawcash');
     Route::get('/admin/withdrawcash/status/{status}', [AdminWithdrawCashController::class, 'index'])->whereNumber('status')->defaults('legacy_page', 'admin_withdrawcash');
+});
+Route::middleware('legacy.perm:admin_withdrawcash')->group(function () {
     Route::get('/admin/withdrawcash/{id}', [AdminWithdrawCashController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_withdrawcash_detail');
-    Route::middleware('legacy.ajax')->group(function () {
-        Route::post('/_admin/_withdrawcash/save_approved', [AdminWithdrawCashController::class, 'saveApproved']);
-        Route::post('/_admin/_withdrawcash/cancel', [AdminWithdrawCashController::class, 'cancel']);
-    });
+});
+Route::middleware(['legacy.perm:admin_withdrawpoint', 'legacy.ajax'])->group(function () {
+    Route::post('/_admin/_withdrawcash/save_approved', [AdminWithdrawCashController::class, 'saveApproved']);
+    Route::post('/_admin/_withdrawcash/cancel', [AdminWithdrawCashController::class, 'cancel']);
 });
 Route::post('/_admin/_withdrawcash/grid', [AdminWithdrawCashController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);

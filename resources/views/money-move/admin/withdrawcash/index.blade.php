@@ -22,7 +22,12 @@
 
 
 <div id="gridAjax" class="col-sm-12"></div>
+@if ($denied ?? false)
+{{-- SR: ตรวจ admin_withdrawpoint หลังพิมพ์หัวหน้า แล้วแจ้งปฏิเสธด้วยชื่อ admin_withdrawcash --}}
+{!! \App\Support\Legacy\Alerts::permissionPage('admin_withdrawcash') !!}
+@else
 <script type="text/javascript">
     loadAjaxGrid('_admin/_withdrawcash/grid', 1, '|{!! \App\Support\Legacy\Alerts::js(e($status)) !!}');
 </script>
+@endif
 @endsection

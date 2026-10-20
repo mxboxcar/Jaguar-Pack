@@ -41,19 +41,19 @@ class RoleDenialTest extends TestCase
         return null;
     }
 
-    /** _admin/_transfer/form.php เดิมตรวจ getPermission('transfer') ก่อน → ผู้ไม่มี transfer ได้ข้อความโมดูล transfer เหมือนเดิม */
-    public function test_admin_transfer_form_checks_transfer_first(): void
+    /** SR _admin/_transfer/form.php ตรวจ getPermission('admin_transfer') (jl ตรวจ 'transfer' = IDOR — SR แก้ในไฟล์เดิมแล้ว) */
+    public function test_admin_transfer_form_checks_admin_transfer(): void
     {
         foreach (['/admin/transfer/create', '/admin/transfer/123'] as $uri) {
-            // role 4 (โกดังจีน) / role 7 (แพ็คสินค้า): ไม่มีทั้งสอง → เดิม "โอนเงินไปจีน"
             $req = $this->actAs(910, ['admin_tracking', 'admin_lot_view', 'admin_order']);
-            $this->assertSame('transfer', $this->deniedModule('GET', $uri, $req), $uri);
+            $this->assertSame('admin_transfer', $this->deniedModule('GET', $uri, $req), $uri);
 
-            // role 6 / ลูกค้า: มี transfer แต่ไม่มี admin_transfer → ปฏิเสธ (ต่างจากเดิมโดยตั้งใจ: IDOR)
+            // ลูกค้า: มี transfer แต่ไม่มี admin_transfer → ปฏิเสธ
             $req = $this->actAs(911, ['transfer', 'admin_order']);
             $this->assertSame('admin_transfer', $this->deniedModule('GET', $uri, $req), $uri);
 
-            $req = $this->actAs(912, ['transfer', 'admin_transfer']);
+            // SR: admin_transfer อย่างเดียวพอ (ไม่ต้องมี transfer)
+            $req = $this->actAs(912, ['admin_transfer']);
             $this->assertNull($this->deniedModule('GET', $uri, $req), $uri);
         }
     }

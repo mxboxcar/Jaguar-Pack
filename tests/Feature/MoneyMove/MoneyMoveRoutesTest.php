@@ -40,20 +40,22 @@ class MoneyMoveRoutesTest extends TestCase
         'GET _admin/_refill/email_cancel' => ['legacy.perm:admin_refill'],
         'GET admin/transfer' => ['legacy.perm:admin_transfer'],
         'GET admin/transfer/status/{status}' => ['legacy.perm:admin_transfer'],
-        'GET admin/transfer/create' => ['legacy.perm:admin_transfer', 'legacy.perm:transfer'],
-        'GET admin/transfer/{id}' => ['legacy.perm:admin_transfer', 'legacy.perm:transfer'],
+        // SR form.php ตรวจ admin_transfer (jl: transfer)
+        'GET admin/transfer/create' => ['legacy.perm:admin_transfer'],
+        'GET admin/transfer/{id}' => ['legacy.perm:admin_transfer'],
         'POST _admin/_transfer/grid' => ['legacy.auth'],
         'POST _admin/_transfer/save' => ['legacy.perm:admin_transfer'],
         'POST _admin/_transfer/cancel' => ['legacy.perm:admin_transfer'],
         'POST _admin/_transfer/rollback' => ['legacy.perm:admin_transfer'],
         'GET _admin/_transfer/email_success' => ['legacy.perm:admin_transfer'],
         'GET _admin/_transfer/email_cancel' => ['legacy.perm:admin_transfer'],
-        'GET admin/withdrawcash' => ['legacy.perm:admin_withdrawcash'],
-        'GET admin/withdrawcash/status/{status}' => ['legacy.perm:admin_withdrawcash'],
+        // SR: index ตรวจ admin_withdrawpoint ใน controller (หลังพิมพ์หัวหน้า), form/grid = admin_withdrawcash, อนุมัติ/ยกเลิก = admin_withdrawpoint
+        'GET admin/withdrawcash' => ['legacy.auth'],
+        'GET admin/withdrawcash/status/{status}' => ['legacy.auth'],
         'GET admin/withdrawcash/{id}' => ['legacy.perm:admin_withdrawcash'],
         'POST _admin/_withdrawcash/grid' => ['legacy.auth'],
-        'POST _admin/_withdrawcash/save_approved' => ['legacy.perm:admin_withdrawcash'],
-        'POST _admin/_withdrawcash/cancel' => ['legacy.perm:admin_withdrawcash'],
+        'POST _admin/_withdrawcash/save_approved' => ['legacy.perm:admin_withdrawpoint'],
+        'POST _admin/_withdrawcash/cancel' => ['legacy.perm:admin_withdrawpoint'],
     ];
 
     public function test_every_legacy_url_has_a_route_with_the_legacy_permission(): void
@@ -73,6 +75,15 @@ class MoneyMoveRoutesTest extends TestCase
                 $this->assertContains('legacy.ajax', $found[$key]->gatherMiddleware(), "$key เดิมผ่าน system_check_ajax");
             }
         }
+    }
+
+    /** สิทธิ์ที่ SR ไม่ใช้แล้วต้องไม่ติดอยู่ (route ที่ต้องมีสิทธิ์ครบหลายตัวจะปฏิเสธคนที่ SR ยอม) */
+    public function test_sr_dropped_permissions(): void
+    {
+        $mw = fn (string $uri, string $m = 'GET') => Route::getRoutes()->match(\Illuminate\Http\Request::create($uri, $m))->gatherMiddleware();
+        $this->assertNotContains('legacy.perm:transfer', $mw('/admin/transfer/123'));
+        $this->assertNotContains('legacy.perm:admin_withdrawcash', $mw('/_admin/_withdrawcash/cancel', 'POST'));
+        $this->assertNotContains('legacy.perm:admin_withdrawcash', $mw('/admin/withdrawcash'));
     }
 
     public function test_page_routes_set_legacy_page(): void
@@ -120,6 +131,17 @@ class MoneyMoveRoutesTest extends TestCase
         $this->assertSame('0', Php74::str(Php74::num('') * Php74::num('5.20')));
         $this->assertSame('5200', Php74::str(Php74::num('1000') * Php74::num('5.20')));
         $this->assertSame('51.5', Php74::str(Php74::num('10.3') * Php74::num('5')));
+    }
+
+    /** SR: อีเมลแจ้งผลใช้แม่แบบ/ผู้ส่งของ SR (config legacy.mail) ไม่มีแบรนด์ jl หลงเหลือ */
+    public function test_mailer_has_no_jl_branding(): void
+    {
+        $src = (string) file_get_contents(app_path('Domain/MoneyMove/Mailer.php'));
+        $this->assertStringNotContainsStringIgnoringCase('jlcargo', $src);
+        $this->assertStringNotContainsString('#991b1e', $src);
+        $this->assertStringContainsString("config('legacy.mail')", $src);
+        $this->assertStringContainsString('#a3b2f1', $src);
+        $this->assertStringNotContainsString('target=', $src);
     }
 
     public function test_temp_upload_names_are_whitelisted(): void

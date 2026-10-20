@@ -1,6 +1,9 @@
-{{-- กล่อง "รายละเอียดการใช้เงิน" ของ _transfer/form.php และ _admin/_transfer/form.php เดิม (เหมือนกันทุกตัวอักษร) --}}
+{{-- กล่อง "รายละเอียดการใช้เงิน" ของ _transfer/form.php และ _admin/_transfer/form.php เดิม
+     SR: ลูกค้า (ฟอร์มสร้าง) แสดงเงินหยวนในระบบ + ยอดประมาณ = บาท/เรท + หยวน; ทั้งสองหน้าแสดง "ใช้เงินหยวน" (usecash_cn) ของรายการ --}}
 @php
     $rateNum = \App\Domain\MoneyMove\Php74::num($rate);
+    $cust = ! ($admin ?? false);
+    $cashCn = $cust && $new ? \App\Support\Legacy\Lookup::getCurrentCashCN() : null;
 @endphp
 @if ($new)
 		        <div class="form-group">
@@ -20,11 +23,19 @@
 	                	 ¥1 <i class="fa fa-arrows-h"></i> <span class="currency">{{ $rate }}</span>&nbsp;฿
 		            </div>
 		        </div>
+@if ($cust)
+		        <div class="form-group">
+		            <label class="col-md-4 control-label"> {!! res('cash_cn') !!}</label>
+		            <div class="col-md-4 form-control-static">
+	                	{!! \App\Support\Legacy\Format::numberformat($cashCn, true, true, true) !!}
+		            </div>
+		        </div>
+@endif
 		        <div class="form-group">
 		            <label class="col-md-4 control-label"> {!! res('est_transfer') !!}</label>
 		            <div class="col-md-4 form-control-static">
-	                	{{-- เดิม getCurrentCash() / rate (rate = 0 → PHP 7.4 ได้ false + warning = 0) --}}
-	                	{!! \App\Support\Legacy\Format::numberformat($rateNum == 0 ? 0 : \App\Domain\MoneyMove\Php74::num(\App\Support\Legacy\Lookup::getCurrentCash()) / $rateNum, true, true, true) !!}
+	                	{{-- เดิม getCurrentCash() / rate (rate = 0 → PHP 7.4 ได้ false + warning = 0); SR ลูกค้า: + getCurrentCashCN() --}}
+	                	{!! \App\Support\Legacy\Format::numberformat(($rateNum == 0 ? 0 : \App\Domain\MoneyMove\Php74::num(\App\Support\Legacy\Lookup::getCurrentCash()) / $rateNum) + ($cust ? \App\Domain\MoneyMove\Php74::num($cashCn) : 0), true, true, true) !!}
 		            </div>
 		        </div>
 		        <div class="form-group">
@@ -55,6 +66,12 @@
 		            <label class="col-md-4 control-label"> {!! res('using_system_cash') !!}</label>
 		            <div class="col-md-6 form-control-static">
 		            	{!! \App\Support\Legacy\Format::numberformat($d['usecash'] ?? null) !!}
+		            </div>
+		        </div>
+		        <div class="form-group">
+		            <label class="col-md-4 control-label"> {!! res('use_cash_cn_short') !!}</label>
+		            <div class="col-md-4 form-control-static">
+	                	{!! \App\Support\Legacy\Format::numberformat($d['usecash_cn'] ?? null, true, true, true) !!}
 		            </div>
 		        </div>
 		        <div class="form-group">

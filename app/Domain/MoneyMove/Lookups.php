@@ -77,6 +77,19 @@ final class Lookups
     }
 
     /**
+     * SR (_transfer/form.php, _admin/_transfer/form.php): แถว balance (บาท) ตามด้วยแถว balance_cn (หยวน) ของรายการ — `types` บอกตารางที่มา
+     * (balanceTable แสดงยอดหยวนด้วย numberformat(x, true, true, true) แบบเดิม) · เดิมทั้งสองไฟล์ใช้ prefix.link (แอดมินด้วย)
+     */
+    public static function balancesWithCn(mixed $prefixId, mixed $refId): Collection
+    {
+        $rows = fn (string $t) => DB::table($t)->leftJoin('prefix', $t.'.prefix', '=', 'prefix.id')
+            ->where($t.'.prefix', (string) ($prefixId ?? ''))->where($t.'.prefix_ref_id', $refId)->where($t.'.is_delete', 0)
+            ->orderBy($t.'.id')->get([$t.'.*', 'prefix.link as link'])->each(fn ($r) => $r->types = $t);
+
+        return $rows('balance')->concat($rows('balance_cn'))->values();
+    }
+
+    /**
      * $html_payment ของ form.php เดิม (ตารางรายการเงินที่เกี่ยวข้อง)
      *
      * @param  array{col: string, w1: string, w2: string, br: string, tr: bool}  $o
@@ -105,10 +118,12 @@ final class Lookups
                 $h .= ($o['tr'] ? '<tr>' : '').'<td>'.Format::getthaidate($exp[0]).$o['br'].e($exp[1] ?? '').'</td>';
                 $h .= '<td class="text-left"><a href="'.e($href.$item->link.$item->prefix_ref_id).'">'.e($item->detail).'</a></td>';
                 $h .= '<td class="text-right">';
+                $cn = ($item->types ?? 'balance') === 'balance_cn';
+                $amt = $cn ? Format::numberformat($item->amount, true, true, true) : Format::numberformat($item->amount);
                 if ((float) $item->amount >= 0) {
-                    $h .= '<span class="text-success">+'.Format::numberformat($item->amount).'</span>';
+                    $h .= '<span class="text-success">+'.$amt.'</span>';
                 } else {
-                    $h .= '<span class="text-danger">'.Format::numberformat($item->amount).'</span>';
+                    $h .= '<span class="text-danger">'.$amt.'</span>';
                 }
                 $h .= '</td>';
             }

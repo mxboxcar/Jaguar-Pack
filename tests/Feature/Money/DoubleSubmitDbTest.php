@@ -114,8 +114,10 @@ class DoubleSubmitDbTest extends BenchDbTestCase
         $rate = (float) Lookup::getSetting('rate_transfer');
         $this->assertGreaterThan(0, $rate);
         $this->credit($cust, round(150 * $rate, 2)); // พอสำหรับ ¥100 ครั้งเดียว
-        $this->actAs($cust);
-        $post = ['total' => '100', 'acc_name' => 'zz_acc', 'acc_no' => '1', 'acc_bank' => 'zz', 'acc_branch' => 'zz', 'remark' => 'zz_dbl', 'upload_file' => ''];
+        // SR: _transfer/save ถาม PIN จ่ายเงิน
+        DB::table('user')->where('id', $cust->id)->update(['pin' => 'zz42']);
+        $this->actAs($cust->refresh());
+        $post = ['total' => '100', 'acc_name' => 'zz_acc', 'acc_no' => '1', 'acc_bank' => 'zz', 'acc_branch' => 'zz', 'remark' => 'zz_dbl', 'upload_file' => '', 'paymentpin' => 'zz42'];
 
         $this->assertStringContainsString('SuccessBox', $this->submit('_transfer/save', TransferController::class, 'save', $post));
         $this->assertStringContainsString(SubmitGuard::DUPLICATE, $this->submit('_transfer/save', TransferController::class, 'save', $post));
