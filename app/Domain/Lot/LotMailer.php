@@ -14,17 +14,12 @@ use Illuminate\Support\Facades\Mail;
  *
  * - อีเมล: เดิม sendmail() ผ่าน Mailgun → ที่นี่ Mail ของ Laravel (dev: MAIL_MAILER=log = ไม่ส่งจริง), ห่อ try/catch เงียบแบบเดิม
  * - LINE: เดิม sendLine() เป็นฟังก์ชันว่าง → ไม่ส่ง (log จำนวนตัวอักษรไว้ตรวจเท่านั้น)
- * - email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → คัดข้อความคงที่มาไว้ที่นี่
+ * - email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → SR: config('legacy.mail') (header/center/footer + ผู้ส่ง
+ *   SRShippingSystem <no-reply@srshippingsystem.com> ของ sendmail() เดิม — ใช้ร่วมกับกลุ่ม users)
+ * - send_a_lot_mail() (SR system_config.php, SendGrid) ไม่มีใครเรียก — email.php ใช้ sendmail() → ไม่พอร์ต
  */
 final class LotMailer
 {
-    // email_header.php / email_center.php / email_footer.php เดิม (อ่านด้วย file_get_contents — ข้อความดิบรวมแท็ก php ที่ไม่ถูก execute และ CRLF)
-    private const HEADER = '<div style="font-family: arial,sans-serif;font-size:13px;">';
-
-    private const CENTER = '<div>';
-
-    private const FOOTER = "<?php require_once('system_config.php'); ?>\r\n</div>\r\n<br />\r\n* หากมีข้อสงสัยกรุณาติดต่อ<br />\r\nE-mail : jlcargoth@hotmail.com<br />\r\nPhone : 095-550-4009<br />\r\nLineID : @jlcargo\r\n<br />\r\n<br />\r\nขอแสดงความนับถือ<br />\r\nJLcargo\r\n</div>";
-
     /** email_lot.php: ตั้ง is_mail แล้วเข้าคิวทุก user ในล็อต (INSERT IGNORE — UNIQUE(lot_id,user_id)) → [ลูกค้าทั้งหมด, รอส่ง] */
     public static function enqueue(int $lotId): array
     {
@@ -105,7 +100,10 @@ final class LotMailer
         return '';
     }
 
-    /** email.php เดิม: คอลัมน์ china_order_number / order_id ไม่มีในตาราง tracking → เดิมได้ "-" เสมอทั้งสองช่อง */
+    /**
+     * email.php เดิม (SR): คอลัมน์ china_order_number ไม่มีในตาราง tracking → ช่อง "เลขที่ใบสั่งซื้อ" ได้ "-" เสมอ
+     * ช่อง "วลีช่วยจำ" = tracking.quote (jl: เช็ค order_id ที่ไม่มี → "-"), ปุ่มดูรายละเอียดสี #a3b2f1
+     */
     private static function sendMail(int $lotId, int $userId, string $to, $items): void
     {
         $subject = 'แจ้งรายการเคลื่อนไหวรหัสพัสดุ '.Format::getthaidate(date('Y-m-d'), true, true);
@@ -122,16 +120,16 @@ final class LotMailer
                 .e((string) $it->lot_name).'/'.e((string) $it->no)
                 .$t("</td>\n\t\t<td style=\"border:1px #ccc solid;padding:3px\">").e((string) $it->tracking).$t("</td>\n\t\t")
                 .'<td style="border:1px #ccc solid;padding:3px">-</td>'
-                .'<td style="border:1px #ccc solid;padding:3px">-</td>'
+                .'<td style="border:1px #ccc solid;padding:3px">'.e((string) $it->quote).'</td>'
                 .$t("\n\t\t<td style=\"border:1px #ccc solid;padding:3px;text-align:right\">").Format::numberformatone($it->weight)
                 .$t("</td>\n\t\t<td style=\"border:1px #ccc solid;padding:3px;text-align:right\">").Format::cubicformat(($n($it->long) * $n($it->width) * $n($it->height)) / 1000000)
                 .$t("</td>\n\t\t<td style=\"border:1px #ccc solid;padding:3px;text-align:center\">").Status::getlotstatus($it->status).$t("</td>\n\t</tr>\n\t");
         }
         $link = Legacy::href('payment/create');
         $body .= $t("\n</tbody>\n</table>\n\n\n<div style=\"height:20px\"></div>\n"
-            ."<p style=\"width:200px;text-align:center;font-size:15px;background-color:#991b1e;padding:10px 25px;\" >\n"
+            ."<p style=\"width:200px;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 25px 10px 0px;\" >\n"
             .'<a style="color:#ffffff;text-decoration:none" href="').$link.$t("\" >ดูรายละเอียด</a></p>\n");
-        $html = self::HEADER.'<strong>'.$subject.'</strong>'.self::CENTER.$body.self::FOOTER;
+        $html = config('legacy.mail.header').'<strong>'.$subject.'</strong>'.config('legacy.mail.center').$body.config('legacy.mail.footer');
 
         try {
             if ($to === '') {
@@ -140,7 +138,7 @@ final class LotMailer
             // dev / legacy.external.enabled = false → บังคับ log mailer (ไม่ส่งออกนอกเครื่อง)
             $mailer = config('legacy.external.enabled') ? Mail::mailer() : Mail::mailer('log');
             $mailer->html($html, function ($m) use ($to, $subject) {
-                $m->to($to)->subject($subject)->from('no-reply@jlcargoth.com', 'JLcargoTH');
+                $m->to($to)->subject($subject)->from(config('legacy.mail.from_address'), config('legacy.mail.from_name'));
             });
         } catch (\Throwable $e) {
             Log::warning('lot mail failed', ['lot' => $lotId, 'user' => $userId, 'error' => $e->getMessage()]);

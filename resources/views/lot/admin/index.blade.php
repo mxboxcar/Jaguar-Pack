@@ -22,53 +22,6 @@
 	</div>
 </div>
 
-<div class="col-sm-12">
-	<div class="col-sm-4">
-		<div class="card-box">
-			<h4 class="m-t-0 header-title"><b>รับพัสดุเข้าไทย</b></h4>
-			<p class="text-muted font-13 m-b-30">
-		    </p>
-			<div class="form-horizontal" role="form">                                    
-		        <div class="form-group">
-		            <label class="col-md-3 control-label">{!! res('search') !!}</label>
-		            <div class="col-md-7">
-		                <input type="text" name="tracking" class="form-control" value="">
-		            </div>
-		        </div>
-		        <div class="form-group">
-		            <label class="col-md-3 control-label"></label>
-		            <div class="col-md-7">
-		                <button type="button" class="btn btn-primary waves-effect waves-light" onclick="on_search();">ค้นหาและรับเข้า</button>
-		            </div>
-		        </div>
-		    </div>
-		</div>
-	</div>
-
-	<div class="col-sm-8">
-		<div class="card-box"    >
-			<table class="table table-striped table-bordered">
-			    <thead>
-			        <tr>
-			                <th style="min-width: 230px;"> <div class="text-center" >{!! res('detail') !!}</div></th>
-			                <th> <div class="text-center" >{!! res('customer_code') !!}</div></th>
-			                <th> <div class="text-center" >{!! res('calculate_price') !!}</div></th>
-			                <th style="min-width:150px;"> <div class="text-center" >{!! res('detail') !!}</div></th>
-			                <th style="width:70px;"> <div class="text-center" >{!! res('invoice') !!}</div></th>
-			                <th class="text-center" style="width: 60px;">{!! res('action') !!}</th>
-			          </tr>
-			    </thead>
-
-			    <tbody id="resultserach">
-			    	<tr>
-			    		<td colspan="5" class="text-center">{!! res('no_data') !!}</td>
-			    	</tr>
-			    </tbody>
-			</table>
-		</div>
-	</div>
-</div>
-
 <div id="gridAjax" class="col-sm-12"></div>
 
 <form id="lot_create" action="{{ legacy_href() }}_admin/_lot/save_new_lot" method="post" >
@@ -148,12 +101,7 @@
      });  
      $('#remove').click(function() {  
       return !$('#result option:selected').remove().appendTo('#selected_print');  
-     });  
-
-
-
-     $("input[name='tracking']").bind("keypress", {}, keypressInBox5);
-    });
+     });      });
 
     $("form").validationEngine();
 	$("form").ajaxForm({ 
@@ -238,33 +186,5 @@
 			});
 		}
     }
-
-    function on_search() {
-		OpenLoading();
-		$.ajax({
-	        type: 'POST',
-	        async: true,
-	        data :  'tracking=' + $("input[name='tracking']").val() + '&order=' + $("input[name='order']").val() ,
-	        url: rooturl + '_admin/_lot/load_check_tracking',
-	        success: function(data) {
-	        	$("#resultserach").html(data);
-	        	CloseLoading();
-
-	        	setTimeout(function() {
-	        		$("input[name='tracking']").val('');
-	        		$("input[name='tracking']").focus();
-	        	}, 500);
-	        }
-	    });
-	}
-
-
-	function keypressInBox5(e) {
-	    var code = (e.keyCode ? e.keyCode : e.which);
-	    if (code == 13) { //Enter keycode                        
-	        e.preventDefault();
-	        on_search();
-	    }
-	}
 </script>
 @endsection

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Money\BenchDbTestCase;
 
 /**
- * _admin/_lot/print, print_all: header_count เดิมเป็น subquery ต่อแถว (t2.header = tracking.id, TEXT กับ int → ใช้ index ไม่ได้)
+ * _admin/_lot/print: header_count เดิมเป็น subquery ต่อแถว (t2.header = tracking.id, TEXT กับ int → ใช้ index ไม่ได้)
  * = สแกน tracking ทั้งตารางต่อแถว → ล็อต ~100 tracking ใช้ ~75 วินาที (504 ที่ nginx) — ตอนนี้นับครั้งเดียวด้วย header IN (...)
  * รันกับ admin_sr_bench (opt-in JL_BENCH_DB_TESTS=1) — แถว zz_ ใน transaction ที่ rollback ทั้งหมด
  */
@@ -63,9 +63,10 @@ class LotPrintHeaderCountDbTest extends BenchDbTestCase
             $this->assertStringContainsString("ZZPRINT{$lot}{$c}", $html);
         }
         $this->assertSame('1', (string) DB::table('lot')->where('id', $lot)->value('is_print'));
-
-        $xls = LotPrint::printAll([$lot], false);
-        $this->assertStringContainsString("ZZPRINT{$lot}P1", $xls);
+        // SR print.php: ไม่มีคอลัมน์ราคา และไม่มีเครื่องหมายตรวจแล้ว (ไม่มี tracking.is_checked)
+        $this->assertStringNotContainsString(\App\Support\Legacy\Lang::get('price_kg'), $html);
+        $this->assertStringNotContainsString('&#10004;', $html);
+        $this->assertStringContainsString('colspan="5">', $html);
     }
 
     public function test_print_counts_children_once_instead_of_per_row(): void
@@ -74,9 +75,8 @@ class LotPrintHeaderCountDbTest extends BenchDbTestCase
         [$big] = $this->seedLot(6);
         $q1 = $this->sqlDuring(fn () => LotPrint::print([$small]));
         $q6 = $this->sqlDuring(fn () => LotPrint::print([$big]));
-        $q6all = $this->sqlDuring(fn () => LotPrint::printAll([$big], true));
 
-        foreach (array_merge($q1, $q6, $q6all) as $sql) {
+        foreach (array_merge($q1, $q6) as $sql) {
             $this->assertStringNotContainsString('t2.header = tracking.id', $sql, 'ไม่มี subquery header ต่อแถว');
         }
         $this->assertSame(count($q1), count($q6), 'จำนวน query ไม่โตตามจำนวน tracking');

@@ -9,7 +9,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * หน้าพิมพ์ของล็อต: _admin/_lot/print.php, print_all.php (Excel), print_receive.php เดิม
+ * หน้าพิมพ์ของล็อต: _admin/_lot/print.php, print_receive.php เดิม (SR ไม่มี print_all.php)
+ * SR print.php: ไม่มีคอลัมน์ราคา/kg ราคา/คิว และเครื่องหมาย "ตรวจแล้ว" (SR ไม่มี tracking.is_checked)
  * HTML สร้างแบบเดียวกับไฟล์เดิม (ต่อ string) แต่ค่าจาก DB ผ่าน e() — เดิม echo ดิบ
  * แถวลูก (header = id) เดิม query ทีละแถว → ดึงครั้งเดียว (LotLookups::childTrackings)
  */
@@ -25,18 +26,13 @@ final class LotPrint
         return Php74::num($v);
     }
 
-    /**
-     * UPDATE is_print + หัวล็อต + tracking + memo ของล็อตใน $ids (ลำดับ ORDER BY ตาม $orderByUser)
-     * $markPrinted = false: อ่านอย่างเดียว (print_all ของผู้ถือ admin_lot_view — ไม่เขียน is_print)
-     */
-    private static function load(array $ids, bool $orderByUser, bool $markPrinted = true): array
+    /** UPDATE is_print + หัวล็อต + tracking + memo ของล็อตใน $ids */
+    private static function load(array $ids): array
     {
         if ($ids === []) {
             return [[], '', collect(), collect(), []];
         }
-        if ($markPrinted) {
-            DB::table('lot')->whereIn('id', $ids)->update(['is_print' => '1']);
-        }
+        DB::table('lot')->whereIn('id', $ids)->update(['is_print' => '1']);
         $head = DB::table('lot')->whereIn('id', $ids)->get();
         $strHead = '';
         foreach ($head as $row) {
@@ -44,9 +40,7 @@ final class LotPrint
         }
 
         $in = implode(',', array_fill(0, count($ids), '?'));
-        $order = $orderByUser
-            ? 'user.code ASC, tracking.user ASC, tracking.lot_id ASC,  tracking.`no` ASC'
-            : 'tracking.lot_id ASC,  tracking.`no` ASC';
+        $order = 'user.code ASC, tracking.user ASC, tracking.lot_id ASC,  tracking.`no` ASC';
         // SQL เดิม (GROUP BY tracking.tracking กับ sql_mode ว่าง) — ค่าที่เคยฝังตรงๆ เปลี่ยนเป็น placeholder
         // ยกเว้น header_count: เดิม subquery (t2.header = tracking.id) ต่อแถว เทียบ TEXT กับ int → ใช้ index ไม่ได้
         // = สแกน tracking ทั้งตารางต่อแถว (ล็อต ~100 tracking ≈ 75 วินาที → 504) — นับแยกครั้งเดียวด้านล่าง
@@ -92,7 +86,7 @@ final class LotPrint
     /** print.php — แยกตารางต่อลูกค้า + ขึ้นหน้าใหม่ */
     public static function print(array $ids): string
     {
-        [, $head, $detail, $memo, $children] = self::load($ids, true);
+        [, $head, $detail, $memo, $children] = self::load($ids);
         $e = fn ($v) => e((string) $v);
 
         $html = view('lot.print.header')->render();
@@ -147,7 +141,7 @@ final class LotPrint
 
 		<table class=" lot_table_cus" style="width:100%;margin-top:10px;">
 			<thead>
-				<th class="text-left" style="font-size:40px!important" colspan="7">'.$e($item->code).'</th>
+				<th class="text-left" style="font-size:40px!important" colspan="5">'.$e($item->code).'</th>
 				<th class="text-center" style="font-size:40px!important" colspan="3">'.$e($head).'</th>
 			</thead>
 			<thead>
@@ -159,8 +153,6 @@ final class LotPrint
 				<th class="text-center">'.self::r('weight').'</th>
 				<th class="text-center">'.self::r('cubic').'</th>
 				<th class="text-center">'.self::r('type').'</th>
-				<th class="text-center" >'.self::r('price_kg').'</th>
-				<th class="text-center" >'.self::r('price_cubic').'</th>
 			</thead>
 		';
             }
@@ -186,14 +178,12 @@ final class LotPrint
 
 		<td style="vertical-align:top"  rowspan="'.$rs.'" class="text-center">'.$count.'</td>
 		<td style="vertical-align:top" rowspan="'.$rs.'" class="text-center">'.$e($item->lot_name).'/'.$e($item->no).'</td>
-		<td>'.(Php74::eq($item->is_checked, 0) ? '' : '&#10004;').$e($item->tracking).'</td>
+		<td>'.$e($item->tracking).'</td>
 		<td style="vertical-align:top" rowspan="'.$rs.'" class="text-center">'.Format::getthaidate(explode(' ', (string) $item->date_thai)[0], true, true).'</td>
 		<td style="vertical-align:top"  rowspan="'.$rs.'" class="text-right">'.Format::numberformatzero($item->amount).'</td>
 		<td style="vertical-align:top" rowspan="'.$rs.'" class="text-right">'.Format::numberformatone(self::n($item->weight) * self::n($item->amount)).'</td>
 		<td style="vertical-align:top" rowspan="'.$rs.'" class="text-right">'.Format::cubicformat($cubic).'</td>
 		<td style="vertical-align:top" rowspan="'.$rs.'" class="text-center">'.$e($item->type_name).'</td>
-		<td style="vertical-align:top" rowspan="'.$rs.'" class="text-right">'.Format::numberformat($item->price_kg).'</td>
-		<td style="vertical-align:top" rowspan="'.$rs.'" class="text-right">'.Format::numberformat($item->price_cubic).'</td>
 	</tr>
 	';
             foreach ($children[(string) $item->id] ?? [] as $child) {
@@ -213,14 +203,12 @@ final class LotPrint
 				<th class="text-right">'.Format::numberformatone($t['weight']).'</th>
 				<th class="text-right">'.Format::cubicformat($t['cubic']).'</th>
 				<th ></th>
-				<th class="text-right">'.Format::numberformat($t['price_kg']).'</th>
-				<th class="text-right">'.Format::numberformat($t['price_cubic']).'</th>
 			</thead>
 			</table>
 		';
                 $html .= "<p style='page-break-before: always;'></p>";
                 $count = 0;
-                $t = self::zeroTotals(0);
+                $t = self::zeroTotals();
             }
         }
 
@@ -228,122 +216,6 @@ final class LotPrint
 <script>
 window.print();
 </script>';
-
-        return $html;
-    }
-
-    /** print_all.php — ตารางเดียวทั้งล็อต (ส่งเป็นไฟล์ .xls แบบ HTML) */
-    public static function printAll(array $ids, bool $markPrinted = true): string
-    {
-        [, $head, $detail, $memo, $children] = self::load($ids, false, $markPrinted);
-        $e = fn ($v) => e((string) $v);
-
-        $html = view('lot.print.header')->render();
-        $html .= '<style>
-@media print{
-	@page {size: landscape;
-	}
-}
-</style>';
-        if (count($memo) !== 0) {
-            $html .= '<table>
-	<thead>
-		<th colspan="5">'.$e($head).'</th>
-	</thead>
-	<thead>
-		<tr>
-			<th>'.self::r('no').'</th>
-			<th >'.self::r('detail').'</th>
-			<th >'.self::r('weight').'</th>
-			<th >'.self::r('cubic').'</th>
-			<th >'.self::r('customer_code').'</th>
-		</tr>
-	</thead>
-	<tbody style="width:100%">';
-            foreach ($memo as $item) {
-                $html .= '<tr style="width:100%">';
-                $html .= Php74::eq($item->no, $item->no_max)
-                    ? '<td>'.$e($item->no).'</td>'
-                    : '<td>'.$e($item->no).'-'.$e($item->no_max).'</td>';
-                $html .= '<td >'.$e($item->detail).'</td>';
-                $html .= '<td>'.$e($item->weight).'</td>';
-                $html .= '<td >'.$e($item->cubic).'</td>';
-                $html .= '<td >'.$e($item->code).'</td>';
-                $html .= '</tr>';
-            }
-            $html .= '</tbody>
-	</table>';
-            $html .= "<p style='page-break-before: always;'></p>";
-        }
-
-        $html .= '
-
-		<table >
-			<tr>
-				<th colspan="11">'.$e($head).'</th>
-			</tr>
-			<tr>
-				<th>'.self::r('no').'</th>
-				<th>'.self::r('lot').'/'.self::r('no').'</th>
-				<th style="width:200px;">'.self::r('tracking').'</th>
-				<th>'.self::r('customer_code').'</th>
-				<th >'.self::r('date_thai').'</th>
-				<th >'.self::r('amount').'</th>
-				<th >'.self::r('weight').'</th>
-				<th >'.self::r('cubic').'</th>
-				<th >'.self::r('type').'</th>
-				<th >'.self::r('price_kg').'</th>
-				<th >'.self::r('price_cubic').'</th>
-			</tr>
-		';
-        $count = 0;
-        $t = self::zeroTotals();
-        foreach ($detail as $item) {
-            $count++;
-            $cubic = ((self::n($item->width) * self::n($item->height) * self::n($item->long)) / 1000000) * self::n($item->amount);
-            self::addTotals($t, $item, $cubic);
-            $rs = $e(Php74::str(self::n($item->header_count) + 1));
-            $html .= '<tr>';
-            $html .= '
-
-
-		<td rowspan="'.$rs.'" class="text-center">'.$count.'</td>
-		<td rowspan="'.$rs.'" class="text-center">'.$e($item->lot_name).'/'.$e($item->no).'</td>
-		<td>="'.$e($item->tracking).'"</td>
-		<td>="'.$e($item->code).'"</td>
-		<td  rowspan="'.$rs.'" class="text-center">'.Format::getthaidate(explode(' ', (string) $item->date_thai)[0], true, true).'</td>';
-            $html .= '<td style="vertical-align:top"  rowspan="'.$rs.'" class="text-right">'.Format::numberformatzero($item->amount).'</td>';
-            $html .= '<td style="vertical-align:top" rowspan="'.$rs.'" class="text-right">'.Format::numberformatone(self::n($item->weight) * self::n($item->amount)).'</td>';
-            $html .= '<td style="vertical-align:top" rowspan="'.$rs.'" class="text-right">'.Format::cubicformat($cubic).'</td>';
-            $html .= '
-
-		<td  rowspan="'.$rs.'" class="text-center">'.$e($item->type_name).'</td>
-		<td  rowspan="'.$rs.'" class="text-right">'.Format::numberformat($item->price_kg).'</td>
-		<td  rowspan="'.$rs.'" class="text-right">'.Format::numberformat($item->price_cubic).'</td>
-	</tr>
-	';
-            foreach ($children[(string) $item->id] ?? [] as $child) {
-                $html .= '<tr>
-						<td style="white-space: nowrap;" class="showdetailbox">'.$e($child).'</td>
-					</tr>';
-            }
-        }
-        $html .= '
-			<thead>
-				<th>'.$count.'</th>
-				<th colspan="4"></th>
-				<th>'.Format::numberformatzero($t['amount']).'</th>
-				<th >'.Format::numberformatone($t['weight']).'</th>
-				<th >'.Format::cubicformat($t['cubic']).'</th>
-				<th ></th>
-				<th >'.Format::numberformat($t['price_kg']).'</th>
-				<th >'.Format::numberformat($t['price_cubic']).'</th>
-
-		';
-        $html .= '
-</thead>
-			</table>
-';
 
         return $html;
     }
@@ -417,10 +289,10 @@ table { border-collapse: collapse; }
         return $str.'<script>window.print();</script>';
     }
 
-    /** ผลรวมเริ่มต้น: รอบแรกเดิมเป็นตัวแปรที่ยังไม่กำหนด (null) ส่วน price_* หลังขึ้นตารางใหม่เป็น 0 */
-    private static function zeroTotals(mixed $price = null): array
+    /** ผลรวมต่อตารางลูกค้า (SR ไม่แสดงผลรวมราคา) */
+    private static function zeroTotals(): array
     {
-        return ['amount' => 0, 'weight' => 0, 'cubic' => 0, 'price_kg' => $price, 'price_cubic' => $price];
+        return ['amount' => 0, 'weight' => 0, 'cubic' => 0];
     }
 
     private static function addTotals(array &$t, object $item, int|float $cubic): void
@@ -428,7 +300,5 @@ table { border-collapse: collapse; }
         $t['cubic'] = $t['cubic'] + $cubic;
         $t['amount'] = $t['amount'] + self::n($item->amount);
         $t['weight'] = $t['weight'] + (self::n($item->weight) * self::n($item->amount));
-        $t['price_kg'] = self::n($t['price_kg']) + self::n($item->price_kg);
-        $t['price_cubic'] = self::n($t['price_cubic']) + self::n($item->price_cubic);
     }
 }

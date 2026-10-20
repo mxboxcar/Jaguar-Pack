@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Lot\Admin;
 
+use App\Domain\Lot\LotLookups;
 use App\Domain\Lot\Php74;
 use App\Domain\Money\Money;
+use App\Domain\Tracking\TempUpload;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Lot\Concerns\ReadsLegacyInput;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
+use App\Support\Legacy\LegacyInput;
 use App\Support\Legacy\Pricing;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -41,6 +44,11 @@ class AdminLotSaveController extends Controller
         $isCraft = $this->in($request, 'is_craft');
         $isQc = $this->in($request, 'is_qc');
         $amount = $this->in($request, 'amount');
+        // SR: รหัสย่อย — เดิม nStr($_POST['subuser']) ซ้ำกับการแปลง ' ของ POST เดิม = ' ถูกเก็บเป็น '' ใน DB
+        $subuser = Format::nStr($this->in($request, 'subuser'));
+        // SR: รูปพัสดุ upload_upload_track_mul[] — เดิมทำเฉพาะเมื่อมีค่าส่งมา (ไม่ส่ง = ไม่แตะรูปเดิม); ชื่อไฟล์ต้องเป็นชื่อล้วน
+        $postedImages = LegacyInput::post($request, 'upload_upload_track_mul', null);
+        $images = $postedImages === null || $postedImages === '' ? null : TempUpload::names($postedImages);
         // เดิม numberformat*(ค่า, false) ของตัวแปร PHP → string ตัวเลขที่ลง DB
         $num = [
             'weight' => Format::numberformatone($this->php($request, 'weight'), false),
@@ -83,10 +91,11 @@ class AdminLotSaveController extends Controller
             'long' => $num['long'], 'no' => $no, 'is_craft' => $isCraft,
             'price_qc' => $num['price_qc'], 'price_repack' => $num['price_repack'], 'price_express' => $num['price_express'],
             'price_else' => $num['price_else'], 'remark' => $remark, 'price_craft' => $num['price_craft'],
-            'product_type_id' => $productTypeId,
+            'product_type_id' => $productTypeId, 'subuser' => $subuser,
         ];
 
-        DB::transaction(function () use ($trackingId, $fields, $craftIds, $isCraft, $isQc, $lotId, $no, $choosePrice, $member, $lot, $uid) {
+        $js = '';
+        DB::transaction(function () use ($trackingId, $fields, $craftIds, $isCraft, $isQc, $lotId, $no, $choosePrice, $member, $lot, $uid, $images, &$js) {
             if ($trackingId !== '') {
                 $dw = DB::table('tracking')->where('id', $trackingId)->value('date_warehouse');
                 $set = $fields;
@@ -100,6 +109,9 @@ class AdminLotSaveController extends Controller
                 if (Php74::eq($isCraft, 1) && $craftIds !== []) {
                     DB::table('tracking')->whereIn('id', $craftIds)->update(['is_qc' => $isQc, 'header' => $id, 'lot_id' => $lotId, 'no' => $no]);
                 }
+                if ($images !== null) {
+                    $js = self::syncImages($id, $images, $uid);
+                }
                 Pricing::calPrice($id, $choosePrice);
             } else {
                 $id = DB::table('tracking')->insertGetId([
@@ -112,7 +124,13 @@ class AdminLotSaveController extends Controller
                     'is_craft' => $fields['is_craft'], 'quote' => '', 'price_qc' => $fields['price_qc'], 'price_repack' => $fields['price_repack'],
                     'price_express' => $fields['price_express'], 'price_else' => $fields['price_else'], 'price_craft' => $fields['price_craft'],
                     'remark' => $fields['remark'], 'date_warehouse' => DB::raw('NOW()'), 'is_qc' => $fields['is_qc'],
+                    'subuser' => $fields['subuser'],
                 ]);
+                // SR เดิมผูกรูปกับ $tracking_id ที่ว่างในกรณีเพิ่มใหม่ (= tracking_id 0: รูปหลุดเจ้าของ + ลบรูปกำพร้าทั้งหมด)
+                // → ผูกกับ tracking ที่เพิ่งสร้าง (ดู docs/modules/lot.md)
+                if ($images !== null) {
+                    $js = self::syncImages($id, $images, $uid);
+                }
                 Pricing::calPrice($id, $choosePrice);
                 if (Php74::eq($isCraft, 1) && $craftIds !== []) {
                     DB::table('tracking')->whereIn('id', $craftIds)->update(['is_qc' => $isQc, 'header' => (string) $id, 'lot_id' => $lotId, 'no' => $no]);
@@ -126,10 +144,54 @@ class AdminLotSaveController extends Controller
             }
         });
 
-        // sendLine() เดิมเป็นฟังก์ชันว่าง (โค้ดถูก comment ทั้งหมด) → ไม่ส่ง LINE
+        // sendLine() / sendLineImage() เดิมเป็นฟังก์ชันว่าง (โค้ดถูก comment ทั้งหมด) → ไม่ส่ง LINE
         Log::info('lot save: LINE notify skipped (legacy sendLine is a no-op)', ['tracking' => $tracking, 'line_uid_set' => (string) $member->line_uid !== '']);
 
-        return response(Alerts::success('CloseLoading();LoadDetail();', Lang::get('success_process_no').Alerts::js($tracking)));
+        // SR: ตอบ JS ย้ายรูปขึ้น storage (ถ้ามี) แล้ว reload หน้า (jl: SuccessBox + LoadDetail())
+        return response($js.'window.location.reload();');
+    }
+
+    /**
+     * SR: รูปพัสดุของ tracking — ลบ (is_delete = 1) ของเดิมทั้งหมดแล้วเพิ่มตามรายการที่ส่งมา (save.php / save_quickfile.php เดิม)
+     * ไฟล์ที่อยู่ใน upload/temp ได้ JS เรียก _api/blockblob_ajax ย้ายขึ้น storage แบบเดิม (App\Domain\Tracking\TempUpload)
+     *
+     * @param  list<string>  $images
+     */
+    private static function syncImages(int|string $trackingId, array $images, int $uid): string
+    {
+        DB::table('tracking_image')->where('tracking_id', $trackingId)->update(['is_delete' => '1']);
+        $js = '';
+        foreach ($images as $img) {
+            if (TempUpload::exists($img)) {
+                $js .= TempUpload::blobJs($img);
+            }
+            DB::table('tracking_image')->insert([
+                'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
+                'is_delete' => 0, 'tracking_id' => $trackingId, 'attachment' => $img,
+            ]);
+        }
+
+        return $js;
+    }
+
+    /** POST /_admin/_lot/save_quickfile — SR: บันทึกรูปพัสดุจาก modal แนบด่วน → JSON [JS ย้ายรูป, HTML รูปเล็ก] */
+    public function saveQuickfile(Request $request): Response
+    {
+        $id = $this->in($request, 'id');
+        $upload = null;
+        $html = null;
+        // เดิมไม่ตรวจ id (ค่าอะไรก็ได้ = tracking_id 0) → เฉพาะ id ตัวเลขของ tracking ที่มีอยู่
+        if (ctype_digit($id) && DB::table('tracking')->where('id', $id)->exists()) {
+            $names = TempUpload::names(explode(',', $this->in($request, 'image')));
+            $uid = (int) Legacy::userId();
+            $js = DB::transaction(fn () => self::syncImages((int) $id, $names, $uid));
+            // เดิม $uploadstr ไม่ถูกกำหนด (null) เมื่อไม่มีไฟล์ใน temp
+            $upload = $js === '' ? null : $js;
+            $list = LotLookups::trackingImages([(int) $id])[(int) $id] ?? [];
+            $html = $list === [] ? null : view('lot.admin.img_track', ['list' => $list])->render();
+        }
+
+        return response(json_encode([$upload, $html]));
     }
 
     /** POST /_admin/_lot/delete — _admin/_lot/delete.php (สิทธิ์ admin_lot) */

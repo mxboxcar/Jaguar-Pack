@@ -25,11 +25,14 @@ class LotRoutesTest extends TestCase
         ['GET', 'admin/lot', self::VIEW],
         ['GET', 'admin/lot/create', self::VIEW],
         ['GET', 'admin/lot/{id}', self::VIEW],
-        ['GET', '_admin/_lot/print_all', self::VIEW],
         ['POST', '_admin/_lot/grid', self::VIEW],
         ['POST', '_admin/_lot/load_autocomplete_tracking', self::VIEW],
         ['POST', '_admin/_lot/load_autocomplete_user', self::VIEW],
-        ['POST', '_admin/_lot/load_check_tracking', self::VIEW],
+        // SR-only (อ่าน)
+        ['POST', '_admin/_lot/load_image', self::VIEW],
+        ['POST', '_admin/_lot/load_quickfile', self::VIEW],
+        ['POST', '_admin/_lot/load_toptable', self::VIEW],
+        ['POST', '_admin/_lot/load_unpaid', self::VIEW],
         ['POST', '_admin/_lot/load_lastest_lot', self::VIEW],
         ['POST', '_admin/_lot/load_lot_detail', self::VIEW],
         ['POST', '_admin/_lot/load_lot_memo', self::VIEW],
@@ -45,6 +48,7 @@ class LotRoutesTest extends TestCase
         ['POST', '_admin/_lot/save_lot_ship_amount', self::LOT],
         ['POST', '_admin/_lot/save_new_lot', self::LOT],
         ['POST', '_admin/_lot/save_print', self::LOT],
+        ['POST', '_admin/_lot/save_quickfile', self::LOT], // SR-only: เดิมยอม admin_lot_view → view = ดูอย่างเดียว
         ['POST', '_admin/_lot/save_remove_tracking', self::LOT],
         ['POST', '_admin/_lot/save_status_lot', self::LOT],
         ['POST', '_admin/_lot/save_status_lot_date', self::LOT],
@@ -79,13 +83,24 @@ class LotRoutesTest extends TestCase
         }
     }
 
+    /** JL-only (SR ไม่มีไฟล์และไม่มีหน้าใดเรียก) → ไม่มี route (ตกไป 404 → หน้าแรก) */
+    public function test_jl_only_lot_endpoints_are_gone(): void
+    {
+        foreach (['_admin/_lot/load_check_tracking', '_admin/_lot/print_all'] as $uri) {
+            foreach (Route::getRoutes() as $r) {
+                $this->assertNotSame($uri, $r->uri(), $uri);
+            }
+        }
+    }
+
     public function test_route_count_matches_url_map(): void
     {
         $map = file_get_contents(base_path('docs/url-map.md'));
         $section = substr($map, strpos($map, '### lot ('));
         $section = substr($section, 0, strpos($section, "\n### ", 5) ?: strlen($section));
         preg_match_all('/^\| `(_[^`]+)\.php` \| `\/([^`]+)` \|/m', $section, $m);
-        $this->assertCount(43, $m[2]);
+        // SR: 46 ไฟล์ (jl 43 + SR-only 5 − JL-only load_check_tracking / print_all)
+        $this->assertCount(46, $m[2]);
         $uris = array_column(self::ROUTES, 1);
         foreach ($m[2] as $uri) {
             // form.php / index.php เดิมเปิดผ่าน RewriteRule (lot, lot/{id}, admin/lot...) ไม่ใช่ path ไฟล์

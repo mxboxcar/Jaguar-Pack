@@ -77,6 +77,26 @@ final class LotLookups
     }
 
     /**
+     * SR: รูปพัสดุ (tracking_image ที่ยังไม่ลบ) ของหลาย tracking ใน query เดียว — ไฟล์เดิม SELECT ทีละ tracking (ไม่มี ORDER BY = ลำดับ id)
+     *
+     * @param  list<int|string>  $ids
+     * @return array<int, list<string>>
+     */
+    public static function trackingImages(array $ids): array
+    {
+        $ids = array_values(array_filter(array_map('intval', $ids), fn ($v) => $v > 0));
+        if ($ids === []) {
+            return [];
+        }
+        $out = [];
+        foreach (DB::table('tracking_image')->whereIn('tracking_id', $ids)->where('is_delete', '0')->orderBy('id')->get(['tracking_id', 'attachment']) as $r) {
+            $out[(int) $r->tracking_id][] = (string) $r->attachment;
+        }
+
+        return $out;
+    }
+
+    /**
      * tracking ลูกที่ header = id แม่ (ไฟล์เดิม: SELECT tracking FROM tracking WHERE header = 'id' ทีละแถว)
      *
      * @param  list<int|string>  $ids

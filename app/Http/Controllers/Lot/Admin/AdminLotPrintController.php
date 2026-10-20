@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 /**
- * หน้าเปิดในแท็บใหม่ (GET) ของแอดมินล็อต: print.php, print_all.php, print_receive.php, email_lot.php เดิม
+ * หน้าเปิดในแท็บใหม่ (GET) ของแอดมินล็อต: print.php, print_receive.php, email_lot.php เดิม (SR ไม่มี print_all.php)
  * และไฟล์ที่เดิมเปิดตรงได้โดยไม่ต้องล็อกอิน: cron_lot_mail.php, email.php
  */
 class AdminLotPrintController extends Controller
@@ -26,7 +26,7 @@ class AdminLotPrintController extends Controller
     }
 
     /**
-     * print / print_all / email_lot เป็น GET ที่เขียนข้อมูล (is_print, เข้าคิวส่งเมลถึงลูกค้าทั้งล็อต) — LegacyCsrf ไม่ตรวจ GET
+     * print / email_lot เป็น GET ที่เขียนข้อมูล (is_print, เข้าคิวส่งเมลถึงลูกค้าทั้งล็อต) — LegacyCsrf ไม่ตรวจ GET
      * → ไม่ยอมคำขอที่มาจากเว็บอื่น (เช่น <img src=".../email_lot?id=N"> ในหน้าเว็บที่แอดมินเปิด)
      * JS/ลิงก์เดิมเปิดจากหน้าเดียวกัน (window.open / <a>) = Sec-Fetch-Site: same-origin; พิมพ์ URL เอง = none
      */
@@ -70,21 +70,6 @@ class AdminLotPrintController extends Controller
         }
 
         return response(LotPrint::print($this->lotIds($request)));
-    }
-
-    /** GET /_admin/_lot/print_all — สิทธิ์ admin_lot / admin_lot_view (ดาวน์โหลด .xls; is_print เขียนเฉพาะ admin_lot) */
-    public function printAll(Request $request): Response
-    {
-        if (self::crossSite($request)) {
-            return self::denied();
-        }
-        $name = (string) LegacyInput::query($request, 'lot');
-
-        // admin_lot_view (ดูอย่างเดียว) ดาวน์โหลดได้ แต่ไม่ทำเครื่องหมาย is_print (เดิมเขียนให้ทุกคน)
-        return response(LotPrint::printAll($this->lotIds($request), perm('admin_lot')))
-            ->header('Content-type', 'application/vnd.ms-excel')
-            // เดิม filename=$id.xls ดิบ (header injection ได้) → ตัดเหลือตัวเลขและ ,
-            ->header('Content-Disposition', 'attachment; filename='.preg_replace('/[^0-9,]/', '', $name).'.xls');
     }
 
     /** GET /_admin/_lot/print_receive?id= — สิทธิ์ admin_lot */

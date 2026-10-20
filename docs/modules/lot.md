@@ -1,5 +1,108 @@
 # กลุ่ม lot — รายงานการพอร์ต
 
+## SR (2026-10-20)
+
+branch `mod/lot` ของ repo sr · worktree `/home/admin/laravel/sr-wt/lot` · dev http://127.0.0.1:8308 · เทียบกับ SR เดิม :8111 (`admin_sr_bench`)
+ข้อความด้านล่าง (ตั้งแต่ "ไฟล์ของกลุ่ม") เป็นรายงานเดิมของ jl — ยังใช้ได้กับ SR ยกเว้นที่ระบุในหัวข้อนี้
+
+### สิ่งที่เปลี่ยนสำหรับ SR (ตาม `docs/sr-diff.md` กลุ่ม lot)
+
+| ไฟล์เดิม | สถานะ | ที่ทำ |
+|---|---|---|
+| `_admin/_lot/index.php` | diff 79 | ตัดกล่อง "รับพัสดุเข้าไทย" (ค้นหา + ตาราง `#resultserach` + JS `on_search`/`keypressInBox5`) — SR ไม่มี |
+| `_admin/_lot/grid.php` | diff 26 | คอลัมน์ "ค้างจ่าย" (จำนวนลูกค้าที่มี tracking `payment_id = 0` ในล็อต — เดิม `GROUP BY user` ต่อแถว → query เดียวต่อหน้า `COUNT(DISTINCT user)`), วันที่ 3 ช่อง = tracking ที่ยังไม่ลบ ที่ `date_warehouse` น้อยสุด (เดิม 3 query ต่อแถว `ORDER BY date_warehouse LIMIT 1` → `ROW_NUMBER()` query เดียว, เสมอกันใช้ id — เทียบครบ 23 หน้ากับ :8111 ตรงทุกหน้า), ไม่มีปุ่มดาวน์โหลด `print_all`, ปุ่ม Verified ที่ SR comment ไว้ไม่แสดง (เป็น HTML comment ที่มี target blank) |
+| `_admin/_lot/form.php` | diff 399 | ช่อง "ถ่ายรูป" (`is_takeapic` — **SR save.php ไม่บันทึกค่านี้** คงไว้แบบเดิม), "รหัสย่อย" (`subuser`), ช่องแนบรูปพัสดุ (`UploadBox::multiple('upload_track')` ของกลุ่ม tracking) + รูปเดิม; ช่องค้นหา + หัว/ท้ายตารางย้ายมาอยู่ในหน้า, `LoadDetail(page)` ทีละ 10 แถวต่อกันจนหมดแล้ว `loadendtable()` (= load_toptable) → `makeTopBottom()` รวมผล; `LoadUnpaid()`, modal แนบรูปด่วน (`load_quickfile` / `quicksavefile()` → `save_quickfile`), `loadImage()`; หลังลบออกจากล็อต/ตั้งวันที่/ล้างวันที่ = `window.location.reload()`; สีและ legend "ถ่ายรูป" (`#768cf2`); alert "ถ่ายรูป" ใน getTracking |
+| `_admin/_lot/load_lot_detail.php` | diff 143 | ตอบเฉพาะแถว (`LIMIT page*10, 10`) + `<script>LoadDetail(page+1)</script>` หรือ `loadendtable()` เมื่อหมด; รหัสลูกค้า + `subuser` สีแดง, ปุ่ม + แนบรูป, `div.img_track`; ไม่มีพื้นสีเทา `is_checked` (SR ไม่มีคอลัมน์); ไม่มีแถว "ไม่พบข้อมูล" และ hidden ผลรวม (ย้ายไป load_toptable) |
+| `_admin/_lot/load_tracking.php` | diff 35 | `data[5]` = `""` หรือ `[แถวลูก...]` (jl `[[]]`), `data[7]` = HTML ช่องแนบรูป + รูปเดิมของ tracking |
+| `_admin/_lot/save.php` | diff 94 | `subuser` (`nStr` ซ้ำ = `'` เก็บเป็น `''` แบบเดิม), รูป `upload_upload_track_mul[]`: ส่งมา = ลบ (`is_delete=1`) ของเดิมทั้งหมดแล้ว INSERT ตามรายการ (ไม่ส่ง = ไม่แตะ), ไฟล์ที่อยู่ใน temp ได้ JS `_api/blockblob_ajax` (`App\Domain\Tracking\TempUpload` ของกลุ่ม tracking), ตอบ `window.location.reload();` (jl: SuccessBox) |
+| `_admin/_lot/load_ref_print.php` | diff 2 | ไม่มี `LIMIT 10` |
+| `_admin/_lot/print.php` | diff 10 | ไม่มีคอลัมน์ "ราคา kg / ราคาคิว" และผลรวมราคา, หัวรหัสลูกค้า `colspan="5"`, ไม่มีเครื่องหมาย ✔ (`is_checked`) — แก้ test `LotPrintHeaderCountDbTest` ที่ล้มเพราะ `$item->is_checked` |
+| `_admin/_lot/email.php` | diff 6 | ช่อง "วลีช่วยจำ" = `tracking.quote` (escape), ช่อง "เลขที่ใบสั่งซื้อ" = `-` (คอลัมน์ `china_order_number` ไม่มี), ปุ่มสี `#a3b2f1`; `LotMailer` ใช้ `config('legacy.mail')` (ผู้ส่ง `SRShippingSystem <no-reply@srshippingsystem.com>` + header/center/footer ของ SR) แทนแบรนด์ jl |
+| `_lot/form.php` | diff 1 | legend "ถ่ายรูป" (ฝั่งลูกค้า; `_lot/load_lot_detail.php` ของ SR ไม่มีสีถ่ายรูป — คงไว้) |
+| `send_a_lot_mail()` (system_config.php SR-only) | — | ไม่มีใครเรียก (email.php ใช้ `sendmail()`) → ไม่พอร์ต; worker = `php8.4 artisan lot:mail-worker` เดิม |
+| ไฟล์ `same` อีก 31 ไฟล์ | same | ไม่ต้องแก้โค้ด — เทียบผลกับ :8111 แล้ว (ด้านล่าง) |
+
+### SR-only ที่พอร์ตใหม่
+
+| ไฟล์เดิม | route | สิทธิ์ |
+|---|---|---|
+| `_admin/_lot/load_image.php` | `POST /_admin/_lot/load_image` | `admin_lot,admin_lot_view` |
+| `_admin/_lot/load_quickfile.php` | `POST /_admin/_lot/load_quickfile` | `admin_lot,admin_lot_view` |
+| `_admin/_lot/load_toptable.php` | `POST /_admin/_lot/load_toptable` | `admin_lot,admin_lot_view` |
+| `_admin/_lot/load_unpaid.php` | `POST /_admin/_lot/load_unpaid` | `admin_lot,admin_lot_view` |
+| `_admin/_lot/save_quickfile.php` | `POST /_admin/_lot/save_quickfile` | **`admin_lot`** (เดิมยอม `admin_lot_view` — view = ดูอย่างเดียว; SR role 10/11/12 ถือ view อย่างเดียว) |
+
+ไฟล์ใหม่: views `lot/admin/{attachment,image_list,img_track,quickfile,unpaid}.blade.php`, `LotLookups::trackingImages()` (รูปหลาย tracking ใน query เดียว), test `tests/Feature/Lot/LotSrDbTest.php`
+
+### JL-only ที่ตัดออก
+
+- `_admin/_lot/load_check_tracking.php` (รับพัสดุเข้าไทย, เขียน `tracking.is_checked` ที่ SR ไม่มี) และ `_admin/_lot/print_all.php` (.xls) — SR ไม่มีไฟล์ และไม่มีหน้า/JS ใดของ SR เรียก (`grep` ทั้ง webroot) → ลบ route, `AdminLotController::loadCheckTracking`, view `check_tracking`, `AdminLotPrintController::printAll`, `LotPrint::printAll` (URL ตกไป 404 → หน้าแรก)
+- `LotRoutesTest::test_route_count_matches_url_map` = 46 ไฟล์ตาม url-map ของ SR (เดิมคาด 43 ของ jl)
+
+### ต่างจาก SR เดิมโดยตั้งใจ (เพิ่มจากของ jl ด้านล่าง)
+
+- **admin_lot_view = อ่านอย่างเดียว** ครอบ SR-only ด้วย: `save_quickfile` ต้องมี `admin_lot`; `load_tracking` ของ SR เรียก `GetCalPrice()` ซึ่ง **เขียน** `tracking.product_type_id` (แก้ให้ตรงประเภทล็อต) → ผู้ถือ view อย่างเดียวได้ราคาเท่ากันแต่ไม่เขียน (`Pricing::getCalPrice($id, false)` — commit `foundation:`); ผู้ถือ `admin_lot` เขียนแบบเดิม
+- **กันกดซ้ำ** `_admin/_lot/save` (`legacy.once`): E2E ดับเบิลคลิกเพิ่ม tracking ใหม่ = 2 แถวเลขเดียวกัน (เว็บเดิมก็เป็น) → คำขอที่ซ้อนได้ `ErrorBox('รายการนี้กำลังดำเนินการ…')`, payload เดิมภายใน 8 วินาทีได้ `ErrorBox('…ส่งซ้ำ…')`
+- **รูปของ tracking ที่เพิ่มใหม่** (save.php ทางเพิ่มใหม่): เดิมใช้ `$tracking_id` ที่ว่าง → `UPDATE tracking_image SET is_delete=1 WHERE tracking_id=''` (ลบรูปกำพร้าทั้งหมดที่ tracking_id 0) แล้ว INSERT รูปด้วย tracking_id 0 (รูปหลุด — ใน bench มีแถว tracking_id 0 อยู่ 1,987 แถว) → ผูกกับ id ของ tracking ที่เพิ่งสร้าง และไม่แตะรูปกำพร้า
+- **รูปที่ไม่มีเจ้าของไม่ถูกแสดง**: `form.php` เดิมแสดงรูปของ `tracking_id = id ล็อต` (ตัวแปร `$data` ของหน้าเป็นแถว lot = รูปของพัสดุอื่น และถูกส่งกลับไปบันทึกให้ tracking ที่กรอก), `load_tracking`/`load_quickfile`/`load_image` ที่หา tracking ไม่พบ = `tracking_id ''` (= 0) แสดงรูปกำพร้า → ทั้งหมดเริ่มว่าง
+- **รูปเล็กในตารางมาพร้อมแถว**: เดิม `loadImage()` ยิง `load_image` ทีละ tracking (ล็อต 100 พัสดุ = 100 ajax) → `load_lot_detail` ใส่รูปใน `div.img_track` มาเลย (1 query ต่อ 10 แถว) แถวที่ไม่มีรูปใส่ `<!-- -->` ให้ JS เดิมข้าม — DOM ที่เห็นเท่ากัน; route `load_image` ยังอยู่
+- `LoadUnpaid()` เดิมใส่ผลลง `#lot_memo` (ชนกับ `LoadMemo()` — กล่องที่ตอบทีหลังทับอีกกล่อง; PHP session lock ของเว็บเดิมทำให้ส่วนใหญ่รายการค้างจ่ายทับ memo) ทั้งที่หน้ามี `#lot_unpayment` ว่างไว้ → ใส่ลง `#lot_unpayment` (เห็นทั้งสองกล่อง) — ดูคำถามข้อ 2
+- `save_quickfile`: id ต้องเป็นตัวเลขของ tracking ที่มีอยู่ (เดิมค่าอะไรก็ได้ = tracking_id 0), ชื่อไฟล์รูปต้องเป็นชื่อล้วน (`TempUpload::names` — เดิมบันทึก `../x` ได้) เหมือน save
+- JS ผลรวม (`makeTopBottom`) / `ontempcal`: SR ใช้ `eval()` กับค่าใน input → `parseFloat()` (ค่าจาก load_toptable เป็นตัวเลขไม่มีจุลภาค ผลเท่ากัน; ช่องที่ผู้ใช้พิมพ์ "1+1" เดิมได้ 2 ตอนนี้ได้ 1 — เฉพาะตัวเลขแสดงตัวอย่างราคา ไม่กระทบค่าที่บันทึก)
+- ค่าจาก DB ถูก escape (ชื่อล็อต/remark/รหัสย่อย/quote ในเมล ฯลฯ) และไม่มี target blank (ลิงก์รูป, ลิงก์ order, ปุ่มดูรายละเอียดในเมล)
+
+### ช่องโหว่/บั๊กเดิมของ SR ที่เจอ
+
+1. `save_quickfile.php` / `save.php` บันทึกชื่อไฟล์จาก POST ตรงๆ (ชื่ออย่าง `../x` ได้) และ `save_quickfile.php` ยอม `admin_lot_view` เขียน; `save_quickfile.php` ไม่ตรวจ id
+2. `save.php` ทางเพิ่มใหม่ผูกรูปกับ tracking_id ว่าง (ข้างบน) และ `form.php` แสดง/ส่งรูปของพัสดุอื่นกลับไปบันทึก
+3. `load_tracking.php` (อ่าน) เขียน `product_type_id` ผ่าน `GetCalPrice()` ให้ทุกคนที่เปิดได้ (รวม view อย่างเดียว) — และเรียกซ้ำ 2 ครั้งต่อคำขอ
+4. ดับเบิลคลิก "บันทึก" = tracking ซ้ำ
+5. `load_unpaid.php` / `load_image.php` / `load_quickfile.php` / `load_toptable.php` / `save_quickfile.php` ต่อ `$_POST` เข้า SQL เป็น string (อาศัยแค่การแปลง `'` ของ POST) — ใหม่ bind ทั้งหมด
+
+### การตรวจ (2026-10-20, :8111 เดิม vs :8308 ใหม่, session เดียวกัน, normalize host/ช่องว่าง/คอมเมนต์ HTML)
+
+- แอดมิน 11938: `/admin/lot` (ต่างเฉพาะ layout ของฐานร่วม: favicon/morris), grid ทุกหน้า 1–23 + กรอง รถ/เรือ/ทั้งหมด + ค้นหา = **ตรง**, `/admin/lot/219` (ต่างเฉพาะรูปผิดเจ้าของที่ตัด + ลำดับฟังก์ชัน JS + eval→parseFloat + `#lot_unpayment`), `load_lot_detail` page 0/1/2/ว่าง/-1/ล็อตไม่มี/`search=undefined` (ต่างเฉพาะรูปเล็กที่มาพร้อมแถว), `load_toptable` / `load_unpaid` / `load_quickfile` / `load_image` / `load_lot_memo` (ต่าง `.php` ใน URL autocomplete แบบ jl) / `load_user_rate` / `load_lastest_lot` / `load_ref_print` / autocomplete ×2 / `print_receive` = ตรง
+- ล็อต E2E ที่สร้างเอง (ชื่อ zz) เทียบอีกรอบหลังเขียน: detail/toptable/unpaid/quickfile/image = ตรง (ต่างแค่ escape `'` `<`)
+- ลูกค้า 8: `/lot`, `/lot/216`, `_lot/grid` หน้า 1/2/8/ค้นหา, `_lot/load_lot_detail` = ตรง
+- ผู้ถือ admin_lot_view อย่างเดียว (user 6 role 12): หน้า/grid/detail อ่านได้ ตรงกับเดิม, ปุ่มเขียนทุกตัว (`save`, `save_quickfile`, `save_new_lot`, `save_lot_memo`, `delete`, `save_remove_tracking`) = ErrorBox สิทธิ์ ไม่มีแถวใน log การเขียน, `load_tracking` ไม่เขียน
+- ไม่มีสิทธิ์ (user 11 role 7, ลูกค้า 8): หน้าแอดมิน/ajax = ErrorBox ของ `legacy.perm` (เดิมหน้าว่าง/ตอบว่าง — แบบเดียวกับที่ jl บันทึกไว้)
+- ไม่ได้เทียบสดกับเดิม (ไฟล์เดิมเขียน DB → `goLog()` ของ bench exit ก่อนรัน SQL): `load_tracking` (GetCalPrice เขียน), `print`, `email_lot` และทุก `save*` — ตรวจด้วยการอ่านโค้ด + แถวที่เขียน
+- `print_all` / `load_check_tracking` → 302 หน้าแรก
+
+### E2E เขียน (ฝั่ง Laravel เท่านั้น, แถว zz ที่สร้างเอง แล้วลบตาม id)
+
+`save_new_lot` (ยิงซ้อน 2 = 1 ล็อต + ErrorBox), `save_lot_name` / `_admin` / `ship_amount` / `status_lot` / `status_lot_date`, `save` เพิ่มใหม่ (subuser `zz_sub'1` → `zz_sub''1`, น้ำหนัก 2.55 → 2.5, `1,000` → 1000, รูป 2 ไฟล์ผูก id ใหม่, JS blockblob เฉพาะไฟล์ที่อยู่ใน temp; ยิงซ้อนก่อนใส่ guard = 2 แถว → หลังใส่ = 1 แถว + ErrorBox ซ้อน/ซ้ำ), `save` แก้ไข (ไม่ส่งรูป = รูปเดิมอยู่, ส่งรายการ = แทนทั้งหมด, craft → แถวลูก header), `save_quickfile` (JSON [JS, รูปเล็ก]; view = ปฏิเสธ), `save_lot_memo` / `save_delete_lot_memo`, `save_status_tracking` / `reset` (+ id `1) OR (1=1` ไม่แก้แถวใด), `print` (is_print, cross-site = 403), `email_lot` ×2 (คิว 1 แถว) + `lot:mail-worker` ส่งผ่าน log mailer (From SRShippingSystem, ปุ่ม #a3b2f1), `save_file_lot` (ชื่อ `../../.env` ไม่ copy), `save_verified` (11938 = ไม่มีสิทธิ์, user 1 = คำนวณใหม่), `cancel` (refill zz: ครั้งแรกยกเลิก ครั้งที่สอง ErrorBox), `save_remove_tracking`, `delete` (มี tracking = ErrorBox, ว่าง = is_delete)
+ลบแล้ว: lot 267, tracking 1496/1497/1498, tracking_image 6068–6074 (ของ 1496–1498), lot_memo 1, lot_mail_queue 1, refill 259, ไฟล์ zz ใน `storage/app/legacy-upload` — ตรวจนับหลังลบ = 0
+หมายเหตุ: ระหว่างเทียบ `load_tracking` ด้วยแอดมินบน Laravel (SR GetCalPrice เขียน product_type_id แบบเดิม) มี UPDATE กับแถวจริงของ bench 4 แถว (tracking 1, 417, 1040, 1410) — ค่าที่เขียนเท่ากับค่าที่สอดคล้องกับประเภทล็อตอยู่แล้ว (ล็อตเรือทุกแถวใน bench ใช้ type 5–8, 417 ไม่มีล็อตและ product type ไม่มีจริง → 0) จึงเชื่อว่าไม่มีค่าเปลี่ยน; หลังจากนั้นทดสอบด้วย user view หรือแถว zz เท่านั้น
+
+### bench (`bin/bench`, -n 30 -c 1 ×2 รอบ, `artisan optimize`; mean ms รอบ 2)
+
+| หน้า | เดิม | ใหม่ |
+|---|---|---|
+| `/admin/lot` (แอดมิน) | 414 | 39 |
+| `_admin/_lot/grid` page 1 | 123 | 39 |
+| `/admin/lot/219` (-n 20) | 491 | 41 |
+| `_admin/_lot/load_lot_detail` id=219 page 0 | 53 | 34 |
+| `_admin/_lot/load_toptable` id=219 | 23 | 26 |
+| `_admin/_lot/load_unpaid` id=219 | 26 | 28 |
+| `/lot` (ลูกค้า 8) | 334 | 33 |
+| `_lot/grid` page 1 (ลูกค้า 8) | 33 | 36 |
+
+`load_toptable`, `load_unpaid`, `_lot/grid` ช้ากว่าเดิม 2–3 ms = overhead คงที่ของ Laravel (~25 ms: boot + session/jail/สิทธิ์) กับ query เล็กมากบน bench ที่มี tracking ~1,400 แถว · หน้า detail ของล็อตทั้งหน้าเร็วขึ้นมากเพราะไม่ต้องยิง `load_image` ทีละ tracking
+
+### test
+
+`php8.4 vendor/bin/phpunit` ผ่าน · `JL_BENCH_DB_TESTS=1` กลุ่ม lot/tracking ผ่าน (`LotSrDbTest` 7 test ใหม่) — ที่ล้มเป็นของกลุ่มอื่น (มีบน main เหมือนกัน): `Money/GridPerfDbTest`, `Money/LegacyRisksDbTest` ×3, `Money/BillGridDbTest` (`$row->is_vat` ใน payment/customer/grid — SR ไม่มีคอลัมน์)
+
+### คำถามถึงเจ้าของ
+
+1. รูปของ tracking ที่ **เพิ่มใหม่** ผูกกับ id ใหม่ (แก้บั๊กเดิมที่รูปหลุดเป็น tracking_id 0) — ยืนยันหรือให้คงแบบเดิม? และรูปกำพร้า tracking_id 0 ใน production (bench 1,987 แถว) จะเก็บไว้หรือไม่
+2. รายการลูกค้าค้างจ่ายแสดงในกล่องของตัวเอง (`#lot_unpayment`) แทนการทับกล่อง memo — ยืนยันหรือไม่
+3. ช่อง "ถ่ายรูป" ในฟอร์มล็อต: SR `save.php` ไม่บันทึก `is_takeapic` (แสดงอย่างเดียว) — ต้องการให้บันทึกหรือไม่ (ตอนนี้คงแบบเดิม)
+4. `save_file_lot` ยังบันทึกชื่อไฟล์ที่ส่งมาลง `lot.attachment` แม้ไม่ copy (ของเดิม/jl) — ควรปฏิเสธชื่อที่ไม่ใช่ชื่อไฟล์ล้วนหรือไม่
+5. `save_verified` ยังฮาร์ดโค้ด user id 1, 2 (ปุ่มใน grid ของ SR ถูก comment ไว้ — ไม่มีทางกดจาก UI)
+
+
 branch `mod/lot` · worktree `/home/admin/laravel/jl-wt/lot` · port 8208 (`bin/wt-serve lot --bg`)
 ไฟล์เดิม: `_lot/*`, `_lot/_message/*`, `_admin/_lot/*` (43 ไฟล์ + RewriteRule 5 ตัว ใน `docs/url-map.md`)
 

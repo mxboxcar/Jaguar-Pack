@@ -27,13 +27,14 @@ class LotViewOnlyTest extends TestCase
         ['POST', '_admin/_lot/save_remove_tracking'], ['POST', '_admin/_lot/save_status_lot'], ['POST', '_admin/_lot/save_status_lot_date'],
         ['POST', '_admin/_lot/save_status_reset_tracking'], ['POST', '_admin/_lot/save_status_tracking'], ['POST', '_admin/_lot/delete'],
         ['POST', '_admin/_lot/save_verified'], ['GET', '_admin/_lot/print'], ['GET', '_admin/_lot/print_receive'],
-        ['GET', '_admin/_lot/email_lot'],
+        ['GET', '_admin/_lot/email_lot'], ['POST', '_admin/_lot/save_quickfile'],
     ];
 
     private const READS = [
-        ['GET', 'admin/lot'], ['GET', 'admin/lot/{id}'], ['GET', '_admin/_lot/print_all'], ['POST', '_admin/_lot/grid'],
-        ['POST', '_admin/_lot/load_lot_detail'], ['POST', '_admin/_lot/load_lot_memo'], ['POST', '_admin/_lot/load_check_tracking'],
-        ['POST', '_admin/_lot/load_tracking'],
+        ['GET', 'admin/lot'], ['GET', 'admin/lot/{id}'], ['POST', '_admin/_lot/grid'],
+        ['POST', '_admin/_lot/load_lot_detail'], ['POST', '_admin/_lot/load_lot_memo'], ['POST', '_admin/_lot/load_tracking'],
+        ['POST', '_admin/_lot/load_image'], ['POST', '_admin/_lot/load_quickfile'], ['POST', '_admin/_lot/load_toptable'],
+        ['POST', '_admin/_lot/load_unpaid'],
     ];
 
     protected function setUp(): void

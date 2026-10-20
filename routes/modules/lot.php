@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\Route;
 | สิทธิ์ = getPermission() ของไฟล์เดิม:
 |   หน้า/ajax ที่อ่านอย่างเดียว: admin_lot_view || admin_lot   → legacy.perm:admin_lot,admin_lot_view
 |   ทุก endpoint ที่เขียนข้อมูล (save*, delete, save_verified, print, print_receive, email_lot): admin_lot เท่านั้น
-|     (แก้จากเดิมที่ save* ยอม admin_lot_view — admin_lot_view = ดูอย่างเดียว; load_check_tracking / print_all
-|      ของผู้ถือ admin_lot_view แสดงผลได้แต่ไม่เขียน is_checked / is_print — ดู docs/modules/lot.md)
+|     (แก้จากเดิมที่ save* ยอม admin_lot_view — admin_lot_view = ดูอย่างเดียว — ดู docs/modules/lot.md)
+|   SR: ไม่มี load_check_tracking.php / print_all.php (JL-only — ตัด route ออก) · เพิ่ม load_image, load_quickfile,
+|       load_toptable, load_unpaid (อ่าน) และ save_quickfile (เขียนรูปพัสดุ → admin_lot เท่านั้น)
 |   cancel.php (ยกเลิก refill ที่อยู่ในโฟลเดอร์นี้): admin_refill
 | ไฟล์เดิมที่ไม่มีสิทธิ์แล้ว exit() เงียบ จะได้ ErrorBox ของ legacy.perm แทน (เฉพาะผู้ไม่มีสิทธิ์)
 */
@@ -42,18 +43,19 @@ Route::middleware('legacy.perm:admin_lot,admin_lot_view')->group(function () {
     Route::get('/admin/lot/create', [AdminLotController::class, 'form'])->defaults('legacy_page', 'admin_lot_detail');
     Route::get('/admin/lot/{id}', [AdminLotController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_lot_detail');
 
-    Route::get('/_admin/_lot/print_all', [AdminLotPrintController::class, 'printAll']);
-
     Route::middleware('legacy.ajax')->group(function () {
         Route::post('/_admin/_lot/grid', [AdminLotController::class, 'grid']);
         Route::post('/_admin/_lot/load_autocomplete_tracking', [AdminLotController::class, 'autocompleteTracking']);
         Route::post('/_admin/_lot/load_autocomplete_user', [AdminLotController::class, 'autocompleteUser']);
-        Route::post('/_admin/_lot/load_check_tracking', [AdminLotController::class, 'loadCheckTracking']);
+        Route::post('/_admin/_lot/load_image', [AdminLotController::class, 'loadImage']);
         Route::post('/_admin/_lot/load_lastest_lot', [AdminLotController::class, 'loadLastestLot']);
         Route::post('/_admin/_lot/load_lot_detail', [AdminLotController::class, 'loadLotDetail']);
         Route::post('/_admin/_lot/load_lot_memo', [AdminLotController::class, 'loadLotMemo']);
+        Route::post('/_admin/_lot/load_quickfile', [AdminLotController::class, 'loadQuickfile']);
         Route::post('/_admin/_lot/load_ref_print', [AdminLotController::class, 'loadRefPrint']);
+        Route::post('/_admin/_lot/load_toptable', [AdminLotController::class, 'loadToptable']);
         Route::post('/_admin/_lot/load_tracking', [AdminLotController::class, 'loadTracking']);
+        Route::post('/_admin/_lot/load_unpaid', [AdminLotController::class, 'loadUnpaid']);
         Route::post('/_admin/_lot/load_user_rate', [AdminLotController::class, 'loadUserRate']);
     });
 });
@@ -69,7 +71,8 @@ Route::middleware('legacy.perm:admin_lot')->group(function () {
     Route::middleware('legacy.ajax')->group(function () {
         // แก้จากเดิม (เจ้าของอนุมัติ 2026-10-18): admin_lot_view = ดูอย่างเดียว → endpoint เขียนทุกตัวต้องมี admin_lot
         // (เดิมทุกไฟล์ save_* ยอม admin_lot_view || admin_lot) — ผู้ถือ admin_lot_view ได้ ErrorBox สิทธิ์แบบ getPermissionAlert เดิม
-        Route::post('/_admin/_lot/save', [AdminLotSaveController::class, 'save']);
+        // save = เพิ่ม tracking ใหม่ในล็อตเมื่อไม่มี tracking_id → กันกดซ้ำ/ส่งซ้อน (เดิมดับเบิลคลิก = tracking ซ้ำ 2 แถว; E2E 2026-10-20)
+        Route::post('/_admin/_lot/save', [AdminLotSaveController::class, 'save'])->middleware('legacy.once');
         Route::post('/_admin/_lot/save_delete_lot_memo', [AdminLotSaveController::class, 'saveDeleteLotMemo']);
         Route::post('/_admin/_lot/save_file_lot', [AdminLotSaveController::class, 'saveFileLot']);
         Route::post('/_admin/_lot/save_lot_memo', [AdminLotSaveController::class, 'saveLotMemo']);
@@ -78,6 +81,8 @@ Route::middleware('legacy.perm:admin_lot')->group(function () {
         Route::post('/_admin/_lot/save_lot_ship_amount', [AdminLotSaveController::class, 'saveLotShipAmount']);
         Route::post('/_admin/_lot/save_new_lot', [AdminLotSaveController::class, 'saveNewLot'])->middleware('legacy.once:lock');
         Route::post('/_admin/_lot/save_print', [AdminLotSaveController::class, 'savePrint']);
+        // SR: save_quickfile.php เดิมยอม admin_lot_view → เขียน tracking_image จึงต้องมี admin_lot (view = ดูอย่างเดียว)
+        Route::post('/_admin/_lot/save_quickfile', [AdminLotSaveController::class, 'saveQuickfile']);
         Route::post('/_admin/_lot/save_remove_tracking', [AdminLotSaveController::class, 'saveRemoveTracking']);
         Route::post('/_admin/_lot/save_status_lot', [AdminLotSaveController::class, 'saveStatusLot']);
         Route::post('/_admin/_lot/save_status_lot_date', [AdminLotSaveController::class, 'saveStatusLotDate']);
