@@ -2,13 +2,10 @@
 
 namespace App\Http\Controllers\Points;
 
-use App\Domain\Money\Money;
 use App\Domain\Payment\PinBox;
 use App\Domain\Points\Grid;
-use App\Domain\Points\Rules;
 use App\Http\Controllers\Controller;
 use App\Support\Legacy\Alerts;
-use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
 use App\Support\Legacy\Lookup;
 use Illuminate\Http\Request;
@@ -22,6 +19,8 @@ use Illuminate\View\View;
 class PointController extends Controller
 {
     private const AJAX = '_point/grid';
+
+    public const NOT_OPEN = 'ยังไม่เปิดบริการให้แลก';
 
     /** GET /point — _point/index.php */
     public function index(): View
@@ -81,51 +80,20 @@ class PointController extends Controller
         ])->render());
     }
 
-    /** POST /_point/save_withdraw — _point/save_withdraw.php */
+    /**
+     * POST /_point/save_withdraw — _point/save_withdraw.php ของ SR
+     * SR: ตรวจ PIN แล้วตอบ getError("CloseLoading()", 'ยังไม่เปิดบริการให้แลก') + exit() ทุกครั้ง — โค้ดแลกแต้ม (INSERT point/balance_point)
+     * ที่ตามมาไม่เคยทำงาน → ไม่พอร์ต (ไม่เขียน DB เลย) · PIN ผ่าน PinBox::guard() (hash_equals + PinThrottle) แทน != หลวมของเดิม
+     */
     public function saveWithdraw(Request $request): Response
     {
         if (! perm('point')) {
-            return response('');
+            return response(''); // เดิม exit() เงียบๆ
         }
         if (($js = PinBox::guard($request, Legacy::user(), '.cashback_form', 0, 'withdrawpointing()')) !== null) {
             return response($js);
         }
 
-        $uid = Legacy::userId();
-        $wantPhp = str_replace('-', '', Grid::php($request, 'wantcash'));
-        $wantSql = str_replace('-', '', Grid::in($request, 'wantcash'));
-        // , ที่ไม่ใช่ตัวคั่นหลักพัน ("1,00") → ปฏิเสธ; "1,000" → 1000 (เดิม MySQL ตัดที่ , = 1)
-        if (Money::ambiguousComma($wantPhp)) {
-            return response(Alerts::error('CloseLoading()', Money::BAD_AMOUNT));
-        }
-        $wantPhp = str_replace(',', '', $wantPhp);
-        $wantSql = str_replace(',', '', $wantSql);
-
-        // เดิมตรวจยอดแล้ว INSERT 2 ตารางแยกกัน ไม่มี transaction/lock → ห่อ transaction + ล็อกแถว user แล้วตรวจยอดภายใน
-        $id = DB::transaction(function () use ($uid, $wantPhp, $wantSql) {
-            DB::table('user')->where('id', $uid)->lockForUpdate()->value('id');
-            $current = Lookup::getCurrentPoint($uid);
-            if (Rules::withdrawInvalid($wantPhp, $current)) {
-                return null;
-            }
-            $id = DB::table('point')->insertGetId([
-                'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
-                'is_delete' => 0, 'status' => '1', 'user' => $uid, 'amount' => $wantSql, 'date' => DB::raw('NOW()'),
-                'attachment' => '', 'remark' => '', 'approved_remark' => '',
-            ]);
-            DB::table('balance_point')->insert([
-                'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
-                'is_delete' => 0, 'user' => $uid, 'amount' => '-'.$wantSql,
-                'detail' => 'แลกแต้ม รายการแลกแต้ม '.Grid::prefixText('withdrawpoint').$id,
-                'type' => 1, 'prefix' => Grid::prefixId('withdrawpoint'), 'prefix_ref_id' => (string) $id,
-            ]);
-
-            return $id;
-        });
-        if ($id === null) {
-            return response("ErrorBox('".Lang::get('error_point')."', 'CloseLoading()'); ");
-        }
-
-        return response(Alerts::success('window.location.href = "'.Legacy::href('point').'";', Lang::get('success_point')));
+        return response(Alerts::error('CloseLoading()', self::NOT_OPEN));
     }
 }
