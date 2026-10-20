@@ -60,13 +60,17 @@ final class Withdraw
      * ตรวจยอด + INSERT คำขอถอน/แลก และรายการหักเงิน ใน transaction เดียว
      *
      * @param  Closure(): mixed  $current  ยอดเงินปัจจุบัน (getCurrentCash / getCurrentCashCN)
-     * @return bool false = ยอดไม่พอ/จำนวนไม่ถูกต้อง (ไม่ได้บันทึก)
+     * @param  (Closure(): ?string)|null  $guard  ตรวจซ้ำหลังล็อกแถว user (เช่น จำกัดถอน 1 รายการ/สัปดาห์ของ SR) — คืน JS error = ไม่บันทึก
+     * @return bool|string false = ยอดไม่พอ/จำนวนไม่ถูกต้อง (ไม่ได้บันทึก), string = JS error จาก $guard
      */
     public static function submit(int $uid, string $wantPhp, string $wantSql, Closure $current, array $bank, string $withdrawTable,
-        string $ledgerTable, string $prefixModule, string $detailText, int $type): bool
+        string $ledgerTable, string $prefixModule, string $detailText, int $type, ?Closure $guard = null): bool|string
     {
-        return DB::transaction(function () use ($uid, $wantPhp, $wantSql, $current, $bank, $withdrawTable, $ledgerTable, $prefixModule, $detailText, $type) {
+        return DB::transaction(function () use ($uid, $wantPhp, $wantSql, $current, $bank, $withdrawTable, $ledgerTable, $prefixModule, $detailText, $type, $guard) {
             DB::table('user')->where('id', $uid)->lockForUpdate()->value('id');
+            if ($guard !== null && ($err = $guard()) !== null) {
+                return $err;
+            }
             if (self::invalid($wantPhp, $current())) {
                 return false;
             }
@@ -103,6 +107,41 @@ final class Withdraw
 
             return true;
         });
+    }
+
+    public const WEEKLY_LIMIT = 'รายการถอนเงินออกจากระบบสามารถทำได้ 1 รายการต่อสัปดาห์';
+
+    /**
+     * SR _balance/save_withdraw.php: ถอนเงินบาทได้ 1 รายการต่อสัปดาห์ (จันทร์–อาทิตย์) ยกเว้นรหัสลูกค้าใน setting bypass_withdraw
+     *   $monday = strtotime("last monday"); วันนี้เป็นวันจันทร์ = วันนี้ · $sunday = จันทร์ + 6 วัน
+     *   SELECT * FROM balance_withdraw WHERE create_date BETWEEN '<จันทร์> 00:00:00' AND '<อาทิตย์> 23:59:59' AND is_delete = '0' AND user = <uid>
+     *   foreach (explode(',', getSetting('bypass_withdraw')) as $item) if ($item == $u['code']) $allow = true;
+     *
+     * @return bool true = ถอนได้
+     */
+    public static function weeklyAllowed(int $uid, mixed $code, ?int $now = null): bool
+    {
+        [$sd, $ed] = self::weekRange($now ?? time());
+        $allow = ! DB::table('balance_withdraw')
+            ->whereBetween('create_date', [$sd.' 00:00:00', $ed.' 23:59:59'])
+            ->where('is_delete', '0')->where('user', $uid)->exists();
+        foreach (explode(',', (string) Lookup::getSetting('bypass_withdraw')) as $item) {
+            if (Php74::eq($item, (string) $code)) {
+                $allow = true;
+            }
+        }
+
+        return $allow;
+    }
+
+    /** @return array{0: string, 1: string} [$this_week_sd, $this_week_ed] (Y-m-d) แบบเดิมทุกขั้น */
+    public static function weekRange(int $now): array
+    {
+        $monday = strtotime('last monday', $now);
+        $monday = date('w', $monday) === date('w', $now) ? $monday + 7 * 86400 : $monday;
+        $sunday = strtotime(date('Y-m-d', $monday).' +6 days');
+
+        return [date('Y-m-d', $monday), date('Y-m-d', $sunday)];
     }
 
     public static function currentCash(int $uid): mixed

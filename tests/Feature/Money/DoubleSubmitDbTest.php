@@ -133,10 +133,13 @@ class DoubleSubmitDbTest extends BenchDbTestCase
 
     public function test_withdraw_double_click_and_comma_amounts(): void
     {
-        $cust = $this->zzUser();
+        $cust = $this->zzUser(8); // SR: ลูกค้า = role 8
+        DB::table('user')->where('id', $cust->id)->update(['pin' => '246802']);
+        $cust->refresh();
         $this->credit($cust, 5000);
         $this->actAs($cust);
-        $post = fn (string $amount) => ['wantcash' => $amount, 'bank_no' => '123', 'branch_bank' => 'zz', 'branch_name' => 'zz test'];
+        // SR: ถาม PIN จ่ายเงินก่อน
+        $post = fn (string $amount) => ['wantcash' => $amount, 'bank_no' => '123', 'branch_bank' => 'zz', 'branch_name' => 'zz test', 'paymentpin' => '246802'];
         if (! perm('balance')) {
             $this->markTestSkipped('role ลูกค้าใน bench ไม่มีสิทธิ์ balance');
         }
@@ -144,6 +147,10 @@ class DoubleSubmitDbTest extends BenchDbTestCase
         // "1,00" กำกวม → ปฏิเสธ (เดิมลง DB เป็น 1.00 เงียบๆ)
         $bad = $this->submit('_balance/save_withdraw', BalanceController::class, 'saveWithdraw', $post('1,00'));
         $this->assertStringContainsString('ErrorBox(', $bad);
+        $this->assertSame(0, $this->rows('balance_withdraw', $cust));
+
+        // ถอนเกินยอดคงเหลือ → ปฏิเสธ
+        $this->assertStringContainsString('ErrorBox(', $this->submit('_balance/save_withdraw', BalanceController::class, 'saveWithdraw', $post('5000.01')));
         $this->assertSame(0, $this->rows('balance_withdraw', $cust));
 
         // "1,000.50" (ตัวคั่นหลักพัน) → 1000.50
@@ -156,14 +163,14 @@ class DoubleSubmitDbTest extends BenchDbTestCase
         $this->assertSame(1, $this->rows('balance_withdraw', $cust));
         $this->assertSame(3999.5, $this->cash($cust));
 
-        // ถอนเกินยอดคงเหลือ → ปฏิเสธ
-        $this->assertStringContainsString('ErrorBox(', $this->submit('_balance/save_withdraw', BalanceController::class, 'saveWithdraw', $post('4000')));
+        // SR: รายการที่สองในสัปดาห์เดียวกัน → ปฏิเสธ
+        $this->assertStringContainsString(\App\Domain\Balance\Withdraw::WEEKLY_LIMIT, $this->submit('_balance/save_withdraw', BalanceController::class, 'saveWithdraw', $post('10')));
         $this->assertSame(3999.5, $this->cash($cust));
     }
 
     public function test_cny_exchange_double_click(): void
     {
-        $cust = $this->zzUser();
+        $cust = $this->zzUser(8);
         $this->credit($cust, 500, 'balance_cn');
         $this->actAs($cust);
         if (! perm('balance_cn')) {
