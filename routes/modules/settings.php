@@ -76,6 +76,9 @@ Route::middleware(['legacy.ajax', 'legacy.auth'])->group(function () {
     Route::post('/system_upload', [UploadController::class, 'upload']);
     Route::post('/system_upload_2', [UploadController::class, 'upload2']);
 });
+// SR: system_ckupload.php — ปุ่มอัปโหลดรูปของ CKEditor (form ส่งเข้า iframe ไม่ใช่ XHR → ไม่ใช้ legacy.ajax; CSRF = Origin/Referer)
+// เดิม: ผู้ถือ admin_notice/admin_mall หรือใครก็ได้ที่ล็อกอิน = ผู้ที่ล็อกอินทุกคน
+Route::post('/system_ckupload', [UploadController::class, 'ckupload'])->middleware('legacy.auth');
 
 // ---------- หน้าสาธารณะที่ไม่มีข้อมูล (PUBLIC ใน RouteSecurityTest) ----------
 Route::get('/index_close', [PublicPageController::class, 'indexClose']);
