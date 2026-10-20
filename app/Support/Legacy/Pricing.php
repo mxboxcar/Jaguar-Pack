@@ -21,22 +21,34 @@ final class Pricing
         return Format::phpFloat($v);
     }
 
-    /** แถว tracking + ราคา user_type_detail (kg, cubic, pamount) [+ main_kg/main_cubic ของ product_type] */
-    private static function trackingRate(mixed $trackingId, bool $withMain): ?object
+    /**
+     * แถว tracking + ราคา user_type_detail (kg, cubic, pamount) [+ main_kg/main_cubic ของ product_type]
+     * $productTypeId = ค่าแทน tracking.product_type_id (อ่านแบบ "หลังแก้ประเภท" โดยไม่เขียน DB — getCalPrice($id, false))
+     */
+    private static function trackingRate(mixed $trackingId, bool $withMain, ?int $productTypeId = null): ?object
     {
         $q = DB::table('tracking')
             ->leftJoin('user as t1', 'tracking.user', '=', 't1.id')
-            ->leftJoin('user_type_detail as t2', function ($j) {
-                $j->on('t1.type', '=', 't2.user_type_id')->on('tracking.product_type_id', '=', 't2.product_type_id');
+            ->leftJoin('user_type_detail as t2', function ($j) use ($productTypeId) {
+                $j->on('t1.type', '=', 't2.user_type_id');
+                $productTypeId === null
+                    ? $j->on('tracking.product_type_id', '=', 't2.product_type_id')
+                    : $j->where('t2.product_type_id', '=', $productTypeId);
             })
             ->where('tracking.id', $trackingId)
             ->select('tracking.*', 't2.kg', 't2.cubic', 't2.amount as pamount');
         if ($withMain) {
-            $q->leftJoin('product_type as t3', 'tracking.product_type_id', '=', 't3.id')
+            $q->leftJoin('product_type as t3', fn ($j) => $productTypeId === null
+                ? $j->on('tracking.product_type_id', '=', 't3.id')
+                : $j->where('t3.id', '=', $productTypeId))
                 ->addSelect('t3.kg as main_kg', 't3.cubic as main_cubic');
         }
+        $d = $q->first();
+        if ($d && $productTypeId !== null) {
+            $d->product_type_id = $productTypeId;
+        }
 
-        return $q->first();
+        return $d;
     }
 
     /** @return array{0: float, 1: float, 2: float} [kg, cubic, amount] */
@@ -57,7 +69,7 @@ final class Pricing
      *   ไม่เจอ = เขียน '' (non-strict → 0) เหมือนเดิม
      * ใช้ราคาหลักของ product_type เมื่อ user_type_detail ไม่มีราคา (kg/cubic ว่าง)
      */
-    private static function syncLotTypeAndLoad(mixed $trackingId, bool $onlyWithLot): ?object
+    private static function syncLotTypeAndLoad(mixed $trackingId, bool $onlyWithLot, bool $persist = true): ?object
     {
         $d = self::trackingRate($trackingId, true);
         if (! $onlyWithLot || ($d && (string) $d->lot_id !== '0')) {
@@ -65,8 +77,13 @@ final class Pricing
             $typeName = $d ? DB::table('product_type')->where('id', $d->product_type_id)->value('name') : null;
             $newId = DB::table('product_type')->where('name', (string) $typeName)
                 ->where('type', (string) $lotType === '0' || $lotType === null ? 0 : 1)->value('id');
-            DB::table('tracking')->where('id', $trackingId)->update(['product_type_id' => $newId ?? '']);
-            $d = self::trackingRate($trackingId, true);
+            if ($persist) {
+                DB::table('tracking')->where('id', $trackingId)->update(['product_type_id' => $newId ?? '']);
+                $d = self::trackingRate($trackingId, true);
+            } else {
+                // ไม่เขียน: อ่านเหมือนแถวที่ถูกแก้แล้ว ('' ลงคอลัมน์ int แบบ non-strict = 0)
+                $d = $d ? self::trackingRate($trackingId, true, (int) ($newId ?? 0)) : null;
+            }
         }
         if ($d) {
             if ((string) ($d->kg ?? '') === '') {
@@ -80,10 +97,13 @@ final class Pricing
         return $d;
     }
 
-    /** GetCalPrice($tracking) → "kg|cubic|amount" — SR: เขียน product_type_id ด้วย (ผู้เรียกห่อ transaction เอง) */
-    public static function getCalPrice(mixed $trackingId): string
+    /**
+     * GetCalPrice($tracking) → "kg|cubic|amount" — SR: เขียน product_type_id ด้วย (ผู้เรียกห่อ transaction เอง)
+     * $persist = false: ผลเท่ากันแต่ไม่เขียน DB (ผู้มีสิทธิ์ *_view อย่างเดียว = อ่านอย่างเดียว — เช่น _admin/_lot/load_tracking)
+     */
+    public static function getCalPrice(mixed $trackingId, bool $persist = true): string
     {
-        [$kg, $cubic, $amount] = self::calc(self::syncLotTypeAndLoad($trackingId, false));
+        [$kg, $cubic, $amount] = self::calc(self::syncLotTypeAndLoad($trackingId, false, $persist));
 
         return self::sqlNum($kg).'|'.self::sqlNum($cubic).'|'.self::sqlNum($amount);
     }
