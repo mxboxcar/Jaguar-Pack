@@ -116,7 +116,7 @@ class AdminGoodsconfirmController extends Controller
         ]);
     }
 
-    /** POST /_admin/_goodsconfirm/load_tracking — autocomplete (เดิม user.code = nobody: ค่าคงที่ที่ไม่ได้ define = 'nobody') */
+    /** POST /_admin/_goodsconfirm/load_tracking — autocomplete (เดิม user.code = nobody: SR define('nobody', 'nobody')) */
     public function loadTracking(Request $request): Response
     {
         $like = '%'.addcslashes($this->in($request, 'query'), '%_\\').'%';
@@ -159,12 +159,12 @@ class AdminGoodsconfirmController extends Controller
         return response("<div class=\"row\">\r\n    ".UploadBox::single('uploadfile', '', true)."</div>");
     }
 
-    /** POST /_admin/_goodsconfirm/save — สร้างรายการใหม่จาก tracking ของผู้ใช้ nocode */
+    /** POST /_admin/_goodsconfirm/save — สร้างรายการใหม่จาก tracking ของผู้ใช้ nobody (SR; jl ใช้ nocode) */
     public function save(Request $request): Response
     {
         $trackingId = DB::table('tracking')->leftJoin('user', 'user.id', '=', 'tracking.user')
             ->where('tracking.tracking', $this->in($request, 'tracking'))
-            ->where('tracking.is_delete', 0)->where('user.code', 'nocode') // เดิมค่าคงที่ nocode ที่ไม่ได้ define = 'nocode'
+            ->where('tracking.is_delete', 0)->where('user.code', 'nobody') // SR: define('nobody', 'nobody') (jl: ค่าคงที่ nocode ที่ไม่ได้ define)
             ->value('tracking.id');
         if ($trackingId === null) {
             return response("ErrorBox('".Lang::get('no_tracking')."', 'CloseLoading()'); ");

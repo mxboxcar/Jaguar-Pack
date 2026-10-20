@@ -14,9 +14,11 @@ use Illuminate\Support\Facades\DB;
  *  1. ชั้นวางทั้งหมด (is_delete = 0, name != 'zzz') เรียงตาม floors
  *  2. tracking ของล็อตที่เลือก ("a.ct IS NULL" เดิมเทียบ id ของ warehouse_section_detail แถวแรกกับ tracking.id
  *     = ตัดออกได้อย่างมาก 1 แถว — แก้แล้ว: ข้าม tracking ที่มีแถวชั้นวางอยู่แล้ว) รวม cubic/น้ำหนัก ต่อ "user-user_agent" (ไม่มีคอลัมน์ user_agent → "user-")
- *  3. tracking ของผู้ใช้ code 'nobody' (เดิมเป็นค่าคงที่ที่ไม่ได้ define = string 'nobody'; ไม่มีผู้ใช้นี้ → ตรงกับ user NULL) → ชั้น 2
- *  4. ต่อลูกค้า: cubic >= 0.7 หรือ น้ำหนัก >= 50 → ชั้น 1, ไม่งั้นหาชั้นแรกที่ที่ว่างพอ (กติกา 10/17 รหัสต่อชั้น,
- *     ชั้นที่ชื่อลงท้าย 3/4 ไม่รับของ >= 15 kg)
+ *  3. tracking ของผู้ใช้ code 'nobody' (SR define('nobody', 'nobody'); ไม่มีผู้ใช้นี้ → ตรงกับ user NULL) → ชั้น 2
+ *  3b. SR: ลูกค้าที่กำหนดชั้นตายตัวในโค้ด (FIXED_SECTIONS: user id → section id) → ชั้นนั้นเสมอ ไม่เข้าการจัดอัตโนมัติ
+ *  4. ต่อลูกค้า: cubic >= 0.7 หรือ น้ำหนัก >= 50 → ชั้น 1, ไม่งั้นหาชั้นแรกที่ที่ว่างพอ (กติกา 10/17 รหัสต่อชั้น
+ *     — SR นับ "รหัส" เป็นคู่ user + user_agent, ชั้นที่ชื่อลงท้าย 3 ไม่รับของ >= 15 kg — SR ไม่มีกติกาชั้นลงท้าย 4 ของ jl)
+ *     แถวที่จัดในขั้นนี้ SR ใส่ user_agent = tracking.user_agent (ไม่มีคอลัมน์นี้ใน tracking → '' → 0)
  *  5. แสดงรายการของล็อตที่ยังไม่ถึงไทย, บันทึก warehouse_detail ของล็อตที่เลือก
  *
  * ที่เปลี่ยน:
@@ -25,6 +27,8 @@ use Illuminate\Support\Facades\DB;
  *  - แก้: "UPDATE warehouse_detail SET is_delete = 1 WHERE id = <warehouse id>" เดิมลบแถวของใบรับเข้าอื่นที่ id บังเอิญตรงกัน
  *    → ล้างแถวของใบรับเข้านี้ (warehouse_id = id) ก่อนบันทึกชุดล็อตที่เลือก
  *  - แก้ (E2E 2026-10-18): กดคำนวณซ้ำ = แถวชั้นวาง/ล็อตซ้ำ → ข้าม tracking ที่จัดชั้นแล้ว + route ใช้ legacy.once:lock
+ *  - แก้ (SR): เดิม SR ต่อผล query "tracking ของลูกค้าใน REPEAT_USERS" ท้ายรายการ tracking ทั้งหมด (ไม่ล้างก่อน) แล้ววนจัดชั้น
+ *    → tracking ของลูกค้าที่อยู่ทั้งใน REPEAT_USERS และ FIXED_SECTIONS ถูก INSERT ชั้นวาง 2 แถว (ซ้ำ) → ใหม่ INSERT แถวเดียวต่อ tracking
  *  - ทั้งหมดอยู่ใน transaction เดียว
  */
 final class ShelfAllocator
@@ -35,10 +39,27 @@ final class ShelfAllocator
 
     private const MAX_CODE = 17;
 
+    /**
+     * SR: ลูกค้าที่จัดชั้นวางตายตัว (user id → section id) ตามลำดับ if ในไฟล์เดิม (บรรทัด 110–432)
+     * ที่ comment ไว้ในไฟล์เดิม (840→44, 751→53, 1824→47, 1827→52) ไม่ใส่
+     */
+    public const FIXED_SECTIONS = [
+        3621 => 59, 619 => 31, 30 => 32, 4 => 33, 891 => 34, 2802 => 30, 960 => 30, 784 => 30, 903 => 38,
+        2596 => 39, 2033 => 40, 1473 => 41, 1362 => 41, 648 => 42, 792 => 42, 745 => 43, 731 => 45, 2005 => 46,
+        1331 => 48, 747 => 49, 721 => 50, 75 => 51, 2120 => 54, 692 => 55, 1 => 56, 2 => 56, 2110 => 56,
+        682 => 57, 665 => 58, 2392 => 56, 2371 => 56, 749 => 61, 3893 => 60,
+    ];
+
+    /** SR: user ใน "AND `user` IN (...)" ของ query tracking ที่ 2 (ไฟล์เดิมบรรทัด 90–92) */
+    private const REPEAT_USERS = [
+        753, 619, 30, 4, 891, 2802, 960, 784, 903, 2596, 2033, 1473, 648, 745, 840, 751, 731, 2005, 1824, 1331,
+        747, 721, 75, 827, 1827, 2120, 692, 1, 2, 682, 665, 2392, 3621,
+    ];
+
     /** @var array<int, float|int> พื้นที่ใช้แล้วต่อชั้น (getSpace) */
     private array $space = [];
 
-    /** @var array<int, array<int, true>> user ที่อยู่ในชั้น (getCountCode) */
+    /** @var array<int, array<string, true>> คู่ user|user_agent ที่อยู่ในชั้น (getCountCode ของ SR: GROUP BY user, user_agent) */
     private array $users = [];
 
     private string $out = '';
@@ -109,12 +130,22 @@ final class ShelfAllocator
 
         $this->loadSections($sections);
 
-        // nobody → ชั้น 2 (เดิม push "user-".user_agent ของแถวสุดท้ายจาก loop ก่อนหน้า = "user-" เหมือนกัน)
-        $lastAgent = $dataA === [] ? '' : (string) (end($dataA)['user_agent'] ?? '');
-        foreach ($dataA as $item) {
-            if (Php74::eq($item['user'], $nobody)) {
-                $this->insert([$item], self::NOBODY_SECTION, $uid);
-                $usersAdd[] = ($item['user'] ?? '').'-'.$lastAgent;
+        // nobody → ชั้น 2, ลูกค้าชั้นตายตัว → ชั้นของตัวเอง
+        // (เดิม push "user-".$row['user_agent'] โดย $row = null หลัง while ของ query ก่อนหน้า = "user-" เสมอ)
+        // SR วนรายการ = tracking ทั้งหมด ต่อด้วย tracking ของลูกค้าใน REPEAT_USERS ซ้ำอีกรอบ (query ที่ 2 ไม่ได้ล้างรายการก่อน)
+        // แก้: รอบซ้ำไม่ INSERT อีก (เดิมได้แถวชั้นวางซ้ำ) แต่ยัง push รายการ "จัดแล้ว" ซ้ำเหมือนเดิม (print_r ที่แสดงตรงกับเดิม)
+        $repeat = array_values(array_filter($dataA, fn ($r) => $r['user'] !== null && in_array((int) Php74::num($r['user']), self::REPEAT_USERS, true)));
+        foreach ([[$dataA, true], [$repeat, false]] as [$list, $write]) {
+            foreach ($list as $item) {
+                if (Php74::eq($item['user'], $nobody)) {
+                    $write && $this->insert([$item], self::NOBODY_SECTION, $uid);
+                    $usersAdd[] = ($item['user'] ?? '').'-';
+                }
+                $fixed = $item['user'] === null ? null : (self::FIXED_SECTIONS[(int) Php74::num($item['user'])] ?? null);
+                if ($fixed !== null) {
+                    $write && $this->insert([$item], $fixed, $uid);
+                    $usersAdd[] = $item['user'].'-';
+                }
             }
         }
 
@@ -134,7 +165,7 @@ final class ShelfAllocator
                 }
             }
             // เดิม INSERT ... VALUES (ว่าง) = SQL error เมื่อไม่มีแถว
-            $this->insert($batch, self::DEFAULT_SECTION, $uid);
+            $this->insert($batch, self::DEFAULT_SECTION, $uid, true);
 
             if ($isDefault) {
                 continue;
@@ -162,10 +193,6 @@ final class ShelfAllocator
                 if (($arrWeight[$k] ?? 0) >= 15 && $last === '3') {
                     $skip = true;
                 }
-                $this->out .= $last;
-                if (($arrWeight[$k] ?? 0) >= 15 && $last === '4') {
-                    $skip = true;
-                }
 
                 if (! $skip && $sumCb > $value && ! in_array($k, $usersAdd, true)) {
                     $batch = [];
@@ -176,7 +203,7 @@ final class ShelfAllocator
                             $cacheUser = $k;
                         }
                     }
-                    $this->insert($batch, $sid, $uid);
+                    $this->insert($batch, $sid, $uid, true);
                 }
                 if ($found) {
                     $usersAdd[] = $cacheUser;
@@ -238,17 +265,27 @@ final class ShelfAllocator
             ->leftJoin('tracking', 'tracking.id', '=', 't.tracking_id')
             ->whereIn('t.section_id', $ids)->where('t.is_delete', 0)->where('tracking.tracking', '!=', '')
             ->orderBy('t.section_id')->orderBy('t.id')
-            ->get(['t.section_id', 't.width', 't.height', 't.long', 't.user']);
+            ->get(['t.section_id', 't.width', 't.height', 't.long', 't.user', 't.user_agent']);
         foreach ($rows as $r) {
             $sid = (int) $r->section_id;
             $this->space[$sid] = ($this->space[$sid] ?? 0)
                 + ((Php74::num($r->width) * Php74::num($r->height) * Php74::num($r->long)) / 1000000);
-            $this->users[$sid][(int) $r->user] = true;
+            $this->users[$sid][self::codeKey($r->user, $r->user_agent)] = true;
         }
     }
 
-    /** INSERT warehouse_section_detail หลายแถว (ไม่มีแถว = เดิม SQL error = ไม่ทำอะไร) แล้วอัปเดตพื้นที่/ผู้ใช้ของชั้น */
-    private function insert(array $items, int $sectionId, int $uid): void
+    /** กุญแจของ GROUP BY user, user_agent (NULL เป็นกลุ่มของตัวเอง) */
+    private static function codeKey(mixed $user, mixed $agent): string
+    {
+        return (int) Php74::num($user).'|'.($agent === null ? 'N' : (int) Php74::num($agent));
+    }
+
+    /**
+     * INSERT warehouse_section_detail หลายแถว (ไม่มีแถว = เดิม SQL error = ไม่ทำอะไร) แล้วอัปเดตพื้นที่/ผู้ใช้ของชั้น
+     * $withAgent: SR ใส่คอลัมน์ user_agent (= tracking.user_agent ที่ไม่มี → '' → 0) เฉพาะการจัดชั้น 1/อัตโนมัติ;
+     * nobody/ชั้นตายตัวไม่ใส่ → ค่า default ของคอลัมน์ (0) — ผลเท่ากัน
+     */
+    private function insert(array $items, int $sectionId, int $uid, bool $withAgent = false): void
     {
         if ($items === []) {
             return;
@@ -260,12 +297,12 @@ final class ShelfAllocator
                 'is_delete' => 0, 'section_id' => $sectionId,
                 'width' => $item['width'] ?? '', 'height' => $item['height'] ?? '', 'long' => $item['long'] ?? '',
                 'user' => $item['user'] ?? '', 'tracking_id' => $item['id'], 'warehouse_id' => $this->warehouseId,
-            ];
+            ] + ($withAgent ? ['user_agent' => (int) Php74::num($item['user_agent'] ?? null)] : []);
             // getSpace/getCountCode นับเฉพาะแถวที่ tracking.tracking != '' (MySQL ไม่สนช่องว่างท้าย)
             if ($item['tracking'] !== null && rtrim($item['tracking'], ' ') !== '') {
                 $this->space[$sectionId] = ($this->space[$sectionId] ?? 0)
                     + ((Php74::num($item['width']) * Php74::num($item['height']) * Php74::num($item['long'])) / 1000000);
-                $this->users[$sectionId][(int) Php74::num($item['user'])] = true;
+                $this->users[$sectionId][self::codeKey($item['user'], $item['user_agent'] ?? 0)] = true;
             }
         }
         DB::table('warehouse_section_detail')->insert($rows);

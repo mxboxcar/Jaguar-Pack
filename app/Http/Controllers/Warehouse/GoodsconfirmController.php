@@ -20,8 +20,9 @@ use Illuminate\View\View;
 /**
  * ยืนยันเจ้าของพัสดุ (ลูกค้า): _goodsconfirm/*.php เดิม — สิทธิ์ goodsconfirm
  *
- * ลูกค้าเห็นได้เฉพาะรายการ "ไม่มีเจ้าของ" (status 0) หรือรายการของตัวเอง (เหมือนหน้า form เดิม)
- * เดิม save_approved / load_tracking_by_id ไม่ตรวจเจ้าของ (IDOR) → แก้ให้ใช้เงื่อนไขเดียวกัน
+ * ลูกค้าเห็นได้เฉพาะรายการ "ไม่มีเจ้าของ" (status 0) หรือรายการของตัวเอง (เหมือนหน้า form ของ jl)
+ * SR: grid แสดงเฉพาะ status 0; หน้า form ของ SR ตัดการตรวจ "status != 0 และไม่ใช่ของตัวเอง" ออก (ดูรายการที่คนอื่นยึดแล้วได้ = IDOR)
+ *     → คงการตรวจของ jl ไว้ (ช่องโหว่เดิม) · save_approved / load_tracking_by_id เดิมไม่ตรวจเจ้าของ (IDOR) → ใช้เงื่อนไขเดียวกัน
  */
 class GoodsconfirmController extends Controller
 {
@@ -46,18 +47,17 @@ class GoodsconfirmController extends Controller
         $page = $this->php($request, 'page');
 
         $like = '%'.addcslashes($parts[0], '%_\\').'%';
+        // SR: แสดงเฉพาะรายการ "ไม่มีเจ้าของ" (status 0) เสมอ ไม่กรอง user / ไม่ตัดแถวที่ไม่มี tracking
+        // (jl: status อื่น = รายการของตัวเอง) — ตัวกรองสถานะอื่นที่ไม่ใช่ -2/ว่าง จึงได้ "ไม่มีข้อมูล" (status 0 AND status = x)
         $q = DB::table('goodsconfirm')
             ->leftJoin('tracking', 'tracking.id', '=', 'goodsconfirm.tracking_id')
             ->leftJoin('lot', 'lot.id', '=', 'tracking.lot_id')
-            ->where('goodsconfirm.is_delete', 0)
+            ->where('goodsconfirm.is_delete', 0)->where('goodsconfirm.status', 0)
             ->where(fn ($w) => $w->where('goodsconfirm.id', 'like', $like)
                 ->orWhere('tracking.tracking', 'like', $like)
-                ->orWhere('goodsconfirm.submit_remark', 'like', $like))
-            ->whereNotNull('tracking.tracking');
-        if ($status !== null && Php74::neq($status, '-2') && Php74::neq($status, '') && Php74::neq($status, '0')) {
-            $q->where('goodsconfirm.status', $status)->where('goodsconfirm.user', (int) Legacy::userId());
-        } else {
-            $q->where('goodsconfirm.user', 0)->where('goodsconfirm.status', 0);
+                ->orWhere('goodsconfirm.submit_remark', 'like', $like));
+        if ($status !== null && Php74::neq($status, '-2') && Php74::neq($status, '')) {
+            $q->where('goodsconfirm.status', $status);
         }
         $total = (clone $q)->count();
         $offset = W::offset($page);
@@ -92,7 +92,8 @@ class GoodsconfirmController extends Controller
             ->leftJoin('tracking', 'tracking.id', '=', 'goodsconfirm.tracking_id')
             ->where('goodsconfirm.id', $id)->where('goodsconfirm.is_delete', 0)
             ->first(['goodsconfirm.*', 'tracking.tracking']));
-        // เดิม: ไม่พบ (และ id != "" ซึ่ง 7.4 ถือว่า 0 == "") หรือ (status != 0 และไม่ใช่ของตัวเอง) → ไม่มีสิทธิ์
+        // เดิม: ไม่พบ (และ id != "" ซึ่ง 7.4 ถือว่า 0 == "") → ไม่มีสิทธิ์
+        // (status != 0 และไม่ใช่ของตัวเอง) → ไม่มีสิทธิ์: มีใน jl, SR ตัดออก (ลูกค้าดูรายการ/ไฟล์แนบที่คนอื่นยึดแล้วได้) — คงไว้กัน IDOR
         if (($data === null && $id !== 0)
             || ($data !== null && Php74::neq($data['status'], 0) && Php74::neq($data['user'], Legacy::userId()))) {
             return response()->view('legacy.no-permission', ['module' => 'goodsconfirm']);
