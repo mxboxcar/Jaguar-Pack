@@ -46,6 +46,7 @@ class MessagingRoutesTest extends TestCase
         'GET _admin/_notice/email_notice' => ['legacy.perm:admin_notice', false],
         'GET _admin/_notice/cron_notice_mail' => ['legacy.perm:admin_notice', false],
         'GET admin/send' => ['legacy.perm:admin_export', false],
+        'GET admin/sendself' => ['legacy.perm:admin_export', false],
         'GET _admin/_send/index_self' => ['legacy.perm:admin_export', false],
         'POST notifications' => ['legacy.auth', true],
         'POST notification' => ['legacy.auth', true],
@@ -113,7 +114,7 @@ class MessagingRoutesTest extends TestCase
         $pages = [
             'message' => 'message', 'admin/message' => 'admin_message', 'notice' => 'notice', 'notice/{id}' => 'notice_detail',
             'admin/notice' => 'admin_notice', 'admin/notice/create' => 'admin_notice_detail', 'admin/notice/{id}' => 'admin_notice_detail',
-            'admin/send' => 'admin_send',
+            'admin/send' => 'admin_send', 'admin/sendself' => 'admin_sendself',
         ];
         $seen = [];
         foreach (Route::getRoutes() as $r) {
@@ -169,10 +170,53 @@ class MessagingRoutesTest extends TestCase
         $this->assertSame(400, strlen(NoticeText::excerpt(str_repeat('x', 500))));
     }
 
-    public function test_mail_template_uses_raw_legacy_fragments(): void
+    /** SR: แม่แบบ/ผู้ส่ง = config('legacy.mail') — ไม่มีแบรนด์ jl และไม่มีบรรทัด PHP (require_once ของ jl / guard ของ hotfix) ในอีเมล */
+    public function test_notice_mail_uses_sr_templates(): void
     {
-        $this->assertStringStartsWith('<div style="font-family: arial,sans-serif;font-size:13px;"><strong>', NoticeMail::template((object) ['create_date' => '', 'text' => 'x'])[1]);
-        $this->assertStringEndsWith("JLcargo\r\n</div>", NoticeMail::FOOTER_BODY);
+        [$subject, $body] = NoticeMail::template((object) ['create_date' => '2026-10-20 10:00:00', 'text' => '&lt;p&gt;x&lt;/p&gt;']);
+        $this->assertSame(config('legacy.mail.header').'<strong>'.$subject.'</strong>'.config('legacy.mail.center')."\n<p>x</p>".config('legacy.mail.footer'), $body);
+        $this->assertStringStartsWith('<div style="font-family: arial,sans-serif;font-size:13px;max-width: 560px"><strong>แจ้งข่าวประกาศ วันที่ ', $body);
+        $this->assertStringEndsWith("SRShippingSystem\r\n</div>", $body);
+        $this->assertStringNotContainsString('<?php', $body);
+        $this->assertStringContainsString("\r\n<p>x</p>", NoticeMail::template((object) ['text' => '&lt;p&gt;x&lt;/p&gt;'], "\r\n")[1]);
+        foreach (['app/Domain/Messaging/NoticeMail.php', 'app/Console/Commands/MessagingNoticeMail.php', 'app/Http/Controllers/Messaging/MessageController.php'] as $f) {
+            $src = (string) file_get_contents(base_path($f));
+            $this->assertDoesNotMatchRegularExpression('/jlcargo|JL ?Cargo/i', $src, $f);
+        }
+        $this->assertStringContainsString("config('legacy.mail.from_address')", (string) file_get_contents(base_path('app/Domain/Messaging/NoticeMail.php')));
+    }
+
+    /** SR หลัง hotfix 2026-10-18: email_header/center/footer.php เปิดตรงจาก URL = 403 ว่าง */
+    public function test_email_fragments_are_include_only(): void
+    {
+        $r = (new \App\Http\Controllers\Messaging\IncludeFileController)->emailPart();
+        $this->assertSame(403, $r->getStatusCode());
+        $this->assertSame('', $r->getContent());
+    }
+
+    /** notify_message ของ SR: dev (legacy.external.enabled = false) ไม่ยิงออก */
+    public function test_notify_message_is_gated_by_external_flag(): void
+    {
+        \Illuminate\Support\Facades\Http::fake();
+        config(['legacy.external.enabled' => false]);
+        \App\Domain\Messaging\NotifyMessage::send(['imageFullsize' => 'https://example.invalid/a.jpg'], 'zz_token');
+        \Illuminate\Support\Facades\Http::assertNothingSent();
+        $this->assertSame(['message' => "\n\t\t", 'imageFullsize' => 'u', 'imageThumbnail' => 'u'], \App\Domain\Messaging\NotifyMessage::payload(['imageFullsize' => 'u']));
+    }
+
+    /** LINE Notify ไม่มีใน SR — ไม่มี route/controller/view เหลือ */
+    public function test_no_line_notify_leftovers(): void
+    {
+        foreach (Route::getRoutes() as $r) {
+            $this->assertStringNotContainsString('linenotify', $r->uri());
+        }
+        $this->assertDirectoryDoesNotExist(resource_path('views/messaging/linenotify'));
+    }
+
+    public function test_notice_save_has_double_submit_guard(): void
+    {
+        $route = Route::getRoutes()->match(\Illuminate\Http\Request::create('/_admin/_notice/save', 'POST'));
+        $this->assertContains('legacy.once', $route->gatherMiddleware());
     }
 
     public function test_php74_helpers(): void

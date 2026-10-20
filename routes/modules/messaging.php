@@ -10,7 +10,7 @@ use App\Http\Controllers\Messaging\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| กลุ่ม: messaging — _message, _admin/_message, _notice, _admin/_notice, _linenotify, _admin/_send,
+| กลุ่ม: messaging — _message, _admin/_message, _notice, _admin/_notice, _admin/_send,
 |        notification(s).php, notify_counts.php, notify_token.php, email_header/center/footer.php
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 | รายละเอียด/สิ่งที่ต่างจากเดิม: docs/modules/messaging.md
@@ -60,7 +60,8 @@ Route::middleware('legacy.perm:admin_notice')->group(function () {
     Route::get('/_admin/_notice/email_notice', [AdminNoticeController::class, 'emailNotice']);
     Route::get('/_admin/_notice/cron_notice_mail', [AdminNoticeController::class, 'cron']);
     Route::middleware('legacy.ajax')->group(function () {
-        Route::post('/_admin/_notice/save', [AdminNoticeController::class, 'save']);
+        // กันกดซ้ำ (สร้างประกาศซ้ำ 2 แถว) — เจ้าของอนุมัติ double-submit guard 2026-10-18
+        Route::post('/_admin/_notice/save', [AdminNoticeController::class, 'save'])->middleware('legacy.once');
         Route::post('/_admin/_notice/save_isshow', [AdminNoticeController::class, 'saveIsshow']);
     });
 });
@@ -74,6 +75,7 @@ Route::post('/_admin/_notice/delete', [AdminNoticeController::class, 'delete'])
 // ---- แอดมิน: รายการรอส่ง (_admin/_send) ----
 Route::middleware('legacy.perm:admin_export')->group(function () {
     Route::get('/admin/send', [AdminSendController::class, 'index'])->defaults('legacy_page', 'admin_send');
+    Route::get('/admin/sendself', [AdminSendController::class, 'sendself'])->defaults('legacy_page', 'admin_sendself'); // SR
     Route::get('/_admin/_send/index_self', [AdminSendController::class, 'indexSelf']);
 });
 
@@ -83,7 +85,7 @@ Route::middleware('legacy.auth')->group(function () {
     Route::post('/notification', [NotificationController::class, 'bar'])->middleware('legacy.ajax');
     Route::match(['GET', 'POST'], '/notify_counts', [IncludeFileController::class, 'blank']);
     Route::match(['GET', 'POST'], '/notify_token', [IncludeFileController::class, 'blank']);
-    Route::get('/email_header', [IncludeFileController::class, 'emailHeader']);
-    Route::get('/email_center', [IncludeFileController::class, 'emailCenter']);
-    Route::get('/email_footer', [IncludeFileController::class, 'emailFooter']);
+    Route::get('/email_header', [IncludeFileController::class, 'emailPart']);
+    Route::get('/email_center', [IncludeFileController::class, 'emailPart']);
+    Route::get('/email_footer', [IncludeFileController::class, 'emailPart']);
 });

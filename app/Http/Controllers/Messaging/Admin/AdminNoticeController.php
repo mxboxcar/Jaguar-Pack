@@ -132,7 +132,7 @@ class AdminNoticeController extends Controller
         $id = (int) LegacyInput::query($request, 'id', 0);
         $to = (string) (is_scalar($v = LegacyInput::query($request, 'email_to', '')) ? $v : '');
         $row = DB::table('notice')->where('id', $id)->first();
-        [$subject, $body] = NoticeMail::template($row ?? (object) []);
+        [$subject, $body] = NoticeMail::template($row ?? (object) [], "\r\n");
         if (config('legacy.debug_mail')) {
             return response($body);
         }
