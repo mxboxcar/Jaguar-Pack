@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Shop;
 
 use App\Domain\Money\Money;
+use App\Domain\Payment\PinBox;
 use App\Domain\Shop\Php74;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
+use App\Support\Legacy\Legacy;
 use App\Support\Legacy\Lookup;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -145,6 +147,12 @@ class TaobaoController extends ShopController
         $remark = $this->post($request, 'remark');
         $prefix = (string) Lookup::getPrefix('taobao');
 
+        // SR: ต้องยืนยัน PIN จ่ายเงินก่อน (ทั้งสร้างและแก้หมายเหตุ) — getNewPinBox() / getPinBox(0) / PIN ผิด
+        // ผ่าน PinBox::guard (ตัวนับเดาร่วม PinThrottle; ไม่ log PIN ที่พิมพ์ผิดแบบเดิม)
+        if (($pin = PinBox::guard($request, Legacy::user())) !== null) {
+            return $this->out($pin);
+        }
+
         // เดิม if ($id == "0") — string กับ string ตัวเลขเทียบเชิงตัวเลขเหมือนกันทั้ง 7.4/8.4
         if (! ($id == '0')) {
             DB::table('taobao')->where('id', $id)->where('user', (string) $uid)->update(['remark' => $remark]);
@@ -167,6 +175,10 @@ class TaobaoController extends ShopController
         // เดิมรับราคาติดลบได้: ใส่ [1000, -1000] = ยอดรวม 0 → จ่ายแค่ค่าบริการ แต่ taobao_detail มีออเดอร์ ¥1000 ให้แอดมินจ่ายแทน
         // → ราคาทุกช่องต้องไม่ติดลบ (ค่าว่าง/ไม่ใช่ตัวเลข = 0 แบบเดิม)
         foreach ($priceArr as $p) {
+            // SR: if ($price[$i] == 0 || == "0.00" || == "0") — PHP 7.4 string == 0 คือค่าตัวเลขนำหน้าเป็น 0 (ว่าง/ไม่ใช่ตัวเลขด้วย)
+            if ($n($p) == 0) {
+                return $this->out(Alerts::error('CloseLoading()', 'กรุณาใส่ราคา'));
+            }
             if ($n($p) < 0) {
                 return $this->out(Alerts::error('CloseLoading()', 'ราคาไม่ถูกต้อง (ติดลบ)'));
             }
@@ -228,14 +240,5 @@ class TaobaoController extends ShopController
             return $this->out(Alerts::success('window.location.href = "'.legacy_href('taobao').'";',
                 Lang::get('success_process_no').$prefix.$newId));
         });
-    }
-
-    /**
-     * _taobao/delete — ไฟล์เดิม require '../../system_check_ajax.php' (path ผิด: อยู่นอก webroot) → fatal error 500 ทุกครั้ง
-     * (โค้ดข้างในเป็นสำเนาของ _admin/_product_type/delete: ลบ product_type) — คงผลเดิม: 500 ว่าง ไม่แตะข้อมูล
-     */
-    public function delete(): Response
-    {
-        return $this->out('', 500);
     }
 }

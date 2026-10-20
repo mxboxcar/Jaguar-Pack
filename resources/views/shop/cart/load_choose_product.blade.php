@@ -51,11 +51,11 @@
             <div class="form-control-static col-xs-9" >
                 <div style="float:left;width:120px;">
                     <div class="input-group ">
-                        <span class="input-group-addon" onclick="switchpricedown(); changesku();" style="cursor:pointer;padding: 6px">
+                        <span class="input-group-addon" onclick="switchpricedown();" style="cursor:pointer;padding: 6px">
                             <i class="fa  fa-minus"></i>
                         </span>
                         <input style="font-weight: normal;text-align:center" type="text" onkeyup="changesku()" id="search_amount" name="search_amount" class="form-control" value="1">
-                        <span class="input-group-addon" onclick="switchpriceup(); changesku();" style="cursor:pointer;padding: 6px">
+                        <span class="input-group-addon" onclick="switchpriceup();" style="cursor:pointer;padding: 6px">
                             <i class="fa  fa-plus"></i>
                         </span>
                     </div>

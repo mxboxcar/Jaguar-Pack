@@ -7,6 +7,7 @@ use App\Domain\Shop\CrawlPrices;
 use App\Domain\Shop\ProductCrawler;
 use App\Domain\Shop\Unjail;
 use App\Support\Legacy\BlobStore;
+use App\Support\Legacy\Legacy;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,7 @@ use Illuminate\Support\Facades\Log;
  * _api/*.php เดิม
  *  - load_product: ดึงสินค้าผ่าน crawler (dev = STUB ไม่ยิงภายนอก) + โควตา crawl_guard
  *  - blockblob_ajax: ส่งไฟล์ upload/temp ขึ้นที่เก็บถาวร (App\Support\Legacy\BlobStore: dev = คัดลอกในเครื่อง, production = Azure)
- *  - get_order_number_v2/v3, submit_order_number_v2, updateImagePrefix, unban: API ของ crawler/cron ด้วย token
+ *  - get_order_number_v2/v3, submit_order_number_v2, unban: API ของ crawler/cron ด้วย token
  *    (เดิมฝัง token ในโค้ด → ย้ายไป .env: config legacy.shop.*; ไม่ตั้ง = ปิด)
  *  - blockblob, crawl_guard, image_shrink, useragent: ไฟล์ไลบรารี (เปิดตรง = ว่าง) → app/Domain/Shop/*
  */
@@ -140,10 +141,19 @@ class ApiController extends ShopController
         return response('', 410);
     }
 
-    /** _api/blockblob_ajax — POST path (เดิมไม่ตรวจล็อกอิน) */
+    /**
+     * _api/blockblob_ajax — POST path (SR เดิม checkUser() = ต้องล็อกอิน)
+     * SR: หลังสั่งอัป (สำเร็จหรือ error) echo "<href>upload/temp/<ชื่อไฟล์>" ต่อท้าย — "temp empty" / "exists" ไม่มี
+     */
     public function blockblobAjax(Request $request): Response
     {
-        return $this->out(BlobStore::uploadFromTemp($this->post($request, 'path')));
+        $path = $this->post($request, 'path');
+        $out = BlobStore::uploadFromTemp($path);
+        if ($out !== 'temp empty' && $out !== 'exists') {
+            $out .= Legacy::href().'upload/temp/'.basename(str_replace('../upload/temp/', '', $path));
+        }
+
+        return $this->out($out);
     }
 
     /** ไฟล์ไลบรารีที่เปิดตรงได้แต่ไม่ตอบอะไร: blockblob, crawl_guard, image_shrink, useragent */
@@ -202,9 +212,7 @@ class ApiController extends ShopController
                 WHERE `order` != '' AND `order` != '0' AND `tracking` = ''  AND (tracking.create_date >= NOW() - INTERVAL 60 DAY )
                 AND t4.`status` != '-1' ORDER BY tracking.create_date DESC");
             foreach ($rows as $row) {
-                if (stripos((string) $row->url, 'taobao')) {
-                    $str .= $row->order."[xx]tmall\n";
-                }
+                // SR ไม่มีบรรทัด "[xx]tmall" เพิ่มสำหรับลิงก์ taobao (jl มี)
                 $str .= $row->order.'[xx]'.$row->url."\n";
             }
         }
@@ -243,30 +251,10 @@ class ApiController extends ShopController
         return response('CombineTrack not available', 501);
     }
 
-    /** _api/updateImagePrefix — แก้ prefix รูป alicdn (สูงสุด 5000 แถวต่อครั้ง) */
-    public function updateImagePrefix(Request $request): Response
-    {
-        if (! self::tokenOk('image_prefix_token', $request->query('token'))) {
-            return response('');
-        }
-        $fix = fn (?string $u) => (string) preg_replace('/^https?:\/\/(?:[a-zA-Z0-9-]+\.)?alicdn\.com\//', 'https://img.alicdn.com/', (string) $u);
-        $rows = DB::table('bill_product_detail')
-            ->where(fn ($q) => $q->where('main_image', 'like', '%cbu%')->orWhere('color', 'like', '%cbu%')->orWhere('size', 'like', '%cbu%'))
-            ->orderByDesc('create_date')->limit(5000)->get(['id', 'main_image', 'color', 'size']);
-        $i = 0;
-        foreach ($rows as $r) {
-            DB::table('bill_product_detail')->where('id', $r->id)
-                ->update(['main_image' => $fix($r->main_image), 'color' => $fix($r->color), 'size' => $fix($r->size)]);
-            $i++;
-        }
-
-        return response('Update '.$i.'Rows');
-    }
-
-    /** _api/unban — token จาก POST หรือ GET → check_unjail() */
+    /** _api/unban — SR: token จาก GET เท่านั้น (cron wget) → check_unjail() */
     public function unban(Request $request): Response
     {
-        $token = $request->request->has('token') ? $request->request->get('token') : $request->query('token', '');
+        $token = $request->query('token', '');
         if (self::tokenOk('unban_token', $token)) {
             Unjail::run();
         }
