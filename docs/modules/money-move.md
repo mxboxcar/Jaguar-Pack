@@ -1,5 +1,83 @@
 # money-move — เติมเงิน / โอนเงินไปจีน / ถอนเงิน
 
+## SR (2026-10-20)
+
+branch `mod/money-move` · worktree `/home/admin/laravel/sr-wt/money-move` · dev `bin/wt-serve money-move` → http://127.0.0.1:8306 · เทียบกับเว็บเดิม SR :8111 (admin_sr_bench)
+
+### เปลี่ยนตาม SR
+- **`_transfer/save` (โอนเงินไปจีน, ลูกค้า)** — แบบเดียวกับ `_alipay/save` ของ SR (กลุ่ม payment): **ถาม PIN จ่ายเงิน** (`PinBox::guard`, jl comment ไว้; PIN ถูกตรวจก่อนดู id) · **ใช้เงินหยวนในระบบ (balance_cn) ก่อน** ส่วนที่ขาด × `rate_transfer` ตัดจากบาท → เก็บ `bill_transfer.usecash` (บาท) + `usecash_cn` (หยวน) · เขียน balance / balance_cn (type 5, prefix transfer) เฉพาะยอดที่ไม่เป็น 0 · ยอดไม่พอ: `use_cash > getCurrentCash()` (เท่ากันพอดีผ่าน) → `ErrorBox(no_remain_cash, 'CloseLoading()')`
+  - ยังอยู่ใน transaction + lock แถว user (อ่านยอดทั้งสองกระเป๋าภายใน lock) + `legacy.once` เหมือน jl port
+- **`_transfer/cancel`** = hotfix 2026-10-18 ของ SR (เฉพาะรายการของตัวเอง status 1) + คืนทั้งบาทและหยวน — ใช้กติกา jl "คืนเท่าที่รายการถูกตัดอยู่จริง ไม่เกินยอดของรายการ" แยกต่อกระเป๋า (`App\Domain\MoneyMove\TransferRefund`, ใช้ร่วมกับ `_admin/_transfer/cancel`)
+- **`_admin/_transfer/cancel`**: คืน usecash → balance และ usecash_cn → balance_cn ให้เจ้าของรายการ (net-based เหมือนข้างบน)
+- **`_admin/_transfer/rollback`** (ไฟล์เดิม same แต่ความหมายเปลี่ยนเพราะ SR คืนหยวนตอนยกเลิก): รายการ -1 → ตัดคืนทั้ง balance และ **balance_cn** เท่าที่ยอดสุทธิของรายการขาดจาก -usecash / -usecash_cn (กดซ้ำไม่หักซ้ำ), กระเป๋าใดยอดคงเหลือไม่พอ = ปฏิเสธทั้งรายการ (`ErrorBox('ยอดเงินหยวนคงเหลือของลูกค้าไม่พอสำหรับ RollBack ...')`) — jl port ไม่แตะ balance_cn เพราะ jl คืนแค่บาท
+- **`_admin/_transfer/save`**: SR แก้ในไฟล์เดิมแล้ว = เฉพาะ status 1 อื่นๆ (รวมไม่พบ / บันทึกซ้ำบนรายการ 2) `ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();')` — แทนกติกา jl "2 = บันทึกหลักฐานซ้ำได้" (ยังล็อกแถวใน transaction)
+- **`/admin/transfer/{id}`, `/admin/transfer/create`**: SR form.php ตรวจ `admin_transfer` (jl ตรวจ `transfer` = IDOR ที่ jl port แก้ด้วยการบังคับทั้งสอง) → route ใช้ `legacy.perm:admin_transfer` อย่างเดียว
+- หน้าโอน (ลูกค้า/แอดมิน): หัวเรื่องใช้ prefix `TRF-` (jl ใช้ของ alipay), แถว "ใช้ยอดเงินหยวน" (usecash_cn), ตาราง "รายการเงินที่เกี่ยวข้อง" = แถว balance ตามด้วยแถว balance_cn (หยวนแสดง `¥`) (`Lookups::balancesWithCn`) · ฟอร์มสร้างของลูกค้า: "ยอดเงินหยวนในระบบ" + ยอดโอนได้โดยประมาณ = บาท/เรท + หยวน · JS ของหน้าแอดมินเรียงฟังก์ชัน rollback ก่อน canceling2 แบบ SR
+- **`_admin/_refill/save_approved`**: บันทึก `refill.approved_user` = ผู้อนุมัติ · status ≠ 1 (ไม่พบ/ยกเลิก/อนุมัติแล้ว) = `ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();')` (SR แก้เอง — แทนข้อความ "ถูกยกเลิกไปแล้ว" และ "สำเร็จ" ของการอนุมัติซ้ำใน jl port)
+- **`_admin/_refill/cancel`**: รายการอนุมัติแล้ว (2) = `ErrorBox('รายการถูกดำเนินการสำเร็จไปแล้ว', 'window.location.reload();')` แบบ SR (`Money::REFILL_ALREADY_APPROVED` แยกจากข้อความของ `_admin/_lot/cancel` ที่ใช้ helper เดียวกัน)
+- `admin/refill/{id}` + `_admin/_refill/grid`: ช่อง/คอลัมน์ "ผู้อนุมัติรายการ" (`approved_user` → user.code, ลิงก์ admin/user/{id} ไม่มี target=_blank) — join เฉพาะ 10 แถวของหน้า ไม่อยู่ใน COUNT
+- **ถอนเงินออกจากระบบ (สิทธิ์ตามไฟล์ SR)**: `admin/withdrawcash` (+status) ตรวจ `admin_withdrawpoint` หลังพิมพ์หัวหน้า แล้วปฏิเสธด้วยชื่อ `admin_withdrawcash` (HTML ตรงเดิม) · `admin/withdrawcash/{id}` + grid = `admin_withdrawcash` · `save_approved` / `cancel` = `admin_withdrawpoint` — bench: admin_withdrawpoint = role 1, admin_withdrawcash = role 1/12/13
+- อีเมล (refill approved/cancel, transfer success/cancel): `config('legacy.mail')` (header/center/footer + ผู้ส่ง `SRShippingSystem <no-reply@srshippingsystem.com>`), ปุ่ม `#a3b2f1` padding `10px 25px 10px 0px` — ไม่มีแบรนด์ jl แล้ว (test `test_mailer_has_no_jl_branding`)
+
+### SR-only / ลบ (jl-only)
+- ไม่มีไฟล์ SR-only หรือ JL-only ในกลุ่มนี้ (30 ไฟล์: same 12, diff 18) — route ครบชุดเดิม
+
+### ตามไฟล์ (docs/sr-diff.md)
+| ไฟล์ | ผล |
+|---|---|
+| `_refill/{form,grid,index,save}`, `_admin/_refill/save`, `_admin/_transfer/{grid,index}`, `_admin/_withdrawcash/{form,grid}`, `_transfer/{grid,index}` | same — ไม่เปลี่ยน (เทียบผลแล้วตรง) |
+| `_admin/_transfer/rollback` | same แต่ปรับ: หัก balance_cn ด้วย (ข้างบน) |
+| `_admin/_refill/{cancel,form,grid,save_approved}` | done |
+| `_admin/_refill/index` | ไม่เปลี่ยน — SR ตัดการตรวจสิทธิ์ออก แต่ Laravel คง `admin_refill` (ช่องโหว่ ดูข้างล่าง) |
+| `_admin/_refill/email_*`, `_admin/_transfer/email_*` | done (Mailer: สี/แม่แบบ/ผู้ส่ง SR) — เปิดตรงยังตอบว่างต้องมีสิทธิ์ |
+| `_admin/_transfer/{cancel,form,save}`, `_transfer/{cancel,form,save}` | done |
+| `_admin/_withdrawcash/{cancel,index,save_approved}` | done (สิทธิ์ admin_withdrawpoint) |
+
+### ต่างจาก SR เดิมโดยตั้งใจ (นอกจากที่ jl port ทำไว้แล้ว)
+- `_admin/_refill/grid` และ `admin/refill` ยังต้องมี `admin_refill` (SR ตัดออก — ดูช่องโหว่ข้อ 1)
+- `_transfer/save`: ยอดที่ไม่ใช่ตัวเลข → ErrorBox (เดิม `"abc" >= ยอดหยวน` เทียบ string → ตัดหยวนทั้งหมดแต่รายการยอด 0); ยอดหยวนติดลบถือเป็น 0 (เหมือน alipay ของ payment); PIN ผิดนับ PinThrottle และไม่ log PIN เป็น plaintext
+- ยกเลิก (ลูกค้า/แอดมิน): ยอด 0 ไม่เขียนแถว (`_admin/_transfer/cancel` เดิมเขียน balance + balance_cn เสมอ เช่น แถว `0.00` ของ TRF-9/TRF-40 บน bench) และคืนไม่เกินที่ถูกตัดอยู่จริง
+- `_admin/_refill/cancel` ของรายการที่ยกเลิกแล้ว / ไม่พบ: ปฏิเสธ (SR ยังยกเลิกซ้ำ + ส่งอีเมลซ้ำ)
+- `_admin/_withdrawcash/save_approved` / `cancel`: กติกา jl (status 1 → 2 / ยกเลิกเฉพาะ 1, คืนครั้งเดียว) — SR ยังเป็นแบบเดิมที่มีช่องโหว่ (ข้อ 3–4)
+- หน้าไม่มีสิทธิ์ที่ใช้ `legacy.perm` (เช่น `admin/transfer` ของ role 7): ไม่มีหัวหน้าก่อน ErrorBox; หน้าที่เดิม exit กลาง layout (`/refill/{id}`, `/transfer/{id}` ของคนอื่น, `/admin/transfer/{id}` ของลูกค้า): layout เต็ม — เหมือน jl port
+- `/transfer/{id}` ของคนอื่น: ไม่แสดงแถวเงิน (jl port) — SR แสดงทั้ง balance และ balance_cn ของรายการคนอื่น
+
+### ช่องโหว่เดิมที่เจอใน SR
+1. **`_admin/_refill/grid.php` และ `index.php` ไม่ตรวจสิทธิ์** (SR ลบ `getPermission('admin_refill')` ออก) → ลูกค้าที่ล็อกอินแล้ว POST `_admin/_refill/grid` เห็นรายการเติมเงินของทุกคน (รหัสลูกค้า, ยอด, สลิป, ผู้อนุมัติ) — ตรวจบน :8111 ด้วยลูกค้า 3 ได้ตาราง 10 แถว/หน้า; Laravel ตอบว่าง
+2. `_transfer/save`: ไม่มี transaction/lock (กดซ้ำเร็วๆ ตัดเงินเกินยอด), `goLog` เก็บ PIN ที่พิมพ์ผิดเป็น plaintext, SQL ต่อ string ทุกช่อง
+3. `_admin/_withdrawcash/cancel.php`: ยังเช็ค `$data['status'] != -1` ก่อนอ่าน `$data` → กดยกเลิกซ้ำคืนเงินซ้ำ (เหมือน jl เดิม)
+4. `_admin/_withdrawcash/save_approved.php`: อนุมัติรายการที่ยกเลิก+คืนเงินแล้วได้
+5. `_admin/_transfer/rollback.php`: หักคืนโดยไม่ตรวจยอดคงเหลือ (ติดลบได้)
+6. hotfix 2026-10-18 ของ `_transfer/cancel.php` ปิดช่อง "id คนอื่น/คืนซ้ำ" แล้ว (ใหม่ทำแบบเดียวกัน + net-based)
+
+### การตรวจ (เทียบ :8111 ด้วย session เดียวกัน, normalize host/ช่องว่าง/target=_blank/favicon)
+- เท่ากันหลัง normalize (ต่างเฉพาะ `</script>` ของ dashboard.js ใน layout): `/transfer` (+status), `transfer/create` (ผู้ใช้ 2 และ 11937 มีหยวน ¥20), `transfer/{41,40,148}`, `_transfer/grid` หน้า 1–2 + ค้นหา/สถานะ, `admin/transfer` (+status), `admin/transfer/{create,41,40,148,999}`, `_admin/_transfer/grid` (หน้า 1–2, ค้นรหัส, `4|-1`), `admin/refill` (+status), `admin/refill/{create,1,202,348,349,9999}`, `_admin/_refill/grid` (หน้า 1/2/12, ค้นรหัส+สถานะ, `|-1`, `19|`, ZZFDN), `/refill`, `refill/{create,200,202,348,349}`, `_refill/grid` หน้า 1–3 + สถานะ, `admin/withdrawcash` (+status, role 1/12/ลูกค้า — การปฏิเสธของ role 12 ตรงเดิม), `admin/withdrawcash/{1,52,53}` (role 1, 12), `_admin/_withdrawcash/grid` (role 1/12/ลูกค้า, ค้นหา, สถานะ) · ภาษา en/cn: transfer/148, transfer/create, `_admin/_refill/grid`
+- ต่างโดยตั้งใจ: `_admin/_refill/grid` + `admin/refill` ของลูกค้า (ข้อ 1), `/transfer/40` ของลูกค้าอื่น (ไม่แสดงแถวเงิน), หน้าปฏิเสธสิทธิ์ตามข้างบน
+- E2E (Laravel :8306 เท่านั้น, ผู้ใช้ 11937/11938, แถว zz_): `_transfer/save` ไม่มี PIN/PIN ผิด/`1,00`/`abc` (ไม่สร้างรายการ) → ¥50 มีหยวน ¥20 (usecash 156.00 = 30×5.2, usecash_cn 20.00, balance -156.00, balance_cn -20.00) + ส่งซ้อน 2 คำขอ (คำขอที่ 2 = "กำลังดำเนินการ") + ส่งซ้ำ (= "ส่งซ้ำ") · ลูกค้าอื่นยกเลิก (ไม่มีผล) · ยกเลิกซ้อน 2 คำขอ (คืน 156 + ¥20 ครั้งเดียว) · แอดมิน save บน -1 (ไม่พร้อม) · rollback ซ้อน 2 (หัก 156 + ¥20 ครั้งเดียว) · cancel ×2 (คืนครั้งเดียว, ครั้งที่ 2 "รายการถูกยืนยันไปแล้ว") · rollback → save ×2 (ครั้งที่ 2 ไม่พร้อม) → cancel บน 2 (ไม่มีผล) → rollback บน 2 (ไม่แตะเงิน) · rollback เมื่อหยวนเหลือ ¥5 (ปฏิเสธ ไม่เขียนแถว) · refill ลูกค้า 2 รายการ → อนุมัติซ้อน 2 (เติม 100 ครั้งเดียว, approved_user = 11938) → ยกเลิกรายการที่อนุมัติแล้ว (SR ErrorBox) → ยกเลิก ×2 / อนุมัติรายการที่ยกเลิก / id ไม่มี (ปฏิเสธ) · แอดมินเติมเงินตรง + ส่งซ้อน (รายการเดียว) · ถอนเงิน: role 12 อนุมัติ/ยกเลิก = ปฏิเสธ admin_withdrawpoint · อนุมัติ ×2, ยกเลิกรายการที่จ่ายแล้ว (ปฏิเสธ), ยกเลิกซ้อน 2 (คืน 40 ครั้งเดียว), อนุมัติรายการที่ยกเลิก (ปฏิเสธ) · อีเมล 4 แบบใน log จาก SRShippingSystem สี #a3b2f1
+  - แถวที่เขียนตรงกับ SQL ของไฟล์ SR ทุกคอลัมน์ (ยกเว้นที่ระบุว่าต่างโดยตั้งใจ) · ลบแถวที่สร้างทั้งหมดตาม id แล้ว: balance 2386–2398, balance_cn 303–310, bill_transfer 148, refill 348–351, balance_withdraw 52–53, ips 113 และคืน pin ของ 11937 เป็นค่าว่าง
+- test: `tests/Feature/MoneyMove/MoneyMoveRoutesTest` (สิทธิ์ SR, ไม่มีแบรนด์ jl ใน Mailer), `tests/Feature/Access/RoleDenialTest` (admin transfer form = admin_transfer), `tests/Feature/Money/MoneyMoveDbTest` (+ กระเป๋าหยวน, PIN, กติกา SR ของ save/save_approved/cancel), `DoubleSubmitDbTest` (transfer ใส่ PIN)
+
+### bench (`bin/bench` n=20 c=1, `artisan optimize`, mean ms รอบที่ 2)
+| หน้า | เดิม | ใหม่ |
+|---|---|---|
+| `GET /transfer` (ผู้ใช้ 2) | 327 | 34 |
+| `GET /transfer/create` (11937) | 317 | 39 |
+| `POST /_transfer/grid` (ผู้ใช้ 2, 10 แถว) | 38 | 28 |
+| `POST /_admin/_transfer/grid` | 49 | 30 |
+| `GET /admin/transfer/148` | 490 | 39 |
+| `GET /admin/refill` | 537 | 37 |
+| `POST /_admin/_refill/grid` | 34 | 28 |
+| `POST /_refill/grid` (ผู้ใช้ 2) | 39 (รอบ 1: 48) | 43 (รอบ 1: 32) |
+| `POST /_admin/_withdrawcash/grid` | 53 | 32 |
+
+`_refill/grid` รอบ 2 ช้ากว่า ~4 ms = เครื่องแกว่ง (รอบ 1 เร็วกว่าเดิม 16 ms) + overhead คงที่ของ Laravel กับ grid เล็ก (ตาราง refill บน bench 202 แถว)
+
+### คำถามถึงเจ้าของ
+1. **สิทธิ์ถอนเงิน**: SR ใช้ `admin_withdrawpoint` ที่หน้า list/อนุมัติ/ยกเลิก แต่ `admin_withdrawcash` ที่หน้ารายการ/grid → role 12 (Pur-staff) / 13 (PUR-SUPPORT) ที่มี admin_withdrawcash เปิดรายการได้แต่เข้าหน้า list และอนุมัติ/ยกเลิกไม่ได้ (มีแค่ role 1) — พอร์ตตามเดิม; ควรเปลี่ยนเป็น admin_withdrawcash ทั้งชุดหรือไม่
+2. **`_admin/_refill/grid` ไม่ตรวจสิทธิ์ในเว็บเดิม SR** (ลูกค้าเห็นรายการเติมเงินทุกคน) — Laravel ปิดแล้ว; ควร hotfix เว็บเดิมด้วยหรือไม่ (ใส่ `getPermission('admin_refill')` กลับ)
+3. `_admin/_transfer/save`: ทำตาม SR (บันทึกได้เฉพาะ status 1) — ถ้าต้องแก้หลักฐาน/หมายเหตุของรายการที่โอนแล้ว ต้อง RollBack แล้วบันทึกใหม่ (jl port เคยยอมให้บันทึกซ้ำบน 2) ใช้แบบ SR ได้หรือไม่
+4. แถว `0.00` ที่ `_admin/_transfer/cancel` เดิมเขียนเสมอ (balance_cn ของรายการที่ไม่ได้ใช้หยวน) — ใหม่ไม่เขียน; ต้องการให้เขียนเหมือนเดิมเพื่อรายงานหรือไม่
+
 โมดูลเดิม: `_refill`, `_admin/_refill`, `_transfer`, `_admin/_transfer`, `_admin/_withdrawcash` (30 ไฟล์, 19 RewriteRule)
 worktree `/home/admin/laravel/jl-wt/money-move` (branch `mod/money-move`, port 8206)
 
