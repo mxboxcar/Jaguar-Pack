@@ -187,38 +187,12 @@ class AdminShopCashbackController extends Controller
     }
 
     /**
-     * POST /_admin/_shop_cashback/email_approved, email_cancel — ไฟล์ที่ save_* include
-     * เดิมเรียกตรงได้โดยไม่ล็อกอิน (ไม่มี system_check_ajax / getPermission) และรับ $email_id/$ids ผ่าน extract($_GET)
-     * = ใครก็สั่งส่งอีเมลแจ้งลูกค้าได้ → ใหม่ต้องมีสิทธิ์ admin_shop_cashback, รับ id (หัวรายการ) + ids (รายการย่อย) ทาง POST
-     * แบบที่ JS ที่ถูก comment ไว้ในไฟล์เดิมเคยเรียก; ตอบว่างเหมือนเดิม
+     * GET|POST /_admin/_shop_cashback/email_approved, email_cancel — ไฟล์ที่ save_approved / save_cancel include
+     * SR hotfix 2026-10-18: ไฟล์นี้ include เท่านั้น เปิดตรงจาก URL = 403 ว่าง (ก่อน hotfix เรียกได้โดยไม่ล็อกอิน = สั่งส่งอีเมลหาลูกค้าใดก็ได้)
+     * อีเมลจริงส่งจาก saveApproved() / saveCancel() ผ่าน CashbackMailer เท่านั้น
      */
-    public function emailApproved(Request $request): Response
+    public function emailDirect(): Response
     {
-        if (self::detailBelongsToHead($request)) {
-            CashbackMailer::approved(Grid::in($request, 'id'), Grid::in($request, 'ids'));
-        }
-
-        return response('');
-    }
-
-    public function emailCancel(Request $request): Response
-    {
-        if (self::detailBelongsToHead($request)) {
-            CashbackMailer::cancelled(Grid::in($request, 'id'), Grid::in($request, 'ids'));
-        }
-
-        return response('');
-    }
-
-    /**
-     * เดิมรับ id (หัวรายการ) กับ ids (รายการย่อย) แยกกันโดยไม่ตรวจว่าเข้าคู่กัน → อีเมลถึงลูกค้า A แต่ใส่เลขคำสั่งซื้อ/ยอดของลูกค้า B ได้
-     * → ส่งเฉพาะเมื่อรายการย่อยเป็นของหัวรายการนั้นจริง (save_approved / save_cancel ส่งคู่ที่ถูกต้องเสมอ)
-     */
-    private static function detailBelongsToHead(Request $request): bool
-    {
-        $head = DB::table('shop_cashback')->where('id', Grid::in($request, 'id'))->value('id');
-
-        return $head !== null && DB::table('shop_cashback_detail')
-            ->where('id', Grid::in($request, 'ids'))->where('shop_cashback_id', $head)->exists();
+        return response('', 403);
     }
 }

@@ -21,6 +21,9 @@ class LegacyRisksDbTest extends BenchDbTestCase
 
     private const ADMIN = 11938;
 
+    /** SR: _shop_cashback/save ถาม PIN จ่ายเงินก่อน — ตั้ง PIN ให้ลูกค้าทดสอบภายใน transaction ที่ rollback */
+    private const PIN = '135790';
+
     /** shipping_type ใน admin_sr_bench: 43 = รับสินค้าเองที่โกดัง (ไม่มีค่าส่ง), 14 = นิวมงเซ้ง (storage 50 + shipping 100) */
     private const SHIP_FREE = 43;
 
@@ -117,11 +120,12 @@ class LegacyRisksDbTest extends BenchDbTestCase
     private function cashbackPost(array $prices): array
     {
         return ['order' => array_map(fn ($i) => 'zz_order_'.$i, array_keys($prices)), 'date' => array_fill(0, count($prices), ''),
-            'price' => $prices, 'remark' => 'zz_test'];
+            'price' => $prices, 'remark' => 'zz_test', 'paymentpin' => self::PIN];
     }
 
     public function test_customer_cashback_rejects_non_positive_or_bad_amounts(): void
     {
+        DB::table('user')->where('id', self::CUST)->update(['pin' => self::PIN]);
         $cust = $this->cust();
         $this->actAs($cust);
         $count = fn () => DB::table('shop_cashback')->where('user', $cust->id)->count();

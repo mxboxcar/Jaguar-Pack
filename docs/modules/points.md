@@ -1,5 +1,75 @@
 # กลุ่ม points — รายงานการพอร์ต
 
+## SR (2026-10-20)
+
+พอร์ตกลุ่ม points ให้ตรงกับเว็บเดิมของ SR บน branch `mod/points` (worktree `/home/admin/laravel/sr-wt/points`, port 8307) — โค้ดตั้งต้นคือที่ jl พอร์ตไว้ (รายงานเดิมด้านล่าง) คงทุกการแก้ช่องโหว่/การตัดสินใจของ jl:
+withdrawpoint อนุมัติ/ยกเลิกเฉพาะรายการรออนุมัติ (transaction + lock), เทียบ PIN ผ่าน `PinBox::guard()` (hash_equals + PinThrottle), `load_new_line` item เป็นจำนวนเต็ม, ยอด shop_cashback ต้อง > 0, `legacy.once` กันกดซ้ำ, escape ค่าจาก DB/ผู้ใช้
+
+### ไฟล์เดิม → สถานะ
+
+| ไฟล์ (docs/sr-diff.md) | สถานะ |
+|---|---|
+| `_point/index.php` (diff 11) | **ทำแล้ว** — JS ของ SR: `withdrawpoint()` = ConfirmBox แล้วส่งแค่ `wantcash` (ไม่ตรวจช่องว่าง, ไม่ส่ง `paymentpin`), ไม่มีฟังก์ชัน `withdrawpointing()` |
+| `_point/save_withdraw.php` (diff 4) | **ทำแล้ว** — SR ตรวจ PIN (ยังไม่มี PIN → กล่องตั้ง PIN, ยังไม่กรอก/`undefined` → กล่อง PIN callback `withdrawpointing()`, ผิด → ErrorBox + แถว ips) แล้วตอบ `ErrorBox('ยังไม่เปิดบริการให้แลก', 'CloseLoading()')` + `exit()` **ทุกครั้ง** → โค้ดแลกแต้ม (INSERT `point`/`balance_point`) ไม่เคยทำงาน → ตัดทิ้ง ไม่เขียน DB เลย (ลบ `Rules::withdrawInvalid` + fixture ที่ใช้เฉพาะทางนี้) |
+| `_shop_cashback/save.php` (diff 32) | **ทำแล้ว** — SR เปิดบล็อก PIN จ่ายเงิน (jl comment ไว้): `getNewPinBox()` / `getPinBox(0)` ต่อท้าย `form` แล้ว `_profile/pin` ส่งฟอร์มซ้ำพร้อม `paymentpin` — ใช้ `PinBox::guard($request, user)` ก่อนตรวจอย่างอื่นทั้งหมด |
+| `_admin/_shop_cashback/email_approved.php`, `email_cancel.php` (diff 2) | **ทำแล้ว** — ปุ่ม "ดูรายละเอียด" ของ SR (`width:100%` สี `#a3b2f1` padding `10px 0px`, ไม่มี target=_blank), แม่แบบ header/center/footer + ผู้ส่ง `config('legacy.mail')` (SRShippingSystem); เปิดตรงจาก URL (GET/POST) = 403 ว่าง ตาม hotfix 2026-10-18 ของ SR (เดิมของ jl-port = ส่งอีเมลได้เมื่อมีสิทธิ์) — อีเมลส่งจาก save_approved/save_cancel เท่านั้น |
+| ที่เหลือ 22 ไฟล์ (`same`) | ไม่เปลี่ยน — เทียบผลกับ :8111 แล้ว (ตารางด้านล่าง) |
+
+ไม่มีไฟล์ SR-only / JL-only ในกลุ่มนี้
+
+### สิทธิ์ของ SR (admin_sr_bench, role_on_detail)
+
+- `point` = role 1, 9, 10, 11, 12, 13 (ลูกค้า role 8 **ไม่มี** → `/point` ปฏิเสธ เหมือนเดิม) · `shop_cashback` = ทุก role (1, 7–13) · `admin_shop_cashback` = 1, 10, 11, 12, 13
+- `admin_point`, `admin_withdrawpoint` = **role 1 เท่านั้น** — ใช้ตามที่ DB ถือ (SR ไม่มี fallback: `permission_fallbacks` ว่าง) — ข้อความ "fallback ← admin_shop_cashback / admin_exchange" ในรายงาน jl ด้านล่าง **ไม่ใช้กับ SR**
+- ทดสอบปฏิเสธ: ลูกค้า 3 (`/point`, `/admin/*`), role 12 (user 6: `/admin/point`, `/admin/withdrawpoint`, `_admin/_withdrawpoint/save_approved` → ErrorBox สิทธิ์, grid → ว่าง)
+
+### ผลเทียบกับ :8111 (session เดียวกัน, ตัดช่องว่าง + แทน href, ไม่นับ favicon/morris ของ layout)
+
+ตรงกันทุกตัวอักษร: `/point` (user 2: 101 แถว, 11 หน้า), `_point/grid` หน้า 1/2/11, ค้นหา `PAY-20`/`POINT-1`, ตัวกรองประเภท `|1|2|3|9`, ภาษา th/en/cn, `load_withdraw`;
+`/admin/point` (+`?status=1`), `_admin/_point/grid` หน้า 1/2/3, ค้นหา `SRC`/`SRC-A`, ตัวกรอง; `/admin/withdrawpoint` (+`/status/1`), `/admin/withdrawpoint/{0,1,2,3,99999}`, `_admin/_withdrawpoint/grid` สถานะ `-2/1/2/-1` + ค้นหารหัสลูกค้า/`POINT-2`;
+`/shop_cashback`, `/shop_cashback/create`, `/shop_cashback/{id}`, `_shop_cashback/grid` (+ค้นหา `CB-SHOP-…`), `load_new_line`, `load_calculator` (JSON byte ต่อ byte);
+`/admin/shop_cashback` (+`/status/2`), `/admin/shop_cashback/{create,id}`, `_admin/_shop_cashback/grid` (+สถานะ) — ข้อมูล point / shop_cashback ใน bench ว่าง จึงใช้แถว zz ของ user 11937 (ด้านล่าง)
+ต่างเฉพาะที่ตั้งใจ: ลิงก์ `target="_blank"` ใน grid แต้ม (ตัดออก), escape ค่า (`remark` ที่มี `<b>`, คำค้น), หน้าไม่มีสิทธิ์ (layout + ErrorBox), `/shop_cashback/{id}` ของคนอื่น = หน้าเต็ม (เดิม exit กลาง layout)
+
+### E2E (เขียนเฉพาะฝั่ง Laravel, user 11937/11938 + แถว zz_, ลบตาม id แล้ว)
+
+- `_shop_cashback/save`: ไม่มี PIN → กล่องตั้ง PIN · ไม่กรอก → กล่อง PIN · ผิด → ErrorBox + ips 1 แถว · ยอด -5 → ErrorBox ยอดไม่ถูกต้อง · ถูก + ส่งพร้อมกัน 2 ครั้ง → สร้าง 1 รายการ (อีกคำขอ "กำลังดำเนินการ") + ส่งซ้ำ → "ส่งซ้ำ" · แถวตรงกับ SQL เดิม (`total` 1012.50, price `1,000` → 1000.00, `submit_date` จาก `5 ตุลาคม 2026|14:05` = `2026-10-05 14:05:00`)
+- `_shop_cashback/save_remark` ของตัวเอง = แก้, ของคนอื่น = ไม่แก้ (ตอบสำเร็จเหมือนเดิม)
+- แอดมิน `save`, `save_remark`, `save_approved` ซ้อน 2 = `balance_cn` แถวเดียว (type 9, prefix 28), `save_cancel` + ยกเลิกซ้ำ = ไม่เขียนทับ, อีเมล (log mailer) จาก SRShippingSystem ปุ่ม SR; `email_*` ตรง = 403
+- withdrawpoint `save_approved` ซ้อน 2 = `balance` แถวเดียว, `cancel` ซ้อน 2 = `balance_point` คืนแต้มแถวเดียว, ยกเลิกรายการอนุมัติแล้ว = ไม่ทำอะไร, อนุมัติรายการยกเลิกแล้ว = ErrorBox
+- `_point/save_withdraw`: กล่องตั้ง PIN / กล่อง PIN (`.cashback_form`, `withdrawpointing()`) / PIN ผิด / PIN ถูก = `ยังไม่เปิดบริการให้แลก` (กด 2 ครั้ง) — `point`/`balance_point` ไม่เปลี่ยน
+- ลบแล้ว: shop_cashback 79–80, shop_cashback_detail 157–159, point 1–4, balance_cn 540–541, balance 3461, balance_point 250, ips 147–148; PIN ของ 11937/11938 คืนค่าเดิม (`''` / NULL)
+
+### bench (`bin/bench`, -n 30 -c 1, 2 รอบ, artisan optimize)
+
+| หน้า | เดิม mean ms | ใหม่ mean ms |
+|---|---|---|
+| `/point` (user 2, หน้าเต็ม) | 357–361 | 39 |
+| `/_point/grid` (user 2) | 67–71 | 49–53 |
+| `/_admin/_point/grid` | 60–78 | 70 |
+| `/_admin/_shop_cashback/grid` (ว่าง) | 23–58 | 29–30 |
+| `/_admin/_withdrawpoint/grid` (ว่าง) | 21–22 | 29–30 |
+| `/shop_cashback` (หน้าเต็ม) | 365–448 | 34–35 |
+
+ช้ากว่า/ใกล้เคียง: grid ที่ไม่มีข้อมูล = overhead คงที่ของ Laravel (~25 ms); `_admin/_point/grid` ยอดคงเหลือเป็น subquery SUM ต่อแถวบน `balance_point` ที่ไม่มี index (เดิม N+1 แต่ตารางเล็ก 198 แถว) — ข้อเสนอ index `balance_point(user, is_delete)` ด้านล่างเดิมยังใช้ได้
+
+### ช่องโหว่/ข้อสังเกตของ SR เดิม
+
+1. `_point/index.php` ของ SR ไม่มี `withdrawpointing()` แต่ `save_withdraw` ส่ง callback นั้นให้กล่อง PIN → กรอก PIN แล้ว JS error เงียบ ผู้ใช้ไม่เห็นข้อความ "ยังไม่เปิดบริการให้แลก" เลย (คงไว้เหมือนเดิม 1:1)
+2. `save_withdraw.php` / `_shop_cashback/save.php` ของ SR: `goLog()` เขียน PIN ที่พิมพ์ผิดเป็น plaintext ลง log และเทียบ `!=` หลวม — ใหม่ไม่ log PIN, hash_equals + จำกัดการเดา
+3. `_shop_cashback/save.php` ของ SR: `paymentpin=undefined` ถูกเทียบเป็น PIN (ผิด) ส่วนใหม่ถือเป็น "ยังไม่กรอก" (กล่อง PIN) เหมือน `save_withdraw` — JS เดิมไม่ส่งค่านี้
+4. ช่องโหว่อื่นของไฟล์ `same` เหมือนรายงาน jl ด้านล่าง (SQL injection, XSS, CSRF, race) — แก้แล้วฝั่งใหม่
+
+### ให้เจ้าของตัดสินใจ
+
+- การแลกแต้มของ SR ปิดอยู่ ("ยังไม่เปิดบริการให้แลก") — ถ้าจะเปิด ต้องตัดสินใจ: เปิดแบบโค้ดเดิม (ที่ตามมาหลัง exit) + เพิ่ม `withdrawpointing()` ในหน้า — ฝั่ง Laravel ตอนนี้ไม่มีโค้ดแลกแต้ม (ดูโค้ด jl ใน git history ก่อน commit นี้)
+- `admin_point` / `admin_withdrawpoint` มีแค่ role 1 (ไม่มี fallback) — ถ้าต้องการให้ role อื่นดูแต้ม ให้ติ๊กสิทธิ์ใน role ของเว็บเดิม
+- ข้อเสนอ index เดิม (`shop_cashback_detail(shop_cashback_id)`, `balance_point(user, is_delete)`) ยังใช้กับ SR
+
+---
+
+## jl (รายงานเดิม)
+
 branch `mod/points` · worktree `/home/admin/laravel/jl-wt/points` · port 8207
 
 ## Route ที่พอร์ต (URL เดิมทุกตัว)

@@ -1,4 +1,4 @@
-{{-- _point/index.php เดิม (สิทธิ์ point ตรวจที่ middleware legacy.perm) --}}
+{{-- _point/index.php ของ SR (สิทธิ์ point ตรวจที่ middleware legacy.perm) — SR ไม่ส่ง paymentpin และไม่มี withdrawpointing() (callback ของกล่อง PIN) เหมือนเดิม --}}
 @extends('legacy.layout')
 
 @section('content')
@@ -46,24 +46,17 @@ function openpoint_transfer() {
 }
 
 function withdrawpoint() {
-	if($("#wantcash").val() == "") {
-		ErrorBox('กรุณากรอกจำนวน');
-	} else {
-		ConfirmBox(function() {
-			withdrawpointing();
-		});
-	}
-}
-function withdrawpointing() {
-	$.ajax({
-        type: 'POST',
-        async: true,
-        data : 'wantcash=' + $("#wantcash").val() + '&paymentpin=' + $("input[name='paymentpin']").val() ,
-        url: rooturl + '_point/save_withdraw',
-        success: function(data) {
-        	eval(data);
-        }
-    });
+	ConfirmBox(function() {
+		$.ajax({
+	        type: 'POST',
+	        async: true,
+	        data : 'wantcash=' + $("#wantcash").val(),
+	        url: rooturl + '_point/save_withdraw',
+	        success: function(data) {
+	        	eval(data);
+	        }
+	    });
+	});
 }
 </script>
 @endsection
