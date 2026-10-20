@@ -10,7 +10,7 @@ use App\Http\Controllers\Messaging\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| กลุ่ม: messaging — _message, _admin/_message, _notice, _admin/_notice, _linenotify, _admin/_send,
+| กลุ่ม: messaging — _message, _admin/_message, _notice, _admin/_notice, _admin/_send,
 |        notification(s).php, notify_counts.php, notify_token.php, email_header/center/footer.php
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 | รายละเอียด/สิ่งที่ต่างจากเดิม: docs/modules/messaging.md
@@ -74,6 +74,7 @@ Route::post('/_admin/_notice/delete', [AdminNoticeController::class, 'delete'])
 // ---- แอดมิน: รายการรอส่ง (_admin/_send) ----
 Route::middleware('legacy.perm:admin_export')->group(function () {
     Route::get('/admin/send', [AdminSendController::class, 'index'])->defaults('legacy_page', 'admin_send');
+    Route::get('/admin/sendself', [AdminSendController::class, 'sendself'])->defaults('legacy_page', 'admin_sendself'); // SR
     Route::get('/_admin/_send/index_self', [AdminSendController::class, 'indexSelf']);
 });
 
