@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * เปิด session ของเว็บเดิม (PHPSESSID → sessions_v2) ก่อน controller, เขียนกลับ + ต่ออายุ cookie หลัง controller
- * ตั้ง locale ของ Laravel ตาม cookie jlcargo-lang ด้วย
+ * ตั้ง locale ของ Laravel ตาม cookie ภาษา (config legacy.cookies.lang) ด้วย
  */
 class LegacySessionMiddleware
 {

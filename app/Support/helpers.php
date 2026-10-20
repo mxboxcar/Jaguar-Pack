@@ -10,7 +10,7 @@ use App\Support\Legacy\Legacy;
 use App\Support\Legacy\Permissions;
 
 if (! function_exists('res')) {
-    /** = $resource['key'] เดิม (ภาษาตาม cookie jlcargo-lang, ไม่มี key → '') — คืน HTML ดิบ ใช้ {!! res('x') !!} */
+    /** = $resource['key'] เดิม (ภาษาตาม cookie ภาษา (config legacy.cookies.lang), ไม่มี key → '') — คืน HTML ดิบ ใช้ {!! res('x') !!} */
     function res(string $key, ?string $lang = null): string
     {
         return Lang::get($key, $lang);

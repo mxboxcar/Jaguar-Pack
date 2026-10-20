@@ -26,7 +26,6 @@ class RouteSecurityTest extends TestCase
         '_api/get_order_number_v2' => 'token API: รายการเลขออเดอร์ที่ยังไม่มี tracking',
         '_api/get_order_number_v3' => 'token API: รายการเลขออเดอร์ + URL',
         '_api/submit_order_number_v2' => 'token API: crawler ส่งเลข tracking กลับมา',
-        '_api/updateImagePrefix' => 'token API: งาน cron แก้ prefix รูป',
         '_api/unban' => 'token API: cron ปลดแบน IP',
         // กลุ่ม users: หน้าสาธารณะของเว็บเดิม (ยังไม่มีบัญชี / ลืมรหัสผ่าน)
         'register' => 'หน้าสมัครสมาชิก (register.php)',

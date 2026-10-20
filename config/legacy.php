@@ -108,7 +108,6 @@ return [
     // ว่าง = ปิด endpoint (ตอบว่างเหมือนส่ง token ผิด)
     'shop' => [
         'order_api_token' => env('LEGACY_SHOP_ORDER_API_TOKEN'),          // get_order_number_v2/v3, submit_order_number_v2
-        'image_prefix_token' => env('LEGACY_SHOP_IMAGE_PREFIX_TOKEN'),    // updateImagePrefix
         'unban_token' => env('LEGACY_SHOP_UNBAN_TOKEN'),                  // unban
     ],
 

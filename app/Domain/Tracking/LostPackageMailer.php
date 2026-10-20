@@ -64,7 +64,7 @@ final class LostPackageMailer
                 throw new \RuntimeException('no recipient');
             }
             Mail::html($html, function ($m) use ($to, $subject) {
-                $m->to($to)->subject($subject)->from('no-reply@srshippingsystem.com', 'SRShippingSystem');
+                $m->to($to)->subject($subject)->from(config('legacy.mail.from_address'), config('legacy.mail.from_name'));
             });
         } catch (\Throwable $e) {
             // เดิม catch (exception $e) {} เงียบ

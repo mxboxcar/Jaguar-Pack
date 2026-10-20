@@ -17,16 +17,12 @@ use Illuminate\Support\Facades\Mail;
  * - แม่แบบ email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → ข้อความคงที่ด้านล่าง
  *   SR: ใช้เนื้อหาก่อน hotfix 2026-10-18 — บรรทัดกันเปิดตรง `<?php ... ?>` ที่ hotfix ใส่หัวไฟล์จะติดไปในอีเมลด้วย file_get_contents
  * - ผู้ส่ง: SR sendmail() = Mailgun from "SRShippingSystem<no-reply@srshippingsystem.com>"
- *   (ค่าเดียวกับ config('legacy.mail') ที่กลุ่ม users กำลังเพิ่มใน mod/users — ตอน merge ให้ใช้ config ตัวเดียวกัน)
+ *   (อ่านจาก config('legacy.mail') ที่เดียวกับทุกกลุ่ม)
  * - ค่าจาก DB (เหตุผลยกเลิก, หมายเหตุ) escape ก่อนใส่ HTML (เดิมต่อดิบ)
  * - เดิม catch แล้ว `echo $e` (ข้อความ exception ติดไปในคำตอบ ajax ที่หน้าเว็บ eval) → log อย่างเดียว
  */
 final class PaymentMailer
 {
-    public const FROM_ADDRESS = 'no-reply@srshippingsystem.com';
-
-    public const FROM_NAME = 'SRShippingSystem';
-
     private const HEADER = '<div style="font-family: arial,sans-serif;font-size:13px;max-width: 560px">';
 
     private const CENTER = '<div style="text-indent: 30px;">';
@@ -102,7 +98,7 @@ final class PaymentMailer
                 throw new \RuntimeException('no recipient');
             }
             Mail::html($html, function ($m) use ($to, $subject) {
-                $m->to($to)->subject($subject)->from(self::FROM_ADDRESS, self::FROM_NAME);
+                $m->to($to)->subject($subject)->from(config('legacy.mail.from_address'), config('legacy.mail.from_name'));
             });
         } catch (\Throwable $e) {
             // เดิม catch แล้ว echo $e — ไม่ส่งข้อความ error กลับหน้าเว็บ

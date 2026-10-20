@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
  * driver (config legacy.upload.driver):
  *   local (dev บังคับ) = คัดลอกไปที่ legacy.upload.local_dir — ไม่ออกนอกเครื่อง
  *   azure             = Put Blob ขึ้น account legacy.upload.azure.account / container "upload" ชื่อ blob = ชื่อไฟล์เดิม
- *                       (เสิร์ฟต่อที่ legacy.href_blob = https://image.jlcargoth.com/upload/<ชื่อไฟล์>) — App\Support\Legacy\AzureBlob
+ *                       (เสิร์ฟต่อที่ legacy.href_blob = https://image.srshippingsystem.com/upload/<ชื่อไฟล์>) — App\Support\Legacy\AzureBlob
  *
  * ผลแบบเดิม (หน้าเว็บไม่ได้ใช้ค่า แต่คงไว้): "temp empty" / "exists" / "" (อัปสำเร็จ) / "<code>: <message><br />"
  */

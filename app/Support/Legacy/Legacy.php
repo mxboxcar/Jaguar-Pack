@@ -41,7 +41,7 @@ final class Legacy
         return rtrim((string) config('legacy.href_blob'), '/').'/'.ltrim($path, '/');
     }
 
-    /** ภาษาจาก cookie jlcargo-lang (ค่าอื่นนอกจาก th/en/cn → th; เดิม include ไฟล์ตามค่า cookie ตรงๆ = LFI) */
+    /** ภาษาจาก cookie ภาษา (config legacy.cookies.lang) (ค่าอื่นนอกจาก th/en/cn → th; เดิม include ไฟล์ตามค่า cookie ตรงๆ = LFI) */
     public static function lang(): string
     {
         $v = (string) (self::request()?->cookies->get(self::cookie('lang')) ?? '');
