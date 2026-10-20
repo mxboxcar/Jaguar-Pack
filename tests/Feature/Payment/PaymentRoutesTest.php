@@ -8,6 +8,7 @@ use App\Domain\Payment\PinBox;
 use App\Domain\Payment\TempUpload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Tests\TestCase;
 
 /**
@@ -106,7 +107,7 @@ class PaymentRoutesTest extends TestCase
             Route::getRoutes()->match(Request::create($uri, $method));
 
             return 200;
-        } catch (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException) {
+        } catch (NotFoundHttpException) {
             return 404;
         }
     }

@@ -6,8 +6,8 @@ use App\Domain\Money\Money;
 use App\Domain\Payment\PaymentLookups as P;
 use App\Domain\Payment\PaymentTotals;
 use App\Domain\Payment\Php74;
-use App\Domain\Payment\TempUpload;
 use App\Domain\Payment\PinBox;
+use App\Domain\Payment\TempUpload;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Payment\Concerns\ReadsLegacyInput;
 use App\Support\GridQuery;
@@ -17,6 +17,7 @@ use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
 use App\Support\Legacy\LegacyInput;
 use App\Support\Legacy\Lookup;
+use App\Support\Legacy\PointCalc;
 use App\Support\Legacy\Pricing;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
@@ -321,6 +322,8 @@ class PaymentController extends Controller
             if ($data === null || (string) $data->status !== '1') {
                 return;
             }
+            // SR: calPoint($id, '-') ก่อนยกเลิก (เดิมหักแต้มทุกครั้งที่ยกเลิก แม้บิลสถานะ 1 ยังไม่เคยได้แต้ม — คงไว้ ดูรายงาน)
+            PointCalc::calPoint($data->id, '-', 'ยกเลิกรายการชำระเงินค่าขนส่งสินค้า');
             DB::table('bill_payment')->where('id', $data->id)->where('user', $uid)
                 ->update(['status' => '-1', 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid]);
             DB::table('tracking')->where('payment_id', $data->id)->where('user', $uid)->update(['payment_id' => '0']);

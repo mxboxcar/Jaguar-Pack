@@ -151,30 +151,55 @@ class BillGridDbTest extends BenchDbTestCase
         }
     }
 
-    public function test_bill_grids_show_the_same_rows_as_legacy_queries(): void
+    /** grid ของลูกค้า: บิล (id LIKE) ของผู้ใช้ $uid สถานะ $st */
+    private function customerBills(int $uid): \Closure
     {
-        $uid = $this->busiest();
-        $this->actAs(User::query()->findOrFail($uid));
-        $cust = fn (string $s, ?array $st) => DB::table('bill_payment')->where('bill_payment.is_delete', 0)
+        return fn (string $s, ?array $st) => DB::table('bill_payment')->where('bill_payment.is_delete', 0)
             ->where('bill_payment.id', 'like', '%'.$s.'%')->where('bill_payment.user', $uid)
             ->when($st !== null, fn ($q) => $q->whereIn('bill_payment.status', $st));
-        foreach ([['', 1, ['2', '3'], ''], ['', 3, ['2', '3'], '|-2'], ['1', 2, ['3'], '1|3'], ['', 1, ['-1'], '|-1']] as [$s, $p, $st, $txt]) {
-            $this->assertGrid(PaymentController::class, ['page' => (string) $p, 'txtsearch' => $txt === '' ? '|' : $txt], 'payment', $cust($s, $st), $p);
-        }
-        foreach ([['', 1, null, ''], ['', 3, null, '|-2'], ['1', 2, ['3'], '1|3']] as [$s, $p, $st, $txt]) {
-            $this->assertGrid(ExportController::class, ['page' => (string) $p, 'txtsearch' => $txt], 'export', $cust($s, $st), $p);
-        }
+    }
 
+    private function adminOrSkip(): void
+    {
         $admin = User::query()->find(11938);
         if ($admin === null) {
             $this->markTestSkipped('bench ไม่มีแอดมิน 11938');
         }
         $this->actAs($admin);
+    }
+
+    /** กลุ่ม payment: _payment/grid, _admin/_payment/grid */
+    public function test_payment_grids_show_the_same_rows_as_legacy_queries(): void
+    {
+        $uid = $this->busiest();
+        $this->actAs(User::query()->findOrFail($uid));
+        $cust = $this->customerBills($uid);
+        foreach ([['', 1, ['2', '3'], ''], ['', 3, ['2', '3'], '|-2'], ['1', 2, ['3'], '1|3'], ['', 1, ['-1'], '|-1']] as [$s, $p, $st, $txt]) {
+            $this->assertGrid(PaymentController::class, ['page' => (string) $p, 'txtsearch' => $txt === '' ? '|' : $txt], 'payment', $cust($s, $st), $p);
+        }
+
+        $this->adminOrSkip();
         $code = strtolower((string) DB::table('user')->where('id', $uid)->value('code'));
         foreach ([['', null, 1], ['', '-1', 2], [$code, null, 2], ['PAY-1235', null, 1], ['zzqq', null, 1]] as [$s, $st, $p]) {
             $this->assertGrid(AdminPaymentController::class, ['page' => (string) $p, 'txtsearch' => $s.'|'.($st ?? '-2')],
                 'admin/payment', $this->legacyAdminPayment($s, $st), $p);
         }
+    }
+
+    /**
+     * กลุ่ม reports: _export/grid, _admin/_export/grid (view ของ reports อ่าน is_vat ที่ SR ไม่มี → รอ mod/reports พอร์ตก่อน)
+     */
+    public function test_export_grids_show_the_same_rows_as_legacy_queries(): void
+    {
+        $uid = $this->busiest();
+        $this->actAs(User::query()->findOrFail($uid));
+        $cust = $this->customerBills($uid);
+        foreach ([['', 1, null, ''], ['', 3, null, '|-2'], ['1', 2, ['3'], '1|3']] as [$s, $p, $st, $txt]) {
+            $this->assertGrid(ExportController::class, ['page' => (string) $p, 'txtsearch' => $txt], 'export', $cust($s, $st), $p);
+        }
+
+        $this->adminOrSkip();
+        $code = strtolower((string) DB::table('user')->where('id', $uid)->value('code'));
         foreach ([['', null, 1], ['', '3', 3], [$code, null, 2], ['pay-1235', null, 1], ['zzqq', null, 1]] as [$s, $st, $p]) {
             $this->assertGrid(AdminExportController::class, ['page' => (string) $p, 'txtsearch' => $s.'|'.($st ?? '-2')],
                 'admin/export', $this->legacyAdminExport($s, $st), $p);

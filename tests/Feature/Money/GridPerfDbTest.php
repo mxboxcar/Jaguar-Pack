@@ -46,11 +46,16 @@ class GridPerfDbTest extends BenchDbTestCase
     {
         $uid = $this->busiestUser('balance');
         $base = fn () => DB::table('balance')->where('is_delete', 0)->where('user', $uid)->orderByDesc('id');
+        // SR bench เล็กกว่า jl (ลูกค้าที่มีรายการมากสุด ~350 แถว) → หน้าลึก = กลางประวัติ (ไม่เกิน offset 500 แบบเดิม)
+        $deep = min(500, intdiv($base()->count(), 2));
+        // ประเภทที่มีน้อยที่สุด (≥ 2 แถว) = แถวในหน้าห่างกัน (เดิม type 12 ซึ่ง SR bench ไม่มี)
+        $type = DB::table('balance')->where('is_delete', 0)->where('user', $uid)->groupBy('type')->havingRaw('COUNT(*) >= 2')
+            ->orderByRaw('COUNT(*)')->value('type');
         $pages = [
             'หน้า 1' => $base()->limit(10)->get(['id', 'amount']),
-            'หน้าลึก' => $base()->offset(500)->limit(10)->get(['id', 'amount']),
+            'หน้าลึก' => $base()->offset($deep)->limit(10)->get(['id', 'amount']),
             // แถวในหน้าห่างกัน (กรองประเภท) = มีแถวอื่นคั่นระหว่างแถวในหน้า
-            'กรองประเภท' => $base()->where('type', 12)->limit(10)->get(['id', 'amount']),
+            'กรองประเภท' => $base()->where('type', $type)->limit(10)->get(['id', 'amount']),
             'แถวเดียว' => $base()->limit(1)->get(['id', 'amount']),
         ];
         foreach ($pages as $name => $items) {

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Payment;
 
 use App\Domain\Money\Money;
 use App\Domain\Payment\PaymentLookups as P;
-use App\Domain\Payment\PinBox;
 use App\Domain\Payment\Php74;
+use App\Domain\Payment\PinBox;
 use App\Domain\Payment\TempUpload;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Payment\Concerns\ReadsLegacyInput;

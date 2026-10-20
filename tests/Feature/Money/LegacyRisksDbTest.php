@@ -21,10 +21,10 @@ class LegacyRisksDbTest extends BenchDbTestCase
 
     private const ADMIN = 11938;
 
-    /** shipping_type ในฐาน bench: 6 = ไม่มีค่าส่ง, 106 = J&T (storage 10 + shipping 100) */
-    private const SHIP_FREE = 6;
+    /** shipping_type ใน admin_sr_bench: 43 = รับสินค้าเองที่โกดัง (ไม่มีค่าส่ง), 14 = นิวมงเซ้ง (storage 50 + shipping 100) */
+    private const SHIP_FREE = 43;
 
-    private const SHIP_110 = 106;
+    private const SHIP_150 = 14;
 
     private function cust(): User
     {
@@ -76,11 +76,11 @@ class LegacyRisksDbTest extends BenchDbTestCase
         $this->credit($cust, 50 - $this->cash($cust));
         $this->assertSame(50.0, $this->cash($cust));
 
-        $out = $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost($billId, self::SHIP_110));
+        $out = $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost($billId, self::SHIP_150));
 
         $this->assertStringContainsString('SuccessBox(', $out);
-        $this->assertSame(-610.0, $this->deduction($billId));
-        $this->assertSame(-60.0, $this->cash($cust));
+        $this->assertSame(-650.0, $this->deduction($billId));
+        $this->assertSame(-100.0, $this->cash($cust));
     }
 
     public function test_sender_change_to_more_expensive_allowed_when_balance_covers(): void
@@ -88,28 +88,28 @@ class LegacyRisksDbTest extends BenchDbTestCase
         $cust = $this->cust();
         $this->admin();
         $billId = $this->paidBill($cust, self::SHIP_FREE, 500);
-        $this->credit($cust, 110 - $this->cash($cust)); // พอดี
+        $this->credit($cust, 150 - $this->cash($cust)); // พอดี
 
-        $out = $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost($billId, self::SHIP_110));
+        $out = $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost($billId, self::SHIP_150));
 
         $this->assertStringContainsString('SuccessBox(', $out);
-        $this->assertSame(-610.0, $this->deduction($billId));
+        $this->assertSame(-650.0, $this->deduction($billId));
         $this->assertSame(0.0, $this->cash($cust));
-        $this->assertSame((string) self::SHIP_110, (string) DB::table('bill_payment')->where('id', $billId)->value('shipping_type'));
+        $this->assertSame((string) self::SHIP_150, (string) DB::table('bill_payment')->where('id', $billId)->value('shipping_type'));
     }
 
     public function test_sender_change_to_cheaper_refunds_difference_even_with_zero_balance(): void
     {
         $cust = $this->cust();
         $this->admin();
-        $billId = $this->paidBill($cust, self::SHIP_110, 610);
+        $billId = $this->paidBill($cust, self::SHIP_150, 650);
         $this->credit($cust, 0 - $this->cash($cust));
 
         $out = $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost($billId, self::SHIP_FREE));
 
         $this->assertStringContainsString('SuccessBox(', $out);
         $this->assertSame(-500.0, $this->deduction($billId));
-        $this->assertSame(110.0, $this->cash($cust), 'ถูกลง = คืนส่วนต่าง');
+        $this->assertSame(150.0, $this->cash($cust), 'ถูกลง = คืนส่วนต่าง');
     }
 
     // ---- 2. shop_cashback: ยอด <= 0 / รูปแบบผิด ----
