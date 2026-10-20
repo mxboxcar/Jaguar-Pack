@@ -14,6 +14,7 @@ use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
 use App\Support\Legacy\Lookup;
+use App\Support\Legacy\PointCalc;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -169,7 +170,9 @@ class ExportController extends Controller
                     'type' => 3, 'prefix' => (string) $pid, 'prefix_ref_id' => $data->id,
                 ]);
             }
-            // calPoint() เดิมเป็นฟังก์ชันว่าง
+            // SR: calPoint($id, '-') หักแต้ม (เดิมเรียกทุกครั้งที่ยกเลิก — คงไว้ ดูคำถามเจ้าของใน docs/modules/reports.md)
+            // ใน transaction เดียวกันหลัง lock แถวบิล → กดซ้ำ = บิลเป็น -1 แล้ว ไม่หักซ้ำ
+            PointCalc::calPoint($data->id, '-', 'ยกเลิกรายการชำระเงินค่าขนส่งสินค้า');
             DB::table('bill_payment')->where('id', $data->id)->where('user', $uid)->update([
                 'status' => '-1', 'cancel_remark' => $remark.' ,ยกเลิกโดย '.$code, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
             ]);
