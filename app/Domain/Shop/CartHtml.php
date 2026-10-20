@@ -69,7 +69,7 @@ final class CartHtml
                     $html .= '<div style="margin:0px 5px;float:left">';
                     if (str_contains($color, '//')) {
                         $html .= 'สี : <a class="fancybox" href="'.$e($color).'">
-                                <img src="'.$e($color).'" style="width:20px;height:20px;border:1px #ccc solid" /> <span>'.$e(explode('?r=', $color)[1] ?? '').'</span>
+                                <img src="'.$e($color).'" style="width:20px;height:20px;border:1px #ccc solid" />
                             </a>';
                     } elseif ($color !== '') {
                         $html .= 'สี : '.$e($color);
@@ -112,7 +112,7 @@ final class CartHtml
                             <span class="input-group-addon" onclick="switchpricedown_in($(this), '.$e($item->id).');" style="cursor:pointer;padding: 6px 6px;">
                                 <i class="fa  fa-minus"></i>
                             </span>
-                            <input style="font-weight: normal;text-align:center;height: 28px;" type="text" onblur="switchpriceupdate_in($(this), '.$e($item->id).')" name="search_amount" class="form-control" value="'.$e($item->amount).'">
+                            <input style="font-weight: normal;text-align:center;height: 28px;" type="text"  name="search_amount" class="form-control" value="'.$e($item->amount).'">
                             <span class="input-group-addon" onclick="switchpriceup_in($(this), '.$e($item->id).');" style="cursor:pointer;padding: 6px 6px;">
                                 <i class="fa  fa-plus"></i>
                             </span>
@@ -164,6 +164,7 @@ final class CartHtml
 			<th class="text-center">'.$r('detail').'</th>
 			<th class="text-center">'.$r('wood_protect').'</th>
 			<th class="text-center">'.$r('qc').'</th>
+			<th class="text-center">ถ่ายรูป</th>
 			<th class="text-center" style="width: 80px;">'.$r('amount').'</th>
 			<th class="text-center">'.$r('by_piece').$r('cn_currency').'</th>
 			<th class="text-center">'.$r('total').$r('cn_currency').'</th>
@@ -204,7 +205,7 @@ final class CartHtml
 
                 if (str_contains($size, '//')) {
                     $second .= '<a class="fancybox" href="'.$e($size).'">
-                                    <img src="'.$e($size).'" style="margin-top: -5px;border:1px solid #a0a0a0;max-width: 13px;max-height: 13px;"> <span>'.$e(explode('?r=', $color)[1] ?? '').'</span>
+                                    <img src="'.$e($size).'" style="margin-top: -5px;border:1px solid #a0a0a0;max-width: 13px;max-height: 13px;">
                                 </a>';
                 } elseif ($size !== '') {
                     $haveSize = true;
@@ -213,7 +214,7 @@ final class CartHtml
 
                 if (str_contains($color, '//')) {
                     $second .= '<a class="fancybox" href="'.$e($color).'">
-                                    <img src="'.$e($color).'" style="margin-top: -5px;border:1px solid #a0a0a0;max-width: 13px;max-height: 13px;"> <span>'.$e(explode('?r=', $color)[1] ?? '').'</span>
+                                    <img src="'.$e($color).'" style="margin-top: -5px;border:1px solid #a0a0a0;max-width: 13px;max-height: 13px;">
                                 </a>';
                 } elseif (str_contains($color, '#') && strlen($color) === 7) {
                     if ($haveSize) {
@@ -267,6 +268,10 @@ final class CartHtml
                     $html .= (int) $item->is_qc === 1
                         ? '<td style="padding-top: 18px;" rowspan="'.$e($item->count).'" class="ver_top text-center"><input type="checkbox" checked class="js-switch" onchange="SaveCartQc($(this), '.$e($item->id).')" value="0" data-color="#f05050" data-size="small"/></td>'
                         : '<td style="padding-top: 18px;" rowspan="'.$e($item->count).'" class="ver_top text-center"><input type="checkbox"  class="js-switch" value="1" onchange="SaveCartQc($(this), '.$e($item->id).')" data-color="#f05050" data-size="small"/></td>';
+                    // SR: บริการถ่ายรูปสินค้า (cart_detail.is_takeapic — _cart/save_takeapic)
+                    $html .= (int) ($item->is_takeapic ?? 0) === 1
+                        ? '<td style="padding-top: 18px;" rowspan="'.$e($item->count).'" class="ver_top text-center"><input type="checkbox" checked class="js-switch" onchange="SaveCartTakeapic($(this), '.$e($item->id).')" value="0" data-color="#f05050" data-size="small"/></td>'
+                        : '<td style="padding-top: 18px;" rowspan="'.$e($item->count).'" class="ver_top text-center"><input type="checkbox"  class="js-switch" value="1" onchange="SaveCartTakeapic($(this), '.$e($item->id).')" data-color="#f05050" data-size="small"/></td>';
                 }
                 $html .= '<td class="text-right"><input type="text" class="form-control text-right" onblur="SaveCartAmount($(this),'.$e($item->id).')" value="'.$e($item->amount).'" /></td>';
                 $html .= '<td class="text-right">'.Format::numberformat($item->price, true, true, true).'</td>';

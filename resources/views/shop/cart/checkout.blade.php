@@ -1,4 +1,4 @@
-{{-- _cart/checkout.php เดิม (page=checkout) --}}
+{{-- _cart/checkout.php เดิม (page=checkout) ของ SR --}}
 @use('App\Support\Legacy\Alerts')
 @extends('legacy.layout')
 
@@ -60,8 +60,12 @@
     <h4 class="m-t-0 header-title"><b><span class="text-danger">{!! res('remark') !!}</span></b></h4>
     <p class="text-muted font-13 m-b-30">
     </p>
-        <div class="text-center">
-            
+        <div class="text-left">
+           <!--  1.  โปรดตรวจสอบราคาสินค้าในเว็บจีนทุกครั้งก่อนทำการสั่งซื้อ<br/><br/>
+2.  ฝ่ายสั่งซื้อจะทำการตรวจสอบออเดอร์ให้ท่านภายใน 24 ชม. แต่ไม่เกิน 72 ชม.นับจากวันที่ท่านส่งใบสั่งซื้อมา<br/><br/>
+3.  กรุณาชำระเงินภายใน 3 วัน นับจากวันที่เปิดใบสั่งซื้อ หากท่านยกเลิก หรือไม่ชำระเงินในเวลาที่กำหนด บริษัทขอสงวนสิทธิ์ไม่คืนค่าธรรมเนียมในการสั่งซื้อ<br/><br/>
+4.  โปรดตรวจสอบความถูกต้องของใบสั่งซื้อทุกครั้งก่อนชำระเงินค่าสินค้า หากท่านชำระเงินค่าสินค้าแล้ว จะไม่สามารถแก้ไขรายการใดๆในใบสั่งซื้อได้อีก<br/><br/>
+5.  เมื่อท่านชำระเงินค่าสินค้า ระบบจะคืนยอดค่าธรรมเนียมให้ท่าน -->
         </div>
     </div>
 </div>
@@ -90,7 +94,7 @@
                     <h3 class="panel-title">คำเตือน</h3> 
                 </div> 
                 <div class="panel-body"> 
-                    มีค่าใช้จ่าย ติดต่อสอบถามราคาเงื่อนไขได้ที่ ไลน์ jlcargo
+                    มีค่าใช้จ่าย ติดต่อสอบถามราคาเงื่อนไขได้ที่ ไลน์ @
                 </div> 
                 <div class="panel-footer text-right">
                     <button type="button" class="btn btn-default waves-effect" type="button" onclick="$('.modal').modal('hide');">{!! res('close') !!}</button>
@@ -141,6 +145,20 @@ function SaveCartQc(ele, id) {
         async: true,
         data : 'id=' + id + '&value=' + ele.val(),
         url: rooturl + '_cart/save_qc',
+        success: function(data) {
+            LoadFullCart();
+        }
+    });
+}
+function SaveCartTakeapic(ele, id) {
+    if(ele.val() == 1) {
+        $(".remark").modal('show');
+    }
+    $.ajax({
+        type: 'POST',
+        async: true,
+        data : 'id=' + id + '&value=' + ele.val(),
+        url: rooturl + '_cart/save_takeapic',
         success: function(data) {
             LoadFullCart();
         }

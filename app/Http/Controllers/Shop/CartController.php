@@ -50,12 +50,6 @@ class CartController extends ShopController
         ]);
     }
 
-    /** _cart/cart.php — ชิ้นส่วน HTML (เดิมเปิดตรงได้โดยไม่ต้องล็อกอิน; ไม่มีหน้าไหนเรียกแล้ว) */
-    public function cartFragment(): Response
-    {
-        return $this->out(view('shop.cart.cart')->render());
-    }
-
     // ---------------------------------------------------------------- ajax
 
     /** _cart/load_cart — ตะกร้าด้านข้าง (ทุกหน้า) */
@@ -106,6 +100,14 @@ class CartController extends ShopController
         // เดิม str_replace("'", "''") ซ้ำบนค่าที่ถูกแปลง ' → '' แล้ว → ค่าที่ลง DB = ค่าในตัวแปร PHP เดิม (postPhp)
         $f = fn (string $k) => $this->postPhp($request, $k);
         $uploadFile = $f('upload_file');
+        // SR: if ($url != "") { INSERT cart_detail } — ลิงก์ว่าง = ไม่เพิ่มรายการ (แต่ยังสร้างตะกร้า/ตั้ง cookie/ตอบสำเร็จแบบเดิม)
+        $hasUrl = $f('search_url') !== '';
+
+        if (! $hasUrl) {
+            $cart = DB::transaction(fn () => CartRepo::findOrCreate($uid));
+
+            return $this->savedProductResponse($request, $cart, $uploadFile);
+        }
 
         // เดิมไม่ตรวจ: จำนวน/ราคาติดลบลงตะกร้าได้ แล้วไปเป็นยอดบิลติดลบตอน checkout
         if (! self::positiveInt($f('search_amount')) || Php74::num($f('search_price')) < 0) {
@@ -114,7 +116,7 @@ class CartController extends ShopController
 
         // แก้จากเดิม (เจ้าของอนุมัติ 2026-10-18 "ให้แอดมินแก้ไขก็พอ"): ลูกค้ากำหนดราคาเองไม่ได้
         // ราคา = ราคาที่ crawler ให้ตอนโหลดสินค้า (_api/load_product) — ราคาที่ส่งมาใช้ได้เฉพาะเมื่อตรงกับราคาของ SKU/ช่วงจำนวน
-        // ผู้ถือ admin_mall (แอดมินร้านค้า) ใส่ราคาเองได้แบบเดิม
+        // ผู้ถือ admin_mall (แอดมินร้านค้า) ใส่ราคาเองได้แบบเดิม — SR: ไม่มี role ใดถือ admin_mall (คำถามเจ้าของ ดู docs/modules/shop.md)
         $price = $f('search_price');
         if (! perm('admin_mall')) {
             $price = CrawlPrices::resolve($uid, $this->post($request, 'search_url'), $price);
@@ -137,6 +139,11 @@ class CartController extends ShopController
             return $cart;
         });
 
+        return $this->savedProductResponse($request, $cart, $uploadFile);
+    }
+
+    private function savedProductResponse(Request $request, object $cart, string $uploadFile): Response
+    {
         // setcookie(cookiename_cart, $cart_id, time() + 604800, cookie_path) — เดิมไม่ใช่ httponly
         Cookie::queue(Cookie::make(config('legacy.cookies.cart'), (string) $cart->random, 10080,
             config('legacy.cookie_path', '/'), null, false, false, true, 'lax'));
@@ -198,6 +205,12 @@ class CartController extends ShopController
         return $this->updateField($request, 'is_qc');
     }
 
+    /** _cart/save_takeapic (SR) — บริการถ่ายรูปสินค้า: UPDATE cart_detail SET is_takeapic WHERE id AND user = me */
+    public function saveTakeapic(Request $request): Response
+    {
+        return $this->updateField($request, 'is_takeapic');
+    }
+
     private function updateField(Request $request, string $column): Response
     {
         DB::table('cart_detail')
@@ -249,7 +262,9 @@ class CartController extends ShopController
                 'attachment' => '', 'submit_date' => null, 'status' => '0', 'quote' => $quote, 'ship' => $ship,
             ]);
 
-            if ($details !== []) {
+            // SR: if ($item['url'] != "") — รายการที่ไม่มีลิงก์ไม่ลง bill_product_detail (แต่ยังนับในยอด total แบบเดิม)
+            $withUrl = array_values(array_filter($details, fn ($it) => (string) $it->url !== ''));
+            if ($withUrl !== []) {
                 DB::table('bill_product_detail')->insert(array_map(fn ($it) => $audit + [
                     'bill_product_id' => $billId, 'url' => $it->url, 'product_name' => $it->product_name,
                     'shop_name' => $it->shop_name, 'main_image' => $it->main_image, 'price' => $it->price,
@@ -257,12 +272,12 @@ class CartController extends ShopController
                     'upload_file' => $it->upload_file, 'size' => $it->size, 'user' => (string) $uid,
                     'is_craft' => $it->is_craft, 'is_qc' => $it->is_qc,
                     'th_price' => Php74::str((Php74::num($it->price) * Php74::num($it->amount)) * Php74::num($rate)),
-                    'exchange_rate' => $rate, 'amount_before' => $it->amount,
-                ], $details));
+                    'exchange_rate' => $rate, 'amount_before' => $it->amount, 'is_takeapic' => (int) $it->is_takeapic,
+                ], $withUrl));
             }
 
             // 1 tracking ต่อร้าน — GROUP BY shop_name แบบเดิม (sql_mode ว่าง: MySQL เลือกแถวแรกของกลุ่ม)
-            $groups = DB::select('SELECT bill_product_detail.id, shop_name, is_craft, is_qc, bill_product.ship FROM `bill_product_detail`
+            $groups = DB::select('SELECT bill_product_detail.id, shop_name, is_craft, is_qc, is_takeapic, bill_product.ship FROM `bill_product_detail`
                 LEFT JOIN bill_product ON bill_product.id = bill_product_detail.bill_product_id
                 WHERE `bill_product_id` = ? GROUP BY `shop_name`', [$billId]);
             foreach ($groups as $g) {
@@ -271,6 +286,7 @@ class CartController extends ShopController
                     'rate_cubic' => '', 'product_type_id' => '', 'lot_id' => '0', 'user' => (string) $uid,
                     'weight' => '0.0', 'width' => '0.0', 'height' => '0.0', 'long' => '0.0', 'amount' => '1',
                     'ship' => $ship, 'payment_id' => '0', 'is_craft' => $g->is_craft, 'is_qc' => $g->is_qc, 'quote' => $quote,
+                    'is_takeapic' => (int) $g->is_takeapic,
                 ]);
                 // เดิม bill_product_id = id ของ "cart" (ตัวแปร $data ยังเป็นแถว cart) — คงค่าเดิมไว้ ดู docs/modules/shop.md
                 DB::table('bill_product_on_tracking')->insert($audit + [

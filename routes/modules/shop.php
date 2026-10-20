@@ -3,16 +3,18 @@
 use App\Http\Controllers\Shop\Admin\MallStockController;
 use App\Http\Controllers\Shop\ApiController;
 use App\Http\Controllers\Shop\CartController;
+use App\Http\Controllers\Shop\FindProductController;
 use App\Http\Controllers\Shop\TaobaoController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| กลุ่ม: shop — _cart, _taobao, _api, _admin/_mallstock (SR ไม่มีร้านค้า _mall/_admin/_mall/_mall_category — ตารางไม่มีใน admin_sr)
+| กลุ่ม: shop — _cart, _taobao, _api, _findproduct (SR เท่านั้น), _admin/_mallstock
+| (SR ไม่มีร้านค้า _mall/_admin/_mall/_mall_category — ตารางไม่มีใน admin_sr; _admin/_mallstock ของ SR = สำเนา _admin/_balance)
+| ไฟล์ที่มีแต่ใน jl ไม่ทำ route: _cart/cart, _cart/product_2, _taobao/delete, _api/updateImagePrefix (SR ไม่มีไฟล์ = 404 → หน้าแรก)
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 | รายละเอียด/สิ่งที่ต่างจากเดิม: docs/modules/shop.md
 |
-| สิทธิ์: ใช้ชื่อโมดูลเดียวกับที่ไฟล์เดิมเรียก getPermission(...) (บางไฟล์เดิมใช้ชื่อแปลก เช่น _mall/grid → refill,
-| _admin/_mall/delete → admin_product_type, _admin/_mall_category/form → admin_user_type — คงไว้ตามเดิม)
+| สิทธิ์: ใช้ชื่อโมดูลเดียวกับที่ไฟล์เดิมเรียก getPermission(...) (เช่น _admin/_mallstock/* → admin_balance — คงไว้ตามเดิม)
 | ไฟล์ที่เดิมตรวจสิทธิ์แล้ว "ไม่ตอบอะไร" (exit เงียบ) หรือตอบ <script> ใน ajax: ตรวจใน controller ด้วย legacy.auth
 */
 
@@ -33,14 +35,13 @@ Route::middleware('legacy.perm:order')->group(function () {
         Route::post('/_cart/save_amount', [CartController::class, 'saveAmount']);
         Route::post('/_cart/save_craft', [CartController::class, 'saveCraft']);
         Route::post('/_cart/save_qc', [CartController::class, 'saveQc']);
+        Route::post('/_cart/save_takeapic', [CartController::class, 'saveTakeapic']); // SR: บริการถ่ายรูปสินค้า
         Route::post('/_cart/save_checkout', [CartController::class, 'saveCheckout'])->middleware('legacy.once');
     });
 });
 Route::middleware('legacy.auth')->group(function () {
     // เดิมไม่มีสิทธิ์ = getPermissionAlert_Page (<script>) ในผล ajax
     Route::post('/_cart/load_choose_product', [CartController::class, 'loadChooseProduct'])->middleware('legacy.ajax');
-    // ชิ้นส่วน HTML ที่เปิดตรงได้ (เดิมไม่ต้องล็อกอิน — ไม่มีหน้าไหนใช้แล้ว)
-    Route::match(['get', 'post'], '/_cart/cart', [CartController::class, 'cartFragment']);
 });
 
 // ================================================================ ฝากจ่าย Taobao (_taobao) — getPermission('taobao')
@@ -59,19 +60,31 @@ Route::middleware('legacy.perm:taobao')->group(function () {
         Route::post('/_taobao/save', [TaobaoController::class, 'save'])->middleware('legacy.once');
     });
 });
-// _taobao/delete.php เดิม fatal ทุกครั้ง (require path ผิด) — คงผลเดิม 500 (ต้องล็อกอิน)
-Route::post('/_taobao/delete', [TaobaoController::class, 'delete'])->middleware('legacy.auth');
 
-// ================================================================ แอดมิน: สต๊อกร้านค้า (_admin/_mallstock) — admin_mall_stock
-Route::middleware('legacy.perm:admin_mall_stock')->group(function () {
-    Route::get('/admin/mall_stock', [MallStockController::class, 'index'])->defaults('legacy_page', 'admin_mall_stock');
-    Route::post('/_admin/_mallstock/grid', [MallStockController::class, 'grid'])->middleware('legacy.ajax');
+// ================================================================ จัดหาสินค้า (_findproduct, SR เท่านั้น) — getPermission('findproduct')
+// สิทธิ์ findproduct ไม่มีใน role_detail ของ SR → ไม่มีใครใช้ได้ (เว็บเดิมก็เป็น) — ไม่มี fallback (ถามเจ้าของ)
+// admin/findproduct* ชี้ไฟล์ _admin/_findproduct/* ที่ไม่มีใน SR → dead (ไม่ทำ route)
+Route::middleware('legacy.auth')->group(function () {
+    // index ตรวจสิทธิ์ใน view (เดิมแสดงหัวหน้าแล้วค่อยเด้ง), grid ไม่มีสิทธิ์ = ตอบว่าง
+    Route::get('/findproduct', [FindProductController::class, 'index'])->defaults('legacy_page', 'findproduct');
+    Route::post('/_findproduct/grid', [FindProductController::class, 'grid'])->middleware('legacy.ajax');
 });
-// load_amount / save_amount เดิมเป็นสำเนาของ _admin/_balance (สิทธิ์ admin_balance, เขียนแถว balance ใดก็ได้)
-// แก้จากเดิม (เจ้าของอนุมัติ 2026-10-18): สิทธิ์ admin_mall_stock และแตะเฉพาะตาราง mall_stock (ดู MallStockController)
-Route::middleware(['legacy.perm:admin_mall_stock', 'legacy.ajax'])->group(function () {
+Route::middleware('legacy.perm:findproduct')->group(function () {
+    Route::get('/findproduct/create', [FindProductController::class, 'form'])->defaults('legacy_page', 'findproduct_detail');
+    Route::get('/findproduct/{id}', [FindProductController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'findproduct_detail');
+    // save.php / delete.php เดิม require '../../system_check_ajax.php' (path ผิด) → fatal 500 ทุกครั้ง — คงผลเดิม ไม่แตะข้อมูล
+    Route::post('/_findproduct/save', [FindProductController::class, 'broken'])->middleware('legacy.ajax');
+    Route::post('/_findproduct/delete', [FindProductController::class, 'broken'])->middleware('legacy.ajax');
+});
+
+// ================================================================ แอดมิน: _admin/_mallstock (SR) — getPermission('admin_balance')
+// SR ไม่มีร้านค้า: ทั้งโฟลเดอร์เป็นสำเนาของ _admin/_balance (grid รุ่นเก่า, load_amount/save_amount เหมือนทุกตัวอักษร)
+// หน้า admin/mall_stock ไม่มีใน content.php ของ SR → dead (ไม่ทำ route) — endpoint เปิดตรงด้วย POST ได้แบบเดิม
+// load/save ทำงานผ่าน AdminBalanceController (กฎ/การแก้เรื่องเงินชุดเดียวกับ _admin/_balance — ดู MallStockController)
+Route::post('/_admin/_mallstock/grid', [MallStockController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
+Route::middleware(['legacy.perm:admin_balance', 'legacy.ajax'])->group(function () {
     Route::post('/_admin/_mallstock/load_amount', [MallStockController::class, 'loadAmount']);
-    Route::post('/_admin/_mallstock/save_amount', [MallStockController::class, 'saveAmount']);
+    Route::post('/_admin/_mallstock/save_amount', [MallStockController::class, 'saveAmount'])->middleware('legacy.once');
 });
 
 // ================================================================ _api
@@ -82,7 +95,7 @@ Route::middleware('legacy.perm:order')->group(function () {
     Route::post('/_api/load_product_v2', [ApiController::class, 'loadProductV2']);
 });
 Route::middleware('legacy.auth')->group(function () {
-    // เดิมไม่ตรวจล็อกอิน (ใครก็สั่งอัปไฟล์ใน upload/temp ขึ้นที่เก็บถาวรได้)
+    // SR เดิม checkUser() (ต้องล็อกอิน)
     Route::post('/_api/blockblob_ajax', [ApiController::class, 'blockblobAjax']);
     // ไฟล์ไลบรารี / ไฟล์ที่เดิม fatal เสมอ — เปิดตรงได้แต่ไม่มีผล
     Route::match(['get', 'post'], '/_api/blockblob', [ApiController::class, 'library']);
@@ -97,5 +110,4 @@ Route::middleware('legacy.auth')->group(function () {
 Route::get('/_api/get_order_number_v2', [ApiController::class, 'getOrderNumberV2']);
 Route::get('/_api/get_order_number_v3', [ApiController::class, 'getOrderNumberV3']);
 Route::get('/_api/submit_order_number_v2', [ApiController::class, 'submitOrderNumberV2']);
-Route::match(['get', 'post'], '/_api/updateImagePrefix', [ApiController::class, 'updateImagePrefix']);
 Route::match(['get', 'post'], '/_api/unban', [ApiController::class, 'unban']);

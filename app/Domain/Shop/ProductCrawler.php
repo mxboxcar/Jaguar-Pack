@@ -45,7 +45,8 @@ final class ProductCrawler
                 'Accept-Language' => 'en-us,en;q=0.5',
                 'Accept-Encoding' => 'gzip,deflate',
             ])->withUserAgent(UserAgent::random())
-                ->connectTimeout(10)->timeout(25)->withoutVerifying()
+                ->connectTimeout(120)->timeout(120) // SR: CURLOPT_CONNECTTIMEOUT/TIMEOUT 120 (jl 10/25)
+                ->withoutVerifying()
                 ->withOptions(['allow_redirects' => ['max' => 10, 'referer' => true]])
                 ->send('POST', $full);
             $code = $res->status();
@@ -84,7 +85,8 @@ final class ProductCrawler
             'color_type' => 'radio',
             'color' => ['แดง', 'ดำ'],
             'size' => ['M', 'L'],
-            'skus' => '',
+            // SR _cart/product.php เรียก sku[0].quantity โดยไม่ตรวจ (jl มี if (sku != '')) → STUB ต้องมี sku ตัวแรก
+            'skus' => [['quantity' => '100', 'price' => ['priceText' => '10.00']]],
             'priceRange' => [],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
