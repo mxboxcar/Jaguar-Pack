@@ -1,5 +1,90 @@
 # กลุ่ม warehouse — รายงานการพอร์ต
 
+## SR (2026-10-20)
+
+branch `mod/warehouse` · worktree `/home/admin/laravel/sr-wt/warehouse` · dev port 8309 · เทียบกับ :8111 (`/home/admin/bench/sr-old`, DB `admin_sr_bench`)
+
+### ไฟล์ตาม docs/sr-diff.md
+
+| ไฟล์เดิม | สถานะ | ผล |
+|---|---|---|
+| `_admin/_warehouse/save_lot_detail.php` | diff 357 | **ทำแล้ว** — `App\Domain\Warehouse\ShelfAllocator` (ดูด้านล่าง) |
+| `_admin/_goodsconfirm/save.php` | diff 3 | **ทำแล้ว** — tracking ต้องเป็นของผู้ใช้ code `nobody` (SR `define('nobody','nobody')`; jl ใช้ `nocode` ที่ไม่ได้ define) |
+| `_goodsconfirm/grid.php` | diff 12 | **ทำแล้ว** — แสดงเฉพาะ status 0 เสมอ, ไม่กรอง user, ไม่ตัดแถวที่ไม่มี tracking; ตัวกรองสถานะอื่น (ไม่ใช่ -2/ว่าง) = AND status = x → ไม่มีข้อมูล |
+| `_goodsconfirm/form.php` | diff 5 | **คงของ jl** — SR ตัดการตรวจ "status != 0 และไม่ใช่ของตัวเอง → ไม่มีสิทธิ์" ออก (= IDOR) → ใหม่ยังปฏิเสธ (ต่างจากเดิมโดยตั้งใจ) |
+| `_admin/_goodsconfirm/form.php` (same) | same | **แก้** — `getuploadmultiple()` ของ SR (อยู่ใน system_status_function.php) markup ต่างจาก jl → `App\Domain\Warehouse\UploadBox::multiple()` ใช้ markup ของ SR (สำเนาเดียวกับ `App\Domain\Tracking\UploadBox::multiple()` ของกลุ่ม tracking) ต่างแค่ไม่มี `target="_blank"` |
+| ไฟล์ `same` อื่นทั้งหมด (34) | same | ไม่ต้องแก้ — เทียบผลกับ :8111 แล้วตรงกัน |
+| `_admin/_section` | — | โฟลเดอร์ว่าง (เหมือน jl) |
+
+ไม่มีไฟล์ SR-only / JL-only ในกลุ่มนี้ · `_admin/_warehouse_section/delete.php` ของ SR ได้ hotfix 2026-10-18 (intval id) — ใหม่ bind ค่าอยู่แล้ว
+
+### save_lot_detail ของ SR (จัดชั้นวางอัตโนมัติ)
+
+- **ลูกค้าชั้นตายตัว** (`ShelfAllocator::FIXED_SECTIONS`, user id → section id ฝังในโค้ดเดิม 30 กว่ารายการ เช่น 4→33, 1/2/2110/2392/2371→56, 3621→59) INSERT ชั้นนั้นทันทีโดยไม่สนพื้นที่ แล้วไม่เข้าการจัดอัตโนมัติ (แถวที่ comment ไว้ในไฟล์เดิมไม่ใส่)
+- getCountCode นับ "รหัส" เป็นคู่ `user, user_agent` (`GROUP BY user, user_agent`; NULL เป็นกลุ่มของตัวเอง) — jl นับ user
+- ไม่มีกติกา "ชั้นลงท้าย 4 ไม่รับของ ≥ 15 kg" ของ jl (เหลือเฉพาะลงท้าย 3) และไม่ echo ตัวท้ายชื่อชั้นระหว่างวน
+- แถวที่จัดชั้น 1 / อัตโนมัติ ใส่ `warehouse_section_detail.user_agent` (คอลัมน์ SR) = `tracking.user_agent` ซึ่งไม่มีใน tracking → `''` → 0; แถว nobody/ชั้นตายตัวไม่ใส่ → default 0 (ผลเท่ากัน)
+- คงการแก้ของ jl ทั้งหมด: bind `prints`, ข้าม tracking ที่จัดชั้นแล้ว (กดซ้ำไม่ซ้ำ), ล้าง warehouse_detail ของใบนี้ (ไม่ใช่ `WHERE id = <ใบรับเข้า>`), transaction, `legacy.once:lock`, โหลดพื้นที่/รหัสครั้งเดียว
+- **แก้ (ต่างจากเดิมโดยตั้งใจ)**: เดิม SR ต่อผล query ที่ 2 (`user IN (753, 619, …)` = `REPEAT_USERS`) ท้ายรายการ tracking ทั้งหมดโดยไม่ล้างก่อน
+  → tracking ของลูกค้าที่อยู่ทั้งใน REPEAT_USERS และ FIXED_SECTIONS ถูก INSERT ชั้นวาง **2 แถว** (ตารางผลลัพธ์แสดงแถวนั้นซ้ำ, ยอดรวม hid_sum_* นับซ้ำ, พื้นที่ชั้นนับซ้ำ)
+  → ใหม่ INSERT แถวเดียวต่อ tracking; รายการ "จัดแล้ว" ใน print_r (`<pre>`) ยังซ้ำเหมือนเดิม
+- ตรวจ 1:1 ด้วยการรันโค้ดเดิมของ SR (`sed -n '14,$p'` ของไฟล์ + helper เดิม) ด้วย php7.4 CLI ใน transaction เดียวที่ ROLLBACK เสมอ
+  เทียบกับ `ShelfAllocator` (php8.4, fixture เดียวกัน, rollback) — 2 ชุด: (ก) ชั้น 6 ชั้น + ชั้นแรกมี 10 รหัส user เดียวคนละ user_agent (ใช้พื้นที่เกินครึ่ง),
+  ลูกค้า 3/5/7/9/10/11/0/NULL, ชั้นตายตัว 4/1/2/1362, ของ ≥0.7 cbm, ≥50 kg, ≥15 kg; (ข) + ผู้ใช้ code nobody และ 2 ล็อต
+  → แถว warehouse_section_detail (section, user, tracking, warehouse, user_agent, ขนาด, create_by) และ warehouse_detail **ตรงกันทุกแถว** เมื่อตัดแถวซ้ำของเดิม (เดิม 15/16 แถว = ใหม่ 12/13 + ซ้ำ 3);
+  HTML ต่างเฉพาะแถวซ้ำ/ยอดรวม (ข้อบน) และ `<pre>` ต่างเฉพาะ tracking ที่จัดชั้นแล้ว (การแก้ของ jl)
+
+### ผลเทียบกับเว็บเดิม (:8111 vs :8309, cookie เดียวกัน)
+
+ข้อมูล bench ของ SR ไม่มี goodsconfirm / warehouse / warehouse_section เลย → ใส่แถว zz ชั่วคราว (lot 99001–2, tracking 990001–23, goodsconfirm 99001–15 ทุกสถานะ + แถวไม่มี tracking + remark ที่มี `<b>&"'`, goodsconfirm_detail, warehouse 12, warehouse_section 12, warehouse_section_detail 12 แถว) แล้วลบตาม id หลังทดสอบ (checksum ทุกตารางกลับเท่าเดิม)
+
+- แอดมิน zz_fdn_admin 11938: `/admin/goodsconfirm` (+ status 0/1/2), create, form 6 id, grid ทุกสถานะ/ค้นหา/หน้า 2, load_tracking_by_id, load_tracking, load_upload;
+  `/admin/warehouse`, form 2 id + create, grid (หน้า 1/2/ค้นหา/ตัวกรองประเภท), load_lot_detail, load_lot_detail_thai, load_tracking, load_tracking_edit, load_editshelf;
+  `/admin/warehouse_section` + form + create + grid (หน้า 1/2/ค้นหา), `/admin/warehouse_section_move` + grid (หน้า 1/2/ค้นหา) — **ตรงกันทุกตัว** (ต่างแค่ target=_blank ที่เอาออก และ escape ค่า `<"'`)
+- ลูกค้า 3 / 5 (role 8), 11 (role 7): `/goodsconfirm`, grid ทุกสถานะ/ค้นหา/หน้า 2, form ของรายการ status 0 และของตัวเอง, load_tracking_by_id — ตรงกัน
+  ต่างโดยตั้งใจ: form/load_tracking_by_id ของรายการที่คนอื่นยึดแล้ว (ใหม่ = ไม่มีสิทธิ์ / ไม่แสดงข้อมูล tracking)
+- ปฏิเสธสิทธิ์: user 6 (role 12: มี admin_goodsconfirm ไม่มี admin_warehouse/section), 11, 3 — ทุกหน้า/grid/ajax ตรงกัน ยกเว้นหน้าเดิมพิมพ์หัวหน้าก่อน alert (เดิมจาก jl)
+- `/admin/goodsconfirm/status/-1` ไม่ตรง RewriteRule (`[0-9]+`) → 404 → หน้าแรก (เว็บจริงก็เข้าไม่ได้)
+
+### E2E (Laravel เท่านั้น, แถว zz, ลบตาม id แล้ว)
+
+- `save_lot_detail` (GET + X-Requested-With) ใบรับเข้า zz: ดับเบิลคลิกพร้อมกัน 2 คำขอ → คำขอที่ 2 ได้ ErrorBox "กำลังดำเนินการ", ชั้นตายตัว 4→33, 2→56, user NULL→ชั้น 2, user_agent = 0 ทุกแถว, ไม่มีแถวซ้ำ;
+  กดซ้ำ = ไม่เพิ่มแถวชั้นวาง, warehouse_detail เดิมถูกปิดแล้วเพิ่มชุดใหม่ 1 แถว · `save_cancel_warehouse_calculate` → ปิดแถวชั้นวาง 11 แถว + warehouse_detail ของใบนี้
+- ลูกค้า `save_approved` (ส่งซ้ำ 2 ครั้ง): status 1, user = ผู้ยึด, approved_upload, approved_remark '' (ครั้งที่ 2 ไม่เปลี่ยนอะไร — เดิมก็ตอบสำเร็จ), ลูกค้าอื่นยึดซ้ำ = ErrorBox สิทธิ์
+- แอดมิน `_admin/_goodsconfirm/save` กับ tracking ของผู้ใช้ทั่วไป = ErrorBox "ยังไม่มีรหัสพัสดุ" (bench ไม่มีผู้ใช้ nobody); ทางสำเร็จทดสอบใน DB test (สร้างผู้ใช้ nobody ใน transaction)
+- test: `tests/Feature/Warehouse/WarehouseSrDbTest.php` (JL_BENCH_DB_TESTS=1): ชั้นตายตัว INSERT ครั้งเดียว + print_r เดิม, นับรหัสตาม user_agent + ไม่มีกติกาลงท้าย 4, goodsconfirm save ใช้ nobody (nocode ไม่ได้), grid ลูกค้าแสดงเฉพาะ status 0
+
+### Bench (`bin/bench -n 20`, artisan optimize, 2 รอบ)
+
+| หน้า | เดิม mean ms | ใหม่ mean ms |
+|---|---|---|
+| `/admin/goodsconfirm` (แอดมิน) | 340–354 | 35–39 |
+| `/_admin/_goodsconfirm/grid` | 61–83 | 31–35 |
+| `/admin/warehouse/{id}` | 374–550 | 39–48 |
+| `/_admin/_warehouse/grid` | 76–83 | 33–34 |
+| `/_admin/_warehouse/load_lot_detail` (2 ล็อต 23 แถว) | 23–24 | 27–28 |
+| `/_goodsconfirm/grid` (ลูกค้า 3) | 45–46 | 31–34 |
+
+load_lot_detail ช้ากว่าเดิมเล็กน้อย = overhead คงที่ของ Laravel (~20–30 ms) กับ ajax ที่เดิมเร็วมาก (query เดียว)
+
+### ช่องโหว่ในโค้ดเดิมของ SR ที่เจอเพิ่ม (อ่านโค้ด — ไม่ได้ยิงใส่เว็บเดิม)
+
+- `_goodsconfirm/form.php`: ลูกค้าคนใดก็ดูรายการที่คนอื่นยึดแล้วได้ (รวมไฟล์แนบหลักฐาน `approved_upload`) ด้วยการเดา id — ใหม่ปฏิเสธเหมือน jl
+- `save_lot_detail.php`: แถวชั้นวางซ้ำสำหรับลูกค้าชั้นตายตัว (ข้อมูลผิด ไม่ใช่ความปลอดภัย) — แก้แล้ว; ที่เหลือเหมือน jl (SQL injection ใน `prints`/`id`, เขียนผ่าน GET)
+
+### คำถามถึงเจ้าของ
+
+- รายการลูกค้าชั้นตายตัว (FIXED_SECTIONS) และ REPEAT_USERS ฝังในโค้ดเหมือนเดิม — ถ้าต้องการให้แอดมินแก้เองได้ ต้องมีตาราง/ตั้งค่าใหม่ (ไม่ได้ทำ: ห้ามแก้ schema)
+- ยืนยันการแก้แถวชั้นวางซ้ำของลูกค้าชั้นตายตัว (เดิม 2 แถวต่อ tracking) — ถ้าต้องการให้ซ้ำเหมือนเดิมจริง (เช่น มีรายงานที่พึ่งจำนวนแถว) แจ้งได้
+- ยืนยันการคงการตรวจสิทธิ์ของ jl ใน `_goodsconfirm/form` (SR เดิมเปิดให้ดูรายการของคนอื่น)
+- bench SR ไม่มีผู้ใช้ code `nobody` → `_admin/_goodsconfirm/save` และ autocomplete ใช้ไม่ได้บน bench (ต้องมีใน production) — ตรวจว่า production มีผู้ใช้นี้
+
+### ผลรวม test
+
+`php8.4 vendor/bin/phpunit` ผ่าน (313 tests, 108 skipped) · `JL_BENCH_DB_TESTS=1 php8.4 vendor/bin/phpunit` ผ่าน (313 tests, 2 skipped)
+
+---
+
 branch `mod/warehouse` · worktree `/home/admin/laravel/jl-wt/warehouse` · dev port 8209
 
 โมดูลเดิม: `_goodsconfirm`, `_admin/_goodsconfirm`, `_admin/_warehouse`, `_admin/_warehouse_section`, `_admin/_warehouse_section_move`
