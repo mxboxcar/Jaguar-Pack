@@ -15,8 +15,7 @@ use Illuminate\Support\Facades\Route;
 | สิทธิ์ = getPermission() ของไฟล์เดิม
 |   grid / load_withdraw / save_withdraw ตรวจสิทธิ์ใน controller เพราะเดิม exit() เงียบๆ (ไม่ใช่ ErrorBox)
 |   ajax อื่นเดิมตอบ getPermissionAlert() = สิ่งที่ legacy.perm ตอบให้อยู่แล้ว
-| admin_point / admin_withdrawpoint ไม่มี role ใดได้รับใน DB (เว็บเดิมเข้าไม่ได้แม้แอดมิน)
-|   Laravel: ได้จาก fallback ← admin_shop_cashback / admin_exchange (config legacy.permission_fallbacks, CONVENTIONS 3.1)
+| SR: admin_point / admin_withdrawpoint มีเฉพาะ role 1 ใน role_on_detail — ใช้ตามที่ DB ถือ (ไม่มี fallback ใน SR)
 */
 
 // ---------- ลูกค้า: แต้ม ----------
@@ -63,9 +62,9 @@ Route::middleware('legacy.perm:admin_shop_cashback')->group(function () {
     Route::get('/admin/shop_cashback/status/{status}', [AdminShopCashbackController::class, 'index'])->whereNumber('status')->defaults('legacy_page', 'admin_shop_cashback');
     Route::get('/admin/shop_cashback/create', [AdminShopCashbackController::class, 'form'])->defaults('legacy_page', 'admin_shop_cashback_detail');
     Route::get('/admin/shop_cashback/{id}', [AdminShopCashbackController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_shop_cashback_detail');
-    // email_*.php เดิมเรียกตรงได้โดยไม่ล็อกอิน — ใหม่ต้องมีสิทธิ์ (ไม่บังคับ X-Requested-With เพราะเดิมไม่มี system_check_ajax)
-    Route::post('/_admin/_shop_cashback/email_approved', [AdminShopCashbackController::class, 'emailApproved']);
-    Route::post('/_admin/_shop_cashback/email_cancel', [AdminShopCashbackController::class, 'emailCancel']);
+    // email_*.php = include ของ save_approved/save_cancel — SR hotfix 2026-10-18: เปิดตรงจาก URL = 403 ว่าง (ก่อน hotfix เรียกได้โดยไม่ล็อกอิน)
+    Route::match(['GET', 'POST'], '/_admin/_shop_cashback/email_approved', [AdminShopCashbackController::class, 'emailDirect']);
+    Route::match(['GET', 'POST'], '/_admin/_shop_cashback/email_cancel', [AdminShopCashbackController::class, 'emailDirect']);
 });
 Route::post('/_admin/_shop_cashback/grid', [AdminShopCashbackController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 Route::middleware(['legacy.ajax', 'legacy.perm:admin_shop_cashback'])->group(function () {
