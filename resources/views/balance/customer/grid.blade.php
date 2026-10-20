@@ -1,4 +1,4 @@
-{{-- _balance/grid.php เดิม --}}
+{{-- _balance/grid.php ของ SR --}}
 @php use App\Support\Legacy\Format; use App\Support\Legacy\Paging; use App\Support\Legacy\Alerts; use App\Domain\Balance\Ledger; @endphp
 
 <div class="row">
@@ -46,6 +46,10 @@
 <a class="fancybox" href="{{ legacy_blob($item->w_upload) }}">
                                             <img src="{{ legacy_blob($item->w_upload) }}" style="border:1px solid #a0a0a0;max-width: 26px;max-height: 26px;margin-right: 10px;">
                                         </a>
+@endif
+@if((string) $item->type === '12' && $item->w_status !== null && (int) $item->w_status === -1)
+{{-- SR: รายการถอนที่ถูกยกเลิก แสดงเหตุผล (ส่วนก่อน ",ยกเลิกโดย") --}}
+ ({{ explode(',ยกเลิกโดย', (string) $item->w_cancel_remark)[0] }})
 @endif
                                 </td>
                             <td class="text-right">
