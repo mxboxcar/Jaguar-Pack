@@ -7,6 +7,7 @@ use App\Domain\MoneyMove\Mailer;
 use App\Domain\Money\Money;
 use App\Domain\MoneyMove\Php74;
 use App\Domain\MoneyMove\TempUpload;
+use App\Domain\MoneyMove\TransferRefund;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\MoneyMove\Concerns\ReadsLegacyInput;
 use App\Support\Legacy\Alerts;
@@ -20,7 +21,8 @@ use Illuminate\View\View;
 
 /**
  * โอนเงินไปจีน (แอดมิน): _admin/_transfer/*.php เดิม — สิทธิ์ admin_transfer
- * form.php เดิมตรวจ getPermission('transfer') (สิทธิ์ลูกค้า) → ลูกค้าทุกคนเปิด /admin/transfer/<id> ดูรายการของคนอื่นได้; ที่นี่ต้องมีทั้ง transfer และ admin_transfer
+ * form.php ของ jl ตรวจ getPermission('transfer') (สิทธิ์ลูกค้า = IDOR) — SR แก้ในไฟล์เดิมแล้วเป็น admin_transfer (ใช้ตามนั้น)
+ * SR: bill_transfer.usecash_cn (เงินหยวนที่ใช้) — ยกเลิกคืนทั้งบาทและหยวน, RollBack ตัดคืนทั้งสองกระเป๋า
  */
 class AdminTransferController extends Controller
 {
@@ -44,7 +46,7 @@ class AdminTransferController extends Controller
         $data = DB::table('bill_transfer')->leftJoin('user', 'bill_transfer.user', '=', 'user.id')
             ->where('bill_transfer.id', $id)->where('bill_transfer.is_delete', 0)
             ->first(['bill_transfer.*', 'user.code']);
-        $balances = Lookups::balances([Lookups::prefixId('transfer')], $id, false);
+        $balances = Lookups::balancesWithCn(Lookups::prefixId('transfer'), $id);
 
         return view('money-move.admin.transfer.form', [
             'id' => $id,
@@ -89,8 +91,9 @@ class AdminTransferController extends Controller
 
     /**
      * POST /_admin/_transfer/save — บันทึกหลักฐาน + status 2 + อีเมล
-     * เดิมไม่ตรวจ status: บันทึกรายการที่ยกเลิก (คืนเงินแล้ว) เป็น 2 ได้ → ลูกค้าได้ทั้งเงินคืนและการโอน
-     * ใหม่ (เจ้าของสั่งแก้): ล็อกแถวใน transaction; status 1 → 2, status 2 = บันทึกหลักฐานซ้ำ (ไม่แตะเงิน), อื่นๆ (-1/ไม่พบ) ปฏิเสธ
+     * jl เดิมไม่ตรวจ status: บันทึกรายการที่ยกเลิก (คืนเงินแล้ว) เป็น 2 ได้ → ลูกค้าได้ทั้งเงินคืนและการโอน
+     * SR แก้ในไฟล์เดิมแล้ว: เฉพาะ status 1 อื่นๆ (รวมไม่พบ) ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();')
+     * ที่นี่: แบบ SR + ล็อกแถวใน transaction (กันชนกับ cancel/rollback ที่มาพร้อมกัน)
      */
     public function save(Request $request): Response
     {
@@ -102,11 +105,8 @@ class AdminTransferController extends Controller
         }
         $result = DB::transaction(function () use ($uid, $id, $file, $request) {
             $data = DB::table('bill_transfer')->where('id', $id)->lockForUpdate()->first();
-            if ($data === null) {
-                return 'missing';
-            }
-            if (! Money::statusIn($data->status, [Money::PENDING, Money::DONE])) {
-                return 'cancelled';
+            if ($data === null || ! Php74::eq($data->status, 1)) {
+                return null;
             }
             DB::table('bill_transfer')->where('id', $data->id)->update([
                 'approved_remark' => $this->in($request, 'approved_remark'), 'approved_upload' => $file, 'status' => '2',
@@ -115,11 +115,8 @@ class AdminTransferController extends Controller
 
             return $data->id;
         });
-        if ($result === 'missing') {
-            return response(Money::refuse('ไม่พบรายการ'));
-        }
-        if ($result === 'cancelled') {
-            return response(Money::refuse('รายการนี้ถูกยกเลิกและคืนเงินแล้ว ไม่สามารถบันทึกการโอนได้ (ต้อง RollBack ก่อน)'));
+        if ($result === null) {
+            return response("ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();'); ");
         }
         $out = TempUpload::jsIfExists($file);
         Mailer::transferSuccess($result);
@@ -127,7 +124,11 @@ class AdminTransferController extends Controller
         return response($out.Alerts::success('window.location.href = "'.Legacy::href('admin/transfer').'";', Lang::get('success_process_no').Lookups::prefix('transfer').Alerts::js(e($id))));
     }
 
-    /** POST /_admin/_transfer/cancel — status 1 เท่านั้น: ยกเลิก + คืนเงิน usecash + อีเมล */
+    /**
+     * POST /_admin/_transfer/cancel — status 1 เท่านั้น: ยกเลิก + คืนเงิน + อีเมล
+     * SR: คืนทั้งบาท (usecash → balance) และหยวน (usecash_cn → balance_cn) ให้เจ้าของรายการ — เดิมเขียนทั้งสองแถวเสมอ (ยอด 0 ก็เขียน)
+     * jl port: คืนเท่าที่รายการถูกตัดอยู่จริง ไม่เกินยอดของรายการ (ยอด 0/คืนแล้ว = ไม่เขียนแถว)
+     */
     public function cancel(Request $request): Response
     {
         $u = Legacy::user();
@@ -142,15 +143,7 @@ class AdminTransferController extends Controller
                 'status' => '-1', 'cancel_remark' => $this->in($request, 'cancel_remark').' ,ยกเลิกโดย '.$u->code,
                 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id,
             ]);
-            // คืนเท่าที่รายการถูกตัดไว้จริง (ไม่เกิน usecash) — กันคืนเงินรายการที่ไม่เคยถูกตัด/คืนไปแล้ว
-            $refund = Money::refundable((float) $data->usecash, Money::net('balance', Lookups::prefixId('transfer'), $data->id));
-            if ($refund > 0) {
-                DB::table('balance')->insert([
-                    'create_date' => DB::raw('NOW()'), 'create_by' => $u->id, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id, 'is_delete' => 0,
-                    'user' => $data->user, 'amount' => Money::fmt($refund), 'detail' => 'ยกเลิกรายการ '.Lookups::prefix('transfer').$data->id, 'type' => 5,
-                    'prefix' => (string) (Lookups::prefixId('transfer') ?? ''), 'prefix_ref_id' => $data->id,
-                ]);
-            }
+            TransferRefund::refund($data, $u->id, $data->user);
 
             return $data->id;
         });
@@ -165,10 +158,10 @@ class AdminTransferController extends Controller
     /**
      * POST /_admin/_transfer/rollback — กลับเป็น status 1
      *  status 2 : ล้างหลักฐาน/หมายเหตุ (ไม่แตะเงิน — ลูกค้ายังถูกตัดเงินอยู่)
-     *  status -1: ตัดเงินคืนให้ยอดสุทธิของรายการกลับเป็น -usecash แล้วล้างหมายเหตุ
-     * เดิม: หักเงินจากแถวตัดเงินแรก (detail = TRF-<id>) ทั้ง balance และ balance_cn โดยไม่ตรวจยอดคงเหลือ
-     *       (การยกเลิกคืนเงินเข้า balance เท่านั้น → แถว balance_cn ถ้ามีจะเป็นการหักซ้ำ) และไม่ล็อกแถว (กดซ้ำ = หักซ้ำ)
-     * ใหม่ (เจ้าของสั่งแก้): ล็อกแถวรายการ + user; หักเท่าที่ยอดสุทธิขาด (ไม่หักซ้ำ), ยอดคงเหลือไม่พอ = ปฏิเสธ, ไม่แตะ balance_cn
+     *  status -1: ตัดเงินคืนให้ยอดสุทธิของรายการกลับเป็น -usecash (บาท) และ -usecash_cn (หยวน) แล้วล้างหมายเหตุ
+     * เดิม: หักเงินจากแถวตัดเงินแรก (detail = TRF-<id>) ทั้ง balance และ balance_cn โดยไม่ตรวจยอดคงเหลือ และไม่ล็อกแถว (กดซ้ำ = หักซ้ำ)
+     *       (SR: การยกเลิกคืนทั้งสองกระเป๋า → การหัก balance_cn ถูกต้องตามหลัก; jl คืนแค่ balance)
+     * ใหม่ (เจ้าของสั่งแก้): ล็อกแถวรายการ + user; หักเท่าที่ยอดสุทธิขาดต่อกระเป๋า (ไม่หักซ้ำ), ยอดคงเหลือกระเป๋าใดไม่พอ = ปฏิเสธทั้งรายการ
      */
     public function rollback(Request $request): Response
     {
@@ -184,15 +177,22 @@ class AdminTransferController extends Controller
             $reset = ['status' => '1', 'cancel_remark' => '', 'approved_remark' => '', 'approved_upload' => '', 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid];
             if (Money::statusIn($data->status, [Money::CANCELLED])) {
                 Money::lockUser($data->user);
-                // ยอดที่ต้องถูกตัดไว้สำหรับรายการรอโอน = usecash; ตัดเฉพาะส่วนที่ขาด (สุทธิ -usecash แล้ว = ไม่ตัดอีก)
-                $due = round((float) $data->usecash + Money::net('balance', $pid, $data->id), 2);
-                if ($due > 0) {
-                    if (Money::cash($data->user) < $due) {
-                        return 'ยอดเงินคงเหลือของลูกค้าไม่พอสำหรับ RollBack (ต้องการ '.Money::fmt($due).')';
+                // ยอดที่ต้องถูกตัดไว้สำหรับรายการรอโอน = usecash / usecash_cn; ตัดเฉพาะส่วนที่ขาด (สุทธิครบแล้ว = ไม่ตัดอีก)
+                $due = [];
+                foreach (['balance' => $data->usecash, 'balance_cn' => $data->usecash_cn ?? null] as $table => $amount) {
+                    $d = round((float) $amount + Money::net($table, $pid, $data->id), 2);
+                    if ($d <= 0) {
+                        continue;
                     }
-                    DB::table('balance')->insert([
+                    if (Money::cash($data->user, $table) < $d) {
+                        return ($table === 'balance' ? 'ยอดเงินคงเหลือของลูกค้าไม่พอ' : 'ยอดเงินหยวนคงเหลือของลูกค้าไม่พอ').'สำหรับ RollBack (ต้องการ '.Money::fmt($d).')';
+                    }
+                    $due[$table] = $d;
+                }
+                foreach ($due as $table => $d) {
+                    DB::table($table)->insert([
                         'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
-                        'user' => $data->user, 'amount' => '-'.Money::fmt($due), 'detail' => 'Rollback '.$no.$data->id, 'type' => 5,
+                        'user' => $data->user, 'amount' => '-'.Money::fmt($d), 'detail' => 'Rollback '.$no.$data->id, 'type' => 5,
                         'prefix' => (string) ($pid ?? ''), 'prefix_ref_id' => $data->id,
                     ]);
                 }

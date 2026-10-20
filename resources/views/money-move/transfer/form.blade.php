@@ -31,8 +31,7 @@
 </div>
 @else
 <div class="col-sm-7">
-	{{-- เดิมใช้ getPrefix('alipay') ในหัวเรื่อง (คงไว้) --}}
-	<h4 class="page-title">{!! res('transfer_edit') !!} <small>{{ Lookups::prefix('alipay') }}{{ $d['id'] ?? '' }}</small></h4>
+	<h4 class="page-title">{!! res('transfer_edit') !!} <small>{{ $tp }}{{ $d['id'] ?? '' }}</small></h4>
 	<ol class="breadcrumb">
 		<li>
 			<a href="{{ legacy_href() }}dashboard">{!! res('dashboard') !!}</a>

@@ -6,6 +6,8 @@ use App\Domain\MoneyMove\Lookups;
 use App\Domain\Money\Money;
 use App\Domain\MoneyMove\Php74;
 use App\Domain\MoneyMove\TempUpload;
+use App\Domain\MoneyMove\TransferRefund;
+use App\Domain\Payment\PinBox;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\MoneyMove\Concerns\ReadsLegacyInput;
 use App\Support\Legacy\Alerts;
@@ -44,7 +46,7 @@ class TransferController extends Controller
         $balances = collect();
         // เดิม query balance ด้วย prefix_ref_id อย่างเดียว (ไม่ตรวจเจ้าของ) → /transfer/<id ของคนอื่น> เห็นรายการเงินของคนอื่น — ที่นี่แสดงเฉพาะเมื่อเป็นของตัวเอง
         if ($id !== 0 && $data !== null) {
-            $balances = Lookups::balances([Lookups::prefixId('transfer')], $id, false);
+            $balances = Lookups::balancesWithCn(Lookups::prefixId('transfer'), $id);
         }
 
         return view('money-move.transfer.form', [
@@ -88,51 +90,77 @@ class TransferController extends Controller
     }
 
     /**
-     * POST /_transfer/save — สร้างรายการ + ตัดเงิน (usecash = total × rate_transfer)
-     * เดิม: เช็คยอดเงินแล้ว INSERT แยกกัน ไม่มี transaction (กดซ้ำเร็วๆ ใช้เงินเกินยอดได้) → ที่นี่ lock แถว user ใน transaction
+     * POST /_transfer/save — สร้างรายการ + ตัดเงิน
+     * SR ต่างจาก jl (แบบเดียวกับ _alipay/save ของ SR): ถาม PIN จ่ายเงิน (PinBox::guard), ใช้เงินหยวนในระบบ (balance_cn) ก่อน
+     * ส่วนที่ขาด × rate_transfer ตัดจากเงินบาท — เก็บ bill_transfer.usecash (บาท) + usecash_cn (หยวน), เขียน balance/balance_cn เฉพาะยอดที่ไม่เป็น 0
+     * เดิม: เช็คยอดเงินแล้ว INSERT แยกกัน ไม่มี transaction (กดซ้ำเร็วๆ ใช้เงินเกินยอดได้) → ที่นี่ lock แถว user ใน transaction แล้วอ่านยอดทั้งสองกระเป๋าภายใน lock
      */
     public function save(Request $request): Response
     {
+        // เดิม: ตรวจ PIN ก่อนดู id (มี id = ผ่าน PIN แล้วไม่ทำอะไร ไม่ตอบอะไร)
+        if (($pin = PinBox::guard($request, Legacy::user())) !== null) {
+            return response($pin);
+        }
+        if (! Php74::eq($this->has($request, 'id') ? $this->in($request, 'id') : null, '')) {
+            return response('');
+        }
         $total = str_replace('-', '', $this->in($request, 'total'));
         // เดิม str_replace(',', '') → "1,00" = 100 — รับ , เฉพาะตัวคั่นหลักพัน
-        if (Money::ambiguousComma($total)) {
+        // SR: ยอดที่ไม่ใช่ตัวเลข (เดิม "abc" >= ยอดหยวน เทียบแบบ string → ตัดหยวนทั้งหมดแต่ไม่ได้รายการที่มีค่า) → ปฏิเสธเหมือนยอดกำกวม
+        if (Money::ambiguousComma($total) || ! preg_match('/^[0-9]*\.?[0-9]*$/', str_replace(',', '', trim($total)))) {
             return response(Alerts::error('CloseLoading()', Money::BAD_AMOUNT));
         }
         $total = str_replace(',', '', $total);
         $rate = Lookup::getSetting('rate_transfer');
-        $usecash = Php74::num($total) * Php74::num($rate);
-        $cash = Php74::str($usecash);
-        if (! Php74::eq($this->has($request, 'id') ? $this->in($request, 'id') : null, '')) {
-            return response('');
-        }
         $uid = Legacy::userId();
         $file = $this->in($request, 'upload_file');
         if ($file !== '' && ! TempUpload::safeName($file)) {
             $file = '';
         }
 
-        $id = DB::transaction(function () use ($uid, $request, $total, $rate, $cash, $usecash, $file) {
-            DB::table('user')->where('id', $uid)->lockForUpdate()->value('id');
-            if ((float) Lookup::getCurrentCash() < $usecash) {
+        $id = DB::transaction(function () use ($uid, $request, $total, $rate, $file) {
+            Money::lockUser($uid);
+            $cashCn = Lookup::getCurrentCashCN();
+            // เดิม: total >= ยอดหยวน → ใช้หยวนทั้งหมด ที่เหลือ × เรท ตัดบาท; ไม่งั้นใช้หยวนเท่ายอด (ไม่ตัดบาท)
+            // ยอดหยวนติดลบ: เดิม use_balance ติดลบ → แถว balance_cn '--x' (MySQL เก็บ 0) แต่ส่วนบาทถูกบวกเพิ่ม = ลูกค้าเสียเงิน → ถือว่ามีหยวน 0
+            $cn = max(0, Php74::num($cashCn));
+            if (Php74::num($total) >= $cn) {
+                $useCash = Php74::num($total) - $cn;
+                $useBalance = $cn === 0 ? '0' : (string) $cashCn;
+            } else {
+                $useCash = 0;
+                $useBalance = $total;
+            }
+            $useCash = $useCash * Php74::num($rate);
+            // เดิม: (string) use_cash != (string) getCurrentCash() แล้ว use_cash > getCurrentCash() → ไม่พอ (เท่ากันพอดี = ผ่าน)
+            if (Php74::gt($useCash, Lookup::getCurrentCash())) {
                 return null;
             }
+            $cash = Php74::str($useCash);
             $id = DB::table('bill_transfer')->insertGetId([
                 'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
                 'acc_name' => $this->in($request, 'acc_name'), 'acc_no' => $this->in($request, 'acc_no'),
                 'acc_bank' => $this->in($request, 'acc_bank'), 'acc_branch' => $this->in($request, 'acc_branch'),
                 'attachment' => $file, 'total' => $total, 'rate' => (string) ($rate ?? ''), 'usecash' => $cash,
                 'remark' => $this->in($request, 'remark'), 'status' => 1, 'cancel_remark' => '', 'user' => $uid,
+                'usecash_cn' => (string) $useBalance,
             ]);
-            DB::table('balance')->insert([
+            $base = [
                 'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
-                'user' => $uid, 'amount' => '-'.$cash, 'detail' => Lookups::prefix('transfer').$id, 'type' => 5,
+                'user' => $uid, 'detail' => Lookups::prefix('transfer').$id, 'type' => 5,
                 'prefix' => (string) (Lookups::prefixId('transfer') ?? ''), 'prefix_ref_id' => $id,
-            ]);
+            ];
+            if (Php74::num($useCash) != 0) {
+                DB::table('balance')->insert($base + ['amount' => '-'.$cash]);
+            }
+            if (Php74::num($useBalance) != 0) {
+                DB::table('balance_cn')->insert($base + ['amount' => '-'.$useBalance]);
+            }
 
             return $id;
         });
         if ($id === null) {
-            return response(Alerts::error('CloseLoading();', Lang::get('no_remain_cash')));
+            return response(Alerts::error('CloseLoading()', Lang::get('no_remain_cash')));
         }
 
         return response(TempUpload::jsIfExists($file, '	                ')
@@ -140,9 +168,10 @@ class TransferController extends Controller
     }
 
     /**
-     * POST /_transfer/cancel — ยกเลิกรายการของตัวเอง + คืนเงิน usecash
-     * เดิม: UPDATE กรอง user แต่ INSERT คืนเงินไม่กรอง และเช็คแค่ status != -1 → ส่ง id ของคนอื่น/รายการที่โอนแล้ว
-     * ได้เงิน usecash เข้าบัญชีตัวเองซ้ำได้ไม่จำกัด — ที่นี่คืนเงินเฉพาะรายการของตัวเองที่ status = 1 (ปุ่มยกเลิกเดิมแสดงเฉพาะ status 1)
+     * POST /_transfer/cancel — ยกเลิกรายการของตัวเอง + คืนเงิน (บาท usecash → balance, หยวน usecash_cn → balance_cn)
+     * เดิม (ก่อน hotfix 2026-10-18): UPDATE กรอง user แต่ INSERT คืนเงินไม่กรอง และเช็คแค่ status != -1 → ส่ง id ของคนอื่น/รายการที่โอนแล้ว
+     * ได้เงินเข้าบัญชีตัวเองซ้ำได้ไม่จำกัด — hotfix ของ SR: เฉพาะรายการของตัวเองที่ status = 1 คืนครั้งเดียว (= ที่นี่)
+     * jl port: คืนเท่าที่รายการถูกตัดอยู่จริง (ไม่เกินยอดของรายการ) แยกต่อกระเป๋า — ยอด 0 ไม่เขียนแถว (เหมือน SR)
      */
     public function cancel(Request $request): Response
     {
@@ -157,15 +186,7 @@ class TransferController extends Controller
             DB::table('bill_transfer')->where('id', $row->id)->where('user', $u->id)->update([
                 'status' => '-1', 'cancel_remark' => 'ยกเลิกโดย '.$u->code, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id,
             ]);
-            // คืนเท่าที่รายการถูกตัดไว้จริง (ไม่เกิน usecash)
-            $refund = Money::refundable((float) $row->usecash, Money::net('balance', Lookups::prefixId('transfer'), $row->id));
-            if ($refund > 0) {
-                DB::table('balance')->insert([
-                    'create_date' => DB::raw('NOW()'), 'create_by' => $u->id, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id, 'is_delete' => 0,
-                    'user' => $u->id, 'amount' => Money::fmt($refund), 'detail' => 'ยกเลิกรายการ '.Lookups::prefix('transfer').$row->id, 'type' => 5,
-                    'prefix' => (string) (Lookups::prefixId('transfer') ?? ''), 'prefix_ref_id' => $row->id,
-                ]);
-            }
+            TransferRefund::refund($row, $u->id, $u->id);
         });
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('transfer').'";'));
