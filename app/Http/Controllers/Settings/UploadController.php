@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Settings;
 
 use App\Domain\Settings\ImageShrink;
 use App\Http\Controllers\Controller;
+use App\Support\Legacy\BlobStore;
 use App\Support\Legacy\Format;
+use App\Support\Legacy\Legacy;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
@@ -83,6 +85,66 @@ class UploadController extends Controller
         }
 
         return $this->text($name.'[NIDA]'.$orig);
+    }
+
+    /** system_ckupload: ชนิดรูปจาก getimagesize() → นามสกุลที่บันทึก */
+    private const CK_TYPES = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_GIF => 'gif'];
+
+    /**
+     * POST /system_ckupload — SR: ปุ่ม "อัปโหลด" รูปใน CKEditor (config.filebrowserUploadUrl, ไฟล์ช่อง upload, GET CKEditorFuncNum)
+     *
+     * ตรวจแบบเดิม: jpg/jpeg/png/gif ตามนามสกุล, 1 byte – 10 MB, เนื้อไฟล์ต้องเป็นรูป JPEG/PNG/GIF (getimagesize),
+     * ชื่อใหม่ = <time>_<สุ่ม 16 ตัว>.<นามสกุลตามชนิดจริง> · ตอบ <script> ให้ CKEditor (URL / ข้อความ error เดิม)
+     *
+     * ต่างจากเดิม (ตั้งใจ): เดิม move ลง webroot upload/ แล้วเสิร์ฟที่ portal/upload/<ชื่อ>
+     *   → ใหม่เก็บที่ temp_dir แล้วส่งผ่าน BlobStore (dev = local_dir, production = Azure) เสิร์ฟที่ href_blob/<ชื่อ> แบบไฟล์อัปโหลดอื่น
+     *   ไม่ล็อกอิน = legacy.auth (เดิมตอบ "No permission." ใน script)
+     */
+    public function ckupload(Request $request): Response
+    {
+        $url = '';
+        $message = '';
+        $file = $request->file('upload');
+        if (! $file instanceof UploadedFile || $file->getClientOriginalName() === '' || $file->getError() !== UPLOAD_ERR_OK) {
+            $message = 'No file.';
+        } elseif ($file->getSize() <= 0 || $file->getSize() > 10485760) {
+            $message = 'Bad size.';
+        } elseif (! $file->isValid()) {
+            $message = 'Invalid.';
+        } elseif (! in_array(strtolower(pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'gif'], true)) {
+            $message = 'Only JPG/PNG/GIF.';
+        } else {
+            $info = @getimagesize($file->getPathname());
+            if ($info === false || ! isset(self::CK_TYPES[$info[2]])) {
+                $message = 'Not an image.';
+            } else {
+                $name = time().'_'.Format::randd(16).'.'.self::CK_TYPES[$info[2]];
+                $dir = $this->tempDir();
+                $stored = false;
+                try {
+                    if (is_dir($dir) || @mkdir($dir, 0770, true) || is_dir($dir)) {
+                        $file->move($dir, $name);
+                        $stored = BlobStore::uploadFromTemp($name, false) === '';
+                        @unlink($dir.'/'.$name);
+                    }
+                } catch (\Throwable) {
+                    $stored = false;
+                }
+                if ($stored) {
+                    $url = Legacy::hrefBlob().$name;
+                } else {
+                    $message = 'Move failed.';
+                }
+            }
+        }
+        if ($message !== '') {
+            $url = '';
+        }
+        $fn = (int) $request->query('CKEditorFuncNum', '0');
+        $js = fn (string $s) => str_replace(['\\', "'", '<', "\n", "\r"], ['\\\\', "\\'", '\\x3C', '\\n', '\\r'], $s);
+
+        return response("<script>window.parent.CKEDITOR.tools.callFunction($fn, '".$js($url)."', '".$js($message)."');</script>")
+            ->header('X-Content-Type-Options', 'nosniff');
     }
 
     private function store(UploadedFile $file, string $ext): ?string

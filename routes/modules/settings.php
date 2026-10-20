@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Route;
 
 /*
 | กลุ่ม: settings — _admin/_setting, _admin/_exchange, _admin/_product_type, _admin/_shipping_type,
-|   get_price, get_resource, load_quick_search, gateway, index_close, system_upload(_2)
+|   get_price, get_resource, resource (SR), load_quick_search, index_close, system_upload(_2), system_ckupload (SR)
 | ดูรายการ URL/ไฟล์เดิมใน docs/url-map.md และรายงานใน docs/modules/settings.md
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 |
@@ -43,7 +43,8 @@ Route::middleware('legacy.perm:admin_product_type')->group(function () {
 });
 Route::post('/_admin/_product_type/grid', [ProductTypeController::class, 'grid'])->middleware(['legacy.ajax', 'legacy.auth']);
 Route::middleware(['legacy.ajax', 'legacy.perm:admin_product_type'])->group(function () {
-    Route::post('/_admin/_product_type/save', [ProductTypeController::class, 'save']);
+    // กดบันทึกซ้อน (ดับเบิลคลิก) = INSERT ซ้ำ 2 แถว (E2E SR 2026-10-20) → legacy.once (เจ้าของอนุมัติ double-submit guard)
+    Route::post('/_admin/_product_type/save', [ProductTypeController::class, 'save'])->middleware('legacy.once');
     Route::post('/_admin/_product_type/delete', [ProductTypeController::class, 'delete']);
 });
 
@@ -55,7 +56,7 @@ Route::middleware('legacy.perm:admin_shipping_type')->group(function () {
 });
 Route::post('/_admin/_shipping_type/grid', [ShippingTypeController::class, 'grid'])->middleware(['legacy.ajax', 'legacy.auth']);
 Route::middleware(['legacy.ajax', 'legacy.perm:admin_shipping_type'])->group(function () {
-    Route::post('/_admin/_shipping_type/save', [ShippingTypeController::class, 'save']);
+    Route::post('/_admin/_shipping_type/save', [ShippingTypeController::class, 'save'])->middleware('legacy.once');
     Route::post('/_admin/_shipping_type/save_listno', [ShippingTypeController::class, 'saveListno']);
     Route::post('/_admin/_shipping_type/delete', [ShippingTypeController::class, 'delete']);
     Route::post('/_admin/_shipping_type/delete_cal', [ShippingTypeController::class, 'deleteCal']);
@@ -76,7 +77,11 @@ Route::middleware(['legacy.ajax', 'legacy.auth'])->group(function () {
     Route::post('/system_upload', [UploadController::class, 'upload']);
     Route::post('/system_upload_2', [UploadController::class, 'upload2']);
 });
+// SR: system_ckupload.php — ปุ่มอัปโหลดรูปของ CKEditor (form ส่งเข้า iframe ไม่ใช่ XHR → ไม่ใช้ legacy.ajax; CSRF = Origin/Referer)
+// เดิม: ผู้ถือ admin_notice/admin_mall หรือใครก็ได้ที่ล็อกอิน = ผู้ที่ล็อกอินทุกคน
+Route::post('/system_ckupload', [UploadController::class, 'ckupload'])->middleware('legacy.auth');
 
 // ---------- หน้าสาธารณะที่ไม่มีข้อมูล (PUBLIC ใน RouteSecurityTest) ----------
 Route::get('/index_close', [PublicPageController::class, 'indexClose']);
 Route::get('/get_resource', [PublicPageController::class, 'resource']);
+Route::get('/resource', [PublicPageController::class, 'resourceTh']); // SR: resource.php
