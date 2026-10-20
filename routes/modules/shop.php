@@ -60,16 +60,14 @@ Route::middleware('legacy.perm:taobao')->group(function () {
     });
 });
 
-// ================================================================ แอดมิน: สต๊อกร้านค้า (_admin/_mallstock) — admin_mall_stock
-Route::middleware('legacy.perm:admin_mall_stock')->group(function () {
-    Route::get('/admin/mall_stock', [MallStockController::class, 'index'])->defaults('legacy_page', 'admin_mall_stock');
-    Route::post('/_admin/_mallstock/grid', [MallStockController::class, 'grid'])->middleware('legacy.ajax');
-});
-// load_amount / save_amount เดิมเป็นสำเนาของ _admin/_balance (สิทธิ์ admin_balance, เขียนแถว balance ใดก็ได้)
-// แก้จากเดิม (เจ้าของอนุมัติ 2026-10-18): สิทธิ์ admin_mall_stock และแตะเฉพาะตาราง mall_stock (ดู MallStockController)
-Route::middleware(['legacy.perm:admin_mall_stock', 'legacy.ajax'])->group(function () {
+// ================================================================ แอดมิน: _admin/_mallstock (SR) — getPermission('admin_balance')
+// SR ไม่มีร้านค้า: ทั้งโฟลเดอร์เป็นสำเนาของ _admin/_balance (grid รุ่นเก่า, load_amount/save_amount เหมือนทุกตัวอักษร)
+// หน้า admin/mall_stock ไม่มีใน content.php ของ SR → dead (ไม่ทำ route) — endpoint เปิดตรงด้วย POST ได้แบบเดิม
+// load/save ทำงานผ่าน AdminBalanceController (กฎ/การแก้เรื่องเงินชุดเดียวกับ _admin/_balance — ดู MallStockController)
+Route::post('/_admin/_mallstock/grid', [MallStockController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
+Route::middleware(['legacy.perm:admin_balance', 'legacy.ajax'])->group(function () {
     Route::post('/_admin/_mallstock/load_amount', [MallStockController::class, 'loadAmount']);
-    Route::post('/_admin/_mallstock/save_amount', [MallStockController::class, 'saveAmount']);
+    Route::post('/_admin/_mallstock/save_amount', [MallStockController::class, 'saveAmount'])->middleware('legacy.once');
 });
 
 // ================================================================ _api
