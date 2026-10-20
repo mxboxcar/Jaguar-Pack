@@ -1,5 +1,75 @@
 # กลุ่ม balance — รายงานการพอร์ต
 
+## SR (2026-10-20)
+
+พอร์ตกลุ่ม balance ให้ตรงกับเว็บเดิมของ SR บน branch `mod/balance` (worktree `/home/admin/laravel/sr-wt/balance`, port 8305) — โค้ดตั้งต้นคือที่ jl พอร์ตไว้ (รายงานเดิมด้านล่าง) คงทุกการแก้ของ jl:
+ถอนเงินล็อกแถว user (`SELECT … FOR UPDATE` ใน transaction) แล้วตรวจยอดภายใน, grid ยอดคงเหลือแบบ set-based (`GridQuery::attachPrevSums` / `liveCount`), `Money::adminAmount()` ของ save_amount, `legacy.once`, escape ค่าจาก DB/ผู้ใช้
+
+### ไฟล์เดิม → สถานะ
+
+| ไฟล์ (docs/sr-diff.md) | สถานะ |
+|---|---|
+| `_balance/save_withdraw.php` (diff 66) | **ทำแล้ว** — ลำดับของ SR: สิทธิ์ `balance` → **PIN จ่ายเงิน** (`PinBox::guard`, กล่องต่อท้าย `.cashback_form`, callback `withdrawcashing()`; jl comment ไว้) → **ถอนได้ 1 รายการต่อสัปดาห์** (`balance_withdraw` ที่ `create_date` อยู่ในจันทร์–อาทิตย์ของสัปดาห์นี้ ตาม `strtotime("last monday")` เดิม, `is_delete = 0`, ไม่กรองสถานะ — ยกเว้นรหัสลูกค้าใน setting `bypass_withdraw` คั่นด้วย `,` เทียบ `==` ไม่ trim) → `ErrorBox('รายการถอนเงินออกจากระบบสามารถทำได้ 1 รายการต่อสัปดาห์', 'CloseLoading()')` → บัญชีดำ → ตรวจยอด → INSERT (เหมือนเดิม) · `Withdraw::weeklyAllowed()` / `weekRange()` |
+| `_balance/grid.php` (diff 5) | **ทำแล้ว** — รายการถอน (type 12) ที่ `balance_withdraw.status = -1` แสดง ` (เหตุผลยกเลิก)` = ส่วนก่อน `,ยกเลิกโดย` ของ `cancel_remark` (escape) — ดึงพร้อมรูปสลิปใน LEFT JOIN เดิม (ไม่มี query ต่อแถว) |
+| ที่เหลือ 18 ไฟล์ (`same`) รวม `_balance_cn/*`, `_admin/_balance*/*` | ไม่เปลี่ยน — เทียบผลกับ :8111 แล้ว (ด้านล่าง) |
+
+ไม่มีไฟล์ SR-only / JL-only ในกลุ่มนี้ · `_balance_cn/save_withdraw.php` ของ SR **ไม่ถาม PIN** (เหมือน jl) และไม่จำกัดรายสัปดาห์
+
+### กระเป๋าหยวน (balance_cn) ของ SR
+
+SR ใช้ `balance_cn` จริงใน alipay / transfer (กลุ่ม payment, money-move: ตัดหยวนก่อน แล้วบาท, type 5 prefix transfer/alipay, คืนตอนยกเลิก) + แลกหยวนเป็นบาท (`_balance_cn/save_withdraw`, type 13 prefix exchange) + คืนเงินร้านค้า (type 9) + แอดมินเพิ่ม/แก้ (`_admin/_balance_cn/save_amount`, ต้องมี `admin_balance_cn_add` เพื่อเพิ่ม)
+หน้า/grid ของ balance_cn เป็นไฟล์ `same` — เทียบแล้วตรงกันกับแถว type 0/5/13 (รวมแถว `0.00` ของ TRF-9/TRF-40 บน bench) ไม่ต้องแก้
+
+### สิทธิ์ของ SR (admin_sr_bench, role_on_detail)
+
+- `balance`, `balance_cn` = ทุก role (1, 7–13) · `admin_balance` = 1, 12 · `admin_balance_cn`, `admin_balance_cn_add`, `admin_balance_company`, `admin_balance_company_add`, `admin_balance_company_delete` = **role 1** — ใช้ตามที่ DB ถือ (SR ไม่มี fallback) — ข้อความ fallback ในรายงาน jl ด้านล่าง **ไม่ใช้กับ SR**
+- ทดสอบปฏิเสธ: role 12 (user 6) บน `/admin/balance_cn`, `_admin/_balance_cn/{grid,load_amount,save_amount}`, `_admin/_balance_company/{grid,load_amount}` (grid ว่าง / ErrorBox / layout) · role 12 ใช้ `/admin/balance` ได้ (มี admin_balance) · ลูกค้า 11937 บน `_admin/_balance/grid` = ว่าง
+
+### ผลเทียบกับ :8111 (session เดียวกัน, ตัดช่องว่าง + แทน href, ไม่นับ favicon/morris ของ layout)
+
+ตรงกันทุกตัวอักษร: `/balance` (user 2, 8, 11937), `_balance/grid` หน้า 1/2/35 (user 2: 350 แถว), user 8, ตัวกรอง `|3`, ค้นหา `BLA-1`, `PAY|-2`, role 12, แถวถอน zz ที่ยกเลิก (มี/ไม่มี `,ยกเลิกโดย`), รอ, ref ไม่มีจริง;
+`load_withdraw` (บาท/หยวน); `/balance_cn`, `_balance_cn/grid` (+`|5`); `/admin/balance` (role 1, 12), `_admin/_balance/grid` หน้า 1/2/70, ค้นหารหัสลูกค้า / `WCASH` / `|3`; `load_amount` (JSON byte ต่อ byte, id 0 = `null`, ลูกค้า = ErrorBox สิทธิ์);
+`/admin/balance_cn`, `_admin/_balance_cn/grid` (+ค้นหา), `load_amount`; `/admin/balance_company`, `_admin/_balance_company/grid` หน้า 1/2/20 + ค้นหา, `load_amount`
+ต่างเฉพาะที่ตั้งใจ: escape `detail` ที่มี `<i>`, หน้าไม่มีสิทธิ์ (layout + ErrorBox)
+ยืนยันว่าโค้ด main (ก่อนแก้) ไม่แสดงเหตุผลยกเลิก → หลังแก้ตรงกับ SR
+
+### E2E (เขียนเฉพาะฝั่ง Laravel, user 11937/11938 + แถว zz_, ลบตาม id แล้ว)
+
+- `_balance/save_withdraw`: ไม่มี PIN → กล่องตั้ง PIN · ว่าง/`undefined` → กล่อง PIN (`withdrawcashing()`) · ผิด → ErrorBox + ips · เกินยอด / `1,00` → ErrorBox · 12.50 + คำขออื่นพร้อมกัน (3.00) → สำเร็จ 1 รายการ (`balance_withdraw` status 1 + `balance` -12.50 type 12 prefix 33 "โอนเงินออกจากระบบ WCASH-n"), อีกคำขอ = จำกัดรายสัปดาห์ (ตรวจซ้ำหลังล็อกแถว user) · คำขอถัดไป = จำกัดรายสัปดาห์ · รายการถอนเมื่อ 20 วันก่อนไม่นับ
+- `_balance_cn/save_withdraw`: เกินยอด → ErrorBox · `-10.25` → 10.25 (`balance_withdraw_cn` branch ว่าง + `balance_cn` -10.25 type 13 prefix 39 "แลกเงินหยวนเป็นเงินบาท EX-1") · ส่งซ้ำ → "ส่งซ้ำ"
+- แอดมิน `save_amount` (บาท/หยวน/บริษัท): เพิ่ม, ส่งซ้ำ, แก้แถวเดิม, ไม่พบผู้ใช้, `1,00` ปฏิเสธ, บริษัทยอดบวก/แก้ไข (role 1 มี `admin_balance_company_delete`), role 12 บน balance_cn = ErrorBox สิทธิ์
+- ลบแล้ว: balance 3576–3582, balance_cn 568–570, balance_withdraw 90–93, balance_withdraw_cn 1, balance_company 197–198, ips 153; PIN ของ 11937 คืนเป็น `''`
+
+### bench (`bin/bench`, -n 30 -c 1, 2 รอบ, artisan optimize)
+
+| หน้า | เดิม mean ms | ใหม่ mean ms |
+|---|---|---|
+| `/balance` (user 2, หน้าเต็ม) | 301–370 | 33–44 |
+| `/_balance/grid` (user 2, 350 แถว) | 77–80 | 34–38 |
+| `/_admin/_balance/grid` | 89–105 | 42–66 |
+| `/_balance_cn/grid` | 27–42 | 28–30 |
+| `/_admin/_balance_cn/grid` | 34–86 | 38–41 |
+| `/_admin/_balance_company/grid` | 23–24 | 28–29 |
+
+ใกล้เคียง/ช้ากว่าเล็กน้อย: grid หยวน/บริษัทที่แทบไม่มีข้อมูล (2 แถว / ว่าง) = overhead คงที่ของ Laravel (~25 ms)
+
+### ช่องโหว่/ข้อสังเกตของ SR เดิม
+
+1. จำกัด 1 รายการ/สัปดาห์ของเดิมไม่มี lock: กดถอนสองคำขอพร้อมกัน = ได้ 2 รายการในสัปดาห์ — ใหม่ตรวจซ้ำหลัง `FOR UPDATE` แถว user
+2. `goLog()` เขียน PIN ที่พิมพ์ผิดเป็น plaintext และเทียบ `!=` หลวม — ใหม่ไม่ log PIN, hash_equals + PinThrottle
+3. รายการถอนที่ถูกยกเลิกก็ยังนับเป็น "รายการในสัปดาห์" (เดิมไม่กรอง status) — คงไว้เหมือนเดิม
+4. ช่องโหว่อื่นของไฟล์ `same` เหมือนรายงาน jl ด้านล่าง
+
+### ให้เจ้าของตัดสินใจ
+
+- รายการถอนที่ถูกยกเลิก (status -1) ควรนับในโควตา 1 รายการ/สัปดาห์หรือไม่ (เดิมนับ — ใหม่นับเหมือนเดิม)
+- setting `bypass_withdraw` ไม่มีใน bench (= ไม่มีใครได้ยกเว้น) — ถ้า production มี ค่าต้องเป็นรหัสลูกค้าคั่นด้วย `,` ไม่มีช่องว่าง
+- สิทธิ์ admin_balance_cn / admin_balance_company* มีแค่ role 1
+
+---
+
+## jl (รายงานเดิม)
+
 branch `mod/balance` · worktree `/home/admin/laravel/jl-wt/balance` · port 8205
 
 ## Route ที่พอร์ต (URL เดิมทุกตัว)
