@@ -1,5 +1,117 @@
 # กลุ่ม order — รายงานการพอร์ต
 
+## SR (2026-10-20)
+
+branch `mod/order` (worktree `/home/admin/laravel/sr-wt/order`, port 8303) · เทียบกับ SR legacy (:8111, `admin_sr_bench`) · ไม่มีการแก้ฐานร่วม (foundation)
+ไฟล์ตาม `docs/sr-diff.md` (order: same 44 / diff 15 / SR-only 12 / JL-only 4) — ทุกไฟล์ `same` เทียบผลจริงแล้วตรงกัน (ต่างเฉพาะ escape)
+
+### สิ่งที่เปลี่ยนสำหรับ SR
+
+| ไฟล์เดิม | SR ต่างจาก jl | ใหม่ |
+|---|---|---|
+| `_order/save_payment.php` (diff 32) | **ต้องยืนยัน PIN จ่ายเงิน** (jl comment ไว้) | `PinBox::guard()` (ตัวนับ PinThrottle ร่วม) ก่อนจ่าย; log PIN ผิดแบบปิดค่า `'***'` (เดิม log PIN ที่พิมพ์เป็น plaintext); ยังคง IDOR fix/สถานะ 1 เท่านั้น/ล็อกแถว/`legacy.once` ของ jl |
+| `_order/grid.php`, `_admin/_order/grid.php` (diff 20/52) | นับจำนวนแถวใน grid เอง + `getpaging()` ท้ายตาราง (ไม่มี `load_paging` แยก) | ทำแบบเดียวกัน (`OrderQueries::count`) |
+| `_admin/_order/grid.php` | ใช้ correlated sub-query (ค่า 0 ไม่ใช่ NULL) → คอลัมน์ไม่มีเลข/ไม่เข้าโกดังแสดง `numberformatzero("0")` (`<span class="currency">0</span>`) | ตรงกับ SR |
+| `_order/load_total_order.php`, `_admin/_order/load_total_order.php` (diff 15/14) | ไม่มี Redis cache (นับสดทุกครั้ง) | ตัด cache 10 นาทีของ jl ออก — นับสด (`OrderQueries::cachedCount` ลบแล้ว) |
+| `_order/form.php` (diff 75) | มี `$data_head` จริง (ship/status ของใบ) → ประเภทสินค้าตาม ship ของใบ, ราคาแสดง ¥ เมื่อ status ≥ 2; ข้อความหมายเหตุ 5 ข้อ; สวิตช์ "ถ่ายรูป"; สี `#rrggbb` เป็นแถบสี; แถว tracking แรกเป็นข้อความ (ลูกค้าแก้เลขไม่ได้) ไม่มีปุ่ม +; รูปพัสดุ `tracking_image` ใต้ตาราง; ไม่มี VAT | ทำตาม SR (รูปพัสดุโหลดครั้งเดียวทั้งใบ แทน query ต่อร้าน) |
+| `_admin/_order/form.php` (diff 200) | ช่องแก้รหัสลูกค้า (typeahead `load_changeuser` + ปุ่ม Save), ช่องเรทใหม่ + ปุ่ม "บันทึกเรทใหม่", ปุ่ม "เปลี่ยนเป็นส่งเรือ/รถ" เฉพาะผู้ใช้ id 84 และ 3 (ตายตัวในไฟล์เดิม), กล่องวันที่ของใบ 4 ช่อง, layout คอลัมน์ `col-xs-6`, ปุ่มยกเลิกไม่แสดงเมื่อ -1, JS `cancelingcashback()`/`SaveCartTakeapic`, ไม่มี VAT, หัวข้อมี tag เสีย `<small?php ...` | ทำตาม SR (รวม tag เสียในหัวข้อ — หัวข้อจึงไม่แสดงเลขใบเหมือนเดิม) |
+| `_admin/_order/load_detail.php` (diff 111) | สวิตช์ถ่ายรูป (`SaveCartTakeapic`) + สีม่วง `#768cf2` เมื่อถ่ายรูป, `<style>` นำหน้า, ช่องเลขออเดอร์ 60%/`col-xs-4`, สี `#rrggbb`, ไม่มี `?r=` ต่อท้ายรูปสี, ไม่มีคอลัมน์ น้ำหนัก/ขนาด/ราคา/ประเภทสินค้า, ปุ่ม + อยู่ท้ายแถว tracking แรก (ไม่มีปุ่ม + เมื่อไม่มี tracking), รูป `tracking_image`, ไม่มี VAT | ทำตาม SR |
+| `_admin/_order/save_shipping.php` (diff 76) | ไม่มีส่วน VAT (jl คำนวณ VAT ต่อ — SR ไม่มีคอลัมน์ `is_vat/total_vat/vat`) | คำนวณยอดรวมอย่างเดียว (`OrderTotals::applyVat` ลบแล้ว — PDO จะ error กับคอลัมน์ที่ไม่มี) |
+| `_admin/_order/save_finish.php` (diff 23) | join user + `sendLine()` (ฟังก์ชันว่าง) | ไม่มีผลที่มองเห็น; `prefix = 11` ตายตัว = id ของ prefix `order` ใน SR ด้วย (bench) → ยังอ่านจาก `getPrefixID('order')` แบบ jl |
+| `_admin/_order/email_*.php`, `_admin/_taobao/email_*.php` (diff 2–8) | ปุ่มสี `#a3b2f1` (order กว้าง 200px, taobao 100%), ข้อความ LINE ใหม่ (LINE = no-op) | `OrderMailer`: ผู้ส่ง/หัว/กลาง/ท้ายจาก `config('legacy.mail')` (SRShippingSystem), ขึ้นบรรทัด CRLF ตามไฟล์ SR, ไม่มี branding jl, ไม่มี `target="_blank"` |
+
+### ไฟล์ที่มีเฉพาะ SR (พอร์ตใหม่)
+
+| ไฟล์ | route | สิทธิ์ | หมายเหตุ / ต่างจากเดิมโดยตั้งใจ |
+|---|---|---|---|
+| `_admin/_order/load_changeuser.php` | `POST /_admin/_order/load_changeuser` | admin_order | JSON `{"code":[...]}` (ไม่พบ = `{"code":null}`) byte ตรงกับเดิม; LIKE bind + escape `%_` |
+| `_admin/_order/save_changeuser.php` | `POST /_admin/_order/save_changeuser` | admin_order | ย้ายใบ + รายการ + bill_product_on_tracking + tracking ไปลูกค้ารหัสใหม่ — **เฉพาะใบที่ยังไม่ชำระ (status < 2)** ใน transaction + ล็อกแถวใบ (เดิมทำได้ทุกสถานะ: ใบที่จ่ายแล้วถูกย้าย แล้วยกเลิกภายหลัง = คืนเงินให้เจ้าของใหม่ = ย้ายเงินข้ามบัญชี) |
+| `_admin/_order/save_newrate.php` | `POST /_admin/_order/save_newrate` | admin_order | แก้เรทใบ+ทุกรายการ แล้วคำนวณยอดรวมใหม่ — **เฉพาะ status 0/1** (เดิมทุกสถานะ: ใบที่จ่ายแล้วยอดรวมจะไม่ตรงกับที่ถูกหัก) ใน transaction + ล็อกแถว; JS เดิม reload หน้าเสมอ |
+| `_admin/_order/save_change_send_type.php` | `POST /_admin/_order/save_change_send_type` | admin_order | เปลี่ยน ship ของใบ + tracking แล้ว `Pricing::calPriceAutoDiff()` ทีละ tracking — รับเฉพาะ type 0/1, ใบที่ยกเลิกแล้วไม่แก้, transaction + ล็อก; เดิม echo SQL กลับ → ตอบว่าง (JS reload) |
+| `_admin/_order/save_takeapic.php` | `POST /_admin/_order/save_takeapic` | admin_order | สลับ `bill_product_detail.is_takeapic` + `tracking.is_takeapic` ของรายการ (แบบ save_craft/save_qc, transaction) |
+| `_admin/_order/delete_withcashback.php` | `POST /_admin/_order/delete_withcashback` | admin_order + `legacy.once` | ไม่มีปุ่มเรียก (มีแค่ JS `cancelingcashback()`) — ยกเลิกใบ + คืนเงินสุทธิแบบ `delete` ของ jl (ล็อกแถว, คืนครั้งเดียว) + อีเมลยกเลิก; **ค่าธรรมเนียม 50 บาท**: เดิมเครดิตให้ *แอดมินที่กด* ทุกครั้ง (แม้ไม่พบใบ) ทั้งที่การหัก -50 ตอนเปิดใบใน `_cart/save_checkout.php` ถูก comment → ใหม่คืนให้ *เจ้าของใบ* เฉพาะเมื่อมีแถวหัก `ธรรมเนียมการเปิดใบสั่งซื้อสินค้า ORD-x` จริงและยังไม่เคยคืน (bench ไม่มีแถวแบบนี้ = ไม่คืน) |
+| `_admin/_printorder/index.php` | `GET /admin/printorder`, `/admin/printorder/status/{n}` | admin_printorder | |
+| `_admin/_printorder/grid.php` | `POST /_admin/_printorder/grid` | legacy.auth + ตรวจ admin_printorder (เดิม exit เงียบ) | ใบ status 3 เรียง `who_did_this_3_date`; ตัวกรอง `is_print`; คงบั๊กเดิม: `selected` ดู `$txtSearch[2]` แต่ GenerateWhere ส่งแค่ 2 ช่อง, `on_saveremark()` ไม่มีในหน้านี้ (ช่องหมายเหตุแก้ไม่ได้) |
+| `_admin/_printorder/form.php` | `GET /admin/printorder/{id}[/{div}]` | admin_order (ตามไฟล์เดิม) | ปุ่มบันทึกพิมพ์แล้ว/ยังไม่พิมพ์, ปุ่มพิมพ์ (ลิงก์ `print/?id=`) |
+| `_admin/_printorder/load_detail.php` | `POST /_admin/_printorder/load_detail` | admin_order | ตารางแบบอ่านอย่างเดียวของ load_detail (`OrderDetailRenderer::admin($id, true)`) |
+| `_admin/_printorder/print.php` | `GET /_admin/_printorder/print?id=` | legacy.auth + ตรวจ admin_order | `print_header.php` ของ SR (ไม่มี `<html>` ครอบ, มี jQuery + addCommas) + `OrderDetailRenderer::print()` แบบ SR |
+| `_admin/_printorder/save_print.php` | `POST /_admin/_printorder/save_print` | admin_receipt (ตามไฟล์เดิม — role 1 เท่านั้นใน bench) | รับเฉพาะ status 0/1 (เดิมเขียนค่าอะไรก็ได้) |
+
+helper: `getstatusprint()` → `App\Domain\Order\PrintOrder::getstatusprint()` (+ `runNo()` = `$run_id == '0' ? 'ORD-'.$id : $run_id`)
+`getRunning/updateRunning` ไม่ได้พอร์ต — ในกลุ่มนี้ถูก comment ไว้ทั้งหมด (`save_finish.php`); ผู้ใช้จริงคือ `_admin/_export/save_receipt.php` (กลุ่ม payment) · `bill_product.run_id` ใน bench ว่างทุกแถว (เลขใบในหน้าพิมพ์จึงว่าง ตามเดิม)
+
+### ไฟล์ของ jl ที่ SR ไม่มี (ลบ route/โค้ดแล้ว — 404 → หน้าแรก)
+
+`_order/load_paging.php`, `_order/print.php` (+ view `order/customer/print` → ย้ายเป็น `order/printorder/print`), `_admin/_order/load_paging.php`, `_admin/_order/save_vat.php` (+ `OrderTotals::applyVat`, ปุ่ม/JS VAT ในหน้าแอดมิน, ส่วน VAT ท้ายตารางสินค้า)
+
+### ต่างจากเดิมโดยตั้งใจ (เพิ่มจากของ jl)
+
+- escape `<>"'&` ทุกค่าจาก DB (ชื่อสินค้าที่มี `&` / `"` แสดงเป็น entity ใน HTML — ผลต่างเดียวที่เหลือจากการเทียบ)
+- ไม่มี `target="_blank"` (ลิงก์ในหน้า, ปุ่มพิมพ์, อีเมล)
+- หน้าไม่มีสิทธิ์ = layout ครบ + ErrorBox (เดิม exit กลางหน้า) เหมือนกลุ่มอื่น
+- สถานะ/ล็อกแถว/transaction ของ endpoint เงินใหม่ตามตารางข้างบน
+
+### ช่องโหว่เดิมของ SR ที่เจอ (แก้แล้วฝั่ง Laravel)
+
+| ไฟล์ | ปัญหา |
+|---|---|
+| `_admin/_order/delete_withcashback.php` | เครดิต 50 บาทเข้าบัญชีแอดมินที่กด (ไม่ใช่ลูกค้า) ทุกครั้งที่เรียก + POST ตรงด้วย id ที่ไม่มีก็ได้เงิน; คืนเงินเท่าแถวชำระแรก (ไม่หักที่คืนไปแล้ว); ไม่มีล็อก |
+| `_admin/_order/save_changeuser.php` | ย้ายใบที่จ่ายแล้วไปลูกค้าอื่นได้ → ยกเลิกภายหลังคืนเงินให้คนใหม่ (ย้ายเงินข้ามบัญชี); SQL injection |
+| `_admin/_order/save_newrate.php` | แก้เรท/ยอดรวมใบที่จ่ายแล้วได้; SQL injection |
+| `_admin/_order/save_change_send_type.php` | type อะไรก็ได้ + echo SQL กลับ; SQL injection |
+| `_admin/_printorder/save_print.php` | is_print ค่าอะไรก็ได้; SQL injection |
+| `_order/save_payment.php` | log PIN ที่พิมพ์ผิดเป็น plaintext ลง log |
+| ทุกไฟล์ SR-only | SQL injection / stored XSS (`admin_quote`, `code`, `run_id`, ชื่อสินค้า) แบบเดียวกับไฟล์อื่น → bind + escape |
+
+### การตรวจ (เทียบ :8111 ด้วย session เดียวกัน, normalize href/ช่องว่าง)
+
+- ลูกค้า (8, 19, 11937): `/order`, `/order/status/1`, grid 9 แบบ (หน้า 1/2/ว่าง, ทุกสถานะ, ship, ค้นหา), load_total_order ทุก ref, ฟอร์มใบ 16 ใบ — **ตรงกัน**
+- แอดมิน (11938): `/admin/order`, `/admin/dashboard`, status 3, grid 11 แบบ, load_total_order ทุก ref, ฟอร์ม 5 ใบ (+ `/{div}`, ใบที่ไม่มี), load_detail 25 ใบ, load_changeuser 4 แบบ (byte ตรง) — **ตรงกัน**
+- printorder: index, grid 8 แบบ, form 4 ใบ, load_detail 25 ใบ, print 5 ใบ — **ตรงกัน**
+- taobao: index/create/{id}/status, grid 3 แบบ, load_new_line, load_calculator — **ตรงกัน** (bench ไม่มีใบเถาเปาของจริง)
+- ข้อมูลทดสอบ zz_ (ใบ 135 ของ zz_fdn_cust: 2 ร้าน, ถ่ายรูป, สี #ff0000, จำนวนก่อน≠หลัง, ตีลัง+QC, tracking 3 ตัว + รูป 2 รูป + รูปที่ถูกลบ) เทียบ status 0/1/2/-1/3 ทั้งฟอร์มลูกค้า/ฟอร์มแอดมิน/load_detail/printorder load_detail/print — **ตรงกันทั้งหมด**
+- ไม่มีสิทธิ์ (role 7): หน้า = layout + ErrorBox, ajax = ข้อความเดิม / ว่างแบบเดิม
+- ผลต่างที่เหลือ: เฉพาะ escape และ layout ของฐานร่วม (favicon, morris/dashboard.js ที่ตัดแล้ว)
+- หมายเหตุ: ส่งคำค้น `a'"<b` ไป grid แอดมินของ :8111 หนึ่งครั้ง (SELECT อย่างเดียว, เดิมแปลง `'`→`''`) เพื่อเทียบ escape — ไม่มีการเขียนข้อมูล; หลังจากนั้นไม่ส่งค่าพิเศษไปเว็บเดิมอีก
+
+### E2E เขียนข้อมูล (ฝั่ง Laravel เท่านั้น, ใบ zz_ ของตัวเอง แล้วลบตาม id)
+
+save_takeapic (สลับ 2 รอบ: รายการ + tracking), save_newrate ×2 (เรท + ยอดรวม = สูตรเดิม 836.06), status 2 → ปฏิเสธ newrate/changeuser, save_changeuser (ไป ZZFDN2 แล้วกลับ; trim; รหัสไม่มี = ErrorBox เดิม), save_change_send_type (1 → 0, type 7 ไม่แก้), save_shipping/save_price/save_amount (ยอดรวม = สูตร SQL เดิม 1417.50), save_print 1/5/0 + role 12 ไม่มี admin_receipt = ปฏิเสธ, delete_withcashback ยิงพร้อมกัน 2 + ซ้ำ (คืน 1 แถว +1417.50, ไม่มีเครดิต 50, อีเมลครั้งเดียว — ผู้ส่ง SRShippingSystem), save_approved ซ้ำ, save_payment ไม่ส่ง PIN / `undefined` = กล่อง PIN, save_finish, ลูกค้ายกเลิก (คนอื่นยกเลิกใบไม่ได้), origin อื่น = 403, ไม่ล็อกอิน = 302 /login
+ลบแล้ว: bill_product 135, bill_product_detail 426–428, tracking 1946–1948, bill_product_on_tracking 78–80, tracking_image 6143–6145, balance 1893–1894
+(แถว zz ของ user 11937 อื่นๆ ใน bench — ใบ 122, taobao 97 ฯลฯ — เป็นของกลุ่ม shop ที่รันพร้อมกัน ไม่ได้แตะ)
+
+### bench (`bin/bench`, c=1, n=20, หลัง `artisan optimize`)
+
+| หน้า | เดิม mean ms | ใหม่ mean ms |
+|---|---|---|
+| `/order` (ลูกค้า 8) | 354–404 | 36–65 |
+| `_order/grid` (ลูกค้า 8) | 103–112 | 42–48 |
+| `/order/14` (ลูกค้า 19) | 491 | 53–56 |
+| `/admin/order` | 388 | 44 |
+| `_admin/_order/grid` | 127 | 41 |
+| `_admin/_order/load_detail` (ใบ 15) | 303 | 55 |
+| `/admin/order/15` | 487 | 44 |
+| `_admin/_printorder/grid` | 71 | 48 |
+| `_admin/_printorder/print?id=15` | 216 | 53 |
+| `_admin/_taobao/grid` (ไม่มีข้อมูล) | 23 | 26 |
+
+grid เถาเปาที่ว่าง: ใหม่ช้ากว่า ~3 ms = overhead คงที่ของ Laravel (boot + session/jail/สิทธิ์) เมื่อหน้าเดิมแทบไม่ทำงาน
+
+### test
+
+`tests/Feature/Order/OrderRoutesTest.php` (route + สิทธิ์ของ endpoint SR, ไม่มี route ของไฟล์ jl-only, getstatusprint/runNo),
+`tests/Feature/Order/OrderSrDbTest.php` (JL_BENCH_DB_TESTS=1, rollback): PIN ตอนจ่าย, delete_withcashback (คืนสุทธิ/ค่าธรรมเนียมเฉพาะเจ้าของ/ครั้งเดียว/ไม่พบใบ), changeuser/newrate ตามสถานะ, send type, ถ่ายรูป, printorder grid + save_print
+
+### คำถามถึงเจ้าของ
+
+1. `delete_withcashback`: ต้องการให้คืนค่าธรรมเนียม 50 บาทให้ลูกค้าเสมอหรือไม่ (ตอนนี้ไม่มีการหักค่าธรรมเนียมตอนเปิดใบ — SR comment ไว้ — จึงไม่คืน) และควรมีปุ่มเรียกหรือไม่ (ตอนนี้ไม่มีปุ่ม)
+2. `save_changeuser` / `save_newrate` จำกัดเฉพาะใบที่ยังไม่ชำระ — ถ้าต้องแก้ใบที่ชำระแล้ว ต้องกำหนดวิธีย้าย/ปรับเงินที่ชำระไปแล้ว
+3. ปุ่ม "เปลี่ยนเป็นส่งเรือ/รถ" แสดงเฉพาะผู้ใช้ id 84 และ 3 (ตายตัวในโค้ด; bench ไม่มี id 84, id 3 เป็นลูกค้า) แต่ endpoint ตรวจแค่ admin_order — ควรผูกกับสิทธิ์ (เช่น `admin_change_sender`) แทน id หรือไม่; และควรห้ามเปลี่ยนเมื่อ tracking อยู่ในบิลแล้ว (`payment_id` ≠ 0) หรือไม่ (ตอนนี้คำนวณราคาใหม่ทุกตัวแบบเดิม)
+4. หน้า `admin/printorder/{id}` / load_detail / print ใช้สิทธิ์ `admin_order` แต่เมนู/รายการใช้ `admin_printorder` และ save_print ใช้ `admin_receipt` (role 1 เท่านั้น) — คงตามเดิม ต้องการรวมเป็นสิทธิ์เดียวหรือไม่
+5. ช่องหมายเหตุใน grid พิมพ์รายการสั่งซื้อเรียก `on_saveremark()` ที่ไม่มีในหน้า (แก้ไม่ได้ทั้งเดิมและใหม่), หัวข้อหน้าใบสั่งซื้อแอดมินมี tag เสีย (ไม่แสดงเลขใบ) — คงไว้ตามเดิม ต้องการให้แก้หรือไม่
+
+---
+
 ไฟล์เดิม: `_order/*` (11), `_admin/_order/*` (40), `_admin/_taobao/*` (12) · RewriteRule 13 ข้อ
 โค้ดใหม่: `routes/modules/order.php`, `app/Http/Controllers/Order/{OrderController, Admin/AdminOrderController, Admin/AdminOrderDetailController, Admin/AdminTaobaoController}.php`,
 `app/Domain/Order/*` (query/คำนวณยอด/ตารางรายการสินค้า/อีเมล/PHP 7.4), `resources/views/order/**`, `tests/Feature/Order/OrderRoutesTest.php`
