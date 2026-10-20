@@ -1,5 +1,82 @@
 # กลุ่ม messaging
 
+## SR (2026-10-20)
+
+branch `mod/messaging` ใน `/home/admin/laravel/sr-wt/messaging` (port 8311) — เทียบกับ SR เดิม `:8111` (`/home/admin/bench/sr-old`, DB `admin_sr_bench`)
+ข้อตัดสินใจของ jl ด้านล่างใช้กับ SR ทั้งหมด (ลบประกาศต้องมี 2 สิทธิ์, escape ข้อความแชท, cron ต้องมีสิทธิ์ ฯลฯ) — ส่วนนี้คือสิ่งที่ต่างสำหรับ SR
+
+### ไฟล์ใน docs/sr-diff.md
+
+| ไฟล์เดิม | สถานะ | ผล |
+|---|---|---|
+| `notification.php` | diff 82 | **ทำแล้ว** — ช่องแรกใช้สิทธิ์ `admin_goodsconfirm` (jl: admin_withdrawpoint) และไม่มีเงื่อนไขมือถือ; `admin/send` ไม่นับประเภทส่ง 43/53; ช่องใหม่ `admin/sendself` (43/53, ข้อความ `pick_alone` "รับเอง") และ `admin/check` (tracking_check ที่ `is_checked = 0` และมีพัสดุจริง); ช่อง `payment/create` ของลูกค้านับเฉพาะพัสดุที่เข้าล็อตแล้ว (`lot_id != 0`); กระดิ่งประกาศล่าสุด (`notice.is_show = 1` แถวเดียว, `substr(strip_tags(...), 0, 1000)."..."`) ก่อนเมนูภาษา; nobilling ยังเช็ค `$data` ของบล็อกก่อนหน้าแบบเดิม (ตอนนี้คือบล็อก tracking_check) |
+| `_admin/_send/index.php` | diff 4 | **ทำแล้ว** — `shipping_type != 43 AND != 53`, คอลัมน์ประเภทส่ง `word-break: break-all` |
+| `_admin/_send/index_self.php` | diff 4 | **ทำแล้ว** — หน้าใหม่ `GET /admin/sendself` (`?page=admin_sendself`, สิทธิ์ admin_export) = shipping_type 43 หรือ 53; `/_admin/_send/index_self` (เปิดไฟล์ตรง) ยังตอบชิ้น HTML ตามข้อ 10 ของ jl (SR เดิมเปิดตรง = 500) |
+| `_admin/_message/index.php` | diff 12 | **ทำแล้ว** — JS `decodeHtml()` ก่อนใส่ผลของ load, ปุ่มแนบรูปเรียก `_admin/_message/save_file` (jl เรียก `_message/save_file`) |
+| `_admin/_message/load.php` | diff 4 | **ทำแล้ว** — ตอบ `json_encode(['html' => htmlentities($html), ...])` ไม่มี `urldecode` (ข้อความแชท/รหัสลูกค้า/`sql` ไม่ถูก urldecode อีก) |
+| `_message/load.php` | diff 2 | **ทำแล้ว** — ชื่อผู้ตอบ `srshippingsystem Support Team` |
+| `email_header.php`, `email_center.php`, `email_footer.php` | diff 2/2/10 | **ทำแล้ว** — อีเมลประกาศใช้ `config('legacy.mail')` (header `max-width: 560px`, center `text-indent: 30px`, footer "ขอแสดงความนับถือ SRShippingSystem" ไม่มีบรรทัด require_once/ติดต่อของ jl, ไม่ใส่บรรทัด guard ของ hotfix 2026-10-18); เปิดไฟล์ตรงจาก URL = **403 ว่าง** เหมือน SR หลัง hotfix |
+| `notify_counts.php`, `notify_token.php` | diff 2 | ไม่ต้องแก้ — ต่างแค่ชื่อไฟล์/ชื่อเว็บ ซึ่งอยู่ใน `config('legacy.notify')` (site = srshippingsystem, path จาก .env) แล้ว |
+| ไฟล์ `same` อีก 24 ไฟล์ (_message/*, _notice/*, _admin/_notice/*, _admin/_message/ ที่เหลือ, notifications.php) | same | **unchanged** — เทียบกับ :8111 แล้วตรง (ดูด้านล่าง) |
+| `_linenotify/*` | ไม่มีใน SR | **ลบแล้ว** — ไม่มี route/controller/view/config เหลือ (เหลือแค่ข้อความในส่วน jl ด้านล่าง) |
+
+helper: `notify_message()` ของ SR (ยิงรูปเข้า LINE Notify — jl คอมเมนต์ทิ้งทั้งฟังก์ชัน) → `App\Domain\Messaging\NotifyMessage::send()` ทำงานเฉพาะเมื่อ `legacy.external.enabled = true` (dev ไม่ยิง)
+เดิมไม่มีโค้ดใดเรียกฟังก์ชันนี้ (จุดเดียวใน `sendLineImage()` ถูกคอมเมนต์) และ LINE Notify ปิดบริการแล้ว — พอร์ตไว้ให้ครบเท่านั้น
+`NoticeMail` / `php8.4 artisan messaging:notice-mail`: ผู้ส่ง `config('legacy.mail.from_*')` = SRShippingSystem <no-reply@srshippingsystem.com>, แม่แบบ SR, ไม่มีแบรนด์ jl
+
+### ต่างจาก SR เดิมโดยตั้งใจ (นอกจากข้อของ jl ด้านล่าง)
+
+1. `_admin/_notice/save` มี `legacy.once` (กดบันทึกซ้ำ = ไม่สร้างประกาศ 2 แถว) — แชท (`_message/send`, `_admin/_message/send`) ไม่ใส่ เพราะส่งข้อความเดิมซ้ำได้ตามปกติ (เหมือนเดิม)
+2. `_admin/_message/load`: `title` (รหัสลูกค้าที่ JS ใส่ด้วย `.html()`) ถูก escape; ข้อความแชทยัง escape แบบ jl (ผ่าน htmlentities อีกชั้น → `decodeHtml()` ใน JS ได้ข้อความที่ escape แล้ว ไม่ใช่ HTML ดิบ)
+3. ตัด `target="_blank"` ใน admin/send, admin/sendself, grid ประกาศแอดมิน, ปุ่มแนบรูปในแชท
+4. ชิ้นส่วนอีเมลตอบ 403 เฉพาะผู้ล็อกอิน (ไม่ล็อกอิน = ไปหน้า login แบบ route อื่นของกลุ่ม) — SR เดิมตอบ 403 ทุกคน
+5. ข้อความกระดิ่งประกาศแสดงแบบเดิม (HTML ของแอดมินที่ผ่าน strip_tags) — ไม่ escape เพิ่ม เหมือน grid ประกาศของ jl
+
+### ผลเทียบกับ SR เดิม (:8111, session เดียวกัน, ตัดช่องว่าง)
+
+- `notification` (ผู้ใช้ 1, 6, 11, 3, 11937, 11938) — ตรงกัน ต่างแค่ขึ้นบรรทัดก่อน `<li class="">`; ทดสอบซ้ำโดยใส่แถว zz_ (notice is_show=1, tracking_check, bill_payment ประเภท 53) ช่อง admin/check / admin/sendself / กระดิ่ง ตรงกัน
+- `notifications` ทุก role ตรงกัน
+- หน้า admin/send, admin/sendself (มี/ไม่มีแถว 53), notice, notice/1, admin/notice, admin/notice/1, admin/notice/create, message, admin/message: เนื้อหาตรงกัน ยกเว้น `target="_blank"`; ส่วน layout ต่างแค่ favicon/morris (ฐานร่วม)
+- `_notice/grid`, `_admin/_notice/grid` หน้า 1/2 + ค้นหา: ตรงกัน (ยกเว้น target=_blank); ลูกค้าเรียก admin grid = ว่างเหมือนเดิม
+- `_message/load_dept`, `_admin/_message/load_dept`, `load_user` (มี/ไม่มีคำค้น): ตรง byte; `_message/load`, `_admin/_message/load` หน้า 0/1/2: ตรง byte ยกเว้นข้อความแชทที่มี HTML/`&` (ตั้งใจ escape) และ target=_blank ของรูปแนบเก่า
+- สิทธิ์: ลูกค้า (11937) เปิด admin/message, admin/notice, admin/notice/1, admin/send, admin/sendself = ข้อความไม่มีสิทธิ์ (SR เดิม admin/message ไม่ตรวจ / admin/send แสดงข้อมูลหลัง alert)
+- `/_admin/_send/index_self` เดิม 500, email_* เดิม 403 (ดูข้างบน)
+
+### E2E (เขียนฝั่ง Laravel เท่านั้น — แถว zz_ ใน admin_sr_bench, ตาราง chat/chat_dept/notice/tracking_check/notice_mail_queue ว่างก่อนเริ่ม)
+
+- `_message/send` ×2 (ได้ 2 แถว เหมือนเดิม), `_admin/_message/send`, `send_endconversation` ทั้งสองฝั่ง (is_read / is_read_admin), `deletechat` (ลบได้เฉพาะแถวที่ตัวเองสร้าง — ผู้ใช้อื่นลบไม่ได้)
+- `_admin/_notice/save` สร้าง ×2 (ครั้งที่ 2 = ErrorBox ส่งซ้ำ, 1 แถว), แก้ไข, `save_isshow`, `delete` (role 6 ไม่มีสิทธิ์ = ปฏิเสธ; admin = is_delete 1 ของประกาศ ไม่แตะ product_type)
+- `_admin/_notice/email` → log mailer: From SRShippingSystem, แม่แบบ SR; `email_notice` เข้าคิว 26 ราย (กดซ้ำไม่เพิ่ม), cross-site = 403; `messaging:notice-mail --test` และแบบส่ง 2 ฉบับ (ไป log เท่านั้น)
+- ลบทุกแถวที่สร้างตาม id แล้ว (chat 1–5, chat_dept 1, notice 1–2, tracking_check 143, bill_payment 626, คิว noti_id 1 = 26 แถว) — นับแล้วกลับเป็น 0 ทุกตาราง
+
+### ผล bench (`bin/bench`, n=30 c=1, หลัง `artisan optimize`, ผู้ใช้ 1, รอบที่ 2)
+
+| หน้า | เดิม mean ms | ใหม่ mean ms |
+|---|---|---|
+| `/notice` (หน้าเต็ม) | 394 | 39 |
+| `/admin/send` (หน้าเต็ม) | 418 | 52 |
+| `notification` (แอดมิน) | 337 | 48 |
+| `_notice/grid` | 14 | 24 (overhead Laravel คงที่ ~20 ms) |
+| `_admin/_message/load` | 20 | 28 (overhead คงที่) |
+| `_admin/_message/load_user` | 15 | 34 (overhead คงที่ + bench มีผู้ใช้แค่ 26 คน; jl ที่มีผู้ใช้ ~11,900 เท่ากัน) |
+
+### ช่องโหว่เดิมใน SR (อ่านโค้ด — ไม่ได้ยิงใส่เว็บเดิม)
+
+- `_admin/_message/load.php` ของ SR ยังไม่ตรวจล็อกอิน/สิทธิ์ และตอนนี้ JS `decodeHtml()` ถอด htmlentities กลับเป็น HTML ดิบ → stored XSS จากข้อความแชทลูกค้าในหน้าแอดมินยังอยู่ (เหมือน jl)
+- `_admin/_send/index.php` / `index_self.php`: alert แล้วไม่ exit (ข้อมูลทั้งหมดอยู่ใน HTML ของผู้ไม่มีสิทธิ์)
+- system_config.php ของ SR มี key ของ SendGrid ฝังในโค้ด (ในส่วนที่คอมเมนต์ไว้ และใน `send_a_lot_mail()`) — ไม่ได้คัดลอกมา ควรเพิกถอน key นั้น
+
+### คำถามถึงเจ้าของ
+
+1. ช่องแจ้งเตือน "พัสดุรอตรวจ" (`admin/check`) แสดงตามสิทธิ์ `admin_export` (แบบ SR เดิม) แต่หน้า admin/check ใช้ `admin_tracking` — role 11 มี admin_tracking แต่ไม่มี admin_export จึงไม่เห็นตัวเลข; ส่วนผู้มี admin_export แต่ไม่มี admin_tracking จะเห็นตัวเลขแต่เปิดหน้าไม่ได้ (ใน bench role 1/9/10/12 มีทั้งคู่) — คงแบบเดิม หรือเปลี่ยนเป็น admin_tracking?
+2. ช่อง nobilling ยังแสดงตาม `$data` ของบล็อกก่อนหน้า (บั๊กเดิม — ใน SR คือจำนวน tracking_check) จึงมักไม่แสดงเมื่อไม่มีพัสดุรอตรวจ — คงแบบเดิมไว้ ควรแก้ให้เช็คจำนวนของตัวเองหรือไม่
+3. ลบประกาศต้องมี `admin_product_type` + `admin_notice` (ข้อตัดสินใจ jl) — ใน SR role 10/11/12 มี admin_notice แต่ไม่มี admin_product_type จึงลบประกาศไม่ได้ (เหมือนเดิม) ยืนยันหรือไม่
+4. `notify_message()` (LINE Notify) ไม่มีผู้เรียกและบริการปิดแล้ว — ลบทิ้งได้หรือไม่
+
+---
+
+## jl (ต้นฉบับที่ fork มา)
+
 แชทลูกค้า/แอดมิน, ประกาศ (notice) + อีเมลประกาศ, LINE Notify, รายการรอส่ง, แถบแจ้งเตือน, ชิ้นส่วนอีเมล
 worktree `/home/admin/laravel/jl-wt/messaging` (branch `mod/messaging`, port 8211)
 
