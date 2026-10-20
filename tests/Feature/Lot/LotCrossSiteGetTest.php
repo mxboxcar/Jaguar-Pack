@@ -6,7 +6,7 @@ use App\Http\Controllers\Lot\Admin\AdminLotPrintController;
 use Illuminate\Http\Request;
 use Tests\TestCase;
 
-/** print / print_all / email_lot เป็น GET ที่เขียนข้อมูล → ไม่ยอมคำขอที่มาจากเว็บอื่น (LegacyCsrf ตรวจแค่ POST) */
+/** print / email_lot เป็น GET ที่เขียนข้อมูล → ไม่ยอมคำขอที่มาจากเว็บอื่น (LegacyCsrf ตรวจแค่ POST) */
 class LotCrossSiteGetTest extends TestCase
 {
     private function req(array $headers): Request
