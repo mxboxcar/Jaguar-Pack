@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Order;
 
 use App\Domain\Order\OrderDetailRenderer;
+use App\Domain\Payment\PinBox;
 use App\Domain\Order\OrderLookups;
 use App\Domain\Order\OrderQueries;
 use App\Domain\Order\Php74;
@@ -11,9 +12,8 @@ use App\Http\Controllers\Order\Concerns\ReadsLegacyInput;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
-use App\Support\Legacy\LegacyInput;
+use App\Support\Legacy\LegacyLog;
 use App\Support\Legacy\Lookup;
-use App\Support\Legacy\Paging;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -84,8 +84,12 @@ class OrderController extends Controller
         $page = $this->php($request, 'page');
         $offset = OrderLookups::offset($page);
 
+        // SR: นับจำนวนแถวใน grid เอง (MakePaging + getpaging ท้ายตาราง) แทน load_paging แยกของ jl
+        $rows = OrderQueries::count($q, $having);
+
         return response(view('order.customer.grid', [
             'ajaxpage' => self::AJAX,
+            'rows' => $rows,
             'items' => $offset === null ? [] : OrderQueries::page($q, $having, $offset),
             'prefix' => OrderLookups::prefix('order'),
             'search' => $php[0],
@@ -94,25 +98,6 @@ class OrderController extends Controller
             'page' => $page,
             'txtsearch' => $this->php($request, 'txtsearch'),
         ])->render());
-    }
-
-    /** POST /_order/load_paging — _order/load_paging.php (นับแถวแบบเดิม: เงื่อนไขค้นหาต่างจาก grid เล็กน้อย) */
-    public function loadPaging(Request $request): Response
-    {
-        if (! perm('order')) {
-            return response('');
-        }
-        $p = explode('|', $this->in($request, 'txtsearch'));
-        $uid = Legacy::userId();
-        $term = $p[0];
-        $q = OrderQueries::base()
-            ->where(fn ($w) => $w->where('user.code', 'like', OrderQueries::like($term))
-                ->orWhere('bill_product.id', 'like', OrderQueries::like(str_replace(OrderLookups::prefix('order'), '', $term))))
-            ->where('user.id', $uid);
-        $having = OrderQueries::applyShipStatus($q, $p[1] ?? null, $p[2] ?? null);
-        $rows = OrderQueries::cachedCount('c-paging', $q, $having);
-
-        return response(Paging::getpaging($this->php($request, 'page'), $rows, 10, self::AJAX));
     }
 
     /** POST /_order/load_total_order — จำนวนตามปุ่มสถานะ */
@@ -125,7 +110,8 @@ class OrderController extends Controller
         $ref = $this->has($request, 'ref') ? $this->in($request, 'ref') : null;
         $having = OrderQueries::applyRef($q, $ref);
 
-        return response((string) OrderQueries::cachedCount('c-total', $q, $having));
+        // SR: นับสดทุกครั้ง (เดิมของ SR ไม่มี readRedis/writeRedis — jl cache 10 นาที)
+        return response((string) OrderQueries::count($q, $having));
     }
 
     /**
@@ -150,6 +136,16 @@ class OrderController extends Controller
     {
         if (! perm('order')) {
             return response('');
+        }
+        // SR: ต้องยืนยัน PIN จ่ายเงินก่อน (jl comment ไว้) — getNewPinBox / getPinBox(0) / PIN ผิด ผ่าน PinBox::guard (ตัวนับร่วม PinThrottle)
+        $js = PinBox::guard($request, Legacy::user());
+        if ($js !== null) {
+            if (str_starts_with($js, 'ErrorBox(') && str_contains($js, 'PIN จ่ายเงินไม่ถูกต้อง')) {
+                // เดิม log PIN ที่พิมพ์ผิดเป็น plaintext → ปิดค่า
+                LegacyLog::goLog($request->getRequestUri(), "paymentpin: '***', PIN จ่ายเงินไม่ถูกต้อง");
+            }
+
+            return response($js);
         }
         $uid = Legacy::userId();
         $idRaw = $this->in($request, 'id');
@@ -227,29 +223,5 @@ class OrderController extends Controller
             ->update(['quote' => $this->in($request, 'value')]);
 
         return response('');
-    }
-
-    /** GET /_order/print?id= — _order/print.php (หน้าพิมพ์ ไม่ใช้ layout หลัก) */
-    public function print(Request $request): Response|\Illuminate\Http\RedirectResponse
-    {
-        $header = view('order.print_header')->render();
-        if (! perm('order')) {
-            return response($header.Alerts::permission('order'));
-        }
-        $id = (int) LegacyInput::query($request, 'id', 0);
-        $row = OrderQueries::base()->where('bill_product.id', $id)->where('bill_product.is_delete', 0)
-            ->where('bill_product.user', Legacy::userId())->first(['bill_product.*', 'user.code']);
-        if ($row === null) {
-            return redirect()->to(Legacy::href()); // Redirect(href) เดิม
-        }
-        $data = Php74::row($row);
-        $editLast = DB::table('user')->where('id', $data['mod_by'] ?? '')->value('code');
-
-        return response($header.view('order.customer.print', [
-            'data' => $data,
-            'prefix' => OrderLookups::prefix('order'),
-            'editLast' => $editLast,
-            'detailHtml' => (new OrderDetailRenderer)->print($id),
-        ])->render());
     }
 }

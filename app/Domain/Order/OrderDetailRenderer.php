@@ -5,15 +5,14 @@ namespace App\Domain\Order;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
-use App\Support\Legacy\Lookup;
 use App\Support\Legacy\Status;
 use Illuminate\Support\Facades\DB;
 
 /**
  * ตารางรายการสินค้าในใบสั่งซื้อ (จัดกลุ่มตามร้าน) — คัดตรรกะทีละบรรทัดจาก 3 ไฟล์เดิมที่เขียนแยกกัน:
  *   customer() = ส่วนล่างของ _order/form.php
- *   admin()    = _admin/_order/load_detail.php
- *   print()    = ส่วนล่างของ _order/print.php
+ *   admin()    = _admin/_order/load_detail.php (SR) และ _admin/_printorder/load_detail.php ($view = true)
+ *   print()    = ส่วนล่างของ _admin/_printorder/print.php (SR — jl ใช้กับ _order/print.php ซึ่ง SR ไม่มี)
  *
  * HTML ต้องเหมือนเดิม (รวม tag ที่ไม่ปิด และ placeholder "[id_changeproducttypeoption_x]" ที่เหลือค้างใน <option>)
  * ต่างจากเดิมโดยตั้งใจ:
@@ -132,6 +131,33 @@ final class OrderDetailRenderer
         return $out;
     }
 
+    /**
+     * SR: รูปของ tracking (tracking_image ที่ไม่ถูกลบ) ของ tracking แรกของแต่ละร้าน — เดิม query ต่อร้าน → ครั้งเดียว
+     *
+     * @param  list<array<string, mixed>>  $cart
+     * @param  array<int, list<array<string, mixed>>>  $trackMap
+     * @return array<int, list<string>> tracking_id => [attachment, ...] (ลำดับตาม id แบบ SELECT * เดิม)
+     */
+    private function trackingImages(array $cart, array $trackMap): array
+    {
+        $ids = [];
+        foreach ($trackMap as $rows) {
+            if (isset($rows[0]['id']) && $rows[0]['id'] !== null) {
+                $ids[] = (int) $rows[0]['id'];
+            }
+        }
+        if ($ids === []) {
+            return [];
+        }
+        $out = [];
+        foreach (DB::table('tracking_image')->whereIn('tracking_id', array_values(array_unique($ids)))->where('is_delete', '0')
+            ->orderBy('id')->get(['tracking_id', 'attachment']) as $r) {
+            $out[(int) $r->tracking_id][] = (string) $r->attachment;
+        }
+
+        return $out;
+    }
+
     /** @return list<array<string, mixed>> */
     private function productTypes(mixed $ship): array
     {
@@ -182,11 +208,14 @@ final class OrderDetailRenderer
         if (str_contains($color, '//')) {
             $s .= $admin
                 ? '<a class="fancybox" href="'.Html::url($color).'">
-	                        <img src="'.Html::h($color).'" style="border:1px solid #a0a0a0;max-width: 26px;max-height: 26px;margin-right: 10px;"> <span>'.Html::h(explode('?r=', $color)[1] ?? '').'</span>
+	                        <img src="'.Html::h($color).'" style="border:1px solid #a0a0a0;max-width: 26px;max-height: 26px;margin-right: 10px;">
 	                    </a>'
                 : '<a class="fancybox" href="'.Html::url($color).'">
                             <img src="'.Html::h($color).'" style="border:1px solid #a0a0a0;max-width: 26px;max-height: 26px;margin-right: 10px;">
                         </a>';
+        } elseif (str_contains($color, '#') && strlen($color) === 7) {
+            // SR (form ลูกค้า + load_detail): สีแบบ #rrggbb แสดงเป็นแถบสี (escape ค่าใน attribute)
+            $s .= '<br/>'.$this->res('color').':'.' <span style="background-color:'.Html::h($color).'">----</span>';
         } else {
             if ($haveSize) {
                 $s .= '<br/>'.$this->res('color').':';
@@ -218,7 +247,8 @@ final class OrderDetailRenderer
         return $s;
     }
 
-    private static function craftQcColors(array $item): string
+    /** @param bool $takeapic SR load_detail ของแอดมิน: บริการถ่ายรูป = สีม่วง (ทับสี QC/ตีลัง) */
+    private static function craftQcColors(array $item, bool $takeapic = false): string
     {
         $craft = Php74::eq($item['is_craft'] ?? null, 1);
         $qc = Php74::eq($item['is_qc'] ?? null, 1);
@@ -233,6 +263,10 @@ final class OrderDetailRenderer
         }
         if ($qc) {
             $colors = 'background-color:#a5ffc5';
+            $found = true;
+        }
+        if ($takeapic && Php74::eq($item['is_takeapic'] ?? null, 1)) {
+            $colors = 'background-color:#768cf2';
             $found = true;
         }
 
@@ -256,14 +290,17 @@ final class OrderDetailRenderer
 
     // ------------------------------------------------------------------ _order/form.php (ลูกค้า)
 
-    /** @param array<string, mixed> $data แถว bill_product ของหน้า (สำหรับ VAT) */
+    /** @param array<string, mixed> $data แถว bill_product ของหน้า (SR: $data_head = id, ship, status ของใบเดียวกัน) */
     public function customer(int $id, array $data): string
     {
         $cart = $this->cart($id, false);
         $trackMap = $this->trackings($cart, false);
         $cashMap = $this->cashbacks($cart);
-        // เดิมอ้าง $data_head ที่ไม่มีในไฟล์นี้ → ship/status = null (product_type type = '' และ status >= 2 เป็นเท็จเสมอ)
-        $types = $cart === [] ? [] : $this->productTypes(null);
+        $imageMap = $this->trackingImages($cart, $trackMap);
+        // SR มี $data_head (SELECT id,ship,status FROM bill_product WHERE id = $id) — jl ไม่มี (= null เสมอ)
+        $headShip = $data['ship'] ?? null;
+        $paid = self::num($data['status'] ?? null) >= 2;
+        $types = $cart === [] ? [] : $this->productTypes($headShip);
 
         $html = '';
         $mainNo = 1;
@@ -318,6 +355,12 @@ final class OrderDetailRenderer
                     $html .= Php74::eq($item['is_qc'], 1)
                         ? '<input type="checkbox" checked class="js-switch"  value="0" data-color="#f05050" data-size="small"/>'
                         : '<input type="checkbox"  class="js-switch" value="1"  data-color="#f05050" data-size="small"/>';
+                    // SR: บริการถ่ายรูป (bill_product_detail.is_takeapic) แสดงอย่างเดียว
+                    $html .= '</div>
+				            	<div style="float:left;padding:0px;margin-top: 3px;">ถ่ายรูป : ';
+                    $html .= Php74::eq($item['is_takeapic'] ?? null, 1)
+                        ? '<input type="checkbox" checked class="js-switch"  value="0" data-color="#f05050" data-size="small"/>'
+                        : '<input type="checkbox"  class="js-switch" value="1"  data-color="#f05050" data-size="small"/>';
                     $html .= '</div>';
                     $html .= '<div class="col-xs-2" style="padding:0px;margin-top: 3px;">'.$this->res('type').' : <select disabled="disabled" onchange="[changeproducttype]" >';
                     $html .= '<option value="0"> - </option>';
@@ -363,12 +406,12 @@ final class OrderDetailRenderer
                     $html .= '<div class="text-danger ">'.$this->res('cashback').' : '.Format::numberformat($cashMap[(int) $item['id']]['amount']).'</div>';
                 }
                 $html .= '</td>';
-                // เดิม $data_head['status'] >= 2 (ไม่มีตัวแปร) = เท็จเสมอ
+                // SR: $data_head['status'] >= 2 → ราคาแสดงสัญลักษณ์หยวน (จำนวนแสดง amount ทั้งสองกรณี)
                 $html .= '<td style="width: 80px;'.$color.'" class="text-right">';
                 $html .= Html::h($item['amount']);
                 $html .= '</td>';
                 $html .= '<td style="width: 80px;'.$color.'" class="text-right">';
-                $html .= Html::h($item['price']);
+                $html .= ($paid ? $this->res('cn_currency') : '').Html::h($item['price']);
                 $html .= '</td>';
                 $html .= '<td style="width: 80px;'.$color.'" class="text-right">'.Format::numberformat($amount * $price, true, true, true).'</td>';
                 $html .= '<td style="width: 80px;'.$color.'" class="text-right">'.Format::numberformat($amount * ($price * $rate)).'</td>';
@@ -397,7 +440,16 @@ final class OrderDetailRenderer
                     $totalChina += $ship;
                     $html = str_replace('['.($t0['id'] ?? '').'_changeproducttypeoption_'.($t0['product_type_id'] ?? '').']', 'selected="selected"', $html);
 
+                    // SR: รูปพัสดุ (tracking_image ของ tracking แรกของร้าน) ใต้ตาราง tracking
                     $html .= '</table>
+				<div class="pull-left ">';
+                    foreach ($imageMap[(int) ($t0['id'] ?? 0)] ?? [] as $att) {
+                        $u = Html::h($this->blob.$att);
+                        $html .= '<a style="margin:3px;float:left" class="fancybox" href="'.$u.'">
+                            <img src="'.$u.'" style="max-width: 50px;max-height: 33px;">
+                        </a>';
+                    }
+                    $html .= '</div>
 				<p class="pull-right text-right">'.$this->res('price_china_express').'</p>
 				</td>
 
@@ -447,22 +499,7 @@ final class OrderDetailRenderer
 </table>
 
 ';
-        if (Php74::eq($data['is_vat'] ?? null, 1)) {
-            $html .= '
-<table class="table  table-bordered" style="font-size: 25px;">
-
-<tfoot>
-		<td class="text-right">รวม '.Format::numberformat($totalThai + self::num($data['total_vat'] ?? null)).'</td>
-</tfoot>
-<tfoot>
-		<td class="text-right">ภาษีมูลค่าเพิ่ม '.Html::h($data['vat'] ?? '').'% : '.Format::numberformat($data['total_vat'] ?? null).'</td>
-</tfoot>
-</table>
-
-
-';
-        }
-
+        // SR ไม่มี VAT (bill_product.is_vat/vat/total_vat ไม่มีใน schema)
         return $html;
     }
 
@@ -474,8 +511,6 @@ final class OrderDetailRenderer
         $tno = Php74::eq($row['no'] ?? null, '') ? '-' : Html::h($row['no']);
         $tid = (string) ($row['id'] ?? '');
         $html = '';
-        $inputs = '<input type="text" class="" onblur="save_tracking($(this),\''.$tid.'\')" value="'.Html::h($row['tracking'] ?? '').'" placeholder="- '.$this->res('tracking').' -" /></div>
-								<div style="float:left;clear:both;margin-top: -1px;"><input type="text" class="" onblur="save_quote($(this), \''.$tid.'\')" value="'.Html::h($row['quote'] ?? '').'" placeholder="- '.$this->res('remark_for_this_order').' -" /></div>';
         if ($first) {
             $html .= '<tr class="tracking_list" >';
             if (Php74::eq($row['payment_id'] ?? null, '-2')) {
@@ -486,9 +521,11 @@ final class OrderDetailRenderer
 
                 return $html;
             }
+            // SR: แถวแรกแสดงเลข tracking เป็นข้อความ (ลูกค้าแก้ไม่ได้) และไม่มีปุ่ม + เพิ่มแถว
             $html .= '<td class="bxr_form_left" style="vertical-align: top;">'.$this->res('tracking').' : </td>';
             $html .= '<td class="bxr_form_right" style="vertical-align: top;">
-								<div style="float:left;clear:both;">'.$inputs;
+								<div style="float:left;clear:both;">'.Html::h($row['tracking'] ?? '').'</div>
+								<div style="float:left;clear:both;margin-top: -1px;"><input type="text" class="" onblur="save_quote($(this), \''.$tid.'\')" value="'.Html::h($row['quote'] ?? '').'" placeholder="- '.$this->res('remark_for_this_order').' -" /></div>';
             $html .= '</td>';
             $html .= '<td style="width: 105px;">';
         } else {
@@ -518,14 +555,11 @@ final class OrderDetailRenderer
             $html .= '<div class="" style="float:left;clear:both;"><a href="'.$this->href.'admin/export/'.Html::h($row['payment_id']).'" >'.OrderLookups::prefix('payment').Html::h($row['payment_id']).'</a></div>';
         }
         $html .= '</td>';
-        if ($first) {
-            $html .= '<td style="vertical-align:top">';
-            $html .= '<button class="btn-success" onclick="addnewline($(this), '.Html::h($row['bill_product_detail_id'] ?? '').')"><i class="md md-exposure-plus-1"></i></button>';
-        } else {
+        if (! $first) {
             $html .= '<td style="vertical-align:top;padding-top: 6px;">';
             $html .= '<button class="btn-danger" onclick="deleteline($(this), '.$tid.', '.Html::h($row['on_track_id'] ?? '').')"><i class="md md-exposure-minus-1"></i></button>';
+            $html .= '</td>';
         }
-        $html .= '</td>';
 
         return $html;
     }
@@ -540,17 +574,24 @@ final class OrderDetailRenderer
 
     // ------------------------------------------------------------------ _admin/_order/load_detail.php
 
-    public function admin(int $id): string
+    /**
+     * _admin/_order/load_detail.php ของ SR ($view = false) และ _admin/_printorder/load_detail.php ($view = true: ฉบับอ่านอย่างเดียวของหน้าพิมพ์ใบสั่งซื้อ)
+     * SR: ไม่มี VAT, มีบริการถ่ายรูป (is_takeapic), รูป tracking_image, สี #rrggbb, ไม่มีคอลัมน์ น้ำหนัก/ขนาด/ราคา/ประเภทสินค้า ของ jl
+     */
+    public function admin(int $id, bool $view = false): string
     {
-        $head = Php74::row(DB::table('bill_product')->where('id', $id)->first(['id', 'ship', 'status', 'is_vat', 'total_vat', 'vat']));
+        $head = Php74::row(DB::table('bill_product')->where('id', $id)->first(['id', 'ship', 'status']));
         $cart = $this->cart($id, true);
         $trackMap = $this->trackings($cart, true);
         $cashMap = $this->cashbacks($cart);
+        $imageMap = $view ? [] : $this->trackingImages($cart, $trackMap);
         $types = $cart === [] ? [] : $this->productTypes($head['ship'] ?? null);
         $paid = Php74::num($head['status'] ?? null) >= 2 && ($head['status'] ?? null) !== null;
         $orderPrefix = OrderLookups::prefix('order');
+        $onOff = fn ($v) => Php74::eq($v, 1) ? 'เปิด' : 'ปิด';
 
-        $html = '';
+        // _admin/_order/load_detail.php ของ SR echo <style> ก่อนตาราง (ของ _printorder ไม่มี)
+        $html = $view ? '' : "\n<style>\n\t.image_list_items {\n\t\tfloat: left;\n\t}\n</style>\n\n";
         $mainNo = 1;
         $no = 0;
         $totalChina = 0;
@@ -558,7 +599,6 @@ final class OrderDetailRenderer
         $tAmount = $tPerItem = null;
         $tTotal = $cart === [] ? null : $this->shippingPreSum($id);
         $dataTracking = [];
-        $firstId = 0;
         if (count($cart) === 0) {
             $html .= '<tr><td class="text-center" colspan="9" style="line-height: 100px;">'.$this->res('no_data').'</td></tr>';
         } else {
@@ -582,8 +622,7 @@ final class OrderDetailRenderer
                 $pname = self::productName($item);
 
                 if ($newShop) {
-                    $firstId = (int) $item['id'];
-                    foreach ($trackMap[$firstId] ?? [] as $row) {
+                    foreach ($trackMap[(int) $item['id']] ?? [] as $row) {
                         $dataTracking[] = $row;
                     }
                     $t0 = $dataTracking[0] ?? [];
@@ -591,23 +630,30 @@ final class OrderDetailRenderer
 				    <thead>
 				        <tr>
 
-				            <th class="text-left" colspan="3">
+				            <th class="text-left" colspan="3">';
+                    if ($view) {
+                        $html .= '
 				            	<div class="col-xs-6" style="padding:0px">
+				            	<div style="float:left;margin-top: 3px;height: 16px;">'.$mainNo.'.&nbsp;'.Html::h($t0['order'] ?? '').' ('.Html::h($item['shop_name']).')</div>
+				            	</div>
+				            	<div class="col-xs-2" style="padding:0px;margin-top: 3px;">'.$this->res('wood_protect').' : '.$onOff($item['is_craft']).'</div>
+				            	<div class="col-xs-2" style="padding:0px;margin-top: 3px;">'.$this->res('qc').' : '.$onOff($item['is_qc']).'</div>';
+                        $html .= '<div class="col-xs-2" style="padding:0px;margin-top: 3px;">'.$this->res('type').' : <select disabled="disabled" onchange="[changeproducttype]" >';
+                    } else {
+                        $sw = fn ($v, $fn) => Php74::eq($v, 1)
+                            ? '<input type="checkbox" checked class="js-switch" onchange="'.$fn.'($(this), '.$item['id'].')" value="0" data-color="#f05050" data-size="small"/>'
+                            : '<input type="checkbox"  class="js-switch" value="1" onchange="'.$fn.'($(this), '.$item['id'].')" data-color="#f05050" data-size="small"/>';
+                        $html .= '
+				            	<div class="col-xs-4" style="padding:0px">
 				            	<div style="float:left;margin-top: 3px;width:75px;overflow: hidden;height: 16px;">'.$mainNo.'.&nbsp;'.Html::h($item['shop_name']).'</div>
-				            	<input style="float: left;width: 70%;margin-left:3px;" type="text" class="" onblur="save_order_number($(this),'.($t0['id'] ?? '').')" value="'.Html::h($t0['order'] ?? '').'" />
+				            	<input style="float: left;width: 60%;margin-left:3px;" type="text" class="" onblur="save_order_number($(this),'.($t0['id'] ?? '').')" value="'.Html::h($t0['order'] ?? '').'" />
 
 				            	</div>
-				            	<div class="col-xs-2" style="padding:0px;margin-top: 3px;">'.$this->res('wood_protect').' : ';
-                    $html .= Php74::eq($item['is_craft'], 1)
-                        ? '<input type="checkbox" checked class="js-switch" onchange="SaveCartCraft($(this), '.$item['id'].')" value="0" data-color="#f05050" data-size="small"/>'
-                        : '<input type="checkbox"  class="js-switch" value="1" onchange="SaveCartCraft($(this), '.$item['id'].')" data-color="#f05050" data-size="small"/>';
-                    $html .= '</div>
-				            	<div class="col-xs-2" style="padding:0px;margin-top: 3px;">'.$this->res('qc').' : ';
-                    $html .= Php74::eq($item['is_qc'], 1)
-                        ? '<input type="checkbox" checked class="js-switch" onchange="SaveCartQc($(this), '.$item['id'].')" value="0" data-color="#f05050" data-size="small"/>'
-                        : '<input type="checkbox"  class="js-switch" value="1" onchange="SaveCartQc($(this), '.$item['id'].')" data-color="#f05050" data-size="small"/>';
-                    $html .= '</div>';
-                    $html .= '<div class="col-xs-2" style="padding:0px;margin-top: 3px;">'.$this->res('type').' : <select onchange="[changeproducttype]" >';
+				            	<div class="col-xs-2" style="padding:0px;margin-top: 3px;">'.$this->res('wood_protect').' : '.$sw($item['is_craft'], 'SaveCartCraft').'</div>
+				            	<div class="col-xs-2" style="padding:0px;margin-top: 3px;">'.$this->res('qc').' : '.$sw($item['is_qc'], 'SaveCartQc').'</div>
+				            	<div class="col-xs-2" style="padding:0px;margin-top: 3px;">ถ่ายรูป : '.$sw($item['is_takeapic'] ?? null, 'SaveCartTakeapic').'</div>';
+                        $html .= '<div class="col-xs-2" style="padding:0px;margin-top: 3px;">'.$this->res('type').' : <select onchange="[changeproducttype]" >';
+                    }
                     $html .= '<option value="0"> - </option>';
                     foreach ($types as $t) {
                         $html .= '<option ['.($t0['id'] ?? '').'_changeproducttypeoption_'.$t['id'].'] value="'.$t['id'].'">'.Html::h($t['name']).'</option>';
@@ -618,8 +664,9 @@ final class OrderDetailRenderer
 				            <th class="text-center" style="width: 80px;">'.$this->res('amount').'</th>
 				            <th class="text-center" style="width: 80px;">'.$this->res('price_cn').'</th>
 				            <th class="text-center" style="width: 80px;">'.$this->res('total_cn').'</th>
-				            <th class="text-center" style="width: 80px;">'.$this->res('price_th').'</th>
-				        	<th class="text-center" style="width: 40px;">'.$this->res('action').'</th>
+				            <th class="text-center" style="width: 80px;">'.$this->res('price_th').'</th>'
+                        .($view ? '' : '
+				        	<th class="text-center" style="width: 40px;">'.$this->res('action').'</th>').'
 				        </tr>
 				    </thead>
 
@@ -628,14 +675,16 @@ final class OrderDetailRenderer
 
                 $no++;
                 $second = $this->secondLine($item, true);
-                $colors = self::craftQcColors($item);
+                $colors = self::craftQcColors($item, ! $view);
                 $color = self::trColor($item);
                 $html .= '<tr>';
                 $html .= '<td style="width:50px;'.$color.'">'.$mainNo.'.'.$no.'.</td>';
                 $html .= '<td style="width:70px;'.$colors.'" class="text-center"><a class="fancybox" href="'.Html::url($item['main_image']).'">
                 <img src="'.Html::h($item['main_image']).'" style="max-width: 46px;max-height: 46px;">
             </a></td>';
-                $html .= '<td style="'.$color.'" ><a href="'.Html::url($item['url']).'">'.Html::h($pname).'</a>';
+                $html .= $view
+                    ? '<td style="'.$color.'" >ชื่อ : '.Html::h($pname).'<br/>ลิ้งค์ : '.Html::h($item['url'])
+                    : '<td style="'.$color.'" ><a href="'.Html::url($item['url']).'">'.Html::h($pname).'</a>';
                 if ($second !== '') {
                     $html .= '<div class="cd-price">'.$second.'</div>';
                 }
@@ -664,16 +713,18 @@ final class OrderDetailRenderer
                 $html .= '</td>';
                 $html .= '<td style="width: 80px;'.$color.'" class="text-right">'.Format::numberformat($amount * $price, true, true, true).'</td>';
                 $html .= '<td style="width: 80px;'.$color.'" class="text-right">'.Format::numberformat($amount * ($price * $rate)).'</td>';
-                // ค่าที่เดิมฝังใน string JS '...' ของ onclick: escape แบบ JS ก่อนแล้วค่อย escape แบบ HTML (เดิมไม่ escape)
-                // (encode entity ซ้ำเสมอ: ค่า "&#39;" ใน DB จะถูกถอดเป็น ' ใน attribute ก่อนรัน JS)
-                $js = fn ($v) => htmlspecialchars(str_replace(['\\', "'"], ['\\\\', "\\'"], (string) $v), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401, 'UTF-8', true);
-                $remark = implode('\n\r', array_map($js, preg_split('#\R+#', (string) ($item['cashback_remark'] ?? ''))));
-                $itemLabel = $orderPrefix.($head['id'] ?? '').' ลำดับ '.$mainNo.'.'.$no;
-                $html .= '<td style="width: 40px;'.$color.'" class="text-center"><button class="btn-warning" onclick="cashback_form('.$item['id'].', \''.$js($item['amount']).'\', \''.$js($item['exchange_rate']).'\', \''.$js($item['price']).'\', \''.$js($item['amount_before']).'\', \''.$remark.'\', \''.$js($itemLabel).'\')" ><i class="md md-attach-money"></i></button>
+                if (! $view) {
+                    // ค่าที่เดิมฝังใน string JS '...' ของ onclick: escape แบบ JS ก่อนแล้วค่อย escape แบบ HTML (เดิมไม่ escape)
+                    // (encode entity ซ้ำเสมอ: ค่า "&#39;" ใน DB จะถูกถอดเป็น ' ใน attribute ก่อนรัน JS)
+                    $js = fn ($v) => htmlspecialchars(str_replace(['\\', "'"], ['\\\\', "\\'"], (string) $v), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401, 'UTF-8', true);
+                    $remark = implode('\n\r', array_map($js, preg_split('#\R+#', (string) ($item['cashback_remark'] ?? ''))));
+                    $itemLabel = $orderPrefix.($head['id'] ?? '').' ลำดับ '.$mainNo.'.'.$no;
+                    $html .= '<td style="width: 40px;'.$color.'" class="text-center"><button class="btn-warning" onclick="cashback_form('.$item['id'].', \''.$js($item['amount']).'\', \''.$js($item['exchange_rate']).'\', \''.$js($item['price']).'\', \''.$js($item['amount_before']).'\', \''.$remark.'\', \''.$js($itemLabel).'\')" ><i class="md md-attach-money"></i></button>
 			<button style="margin-top: 2px;" class="btn-pink" onclick="remark_form(\''.$item['id'].'\')" ><i class="md  md-content-paste"></i></button>
 
 			<button style="margin-top: 2px;" class="btn-info" onclick="color_form(\''.$item['id'].'\')" ><i class="md md-format-color-fill"></i></button>
 		</td>';
+                }
                 $html .= '</tr>';
 
                 if (Php74::eq($countRow, $item['count'])) {
@@ -692,12 +743,9 @@ final class OrderDetailRenderer
                     if (count($dataTracking) !== 0) {
                         $countT = 0;
                         foreach ($dataTracking as $row) {
-                            $html .= $this->adminTrackingRow($row, $countT === 0);
+                            $html .= $this->adminTrackingRow($row, $countT === 0, $view);
                             $countT++;
                         }
-                    }
-                    if (Php74::eq($t0['id'] ?? null, '')) {
-                        $html .= '<button class="btn-success" onclick="addnewline($(this), '.$firstId.')"><i class="md md-exposure-plus-1"></i></button>';
                     }
                     $countRow = 1;
                     $ship = self::num($t0['price_shipping'] ?? null);
@@ -708,7 +756,19 @@ final class OrderDetailRenderer
                     $html = str_replace('[changeproducttype]', 'onchageproducttype('.($t0['id'] ?? '').', $(this))', $html);
                     $html = str_replace('['.($t0['id'] ?? '').'_changeproducttypeoption_'.($t0['product_type_id'] ?? '').']', 'selected="selected"', $html);
 
-                    $html .= '</table>
+                    $html .= '</table>';
+                    if (! $view) {
+                        $html .= '
+				<div class="pull-left ">';
+                        foreach ($imageMap[(int) ($t0['id'] ?? 0)] ?? [] as $att) {
+                            $u = Html::h($this->blob.$att);
+                            $html .= '<a style="margin:3px;float:left" class="fancybox" href="'.$u.'">
+                            <img src="'.$u.'" style="max-width: 50px;max-height: 33px;">
+                        </a>';
+                        }
+                        $html .= '</div>';
+                    }
+                    $html .= '
 				<p class="pull-right text-right">'.$this->res('price_china_express').'</p>
 				</td>
 
@@ -719,7 +779,9 @@ final class OrderDetailRenderer
 		    	<tfoot>
 
 		    		<td colspan="3" >
-			    		<div class="text-left" style="float:left">
+			    		<div class="text-left" style="float:left">';
+                    if (! $view) {
+                        $html .= '
 				    		<button class="btn-pink" onclick="remark_shop_form(\''.($t0['id'] ?? '').'\')">
 				    			<i class="md  md-content-paste"></i>
 				    		</button>
@@ -727,6 +789,7 @@ final class OrderDetailRenderer
 				    		<button class="btn-danger" onclick="make_no_payment_track(\''.($t0['id'] ?? '').'\')">
 				    			<i class="md  md-close"></i>
 				    		</button>';
+                    }
                     if ((string) ($t0['remark_shop'] ?? '') !== '') {
                         $html .= '<span class="text-danger" style="margin-left: 10px;">'.Html::h($t0['remark_shop']).'</span>';
                     }
@@ -754,36 +817,17 @@ final class OrderDetailRenderer
 <tfoot>
 		<td class="text-right">'.Format::numberformat($totalChina, true, true, true).'</td>
 </tfoot>
-
-
 <table class="table  table-bordered" style="font-size: 25px;">
 <tfoot>
 		<td class="text-right">'.Format::numberformat($totalThai).'</td>
 </tfoot>
-</table>
-
-';
-        if (Php74::eq($head['is_vat'] ?? null, 1)) {
-            $html .= '
-<table class="table  table-bordered" style="font-size: 25px;">
-
-<tfoot>
-		<td class="text-right">รวม '.Format::numberformat($totalThai + self::num($head['total_vat'] ?? null)).'</td>
-</tfoot>
-<tfoot>
-		<td class="text-right">ภาษีมูลค่าเพิ่ม '.Html::h($head['vat'] ?? '').'% : '.Format::numberformat($head['total_vat'] ?? null).'</td>
-</tfoot>
-</table>
-
-
-';
-        }
+</table>';
 
         return $html;
     }
 
-    /** แถว tracking ใน load_detail.php (weight/width/price_kg/proname ไม่ได้ select ในไฟล์เดิม → ค่าว่างเสมอ) */
-    private function adminTrackingRow(array $row, bool $first): string
+    /** แถว tracking ใน load_detail.php ของ SR ($view = _printorder/load_detail: แถวแรกเป็นข้อความ, ไม่มีลิงก์ล็อต/ปุ่ม +) */
+    private function adminTrackingRow(array $row, bool $first, bool $view = false): string
     {
         [$exp0, $exp1, $exp2] = self::dates($row);
         $lot = Php74::eq($row['lot_name'] ?? null, '') ? '-' : Html::h($row['lot_name']);
@@ -791,7 +835,6 @@ final class OrderDetailRenderer
         $tid = (string) ($row['id'] ?? '');
         $html = '<tr class="tracking_list" >';
         if ($first) {
-            $html .= '<button class="btn-success" onclick="addnewline($(this), '.Html::h($row['bill_product_detail_id'] ?? '').')"><i class="md md-exposure-plus-1"></i></button>';
             if (Php74::eq($row['payment_id'] ?? null, '-2')) {
                 $html .= '<td class="bxr_form_left" style="vertical-align: top;">'.$this->res('tracking').' : </td>';
                 $html .= '<td class="bxr_form_right" style="vertical-align: top;">
@@ -801,7 +844,9 @@ final class OrderDetailRenderer
                 return $html;
             }
             $html .= '<td class="bxr_form_left" style="vertical-align: top;">'.$this->res('tracking').' : </td>';
-            $html .= '<td class="bxr_form_right" style="vertical-align: top;">
+            $html .= $view
+                ? '<td class="bxr_form_right" style="vertical-align: top;">'.Html::h($row['tracking'] ?? '').'<br/>'.Html::h($row['quote'] ?? '').'</div>'
+                : '<td class="bxr_form_right" style="vertical-align: top;">
 								<div style="float:left;clear:both;"><input type="text" class="" onblur="save_tracking($(this),\''.$tid.'\')" value="'.Html::h($row['tracking'] ?? '').'" placeholder="- '.$this->res('tracking').' -" /></div>
 								<div style="float:left;clear:both;margin-top: -1px;"><input type="text" class="" onblur="save_quote($(this), \''.$tid.'\')" value="'.Html::h($row['quote'] ?? '').'" placeholder="- '.$this->res('remark_for_this_order').' -" /></div>';
             $html .= '</td>';
@@ -824,7 +869,9 @@ final class OrderDetailRenderer
         }
         $html .= '</td>';
         $html .= $first ? '<td>' : '<td style="padding-top: 0px;">';
-        $html .= '<div class="" style="float:left;clear:both;">'.Status::getShipType($row['ship'] ?? null).'<a href="'.$this->href.'admin/lot/'.Html::h($row['lot_id'] ?? '').'">'.$lot.'/'.$tno.'</a></div>';
+        $html .= ($view && $first)
+            ? '<div class="" style="float:left;clear:both;">'.Status::getShipType($row['ship'] ?? null).$lot.'/'.$tno.'</div>'
+            : '<div class="" style="float:left;clear:both;">'.Status::getShipType($row['ship'] ?? null).'<a href="'.$this->href.'admin/lot/'.Html::h($row['lot_id'] ?? '').'">'.$lot.'/'.$tno.'</a></div>';
         $html .= '<div class="" style="float:left;clear:both;">'.Format::getthaidate($exp0, true).'</div>';
         $html .= '<div class="" style="float:left;clear:both;">'.Format::getthaidate($exp1, true).'</div>';
         $html .= '<div class="" style="float:left;clear:both;">'.Format::getthaidate($exp2, true).'</div>';
@@ -832,28 +879,24 @@ final class OrderDetailRenderer
             $html .= '<div class="" style="float:left;clear:both;"><a href="'.$this->href.'admin/export/'.Html::h($row['payment_id']).'" >'.OrderLookups::prefix('payment').Html::h($row['payment_id']).'</a></div>';
         }
         $html .= '</td>';
-        $indent = $first ? "\t\t\t\t\t\t\t\t" : "\t\t\t\t\t\t\t";
-        $html .= '<td style="width: 105px;">
-'.$indent.'	<div class="bxr_form_left" style="">น้ำหนัก : </div>
-'.$indent.'	<div class="bxr_form_left" style="">ขนาด : </div>
-'.$indent.'	<div class="bxr_form_left" style="">ราคา : </div>
-'.$indent.'	<div class="bxr_form_left" style="">ประเภทสินค้า : </div>
-'.$indent.'</td>';
-        $html .= '<td style="width: 105px;">
-'.$indent.'	<div style="float:left;clear:both;">'.Format::numberformatone(null).'</div>
-'.$indent.'	<div class="" style="float:left;clear:both;">'.Format::cubicformat(0).'</div>
-'.$indent.'	<div class="" style="float:left;clear:both;">'.Format::numberformat(0).'</div>
-'.$indent.'	<div class="" style="float:left;clear:both;"></div>
-'.$indent.'</td>';
-        $html .= $first ? '<td style="vertical-align:top">' : '<td style="vertical-align:top;padding-top: 6px;">';
-        $html .= '<button class="btn-danger" onclick="deleteline($(this), '.$tid.', '.Html::h($row['on_track_id'] ?? '').')"><i class="md md-exposure-minus-1"></i></button>';
-        $html .= '</td>';
+        if ($first) {
+            if (! $view) {
+                $html .= '<td style="vertical-align:top">';
+                $html .= '<button class="btn-success" onclick="addnewline($(this), '.Html::h($row['bill_product_detail_id'] ?? '').')"><i class="md md-exposure-plus-1"></i></button>';
+                $html .= '</td>';
+            }
+        } else {
+            $html .= '<td style="vertical-align:top;padding-top: 6px;">';
+            $html .= '<button class="btn-danger" onclick="deleteline($(this), '.$tid.', '.Html::h($row['on_track_id'] ?? '').')"><i class="md md-exposure-minus-1"></i></button>';
+            $html .= '</td>';
+        }
 
         return $html;
     }
 
-    // ------------------------------------------------------------------ _order/print.php
+    // ------------------------------------------------------------------ _admin/_printorder/print.php (SR)
 
+    /** ส่วนล่างของ _admin/_printorder/print.php ของ SR (jl มี _order/print.php ของลูกค้าแทน — SR ไม่มีไฟล์นั้น) */
     public function print(int $id): string
     {
         $head = Php74::row(DB::table('bill_product')->where('id', $id)->first(['id', 'ship', 'status']));
@@ -861,9 +904,7 @@ final class OrderDetailRenderer
         $trackMap = $this->trackings($cart, true);
         $cashMap = $this->cashbacks($cart);
         $paid = Php74::num($head['status'] ?? null) >= 2 && ($head['status'] ?? null) !== null;
-        // เดิม $id > getSetting('newordershippingprice') — ไม่มี setting นี้ = เทียบกับ null → จริงทุก id > 0
-        // แล้วใช้ $item['price_shipping'] ซึ่งไม่มีคอลัมน์นี้ (= 0)
-        $newShipping = Php74::gt($id, Lookup::getSetting('newordershippingprice'));
+        $types = $cart === [] ? [] : $this->productTypes($head['ship'] ?? null);
 
         $html = '';
         $mainNo = 1;
@@ -910,6 +951,12 @@ final class OrderDetailRenderer
                     $html .= Php74::eq($item['is_craft'], 1) ? 'เปิด' : 'ปิด';
                     $html .= '&nbsp;|&nbsp;'.$this->res('qc').' : ';
                     $html .= Php74::eq($item['is_qc'], 1) ? 'เปิด' : 'ปิด';
+                    $html .= '<br/>'.$this->res('type').' : <select disabled="disabled" onchange="[changeproducttype]" >';
+                    $html .= '<option value="0"> - </option>';
+                    foreach ($types as $tp) {
+                        $html .= '<option ['.($t0['id'] ?? '').'_changeproducttypeoption_'.$tp['id'].'] value="'.$tp['id'].'">'.Html::h($tp['name']).'</option>';
+                    }
+                    $html .= '</select><div>';
                     $html .= '
 				            </th>
 				            <th class="text-center" style="width: 80px;">'.$this->res('amount').'</th>
@@ -968,7 +1015,8 @@ final class OrderDetailRenderer
                     if (! $paid) {
                         $html .= '<tr>
 							<td class="bxr_form_left">'.$this->res('shipping_in_china').' : </td>
-							<td class="bxr_form_right">'.Format::numberformat($t0['price_shipping'] ?? null, false).'</td></tr>';
+							<td class="bxr_form_right">'.Format::numberformat($t0['price_shipping'] ?? null, false).'<span style="margin-left:5px">'.$this->res('cn_currency').'</span>
+							</td></tr>';
                     }
                     if (count($dataTracking) !== 0) {
                         $countT = 0;
@@ -978,13 +1026,12 @@ final class OrderDetailRenderer
                         }
                     }
                     $countRow = 1;
-                    // ค่าส่ง: แบบใหม่ใช้ $item['price_shipping'] (ไม่มีคอลัมน์ = null), แบบเก่าใช้ tracking แรก
-                    $shipRaw = $newShipping ? null : ($t0['price_shipping'] ?? null);
-                    $ship = self::num($shipRaw);
+                    $ship = self::num($t0['price_shipping'] ?? null);
                     $tPerItem = self::num($tPerItem) + $ship;
-                    $tTotal = self::num($tTotal) + round($ship * $rate, 2);
-                    $totalThai += round($ship * $rate, 2);
+                    $tTotal = self::num($tTotal) + ($ship * $rate);
+                    $totalThai += ($ship * $rate);
                     $totalChina += $ship;
+                    $html = str_replace('[changeproducttype]', 'onchageproducttype('.($t0['id'] ?? '').', $(this))', $html);
                     $html = str_replace('['.($t0['id'] ?? '').'_changeproducttypeoption_'.($t0['product_type_id'] ?? '').']', 'selected="selected"', $html);
 
                     $html .= '</table>
@@ -992,13 +1039,14 @@ final class OrderDetailRenderer
 				</td>
 
 
-				<td class="text-right">'.Format::numberformat(round($tPerItem - $ship, 2), true, true, true).'<br />'.Format::numberformat(round($ship, 2), true, true, true).'</td>
-				<td class="text-right">'.Format::numberformat(($tTotal - ($ship * $rate))).'<br/>'.Format::numberformat(round($ship * $rate, 2)).'</td>
+				<td class="text-right">'.Format::numberformat($tPerItem - $ship, true, true, true).'<br />'.Format::numberformat($t0['price_shipping'] ?? null, true, true, true).'</td>
+				<td class="text-right">'.Format::numberformat($tTotal - ($ship * $rate)).'<br/>'.Format::numberformat($ship * $rate).'</td>
 				</tr></tbody>
 		    	<tfoot>
 
 		    		<td colspan="3" >
-			    		<div class="text-left" style="float:left">';
+			    		<div class="text-left" style="float:left">
+				    		';
                     if ((string) ($t0['remark_shop'] ?? '') !== '') {
                         $html .= '<span class="text-danger" style="margin-left: 10px;">'.Html::h($t0['remark_shop']).'</span>';
                     }
@@ -1006,11 +1054,11 @@ final class OrderDetailRenderer
 		    		<div class="text-right">'.$this->res('total').'</div></td>
 		    		<td class="text-right">'.self::n(self::num($tAmount)).'</td>
 		    		<td class="text-right"></td>
-		    		<td class="text-right">'.Format::numberformat(round($tPerItem, 2), true, true, true).'</td>
-		    		<td class="text-right">'.Format::numberformat(round($tTotal, 2)).'</td>
+		    		<td class="text-right">'.Format::numberformat($tPerItem, true, true, true).'</td>
+		    		<td class="text-right">'.Format::numberformat($tTotal).'</td>
 
-					    </tfoot>
-				</table>';
+		    </tfoot>
+</table>';
                     $dataTracking = [];
                     $mainNo++;
                     $no = 0;
@@ -1129,8 +1177,8 @@ final class OrderDetailRenderer
         }
         $html .= '</td>';
         if (! $first) {
+            // SR: ช่องปุ่มลบว่าง (หน้าพิมพ์)
             $html .= '<td style="vertical-align:top;padding-top: 6px;">';
-            $html .= '<button class="btn-danger" onclick="deleteline($(this), '.Html::h($row['id'] ?? '').', '.Html::h($row['on_track_id'] ?? '').')"><i class="md md-exposure-minus-1"></i></button>';
             $html .= '</td>';
         }
 
