@@ -1,5 +1,74 @@
 # กลุ่ม payment — รายงานการพอร์ต
 
+## SR (2026-10-20)
+
+branch `mod/payment` · worktree `/home/admin/laravel/sr-wt/payment` · dev `bin/wt-serve payment` → http://127.0.0.1:8304 · เทียบกับเว็บเดิม SR :8111 (admin_sr_bench)
+
+### เปลี่ยนตาม SR
+- **ไม่มี VAT** (SR ไม่มี bill_payment.is_vat/vat/v/vat_before/shipv/shipvat/shipvat_before): ตัดช่อง "ต้องการ VAT?", แถวสรุป VAT ในหน้าบิล, ป้าย VAT ใน grid, ปุ่ม "คิด VAT" ของแอดมิน, `PaymentTotals::vat()/bill()`; `load_shipping_price` คืน JSON ของ getShippingTypePrice ตรงๆ (ไม่มี data.html)
+- **รหัสย่อย (tracking.subuser)**: ช่องค้นหา + คอลัมน์ใน `payment/create` / `_payment/load_create`, คอลัมน์ในหน้า `payment/create/{random}`, `payment/{id}`, `admin/payment/{id}`, `admin/payment/create/{user}/{random}`, ใต้รหัสลูกค้าใน `_admin/_payment/load_create`; รูปพัสดุ (tracking_image) ใน load_create; ไม่มีป้าย MALL
+- `_payment/load_select_lot`: เงื่อนไขแบบ SR (ช่องค้นหา tracking/quote/รหัสย่อย/ถึงไทย, lot_id ≠ 0, ไม่กรอง tracking/no/header) — SQL เดิมผิดไวยากรณ์เมื่อกรอก tracking และรหัสย่อยพร้อมกัน (วงเล็บไม่มี AND) → ผลว่าง: ทำซ้ำแบบเดิม (`applyTextSearch()` คืน false) ใช้กับ load_create ด้วย
+- `_admin/_payment/load_select_lot`: + header = 0 · `_admin/_payment/load_create`: ไม่มีตารางเรทด้านบน
+- `_payment/save_submit_payment` (ลูกค้า): **ถาม PIN จ่ายเงิน** (`PinBox::guard`, jl comment ไว้) · **สร้างบิลได้ 1 ใบต่อ 20 วินาที** (ErrorBox "กรุณารอ N วินาที" — ตรวจภายใต้ lock แถว user, นับเวลาด้วย TIMESTAMPDIFF ของ MySQL) · ค่าเปลี่ยนผู้ส่งต่อรหัสลูกค้า (setting `charge_sender_edit`, `PaymentTotals::senderCharge()`; หน้า create_form แสดงค่าเดียวกัน) · bill_payment_detail คัดลอก `subuser`, `is_takeapic` (ไม่มี is_checked/checked_by)
+- ประเภทการส่งในฟอร์มสร้างบิล (ลูกค้า/แอดมิน) `ORDER BY no = 0, no ASC`
+- `_admin/_payment/save_submit_payment`: เปิด hack ปุ่ม 9/10 (บริษัทจัดส่ง/รับเอง) แบบ SR; detail มี subuser, is_takeapic = 0 (เดิมไม่ได้ SELECT มา = '' → 0)
+- `_admin/_payment/save_approved`: **calPoint** (แต้ม = price_shipping / divide_point, balance_point type 1 prefix export) + `warehouse_section_detail.is_delete = 1` ของพัสดุในบิล — ใน transaction เดียวกับการเปลี่ยนสถานะ (lock แถวบิล; กดซ้ำ = แต้มครั้งเดียว)
+- `_payment/save_delete` (ลูกค้า): calPoint(id, '-') ก่อนยกเลิก (หักแต้ม) ใน transaction เดียวกัน
+- `_admin/_payment/save_delete`: สถานะ **0** (แอดมินสร้างแบบยังไม่จ่าย) ยกเลิก + คืนพัสดุได้ (ไม่มีเงินคืน/อีเมล); ไม่พบบิล = ข้อความสำเร็จแบบเดิม (null == 0) โดยไม่เขียนอะไร
+- `admin/payment/{id}`: พิมพ์ `console.log` ราคาเทียบเรท user_type_detail ต่อแถวแบบ SR (ค่าใน JS escape; เรทดึงครั้งเดียว ไม่ N+1)
+- อีเมล (approved/cancel/alipay success): แม่แบบ SR (header/center/footer ของ SR ก่อน hotfix — ไฟล์หลัง hotfix มี `<?php ... ?>` หัวไฟล์ที่ file_get_contents จะติดไปในอีเมล), ปุ่มสี #a3b2f1, ผู้ส่ง `SRShippingSystem <no-reply@srshippingsystem.com>` (ค่าคงที่ใน `PaymentMailer` — ตอน merge กับ mod/users ให้ใช้ `config('legacy.mail')` ตัวเดียวกัน), payment ไม่เรียก sendLine/push แล้ว (เป็น no-op อยู่ดี)
+- `_payment/view_example`: print_header.php ของ SR (ไม่มี html/head/body + jQuery/addCommas) — คง favicon set
+- **alipay**: `_alipay/save` ถาม PIN, ใช้เงินหยวน (balance_cn) ก่อน ส่วนที่ขาด × เรท ตัดจากบาท, เก็บ `bill_alipay.usecash_cn`, เขียน balance/balance_cn เฉพาะยอดที่ไม่เป็น 0 · `_alipay/cancel` คืนทั้งสองส่วน (เฉพาะยอด ≠ 0) · `_admin/_alipay/cancel` คืนทั้ง balance และ balance_cn เสมอ (ยอด 0 ก็เขียนแบบเดิม) · `_admin/_alipay/save` เฉพาะสถานะ 1 อื่นๆ `ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();')` (SR แก้ช่องโหว่ยืนยันบิลที่ยกเลิกแล้วเอง) · หน้า alipay แสดงเงินหยวน/ยอดประมาณ (บาท/เรท + หยวน)/หยวนที่ใช้ และแถว balance_cn (¥)
+- `calPoint()` = `App\Support\Legacy\PointCalc::calPoint()` (commit `foundation:` เพราะ reports ใช้ด้วย: `_export/save_delete`, `_admin/_export/save_delete`) · `getPayType()` ใช้แค่ mall (SR ไม่มี) → ไม่พอร์ต
+
+### SR-only ที่พอร์ต
+- `admin/receipt`, `admin/receipt/status/{n}` (`_admin/_receipt/index.php`, สิทธิ์ `admin_receipt` — role 1 เท่านั้นบน bench) + `POST /_admin/_receipt/grid` (ไม่มีสิทธิ์ = ว่าง): bill_payment ที่ receipt_id ≠ '' ค้นหา id/receipt_id/รหัสลูกค้า เรียง receipt_id DESC; ลิงก์ไป `admin/export/receipt/{id}` และ `_admin/_export/print_receipt/?id=` (กลุ่ม reports)
+- `admin/receipt/{id}`, `admin/receipt/create` → `_admin/_receipt/form.php` ไม่มีในเว็บเดิม = dead → ไม่มี route (404 → หน้าแรก)
+
+### ลบ (jl-only)
+`_payment/load_vat`, `_payment/load_receipt_address`, `_payment/save_create_receiptaddress`, `_payment/save_deleteaddress`, `_payment/save_deletereceiptaddress`, `_admin/_payment/save_vat` (route + method + view receipt_address + test)
+
+### ต่างจาก SR เดิมโดยตั้งใจ (นอกจากที่ jl port ทำไว้แล้ว)
+- กันแจกแต้มซ้ำ (calpoint-dedupe-guard-v1) นับเฉพาะ prefix export (เดิมรวมทุก prefix type 1 ที่ prefix_ref_id เดียวกัน — แถวแลกแต้ม withdrawpoint ติดลบทำให้แจกซ้ำได้)
+- alipay: ยอดที่ไม่ใช่ตัวเลข → ErrorBox (เดิมเทียบ string แล้วคำนวณผิด); ยอดหยวนติดลบถือเป็น 0 (เดิม use_balance ติดลบ → แถว balance_cn `'--x'` ที่ MySQL เก็บเป็น 0 แต่ส่วนบาทถูกบวกเพิ่ม = ลูกค้าเสียเงิน)
+- อีเมลล้มเหลว: log อย่างเดียว (เดิม `echo $e` ติดไปในคำตอบ ajax)
+- PIN ผิด: PinThrottle เหมือนกลุ่มอื่น; `goLog` ของเดิมบันทึก PIN ที่พิมพ์ผิดเป็น plaintext — ไม่บันทึก
+- bill_payment_detail ลูกค้า: INSERT … SELECT คอลัมน์ระบุชัด (เดิม VALUES ต่อ string: subuser ไม่ผ่าน nStr → มี `'` = SQL error แถว detail หาย)
+- หน้าไม่มีสิทธิ์ `admin/receipt`: ไม่มีหัวหน้า (breadcrumb) ก่อน ErrorBox — แบบเดียวกับทุกหน้าที่ใช้ `legacy.perm`
+- ที่เหลือคงตาม jl port: escape `<"'&`, ไม่มี target=_blank, random/บิลของคนอื่น = ว่าง, ไม่มี key ตัวเลขซ้ำใน JSON ของ load_shipping_price
+
+### ช่องโหว่เดิมที่เจอใน SR
+- `_payment/save_delete` เรียก calPoint ด้วย id ที่ส่งมา **ก่อน** ตรวจเจ้าของ/สถานะ → ลูกค้าส่ง id บิลของคนอื่นแล้วหักแต้มของเจ้าของบิลนั้นได้ (ใหม่: เฉพาะบิลตัวเองสถานะ 1)
+- `_payment/save_submit_payment`: เช็ค 20 วินาทีนอก lock (ส่งพร้อมกันผ่านได้) — ใหม่อยู่ใน lock + `legacy.once`
+- `goLog` เก็บ PIN จ่ายเงินที่ผิดเป็น plaintext ใน log
+- hotfix 2026-10-18 ใส่บรรทัด `<?php ... ?>` หัว email_header/center/footer.php → อีเมลจริงตอนนี้มีโค้ด PHP ติดไปด้วย (ฝั่งใหม่ใช้เนื้อหาก่อน hotfix)
+
+### การตรวจ (เทียบ :8111 ด้วย session เดียวกัน, normalize host/ช่องว่าง/target=_blank)
+- เท่ากันหลัง normalize (ต่างเฉพาะ escape / favicon / dashboard.js ของ layout): `/payment` (+status), `_payment/grid` หน้า 1–2 + สถานะ + ค้นหา, `payment/create`, `_payment/load_select_lot` + `load_create` (11 แบบรวม tracking+รหัสย่อย = ว่าง), `load_create_sum`, `payment/create/{random}`, `load_shipping_price` (4 แบบ), `view_example` (sender 0/1), `payment/{id}` (4 บิลจริง + บิล zz), `admin/payment` (+status), `_admin/_payment/grid` (หน้า 1–3, ค้นหารหัส/PAY-id), `admin/payment/{id}` (4 บิลจริง รวม 44 พัสดุ + 3 บิล zz รวม console.log), `admin/payment/create[/{u}]`, `admin/payment/create/{u}/{random}`, `_admin/_payment/load_create`/`load_select_lot` (2 ลูกค้า × 4 แบบ), `load_autocomplete_user`, `load_user_by_id`, `_admin/_payment/load_shipping_price`, `/alipay`(+status), `alipay/create`, `alipay/{id}`, `_alipay/grid`, `admin/alipay`(+status), `admin/alipay/create`, `admin/alipay/{id}`, `_admin/_alipay/grid`, `admin/receipt`(+status), `_admin/_receipt/grid` (6 แบบ ด้วยใบเสร็จ zz), หน้าไม่มีสิทธิ์ role 12 (`admin/receipt`)
+- E2E (Laravel :8304 เท่านั้น, ผู้ใช้ 11937/11938 + tracking zz_pay_*): ไม่มี PIN/PIN ว่าง/ผิด/ถูก + กดซ้ำ (บิลเดียว, ตัดเงิน 507.69 = storage 50 + ค่าผู้ส่ง 30 + 427.69), ลูกค้ายกเลิก (คนอื่นยกเลิก = ไม่มีผล, ยกเลิกซ้อน = คืนครั้งเดียว, แต้ม -2.85), แอดมินสร้างบิล pay_now + ปุ่ม 9 (444.36), approve ×2 พร้อมกัน (แต้ม 2.63 ครั้งเดียว, ชั้นวางถูกลบ, อีเมล 1 ฉบับจาก SRShippingSystem), ยกเลิกบิลสถานะ 2 (ปฏิเสธ), บิลสถานะ 0 → ยกเลิก (คืนพัสดุ ไม่มีเงิน), alipay 50¥ (หยวน 20 + บาท 156), กดซ้ำ, `1,00`/`abc` ปฏิเสธ, ยกเลิก (คืนทั้งสอง), alipay 10¥ (หยวนล้วน) → approve → approve ซ้ำ (ไม่พร้อม) → cancel สถานะ 2 (ปฏิเสธ) → rollback → cancel (คืน 0 บาท + 10¥) — ตรงกับค่าที่อ่านจากโค้ดเดิมทุกแถว · ลบแถวที่สร้างทั้งหมดตาม id แล้ว (tracking 1410–1413, tracking_image 6046–6047, balance 1293–1296/1383–1385, balance_cn 106–110, balance_point 199–200, bill_payment 322–324 + detail, temp 499–501, temp_admin 1184–1186, bill_alipay 1–2, warehouse_section_detail 29, ips 91) และคืน pin ของ 11937 เป็นค่าว่าง
+- test: `tests/Feature/Payment/PaymentSrDbTest.php` (9 test), `PaymentRoutesTest` (route SR + jl-only/dead ไม่มี route), ปรับ `BillGridDbTest` (แยก grid ของ reports), `LegacyRisksDbTest` (ประเภทส่งของ SR: 43/14), `GridPerfDbTest` (หน้าลึก/ประเภทตามข้อมูล SR)
+
+### bench (`bin/bench` n=20 c=1, `artisan optimize`, mean ms)
+| หน้า | เดิม | ใหม่ |
+|---|---|---|
+| `GET /payment` (ผู้ใช้ 2) | 368 | 43 |
+| `POST /_payment/grid` | 52 | 37 |
+| `POST /_payment/load_create` (17 พัสดุ) | 80 | 54 |
+| `GET /admin/payment` | 441 | 41 |
+| `POST /_admin/_payment/grid` | 39 | 35 |
+| `GET /admin/payment/32` (44 พัสดุ) | 733 | 69 |
+| `POST /_admin/_receipt/grid` (2 แถว) | 27 | 31 |
+| `GET /alipay/create` | 387 | 45 |
+
+`_admin/_receipt/grid` ช้ากว่า ~4 ms = overhead คงที่ของ Laravel (ตารางเล็ก query เดียว)
+
+### คำถามถึงเจ้าของ
+1. ลูกค้ายกเลิกบิลสถานะ 1 (ยังไม่อนุมัติ = ยังไม่เคยได้แต้ม) แต่ SR เดิมหักแต้ม (calPoint '-') — บน bench มี 5 บิลแบบนี้ (แต้มติดลบ) · ใหม่ทำตามเดิม: ควรหักเฉพาะเมื่อเคยได้แต้มหรือไม่
+2. `_export/save_delete` / `_admin/_export/save_delete` (reports) ต้องเรียก `PointCalc::calPoint($id, '-', ...)` เช่นกัน — ตอนนี้ใน Laravel ยังเป็น comment "ฟังก์ชันว่าง" (งานของ mod/reports)
+3. print_header ของ order/reports (`order/print_header.blade.php`, `reports/partials/print_header.blade.php`) ยังเป็นของ jl — SR ต่าง (ดู view_example)
+4. ผู้ส่งอีเมลเป็นค่าคงที่ใน PaymentMailer จนกว่า config('legacy.mail') ของ mod/users จะ merge
+
+
 branch `mod/payment` · worktree `/home/admin/laravel/jl-wt/payment` · dev server `bin/wt-serve payment` → http://127.0.0.1:8204
 
 โมดูลเดิม: `_payment`, `_admin/_payment`, `_alipay`, `_admin/_alipay` และกล่อง PIN `getPinBox()` / `getNewPinBox()` (system_status_function.php)
