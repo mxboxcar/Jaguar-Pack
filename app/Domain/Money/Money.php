@@ -19,6 +19,9 @@ final class Money
 
     public const CANCELLED = '-1';
 
+    /** cancelPendingRefill(): รายการอนุมัติแล้ว (status 2) */
+    public const REFILL_ALREADY_APPROVED = 'รายการนี้อนุมัติ (เติมเงินเข้าบัญชี) แล้ว ไม่สามารถยกเลิกได้';
+
     /** ข้อความเมื่อยอดเงินมี , ที่ไม่ใช่ตัวคั่นหลักพัน (ambiguousComma) */
     public const BAD_AMOUNT = 'กรุณาระบุจำนวนเงินให้ถูกต้อง (ใช้ , คั่นหลักพันเท่านั้น เช่น 1,000.50)';
 
@@ -130,7 +133,7 @@ final class Money
                 return 'ไม่พบรายการ';
             }
             if (self::statusIn($data->status, [self::DONE])) {
-                return 'รายการนี้อนุมัติ (เติมเงินเข้าบัญชี) แล้ว ไม่สามารถยกเลิกได้';
+                return self::REFILL_ALREADY_APPROVED;
             }
             if (! self::statusIn($data->status, [self::PENDING])) {
                 return 'รายการนี้ถูกยกเลิกไปแล้ว';
