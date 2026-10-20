@@ -78,4 +78,41 @@ class SettingsUploadTest extends TestCase
         $out = $this->send('system_upload_2', UploadedFile::fake()->createWithContent('photo.png', (string) ob_get_clean()));
         $this->assertMatchesRegularExpression('/^[A-Z]{10}\.jpg\[NIDA\]photo\.png$/', $out);
     }
+
+    /** SR system_ckupload: รูปจริง → URL ของที่เก็บถาวร (BlobStore local ใน test), ไม่ใช่รูป → ข้อความเดิม */
+    public function test_ckupload_stores_real_images_only(): void
+    {
+        $perm = $this->dir.'-perm';
+        config(['legacy.upload.driver' => 'local', 'legacy.upload.local_dir' => $perm]);
+        $ck = function (?UploadedFile $f, string $fn = '7') {
+            $res = $this->post('/system_ckupload?CKEditorFuncNum='.$fn, $f === null ? [] : ['upload' => $f]);
+            $res->assertOk();
+            $this->assertSame('nosniff', $res->headers->get('X-Content-Type-Options'));
+            $this->assertMatchesRegularExpression("~^<script>window\\.parent\\.CKEDITOR\\.tools\\.callFunction\\((-?\\d+), '([^']*)', '([^']*)'\\);</script>$~", (string) $res->getContent());
+            preg_match("~callFunction\\((-?\\d+), '([^']*)', '([^']*)'\\)~", (string) $res->getContent(), $m);
+
+            return [(int) $m[1], $m[2], $m[3]];
+        };
+        try {
+            $gif = UploadedFile::fake()->createWithContent('Photo.JPG', base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'));
+            [$fn, $url, $msg] = $ck($gif);
+            $this->assertSame([7, ''], [$fn, $msg]);
+            // ชื่อใหม่ = <time>_<สุ่ม 16>.<นามสกุลตามชนิดจริง> (GIF แม้ชื่อเป็น .JPG) ที่ href_blob
+            $this->assertMatchesRegularExpression('~^'.preg_quote(\App\Support\Legacy\Legacy::hrefBlob(), '~').'\d+_[A-Z]{16}\.gif$~', $url);
+            $this->assertFileExists($perm.'/'.basename($url));
+            $this->assertSame([], glob($this->dir.'/*') ?: [], 'temp copy removed');
+
+            $this->assertSame([0, '', 'Not an image.'], $ck(UploadedFile::fake()->createWithContent('x.png', '<?php echo 1; ?>'), 'abc'));
+            $this->assertSame('Only JPG/PNG/GIF.', $ck($this->png('x.bmp'))[2]);
+            $this->assertSame('Only JPG/PNG/GIF.', $ck($this->png('x.php'))[2]);
+            $this->assertSame('No file.', $ck(null)[2]);
+            $this->assertSame('Bad size.', $ck(UploadedFile::fake()->create('big.png', 10241))[2]);
+            $this->assertCount(1, glob($perm.'/*'));
+        } finally {
+            foreach (glob($perm.'/*') ?: [] as $f) {
+                unlink($f);
+            }
+            is_dir($perm) && rmdir($perm);
+        }
+    }
 }
