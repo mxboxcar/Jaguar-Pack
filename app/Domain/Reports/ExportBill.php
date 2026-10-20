@@ -10,10 +10,10 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * ข้อมูล/ตาราง "รายการพัสดุ" ของบิลส่งสินค้า (bill_payment) ที่ _export/form.php, _admin/_export/form.php, print.php/print_2.php ใช้ร่วมกัน
+ * ข้อมูล/ตาราง "รายการพัสดุ" ของบิลส่งสินค้า (bill_payment) ที่ _export/form.php, _admin/_export/form.php, print.php/print_2.php, printprice.php/print_3.php (SR) ใช้ร่วมกัน
  *
  * เดิมต่อแถวมี query ซ้อน (N+1): header_count (subquery ต่อแถว), bill_product_on_tracking (ต่อแถว), tracking ลูก (ต่อแถว),
- * warehouse_section_detail (ต่อแถวใน print_2) → ที่นี่โหลดเป็นชุดด้วย whereIn ครั้งละตาราง (จำนวน query คงที่) ลำดับเหมือนเดิม
+ * (SR print_2 ไม่แสดงชั้นวาง — query warehouse_section_detail ถูก comment ในไฟล์เดิม) → ที่นี่โหลดเป็นชุดด้วย whereIn ครั้งละตาราง (จำนวน query คงที่) ลำดับเหมือนเดิม
  */
 final class ExportBill
 {
@@ -65,26 +65,6 @@ final class ExportBill
         return $rows;
     }
 
-    /** ชั้นวางของแต่ละ tracking (print_2.php): ',ชื่อ1,ชื่อ2' เรียง weight_thai DESC, t.id DESC */
-    public static function locations(Collection $details): array
-    {
-        $ids = $details->pluck('id')->filter(fn ($v) => $v !== null)->unique()->values()->all();
-        if ($ids === []) {
-            return [];
-        }
-        $out = [];
-        foreach (DB::table('warehouse_section_detail as t')
-            ->leftJoin('warehouse_section as t2', 't2.id', '=', 't.section_id')
-            ->whereIn('t.tracking_id', $ids)->where('t2.is_delete', 0)
-            ->orderByDesc('t.weight_thai')->orderByDesc('t.id')
-            ->get(['t.tracking_id', 't2.name']) as $w) {
-            $k = (string) $w->tracking_id;
-            $out[$k] = ($out[$k] ?? '').','.$w->name;
-        }
-
-        return $out;
-    }
-
     /** n() = ค่าตัวเลขแบบ PHP 7.4 ของค่าจาก DB */
     private static function n(mixed $v): int|float
     {
@@ -134,8 +114,8 @@ final class ExportBill
             $rs = 'style="vertical-align:top" rowspan="'.(self::n($item->header_count) + 1).'"'.$sp;
             $bp = $item->bill_product_id;
             $trk = e((string) $item->tracking);
-            $lot = Php74::eq($item->lot_id, -99) && Php74::eq($item->no, -99) ? 'MALL' : $str.' '.e((string) $item->lot_name).'/'.e((string) $item->no);
-            $html .= '<td '.$rs.'class="text-center">'.$lot.'</td>';
+            // SR: ไม่มีร้านค้า (MALL) — แสดง lot/no เสมอ
+            $html .= '<td '.$rs.'class="text-center">'.$str.' '.e((string) $item->lot_name).'/'.e((string) $item->no).'</td>';
             $html .= '<td style="white-space: nowrap;"><a href="'.$href.($admin ? 'admin/order/' : 'order/').e((string) $bp).'/'.$trk.'">'.$trk.'</a></td>';
             $html .= '<td '.$rs.'style="white-space: nowrap;">';
             if (Php74::neq($bp, '')) {
@@ -144,6 +124,8 @@ final class ExportBill
                 $html .= '-';
             }
             $html .= '</td>';
+            // SR: คอลัมน์ "รหัสย่อย" (bill_payment_detail.subuser) — ไฟล์เดิมเขียน rowspan แล้วตามด้วยช่องว่าง 1 ตัวทั้งสองหน้า
+            $html .= '<td style="vertical-align:top" rowspan="'.(self::n($item->header_count) + 1).'" style="white-space: nowrap;">'.e((string) ($item->subuser ?? '')).'</td>';
             $html .= '<td '.$rs.'style="white-space: nowrap;">'.e((string) ($admin ? $item->remark : $item->quote)).'</td>';
             $html .= '<td '.$rs.'class="text-right">'.Format::numberformatzero($item->amount).'</td>';
             $html .= '<td '.$rs.'class="text-right">'.Format::numberformatone(self::n($item->weight) * self::n($item->amount)).'</td>';

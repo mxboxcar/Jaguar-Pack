@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
  * รายงานตามประเภทรายการเงิน (_admin/_report/grid.php, else.php, refill_5/6/7.php, shipping.php)
  *
  * type 99 = ค่าบริการโกดังไทย (bill_payment.price_thai_storage), 98 = ค่าจัดส่งในไทย (price_thai_shipping),
+ * 97 (SR) = รายงานภาษีขาย (bill_payment.receipt_*),
  * อื่นๆ = แถว balance ของ balance_type นั้น
  *
  * ข้อมูลประกอบต่อแถว (type 3/5/6/7) เดิม query ทีละแถว (N+1) → extras() โหลดเป็นชุดด้วย whereIn (id เป็น PK = ผลเท่าเดิม)
@@ -42,6 +43,19 @@ final class BalanceReport
 
             return $q;
         }
+        if (self::isTax($type)) {
+            // SR: รายงานภาษีขาย — bill_payment ที่ออกใบเสร็จแล้ว (receipt_id != ''), กรองวันที่ด้วย receipt_date
+            $q = DB::table('bill_payment')
+                ->leftJoin('user', 'user.id', '=', 'bill_payment.user')
+                ->where('bill_payment.receipt_id', '!=', '')->where('bill_payment.is_delete', '0')
+                ->select(['bill_payment.*', 'bill_payment.id', 'user.code', 'bill_payment.create_date', 'bill_payment.receipt_total as amount',
+                    DB::raw("CONCAT('รายการชำระเงินค่าขนส่งสินค้า PAY-', bill_payment.id, ' - ', receipt_id) as detail")]);
+            if ($range !== null) {
+                $q->whereBetween('bill_payment.receipt_date', $range);
+            }
+
+            return $q;
+        }
         $q = DB::table('balance')
             ->leftJoin('balance_type', 'balance.type', '=', 'balance_type.id')
             ->leftJoin('prefix', 'balance.prefix', '=', 'prefix.id')
@@ -59,10 +73,16 @@ final class BalanceReport
         return $q;
     }
 
+    /** SR: type 97 = รายงานภาษีขาย (เดิม `$txtSearch[0] == '97'` ตรวจหลัง 99/98) */
+    public static function isTax(mixed $type): bool
+    {
+        return ! Php74::eq($type, 99) && ! Php74::eq($type, 98) && Php74::eq($type, '97');
+    }
+
     /** ตารางหลักของ list() (ใช้ ORDER BY <ตาราง>.id) */
     public static function table(mixed $type): string
     {
-        return Php74::eq($type, 99) || Php74::eq($type, 98) ? 'bill_payment' : 'balance';
+        return Php74::eq($type, 99) || Php74::eq($type, 98) || self::isTax($type) ? 'bill_payment' : 'balance';
     }
 
     /** SELECT SUM(...) as sum, COUNT(id) as count ของ grid.php */
@@ -76,6 +96,14 @@ final class BalanceReport
             }
 
             return Rows::str($q->selectRaw('SUM(`'.$col.'`) as sum, COUNT(id) as count')->first());
+        }
+        if (self::isTax($type)) {
+            $q = DB::table('bill_payment')->where('is_delete', '0')->where('receipt_id', '!=', '');
+            if ($range !== null) {
+                $q->whereBetween('receipt_date', $range);
+            }
+
+            return Rows::str($q->selectRaw('SUM(receipt_total) as sum, COUNT(id) as count')->first());
         }
         $q = DB::table('balance')->where('is_delete', '0')->where('type', (string) $type);
         if ($range !== null) {

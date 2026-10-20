@@ -1,4 +1,4 @@
-{{-- _export/form.php เดิม (ลูกค้า) — ค่าจาก DB escape ทั้งหมด (เดิม echo ดิบ) --}}
+{{-- _export/form.php ของ SR (ลูกค้า: + ส่วนผู้ส่ง, คอลัมน์รหัสย่อย, ไม่มี VAT) — ค่าจาก DB escape ทั้งหมด (เดิม echo ดิบ) --}}
 @extends('legacy.layout')
 
 @php
@@ -87,6 +87,44 @@
                 	{{ $shipName }}
 	            </div>
 	        </div>
+
+
+	        <div class="form-group" style="border-top:1px #ccc dashed"></div>
+
+	        <div class="form-group">
+	            <label class="col-md-4 control-label">{!! res('sender') !!}</label>
+	            <div class="col-md-8 form-control-static">
+	            	{!! Status::getsender($d('sender_type')) !!}
+	            </div>
+	        </div>
+
+	        @if (Php74::eq($d('sender_type'), 1))
+        		<div class="form-group">
+        			<div class="col-md-8 col-md-offset-4">
+        				<span class="text-danger">{!! res('extra_charge_sender').' '.Format::numberformat($d('sender_charge')) !!}</span>
+        			</div>
+        		</div>
+        		<div class="form-group">
+		            <label class="col-md-4 control-label">{!! res('sender_name') !!}</label>
+		            <div class="col-md-8 form-control-static">
+	                	{{ $d('sender_name') }}
+		            </div>
+		        </div>
+
+		        <div class="form-group">
+		            <label class="col-md-4 control-label">{!! res('sender_address') !!}</label>
+		            <div class="col-md-8 form-control-static">
+		            	{{ $d('sender_address') }}
+		            </div>
+		        </div>
+
+		        <div class="form-group">
+		            <label class="col-md-4 control-label">{!! res('sender_phone') !!}</label>
+		            <div class="col-md-8 form-control-static">
+	                	{{ $d('sender_phone') }}
+		            </div>
+		        </div>
+	        @endif
 	    </div>
 	</div>
 </div>

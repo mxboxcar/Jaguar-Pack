@@ -1,4 +1,4 @@
-{{-- _admin/_export/grid.php เดิม --}}
+{{-- _admin/_export/grid.php ของ SR (ตัวกรองรับเอง/ส่งขนส่ง, ลิงก์ใบเสร็จ, ไม่มี VAT) --}}
 @php
     use App\Domain\Reports\Php74;
     use App\Domain\Reports\Rows;
@@ -24,6 +24,8 @@
                         <option {!! $sel('-2') !!} value="-2">- {!! res('all') !!} -</option>   
                         <option {!! $sel('2') !!} value="2">{!! res('wait_for_export') !!}</option>   
                         <option {!! $sel('3') !!} value="3">{!! res('export_complete') !!}</option>  
+                        <option {!! $sel('4') !!} value="4">รับเอง</option>  
+                        <option {!! $sel('5') !!} value="5">ส่งขนส่ง</option>  
                     </select>
                 </div>
             </div>
@@ -43,7 +45,7 @@
                             <th class="text-center">{!! res('approved_proof') !!}</th>
                             <th class="text-center">{!! res('amount') !!}<div class="text-danger">{!! res('export_price') !!}</div></th>
                             <th class="text-center" style="width: 92px;">{!! res('status') !!}</th>
-                            <th class="text-center" style="width: 60px;">{!! res('action') !!}</th>
+                            <th class="text-center" style="width: 80px;">{!! res('action') !!}</th>
                         </tr>
                     </thead>
 
@@ -68,10 +70,7 @@
                             <td class="text-right">{!! Format::numberformat($item->total) !!}
                                 <div class="text-danger">{!! Format::numberformat($item->export_price) !!}</div>
                             </td>
-                            <td class="text-center">
-                                {!! Status::getstatusexport($item->status) !!}
-                                @if (Php74::eq($item->is_vat, 1))<br/><span class='label label-danger'>VAT</span>@endif
-                            </td>
+                            <td class="text-center">{!! Status::getstatusexport($item->status) !!}</td>
                             <td class="text-center">
                             	<a href="{{ legacy_href() }}admin/export/{{ $item->id }}" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
                                 
@@ -80,6 +79,15 @@
                                 @else
                                 <a  href="{{ legacy_href() }}_admin/_export/print/?id={{ $item->id }}" class="table-action-btn"><i class="fa fa-print text-danger"></i></a>
                                 @endif
+
+
+                                {{-- SR: ใบเสร็จ (admin/export/receipt/{id}) — แดง = ออกเลขใบเสร็จแล้ว --}}
+                                @if (Php74::neq($item->receipt_id, ''))
+                                <a  href="{{ legacy_href() }}admin/export/receipt/{{ $item->id }}" class="table-action-btn"><i class="fa fa-file-code-o text-danger"></i></a>
+                                @else
+                                <a  href="{{ legacy_href() }}admin/export/receipt/{{ $item->id }}" class="table-action-btn"><i class="fa fa-file-code-o text-primary"></i></a>
+                                @endif
+                                
                             </td>
                         </tr>
                     @empty

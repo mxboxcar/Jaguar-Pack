@@ -18,6 +18,7 @@ use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
 use App\Support\Legacy\Lookup;
+use App\Support\Legacy\PointCalc;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -63,7 +64,14 @@ class AdminExportController extends Controller
                 ->orWhere('bill_payment.send_name', 'like', $like($s)))
             ->where(fn ($w) => $w->where('bill_payment.status', '>=', 2)->orWhere('bill_payment.status', -2));
         if (Php74::neq($status, '-2') && Php74::neq($status, '')) {
-            $q->where('bill_payment.status', $status);
+            // SR: ตัวเลือก 4 = รับเอง (shipping_type 43), 5 = ส่งขนส่ง (อื่นๆ) แทนการกรองสถานะ
+            if (Php74::eq($status, '4')) {
+                $q->where('bill_payment.shipping_type', '43');
+            } elseif (Php74::eq($status, '5')) {
+                $q->where('bill_payment.shipping_type', '!=', '43');
+            } else {
+                $q->where('bill_payment.status', $status);
+            }
         }
         $page = $this->php($request, 'page');
         [$total, $ids] = GridQuery::idPage($q, 'bill_payment.id', Rows::offset($page));
@@ -195,7 +203,8 @@ class AdminExportController extends Controller
                 return null;
             }
             DB::table('tracking')->where('payment_id', $data->id)->update(['payment_id' => '0']);
-            // calPoint() เดิมเป็นฟังก์ชันว่าง
+            // SR: calPoint($id, '-') หักแต้มของบิล (ลำดับเดิม: หลังปลด tracking ก่อนเปลี่ยนสถานะ) ใน transaction เดียวกันหลัง lock แถวบิล
+            PointCalc::calPoint($data->id, '-', 'ยกเลิกรายการชำระเงินค่าขนส่งสินค้า');
             DB::table('bill_payment')->where('id', $data->id)->update([
                 'status' => '-1', 'cancel_remark' => $remark.' ,ยกเลิกโดย '.$code, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
             ]);
@@ -218,6 +227,17 @@ class AdminExportController extends Controller
     /** GET /_admin/_export/print?id= — ใบปะหน้า (ตั้ง is_print) */
     public function print(Request $request): Response
     {
+        return $this->printPage($request, false);
+    }
+
+    /** GET /_admin/_export/printprice?id= — SR: บิลชำระเงิน (printprice.php + print_3.php = ใบปะหน้า + ราคา, ตั้ง is_print เหมือน print.php) */
+    public function printPrice(Request $request): Response
+    {
+        return $this->printPage($request, true);
+    }
+
+    private function printPage(Request $request, bool $withPrice): Response
+    {
         $id = $this->get($request, 'id');
         if (! perm('admin_export') || $id === '' || $id === '0') {
             return response('ERROR : access denied');
@@ -235,7 +255,7 @@ class AdminExportController extends Controller
             'data' => $data,
             'shipName' => $shipName,
             'details' => $details,
-            'locations' => ExportBill::locations($details),
+            'withPrice' => $withPrice,
         ])->render());
     }
 
@@ -251,9 +271,12 @@ class AdminExportController extends Controller
             .$i."url: rooturl + '_api/blockblob_ajax', \r\n".$i."success: function(data) { \r\n".$i."\t\r\n".$i.'} });';
     }
 
-    /** GET|POST /_admin/_export/email_success, email_cancel — เปิดตรงๆ เดิมไม่มี $email_id = ไม่มีผู้รับ (ส่งไม่ได้, ตอบว่าง) */
+    /**
+     * GET|POST /_admin/_export/email_success, email_cancel — SR hotfix 2026-10-18: ไฟล์นี้ include เท่านั้น เปิดตรงจาก URL = 403 ว่าง
+     * (ก่อน hotfix: ไม่มี $email_id = ไม่มีผู้รับ ตอบว่าง 200)
+     */
     public function emailNoop(): Response
     {
-        return response('');
+        return response('', 403);
     }
 }

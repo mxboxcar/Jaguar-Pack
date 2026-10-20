@@ -1,4 +1,4 @@
-{{-- _admin/_export/form.php เดิม (สิทธิ์ admin_payment ตรวจที่ route) — ค่าจาก DB escape ทั้งหมด (เดิม echo ดิบ) --}}
+{{-- _admin/_export/form.php ของ SR (+ ปุ่มพิมพ์บิลชำระเงิน printprice, คอลัมน์รหัสย่อย, ไม่มี VAT) (สิทธิ์ admin_payment ตรวจที่ route) — ค่าจาก DB escape ทั้งหมด (เดิม echo ดิบ) --}}
 @extends('legacy.layout')
 
 @php
@@ -30,7 +30,14 @@
 		<a class="pull-right btn btn-inverse waves-effect waves-light" 
 			href="{{ legacy_href() }}_admin/_export/print/?id={{ $data->id }}">
             <span class="btn-label"><i class="fa fa-print"></i></span>
-            {!! res('print') !!}
+            {!! res('print') !!}ใบปะหน้า
+        </a>
+
+
+        <a class="pull-right btn btn-inverse waves-effect waves-light" 
+			href="{{ legacy_href() }}_admin/_export/printprice/?id={{ $data->id }}">
+            <span class="btn-label"><i class="fa fa-print"></i></span>
+            {!! res('print') !!}บิลชำระเงิน
         </a>
 
         <button onclick="approved()" type="button" class="pull-right btn btn-success waves-effect waves-light">
