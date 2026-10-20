@@ -60,7 +60,8 @@ Route::middleware('legacy.perm:admin_notice')->group(function () {
     Route::get('/_admin/_notice/email_notice', [AdminNoticeController::class, 'emailNotice']);
     Route::get('/_admin/_notice/cron_notice_mail', [AdminNoticeController::class, 'cron']);
     Route::middleware('legacy.ajax')->group(function () {
-        Route::post('/_admin/_notice/save', [AdminNoticeController::class, 'save']);
+        // กันกดซ้ำ (สร้างประกาศซ้ำ 2 แถว) — เจ้าของอนุมัติ double-submit guard 2026-10-18
+        Route::post('/_admin/_notice/save', [AdminNoticeController::class, 'save'])->middleware('legacy.once');
         Route::post('/_admin/_notice/save_isshow', [AdminNoticeController::class, 'saveIsshow']);
     });
 });
@@ -84,7 +85,7 @@ Route::middleware('legacy.auth')->group(function () {
     Route::post('/notification', [NotificationController::class, 'bar'])->middleware('legacy.ajax');
     Route::match(['GET', 'POST'], '/notify_counts', [IncludeFileController::class, 'blank']);
     Route::match(['GET', 'POST'], '/notify_token', [IncludeFileController::class, 'blank']);
-    Route::get('/email_header', [IncludeFileController::class, 'emailHeader']);
-    Route::get('/email_center', [IncludeFileController::class, 'emailCenter']);
-    Route::get('/email_footer', [IncludeFileController::class, 'emailFooter']);
+    Route::get('/email_header', [IncludeFileController::class, 'emailPart']);
+    Route::get('/email_center', [IncludeFileController::class, 'emailPart']);
+    Route::get('/email_footer', [IncludeFileController::class, 'emailPart']);
 });

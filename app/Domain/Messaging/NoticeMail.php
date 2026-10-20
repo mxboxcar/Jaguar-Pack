@@ -15,33 +15,29 @@ use Illuminate\Support\Facades\Mail;
  */
 final class NoticeMail
 {
-    /** email_header.php / email_center.php / email_footer.php เดิม (file_get_contents = ได้ข้อความดิบรวม <?php ... ?>) */
-    public const HEADER = '<div style="font-family: arial,sans-serif;font-size:13px;">';
-
-    public const CENTER = '<div>';
-
-    public const FOOTER_PHP = "<?php require_once('system_config.php'); ?>\r\n";
-
-    public const FOOTER_BODY = "</div>\r\n<br />\r\n* หากมีข้อสงสัยกรุณาติดต่อ<br />\r\nE-mail : jlcargoth@hotmail.com<br />\r\nPhone : 095-550-4009<br />\r\nLineID : @jlcargo\r\n<br />\r\n<br />\r\nขอแสดงความนับถือ<br />\r\nJLcargo\r\n</div>";
-
-    /** เนื้ออีเมลประกาศ (เหมือน email.php / cron_notice_mail.php) */
-    public static function template(object $notice): array
+    /**
+     * เนื้ออีเมลประกาศ (email.php / cron_notice_mail.php) = email_header + <strong>หัวข้อ</strong> + email_center + ข้อความ + email_footer
+     * SR: แม่แบบ/ผู้ส่ง = config('legacy.mail') (email_*.php ของ SR — footer ไม่มีบรรทัด require_once แบบ jl
+     * และไม่ใส่บรรทัด guard ของ hotfix 2026-10-18 ที่ file_get_contents เดิมจะติดมา)
+     * $nl = ขึ้นบรรทัดหน้าข้อความ: email.php เป็นไฟล์ CRLF ("\r\n"), cron_notice_mail.php เป็น LF ("\n")
+     */
+    public static function template(object $notice, string $nl = "\n"): array
     {
         $subject = NoticeText::subject($notice->create_date ?? '');
-        $body = self::HEADER.'<strong>'.$subject.'</strong>'.self::CENTER
-            ."\n".NoticeText::decode($notice->text ?? '')
-            .self::FOOTER_PHP.self::FOOTER_BODY;
+        $body = config('legacy.mail.header').'<strong>'.$subject.'</strong>'.config('legacy.mail.center')
+            .$nl.NoticeText::decode($notice->text ?? '')
+            .config('legacy.mail.footer');
 
         return [$subject, $body];
     }
 
-    /** sendmail($subject, $body, $to) — เดิม try { mailgun } catch {} เงียบ */
+    /** sendmail($subject, $body, $to) — เดิม try { mailgun } catch {} (SR echo ข้อผิดพลาด — ที่นี่ลง log) */
     public static function send(string $subject, string $html, string $to): void
     {
         $mailer = config('legacy.external.enabled') ? null : 'log';
         try {
             Mail::mailer($mailer)->html($html, function ($m) use ($subject, $to) {
-                $m->from('no-reply@jlcargoth.com', 'JLcargoTH')->to($to)->subject($subject);
+                $m->from(config('legacy.mail.from_address'), config('legacy.mail.from_name'))->to($to)->subject($subject);
             });
         } catch (\Throwable $e) {
             LegacyLog::goLogMessage('sendmail', 'failed: '.$e->getMessage());
