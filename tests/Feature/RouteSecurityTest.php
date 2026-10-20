@@ -38,6 +38,7 @@ class RouteSecurityTest extends TestCase
         'password' => 'password.php เดิม (สคริปต์ย้ายรหัส ตาราง user_copy ไม่มีแล้ว) ตอบว่างเสมอ',
         'index_close' => 'settings: หน้าปิดปรับปรุง (ข้อความคงที่ เดิมสาธารณะ)',
         'get_resource' => 'settings: ข้อความภาษาของระบบ (lang/*, เดิมสาธารณะ)',
+        'resource' => 'settings (SR resource.php): ข้อความภาษาไทยของระบบ (lang/th, เดิมสาธารณะ)',
     ];
 
     private const AUTH = ['legacy.auth', 'legacy.perm', 'legacy.own'];
