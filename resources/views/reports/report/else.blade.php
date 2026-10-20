@@ -1,4 +1,4 @@
-{{-- _admin/_report/else.php เดิม (ตาราง HTML ส่งเป็น export.xls) — เลขรายการเดิมใช้ $types[0] (ตัวอักษรตัวแรก) == 99 จึงเป็น prefix balance เสมอ --}}
+{{-- _admin/_report/else.php ของ SR (ตาราง HTML ส่งเป็น export.xls; type 97 = SQL ใบเสร็จ แต่หัวตาราง/ช่องภาษีเดิมตรวจ \$txtSearch ที่ไม่มีในไฟล์นี้ → แสดงแบบรายการทั่วไป) — เลขรายการเดิมใช้ $types[0] (ตัวอักษรตัวแรก) == 99 จึงเป็น prefix balance เสมอ --}}
 @php
     use App\Domain\Reports\BalanceReport;
     use App\Domain\Reports\Php74;

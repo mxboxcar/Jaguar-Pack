@@ -33,7 +33,15 @@ class AdminReportController extends Controller
     {
         $types = DB::table('balance_type')->where('is_delete', '0')->orderBy('id')->get(['id', 'name']);
 
-        return view('reports.report.index', ['types' => $types, 'year' => date('Y')]);
+        // SR: เดือนนี้และย้อนหลัง 5 เดือน — strtotime("-N month") แบบเดิม (วันที่ 29-31 อาจเลื่อนเดือนแบบ PHP)
+        $time = strtotime(date('Y-m-d'));
+        $months = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $t = $i === 0 ? $time : strtotime('-'.$i.' month', $time);
+            $months[] = ['ym' => date('Y-m', $t), 'm' => date('m', $t), 'y' => date('Y', $t)];
+        }
+
+        return view('reports.report.index', ['types' => $types, 'months' => $months]);
     }
 
     /** GET /admin/report/{id} — form.php */
@@ -42,6 +50,10 @@ class AdminReportController extends Controller
         $id = (int) $request->route('id');
         // เดิม "WHERE id = ".$id ไม่มี '' (id มาจาก RewriteRule [0-9]+ จึงเป็นตัวเลขเสมอ)
         $name = DB::table('balance_type')->where('id', $id)->where('is_delete', 0)->value('name');
+        if ($id === 97) {
+            // SR: รายงานภาษีขาย (ใบเสร็จใน bill_payment ไม่ใช่ balance_type)
+            $name = 'รายงานภาษีขาย';
+        }
 
         return view('reports.report.form', ['id' => $id, 'name' => $name]);
     }
@@ -136,9 +148,10 @@ class AdminReportController extends Controller
             }
         }
 
+        // SR: ชื่อไฟล์ export.xlsx (เนื้อหายังเป็นตาราง HTML แบบเดิม)
         return $this->xls(view('reports.report.else_preorder_working', [
             'rows' => $rows, 'shops' => $shops, 'links' => $links, 'prefix' => Rows::prefix('order'),
-        ])->render());
+        ])->render(), 'export.xlsx');
     }
 
     /** GET /_admin/_report/refill_5 (bill_transfer), refill_6 (bill_alipay), refill_7 (taobao), shipping (bill_payment) — Excel2007 */
@@ -233,11 +246,11 @@ class AdminReportController extends Controller
             ->get(['user.code', 'cash.count']);
     }
 
-    private function xls(string $html): Response
+    private function xls(string $html, string $filename = 'export.xls'): Response
     {
         return response(self::META.$html)
             ->header('Content-type', 'application/vnd.ms-excel')
-            ->header('Content-Disposition', 'attachment; filename=export.xls');
+            ->header('Content-Disposition', 'attachment; filename='.$filename);
     }
 
     /** refill_5/6/7.php, shipping.php (PHPExcel → XlsxWriter) */
