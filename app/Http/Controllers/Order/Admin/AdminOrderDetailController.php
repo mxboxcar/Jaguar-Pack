@@ -120,9 +120,8 @@ class AdminOrderDetailController extends Controller
             if ($bill === null) {
                 return;
             }
+            // SR: ไม่มี VAT (jl คำนวณ VAT ต่อท้าย) — คำนวณยอดรวมอย่างเดียว
             OrderTotals::saveTotal($bill);
-            $isVat = DB::table('bill_product')->where('id', $bill)->value('is_vat');
-            OrderTotals::applyVat($bill, Php74::eq($isVat, '1'));
         });
 
         return response('');
@@ -189,6 +188,16 @@ class AdminOrderDetailController extends Controller
         ]);
 
         return response(Alerts::success('LoadDetail();'));
+    }
+
+    /**
+     * POST /_admin/_order/save_takeapic — SR: สลับบริการถ่ายรูป (bill_product_detail.is_takeapic) + tracking ที่ผูกกับรายการ (แบบเดียวกับ save_craft/save_qc)
+     */
+    public function saveTakeapic(Request $request): Response
+    {
+        $this->toggle($request, 'is_takeapic');
+
+        return response('');
     }
 
     /** POST /_admin/_order/save_craft — สลับตีลังไม้ (รายการ + tracking ที่ผูกอยู่) */

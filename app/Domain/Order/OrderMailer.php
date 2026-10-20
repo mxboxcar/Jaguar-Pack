@@ -16,17 +16,14 @@ use Illuminate\Support\Facades\Mail;
  * - อีเมล: เดิม sendmail() ผ่าน Mailgun → ที่นี่ Mail ของ Laravel; ถ้า config legacy.external.enabled = false (dev)
  *   บังคับใช้ mailer "log" เสมอ = ไม่ส่งจริงแน่นอน แม้ MAIL_MAILER จะถูกตั้งผิด
  * - LINE: sendLine() เดิมเป็นฟังก์ชันว่าง (โค้ดถูก comment) และ push_notification() ว่าง → ไม่ส่ง (log ขนาดข้อความไว้เท่านั้น)
- * - email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → คัดข้อความคงที่ (รวม <?php ... ?> ที่ติดไปในอีเมล) มาไว้ที่นี่
+ * - email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → SR: config('legacy.mail') (header/center/footer + ผู้ส่ง SRShippingSystem)
  */
 final class OrderMailer
 {
-    private const HEADER = '<div style="font-family: arial,sans-serif;font-size:13px;">';
+    /** ปุ่ม "ดูรายละเอียด" ของ SR: order = กว้าง 200px, taobao = 100% (target="_blank" ตัดออกตามที่เจ้าของสั่ง) */
+    private const BUTTON = "<div style=\"height:20px\"></div>\n<p style=\"width:200px;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 25px 10px 0px;\" >\n<a style=\"color:#ffffff;text-decoration:none\" href=\"%s\" >ดูรายละเอียด</a></p>\n";
 
-    private const CENTER = '<div>';
-
-    private const FOOTER = "<?php require_once('system_config.php'); ?>\n</div>\n<br />\n* หากมีข้อสงสัยกรุณาติดต่อ<br />\nE-mail : jlcargoth@hotmail.com<br />\nPhone : 095-550-4009<br />\nLineID : @jlcargo\n<br />\n<br />\nขอแสดงความนับถือ<br />\nJLcargo\n</div>";
-
-    private const BUTTON = "<div style=\"height:20px\"></div>\n<p style=\"width:200px;text-align:center;font-size:15px;background-color:#991b1e;padding:10px 25px;\" >\n<a style=\"color:#ffffff;text-decoration:none\" href=\"%s\" >ดูรายละเอียด</a></p>\n";
+    private const BUTTON_TAOBAO = "<div style=\"height:20px\"></div>\n<p style=\"width:100%%;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 0px;\" >\n<a style=\"color:#ffffff;text-decoration:none\" href=\"%s\" >ดูรายละเอียด</a></p>\n";
 
     /** email_approved.php (order) */
     public static function orderApproved(int $id): void
@@ -80,7 +77,7 @@ final class OrderMailer
         $subject = 'แจ้งรายการฝากจ่ายเงินเถาเปา '.$no.' (Success)';
         $body = "\n<p>แจ้งรายการฝากจ่ายเงินเถาเปา หมายเลขรายการ <a href='".Legacy::href('taobao/'.$taobaoId)."'>".$no."</a>\n"
             ."ได้รับการยืนยันแล้ว </p>\n<p>รายการสั่งซื้อ : ".Html::h($detail->order ?? '').'</p>';
-        $body .= sprintf(self::BUTTON, Legacy::href('taobao/'.$taobaoId));
+        $body .= sprintf(self::BUTTON_TAOBAO, Legacy::href('taobao/'.$taobaoId));
         self::send('taobao approved', $taobaoId, $subject, $body, (string) ($data->email ?? ''));
     }
 
@@ -97,7 +94,7 @@ final class OrderMailer
             .'<p>รายการสั่งซื้อ : '.Html::h($detail->order ?? '')."</p>\n"
             .'<p>คืนเงินไทย : '.($refund === null ? ($data->charge ?? '') : Money::fmt($refund['charge'] + $refund['thb']))."฿</p>\n"
             .'<p>คืนเงินหยวน : ¥'.($refund === null ? ($detail->price ?? '') : Money::fmt($refund['cny']))."</p>\n";
-        $body .= sprintf(self::BUTTON, Legacy::href('taobao/'.$taobaoId));
+        $body .= sprintf(self::BUTTON_TAOBAO, Legacy::href('taobao/'.$taobaoId));
         self::send('taobao cancel', $taobaoId, $subject, $body, (string) ($data->email ?? ''));
     }
 
@@ -120,7 +117,9 @@ final class OrderMailer
 
     private static function send(string $kind, int $ref, string $subject, string $body, string $to): void
     {
-        $html = self::HEADER.'<strong>'.$subject.'</strong>'.self::CENTER.$body.self::FOOTER;
+        // ไฟล์ email_*.php ของ SR เป็น CRLF → ขึ้นบรรทัดในเนื้อหาเป็น \r\n แบบเดิม; header/center/footer + ผู้ส่ง = config('legacy.mail') (SR)
+        $body = (string) preg_replace('/(?<!\r)\n/', "\r\n", $body);
+        $html = config('legacy.mail.header').'<strong>'.$subject.'</strong>'.config('legacy.mail.center').$body.config('legacy.mail.footer');
         // sendLine()/push_notification() เดิมไม่ทำอะไร
         Log::info('order notify: LINE skipped (legacy sendLine is a no-op)', ['kind' => $kind, 'ref' => $ref]);
         try {
@@ -129,7 +128,7 @@ final class OrderMailer
             }
             $mailer = config('legacy.external.enabled') ? Mail::mailer() : Mail::mailer('log');
             $mailer->html($html, function ($m) use ($to, $subject) {
-                $m->to($to)->subject($subject)->from('no-reply@jlcargoth.com', 'JLcargoTH');
+                $m->to($to)->subject($subject)->from(config('legacy.mail.from_address'), config('legacy.mail.from_name'));
             });
         } catch (\Throwable $e) {
             // เดิม catch (exception $e) {} เงียบ

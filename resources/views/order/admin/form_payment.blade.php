@@ -1,23 +1,28 @@
-{{-- ส่วนกลางของ _admin/_order/form.php เดิม: หมายเหตุ (status 0) / การชำระเงิน + รายการเงินที่เกี่ยวข้อง (status >= 2 หรือ -1) --}}
+{{-- ส่วนกลางของ _admin/_order/form.php ของ SR: <div class="col-xs-6"> ครอบ หมายเหตุ (status 0) / การชำระเงิน + รายการเงินที่เกี่ยวข้อง (status >= 2 หรือ -1) / วันที่ของใบ --}}
 @php
     use App\Domain\Order\Html;
     use App\Domain\Order\Php74;
     use App\Support\Legacy\Format;
 @endphp
+<div class="col-xs-6">
 @if (Php74::eq($st, 0))
-<div class="col-xs-12 col-md-6">
+<div class="col-xs-12">
 	    <div class="card-box">
 	    <h4 class="m-t-0 header-title"><b><span class="text-danger">{!! res('remark') !!}</span></b></h4>
 	    <p class="text-muted font-13 m-b-30">
 	    </p>
 	        <div class="text-left">
-	            1. {!! res('order_remark_status_1') !!}
-	        </div>
+            1.  โปรดตรวจสอบราคาสินค้าในเว็บจีนทุกครั้งก่อนทำการสั่งซื้อ<br/><br/>
+2.  ฝ่ายสั่งซื้อจะทำการตรวจสอบออเดอร์ให้ท่านภายใน 24 ชม. แต่ไม่เกิน 72 ชม.นับจากวันที่ท่านส่งใบสั่งซื้อมา<br/><br/>
+3.  กรุณาชำระเงินภายใน 3 วัน นับจากวันที่เปิดใบสั่งซื้อ หากท่านยกเลิก หรือไม่ชำระเงินในเวลาที่กำหนด บริษัทขอสงวนสิทธิ์ไม่คืนค่าธรรมเนียมในการสั่งซื้อ<br/><br/>
+4.  โปรดตรวจสอบความถูกต้องของใบสั่งซื้อทุกครั้งก่อนชำระเงินค่าสินค้า หากท่านชำระเงินค่าสินค้าแล้ว จะไม่สามารถแก้ไขรายการใดๆในใบสั่งซื้อได้อีก<br/><br/>
+5.  เมื่อท่านชำระเงินค่าสินค้า ระบบจะคืนยอดค่าธรรมเนียมให้ท่าน
+        </div>
 	    </div>
 	</div>
 @endif
 @if (Php74::num($st) >= 2 || Php74::eq($st, -1))
-<div class="col-xs-12 col-md-6">
+<div class="col-xs-12">
         <div class="card-box">
         <h4 class="m-t-0 header-title"><b>{!! res('payment_thing') !!}</b></h4>
         <p class="text-muted font-13 m-b-30">
@@ -36,7 +41,7 @@
                 </div>
             </div>
         </div>
-    </div><div class="col-xs-12 col-md-6">
+    </div><div class="col-xs-12">
         <div class="card-box">
             <h4 class="m-t-0 header-title"><b>{!! res('ref_balance_list') !!}</b></h4>
             <p class="text-muted font-13 m-b-30">
@@ -55,4 +60,35 @@
             </table>
         </div>
     </div>
+
 @endif
+<div class="col-xs-12">
+        <div class="card-box">
+            <div class="form-horizontal" role="form">
+                <div class="form-group">
+                    <label class="col-md-4 control-label">วันที่ลูกค้าสั่งซื้อ</label>
+                    <div class="col-md-7 form-control-static">
+                        {{ $data['create_date'] ?? '' }}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="col-md-4 control-label">Admin ตรวจสอบเสร็จสิ้นวันที่</label>
+                    <div class="col-md-7 form-control-static">
+                        {{ $data['who_did_this_1_date'] ?? '' }}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="col-md-4 control-label">วันที่ลูกค้ากดชำระเงิน</label>
+                    <div class="col-md-7 form-control-static">
+                        {{ $data['submit_date'] ?? '' }}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="col-md-4 control-label">Admin สั่งซื้อวันที่</label>
+                    <div class="col-md-7 form-control-static">
+                        {{ $data['who_did_this_3_date'] ?? '' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div></div>

@@ -3,11 +3,10 @@
 namespace App\Domain\Order;
 
 use Illuminate\Database\Query\Builder;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
- * query ของหน้า list รายการสั่งซื้อ (bill_product) — _order/{grid,load_paging,load_total_order}.php และของแอดมิน
+ * query ของหน้า list รายการสั่งซื้อ (bill_product) — _order/{grid,load_total_order}.php และของแอดมิน (SR: นับสดทุกครั้ง ไม่มี cache)
  *
  * เดิม: LEFT JOIN derived table 2 ตัว (นับ tracking ที่ยังไม่มีเลข / ยังไม่เข้าโกดัง) ซึ่ง GROUP BY ทั้งตาราง (~4 วินาที/ครั้ง)
  *       + query จำนวนร้านต่อแถว (N+1) + getPrefix ต่อแถว
@@ -110,14 +109,6 @@ final class OrderQueries
         $sub = self::withHaving((clone $q)->select('bill_product.id'), $having);
 
         return DB::query()->fromSub($sub, 'x')->count();
-    }
-
-    /** readRedis/writeRedis เดิม (10 นาที) → cache ของ Laravel; key = SQL + ค่าที่ bind */
-    public static function cachedCount(string $tag, Builder $q, ?string $having): int
-    {
-        $sql = $q->toSql().'|'.json_encode($q->getBindings()).'|'.$having;
-
-        return (int) Cache::remember('order:'.$tag.':'.sha1($sql), 600, fn () => self::count($q, $having));
     }
 
     /**

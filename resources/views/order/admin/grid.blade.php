@@ -4,6 +4,7 @@
     use App\Domain\Order\Php74;
     use App\Support\Legacy\Alerts;
     use App\Support\Legacy\Format;
+    use App\Support\Legacy\Paging;
     use App\Support\Legacy\Status;
     $sel = fn ($v, $x) => Php74::eq($v, $x) ? "selected='selected'" : '';
     $btn = fn ($v, $x) => Php74::eq($v, $x) ? ' btn-danger ' : ' btn-primary ';
@@ -95,8 +96,8 @@
                             </td>
                             <td class="text-right">{!! Format::numberformatzero($item->shop_count) !!}</td>
                             <td class="text-right">
-                            {!! $item->no_track === null ? '0' : Format::numberformatzero($item->no_track) !!}</td>
-                            <td class="text-right">{!! $item->no_warehouse === null ? '0' : Format::numberformatzero($item->no_warehouse) !!}</td>
+                            {{-- SR: correlated COUNT (ไม่มีแถว = "0" ไม่ใช่ NULL) → numberformatzero("0") เสมอ --}}{!! Format::numberformatzero($item->no_track ?? 0) !!}</td>
+                            <td class="text-right">{!! Format::numberformatzero($item->no_warehouse ?? 0) !!}</td>
                             <td class="text-right">{!! Format::numberformat($item->total) !!}</td>
                             <td class="text-center">{!! Status::getShipType($item->ship) !!}</td>
                             <td class="text-center">{!! Status::getstatusorder($item->status) !!}<br /><small>{!! $locked ? Html::h($lockers[$item->mod_by] ?? '') : '' !!}</small></td>
@@ -113,8 +114,8 @@
                     @endif
                     </tbody>
                 </table>
-                <div class="pull-right" id="paging">
-                    กำลังจัดทำหน้า...
+                <div class="pull-right">
+                    {!! Paging::getpaging($page, $rows, 10, $ajaxpage) !!}
                 </div>
             </div>
         </div>
@@ -128,15 +129,6 @@
 <script>
 
 
-    $.ajax({
-        type: 'POST',
-        async: true,
-        data : 'txtsearch=' + $('#txtSearch').val() + '&page={!! Alerts::js($page) !!}',
-        url: rooturl + '{{ $ajaxpage }}/../load_paging',
-        success: function(data) {
-            $("#paging").html(data);
-        }
-    });
 
 
     $(function() {

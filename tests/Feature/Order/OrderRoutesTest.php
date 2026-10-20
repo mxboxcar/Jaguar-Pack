@@ -6,6 +6,7 @@ use App\Domain\Order\Html;
 use App\Domain\Order\OrderLookups;
 use App\Domain\Order\OrderQueries;
 use App\Domain\Order\Php74;
+use App\Domain\Order\PrintOrder;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -23,20 +24,17 @@ class OrderRoutesTest extends TestCase
         'GET order/{id}/{div}' => 'legacy.perm:order',
         'POST _order/delete' => 'legacy.perm:order',
         'POST _order/grid' => 'legacy.auth',
-        'POST _order/load_paging' => 'legacy.auth',
         'POST _order/load_total_order' => 'legacy.auth',
         'POST _order/save_payment' => 'legacy.auth',
         'POST _order/save_quote' => 'legacy.auth',
         'POST _order/save_quote_tracking' => 'legacy.auth',
         'POST _order/save_remark' => 'legacy.auth',
-        'GET _order/print' => 'legacy.auth',
         'GET admin/dashboard' => 'legacy.perm:admin_order',
         'GET admin/order' => 'legacy.perm:admin_order',
         'GET admin/order/status/{status}' => 'legacy.perm:admin_order',
         'GET admin/order/{id}' => 'legacy.perm:admin_order',
         'GET admin/order/{id}/{div}' => 'legacy.perm:admin_order',
         'POST _admin/_order/grid' => 'legacy.auth',
-        'POST _admin/_order/load_paging' => 'legacy.perm:admin_order',
         'POST _admin/_order/load_total_order' => 'legacy.perm:admin_order',
         'POST _admin/_order/delete' => 'legacy.perm:admin_order',
         'POST _admin/_order/save_approved' => 'legacy.perm:admin_order',
@@ -44,7 +42,6 @@ class OrderRoutesTest extends TestCase
         'POST _admin/_order/save_lock' => 'legacy.perm:admin_order',
         'POST _admin/_order/save_remark' => 'legacy.perm:admin_order',
         'POST _admin/_order/save_quote_admin' => 'legacy.perm:admin_order',
-        'POST _admin/_order/save_vat' => 'legacy.perm:admin_order',
         'POST _admin/_order/load_detail' => 'legacy.perm:admin_order',
         'POST _admin/_order/load_calculate_cashback' => 'legacy.perm:admin_order',
         'POST _admin/_order/load_color_form' => 'legacy.perm:admin_order',
@@ -67,6 +64,21 @@ class OrderRoutesTest extends TestCase
         'POST _admin/_order/save_valid_track' => 'legacy.perm:admin_order',
         'POST _admin/_order/save_add_new_track' => 'legacy.perm:admin_order',
         'POST _admin/_order/save_remove_track' => 'legacy.perm:admin_order',
+        // SR เท่านั้น
+        'POST _admin/_order/delete_withcashback' => 'legacy.perm:admin_order',
+        'POST _admin/_order/load_changeuser' => 'legacy.perm:admin_order',
+        'POST _admin/_order/save_changeuser' => 'legacy.perm:admin_order',
+        'POST _admin/_order/save_change_send_type' => 'legacy.perm:admin_order',
+        'POST _admin/_order/save_newrate' => 'legacy.perm:admin_order',
+        'POST _admin/_order/save_takeapic' => 'legacy.perm:admin_order',
+        'GET admin/printorder' => 'legacy.perm:admin_printorder',
+        'GET admin/printorder/status/{status}' => 'legacy.perm:admin_printorder',
+        'GET admin/printorder/{id}' => 'legacy.perm:admin_order',
+        'GET admin/printorder/{id}/{div}' => 'legacy.perm:admin_order',
+        'POST _admin/_printorder/grid' => 'legacy.auth',
+        'POST _admin/_printorder/load_detail' => 'legacy.perm:admin_order',
+        'GET _admin/_printorder/print' => 'legacy.auth',
+        'POST _admin/_printorder/save_print' => 'legacy.perm:admin_receipt',
         'GET _admin/_order/email_approved' => 'legacy.perm:admin_order',
         'GET _admin/_order/email_cancel' => 'legacy.perm:admin_order',
         'GET _admin/_order/email_cashback' => 'legacy.perm:admin_order',
@@ -103,6 +115,31 @@ class OrderRoutesTest extends TestCase
         }
     }
 
+    /** ไฟล์ของ jl ที่ SR ไม่มี (docs/sr-diff.md: JL-only) → ไม่มี route (404 → หน้าแรก) */
+    public function test_jl_only_endpoints_have_no_route(): void
+    {
+        $found = [];
+        foreach (Route::getRoutes() as $r) {
+            $found[$r->uri()] = true;
+        }
+        foreach (['_order/load_paging', '_order/print', '_admin/_order/load_paging', '_admin/_order/save_vat'] as $uri) {
+            $this->assertArrayNotHasKey($uri, $found, "$uri เป็นไฟล์ของ jl เท่านั้น");
+        }
+    }
+
+    public function test_getstatusprint_like_sr_helper(): void
+    {
+        $this->assertStringContainsString("label-danger", PrintOrder::getstatusprint('0'));
+        $this->assertStringContainsString("label-success", PrintOrder::getstatusprint(1));
+        $this->assertSame('N/A', PrintOrder::getstatusprint(null));
+        $this->assertSame('N/A', PrintOrder::getstatusprint('2'));
+        // ($run_id == '0' ? 'ORD-'.$id : $run_id) — "" == "0" เป็นเท็จใน 7.4
+        $this->assertSame('ORD-5', PrintOrder::runNo('0', 5));
+        $this->assertSame('', PrintOrder::runNo('', 5));
+        $this->assertSame('', PrintOrder::runNo(null, 5));
+        $this->assertSame('6710200001', PrintOrder::runNo('6710200001', 5));
+    }
+
     public function test_status_routes_only_accept_numbers(): void
     {
         // ไม่มี route = 404 → พากลับหน้าแรกแบบเว็บเดิม (nginx error_page 404 → 302 /)
@@ -130,7 +167,7 @@ class OrderRoutesTest extends TestCase
         $this->assertNull(OrderQueries::applyShipStatus($q, '-2', ''));
         $this->assertStringNotContainsString('where', $q->toSql());
 
-        // load_paging ของลูกค้าเดิม: "= 0" กับ derived table → ไม่มีแถวผ่าน — แก้แล้ว (เจ้าของสั่ง): ใช้ HAVING เดียวกับ grid
+        // สถานะ 5/6 ใช้ HAVING แบบ correlated COUNT = 0 (ผลเท่ากับ derived table IS NULL ของ grid เดิม)
         $this->assertSame('5', OrderQueries::applyShipStatus(OrderQueries::base(), null, '5'));
         $this->assertSame('6', OrderQueries::applyShipStatus(OrderQueries::base(), null, '6'));
     }
