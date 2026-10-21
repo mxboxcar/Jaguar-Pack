@@ -17,7 +17,7 @@ class UsersPortTest extends TestCase
 {
     /** method uri => middleware ที่ต้องมี (อย่างน้อย) */
     private const ROUTES = [
-        'GET register' => [], 'GET lostpassword' => [], 'GET lost_password' => [], 'GET password' => [],
+        'GET register' => [], 'GET lostpassword' => [], 'GET lost_password' => [],
         'POST _register/save' => ['legacy.ajax'], 'POST _register/lost_password' => ['legacy.ajax'],
         'GET system_check_username' => ['legacy.ajax'],
         'GET profile' => ['legacy.auth'],

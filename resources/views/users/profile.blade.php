@@ -87,7 +87,15 @@
 			            	<textarea rows="5" name="address" class="form-control validate[required]">{{ $data->address ?? '' }}</textarea>
 			            </div>
 			        </div>
+			        <div class="form-group">
+			            <label class="col-md-4 control-label"> {!! res('identity') !!}</label>
+			            <div class="col-md-8">
+			                {{-- PACK: สำเนาบัตรประชาชนแสดงด้วย getupload() เดิม (ไฟล์บน Azure — href_blob) --}}
+			                @php($idf = (string) ($data->identity ?? ''))
+			                @if ($idf === '')<div class="col-md-7  form-control-static">-</div>@else{!! \App\Domain\Settings\UploadBox::getupload('file', $idf) !!}@endif
 
+			            </div>
+			        </div>
 			        <div class="form-group">
 			            <label class="col-md-4 control-label"> {!! res('status') !!}</label>
 			            <div class="col-md-8 form-control-static">

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Route;
 
 /*
 | กลุ่ม: settings — _admin/_setting, _admin/_exchange, _admin/_product_type, _admin/_shipping_type,
-|   get_price, get_resource, resource (SR), load_quick_search, index_close, system_upload(_2), system_ckupload (SR)
+|   get_price, get_resource, resource, load_quick_search, index_close, system_upload(_2), system_ckupload
 | ดูรายการ URL/ไฟล์เดิมใน docs/url-map.md และรายงานใน docs/modules/settings.md
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 |
@@ -76,8 +76,8 @@ Route::post('/get_price', PriceController::class)->middleware(['legacy.ajax', 'l
 // system_upload: หน้าสมัคร (ยังไม่ล็อกอิน) แนบสำเนาบัตรได้ — legacy.auth_or_signup (2026-10-21)
 Route::post('/system_upload', [UploadController::class, 'upload'])->middleware(['legacy.ajax', 'legacy.auth_or_signup']);
 Route::post('/system_upload_2', [UploadController::class, 'upload2'])->middleware(['legacy.ajax', 'legacy.auth']);
-// SR: system_ckupload.php — ปุ่มอัปโหลดรูปของ CKEditor (form ส่งเข้า iframe ไม่ใช่ XHR → ไม่ใช้ legacy.ajax; CSRF = Origin/Referer)
-// เดิม: ผู้ถือ admin_notice/admin_mall หรือใครก็ได้ที่ล็อกอิน = ผู้ที่ล็อกอินทุกคน
+// system_ckupload.php — ปุ่มอัปโหลดรูปของ CKEditor (form ส่งเข้า iframe ไม่ใช่ XHR → ไม่ใช้ legacy.ajax; CSRF = Origin/Referer)
+// PACK: ต้องมี admin_notice หรือ admin_mall — ตรวจใน controller (ไม่มี = script "No permission." แบบเดิม)
 Route::post('/system_ckupload', [UploadController::class, 'ckupload'])->middleware('legacy.auth');
 
 // ---------- หน้าสาธารณะที่ไม่มีข้อมูล (PUBLIC ใน RouteSecurityTest) ----------

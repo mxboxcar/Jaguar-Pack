@@ -8,6 +8,7 @@ use App\Domain\Users\UsersMailer;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Users\Concerns\ReadsLegacyInput;
 use App\Support\Legacy\Alerts;
+use App\Support\Legacy\BlobStore;
 use App\Support\Legacy\Blocklist;
 use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
@@ -22,7 +23,6 @@ use Illuminate\Support\Facades\Log;
  * หน้าสาธารณะของกลุ่ม users (ยังไม่ล็อกอิน):
  *   GET  /register                = register.php
  *   GET  /lostpassword            = lost_password.php (RewriteRule) — /lost_password ด้วย
- *   GET  /password                = password.php (สคริปต์ย้ายรหัสครั้งเดียว: ตาราง user_copy ไม่มี → ว่าง)
  *   POST /_register/save          = _register/save.php (+ _register/email.php)
  *   POST /_register/lost_password = _register/lost_password.php (+ _register/email_lost_password.php)
  *   GET  /system_check_username   = system_check_username.php (validationEngine ajax[checkusername])
@@ -57,12 +57,7 @@ class RegisterController extends Controller
         return response()->view('users.lost_password')->header('Cache-control', 'private');
     }
 
-    public function password(): Response
-    {
-        return response('');
-    }
-
-    /** _register/save.php ของ SR */
+    /** _register/save.php ของ PACK (= SR ไม่มีการเทียบรหัสสุ่มกับ username, รหัสลูกค้า PACK####, บัตรประชาชนขึ้น Azure) */
     public function save(Request $request): Response
     {
         $username = $this->in($request, 'username');
@@ -71,16 +66,16 @@ class RegisterController extends Controller
         $address = $this->in($request, 'address');
         $phone = $this->in($request, 'phone');
         $upload = $this->in($request, 'upload_file');
+        // PACK hotfix 2026-10-21: รับเฉพาะชื่อไฟล์ธรรมดา ไม่งั้นบันทึก identity = '' (และไม่อัปโหลด)
+        if (! preg_match('/^[A-Za-z0-9._-]{1,100}$/', $upload) || str_contains($upload, '..')) {
+            $upload = '';
+        }
         $userType = $this->in($request, 'user_type');
         $phone2 = $this->in($request, 'phone2');
         $lineid = $this->in($request, 'lineid');
         $wechatid = $this->in($request, 'wechatid');
         $password = Format::randd(6);
 
-        // SR: รหัสผ่านสุ่ม 6 ตัว — เทียบกับ username แบบเดิม (แทบไม่มีทางตรง)
-        if (Php74::eq($password, $this->php($request, 'username'))) {
-            return $this->js(Alerts::error('CloseLoading()', 'ชื่อผู้ใข้และรหัสผ่านต้องไม่ตรงกัน'));
-        }
         if (Blocklist::isBlockedName($this->php($request, 'username'))) {
             // เดิมข้อความภาษาไทยถูกบันทึกเป็น UTF-8 ซ้อน 2 ชั้น (แสดงเป็นตัวอักษรเพี้ยน) → แก้เป็นข้อความที่อ่านได้
             return $this->js("ErrorBox('ไม่อนุญาตให้ใช้คำ ".htmlspecialchars($this->php($request, 'username'), ENT_QUOTES)."', 'CloseLoading()'); ");
@@ -88,7 +83,7 @@ class RegisterController extends Controller
         if (DB::table('user')->where('username', trim($username))->exists()) {
             return $this->js("ErrorBox('ผู้ใช้งานนี้มีในระบบแล้ว', 'CloseLoading()'); ");
         }
-        // SR: อีเมลซ้ำไม่ได้ (ทุกแถว รวมที่ลบแล้ว แบบเดิม)
+        // อีเมลซ้ำไม่ได้ (ทุกแถว รวมที่ลบแล้ว แบบเดิม)
         if (DB::table('user')->where('email', trim($email))->exists()) {
             return $this->js("ErrorBox('อีเมล์นี้มีในระบบแล้ว', 'CloseLoading()'); ");
         }
@@ -106,11 +101,18 @@ class RegisterController extends Controller
         // เดิมอ่าน user_count แล้วค่อย +1 แยกกัน (สมัครพร้อมกัน 2 คนได้รหัสลูกค้าซ้ำ) → ล็อกแถว user_count ใน transaction
         $id = DB::transaction(function () use ($request, $username, $password, $name, $email, $phone, $userType, $upload, $address, $phone2, $lineid, $wechatid) {
             $count = DB::table('user_count')->where('id', '1')->lockForUpdate()->value('count');
+            // กดสมัครซ้อน (ดับเบิลคลิก/ส่งซ้ำ): เดิมได้ผู้ใช้ username เดียวกัน 2 แถว (ตรวจซ้ำก่อนล็อก) → ตรวจอีกครั้งหลังได้ล็อก user_count
+            if (DB::table('user')->where('username', trim($username))->exists()) {
+                return 'username';
+            }
+            if (DB::table('user')->where('email', trim($email))->exists()) {
+                return 'email';
+            }
             $next = Php74::num($count) + 1;
             $id = (int) DB::table('user')->insertGetId([
                 'create_date' => DB::raw('NOW()'), 'create_by' => '', 'mod_date' => DB::raw('NOW()'), 'mod_by' => '',
                 'is_delete' => 0, 'id' => null, 'username' => $username, 'password' => LegacyCrypt::encrypt($password),
-                'code' => 'SU'.str_pad((string) $next, 4, '0', STR_PAD_LEFT), 'role' => '0', 'name' => $name, 'email' => $email,
+                'code' => 'PACK'.str_pad((string) $next, 4, '0', STR_PAD_LEFT), 'role' => '0', 'name' => $name, 'email' => $email,
                 'phone' => $phone, 'is_enable' => '1', 'type' => $userType, 'identity' => $upload, 'address' => $address,
                 'is_approved' => '0', 'approved_date' => null, 'phone2' => $phone2, 'lineid' => $lineid, 'wechatid' => $wechatid,
             ]);
@@ -119,6 +121,12 @@ class RegisterController extends Controller
 
             return $id;
         });
+        if ($id === 'username') {
+            return $this->js("ErrorBox('ผู้ใช้งานนี้มีในระบบแล้ว', 'CloseLoading()'); ");
+        }
+        if ($id === 'email') {
+            return $this->js("ErrorBox('อีเมล์นี้มีในระบบแล้ว', 'CloseLoading()'); ");
+        }
 
         $this->storeIdentity($upload);
         if (! config('legacy.debug_mail')) {
@@ -129,25 +137,19 @@ class RegisterController extends Controller
     }
 
     /**
-     * ไฟล์บัตรประชาชน upload/temp/<f> → upload/<f> ในเครื่อง (SR เดิม copy() ไม่ขึ้น Azure — หน้าแอดมินเปิดที่ href.'upload/<f>')
-     * เดิม file_exists('../upload/temp/'.$upload_file) โดยไม่กรอง → ส่ง ../../system_config.php ได้ (คัดลอกไฟล์ใดๆ บนเครื่องไปไว้ใต้ upload/ ที่เปิดสาธารณะ)
-     * ที่นี่รับเฉพาะชื่อไฟล์ล้วนใน legacy.upload.temp_dir แล้วคัดลอกไป legacy.upload.local_dir (production ต้องชี้ไป upload/ ของเว็บ)
+     * ไฟล์บัตรประชาชน upload/temp/<f> → ที่เก็บถาวร: PACK เดิม UploadAzure() (Azure container "upload", หน้าแอดมิน/โปรไฟล์เปิดผ่าน getupload/href_blob)
+     * — ต่างจาก SR ที่ copy() ลง upload/ ในเครื่อง · ใช้ BlobStore (azure ใน production, local ใน dev) อัปทับแบบ UploadAzure()
+     * เดิม (ก่อน hotfix 2026-10-21) file_exists('../upload/temp/'.$upload_file) โดยไม่กรอง → ส่ง ../../system_config.php ได้ (ไฟล์ใดๆ บนเครื่องขึ้น Azure สาธารณะ)
+     * ที่นี่รับเฉพาะชื่อไฟล์ล้วนใน legacy.upload.temp_dir
      */
     private function storeIdentity(string $file): void
     {
         if ($file === '' || $file !== basename($file) || str_starts_with($file, '.') || str_contains($file, "\0")) {
             return;
         }
-        $src = rtrim((string) config('legacy.upload.temp_dir'), '/').'/'.$file;
-        if (! is_file($src)) {
-            return;
-        }
-        $dir = rtrim((string) config('legacy.upload.local_dir'), '/');
-        if (! is_dir($dir)) {
-            @mkdir($dir, 0775, true);
-        }
-        if (! @copy($src, $dir.'/'.$file)) {
-            Log::warning('users: register identity copy failed', ['file' => $file]);
+        $out = BlobStore::uploadFromTemp($file, false);
+        if ($out !== '' && $out !== 'temp empty') {
+            Log::warning('users: register identity upload failed', ['file' => $file, 'result' => $out]);
         }
     }
 

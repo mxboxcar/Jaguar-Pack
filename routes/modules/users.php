@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 
 /*
 | กลุ่ม: users — _profile, _register, _admin/_user, _admin/_user_type, _admin/_role,
-|               register.php, lost_password.php, password.php, system_check_username.php
+|               register.php, lost_password.php, system_check_username.php (PACK ไม่มี password.php)
 | ดูรายการ URL/ไฟล์เดิมใน docs/url-map.md และรายงานใน docs/modules/users.md
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 |
@@ -23,8 +23,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/register', [RegisterController::class, 'register']);
 Route::get('/lostpassword', [RegisterController::class, 'lostPassword']);
 Route::get('/lost_password', [RegisterController::class, 'lostPassword']);
-// password.php = สคริปต์ย้ายรหัสผ่านครั้งเดียว อ่านตาราง user_copy ที่ไม่มีใน DB → ตอบว่างเสมอ
-Route::get('/password', [RegisterController::class, 'password']);
+// password.php (SR-only) ไม่มีใน PACK → ไม่มี route (404 → หน้าแรก)
 Route::middleware('legacy.ajax')->group(function () {
     Route::post('/_register/save', [RegisterController::class, 'save']);
     Route::post('/_register/lost_password', [RegisterController::class, 'resetPassword']);

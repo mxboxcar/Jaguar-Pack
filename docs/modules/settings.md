@@ -1,5 +1,64 @@
 # กลุ่ม settings — รายงานการพอร์ต
 
+## PACK (2026-10-22)
+
+ทำใน worktree เดียวกับกลุ่ม users (`/home/admin/laravel/pack-wt/users`, branch `mod/users`, port 8810) · เทียบกับ :8114 (`/home/admin/bench/pack-old`, DB `admin_pack_bench`)
+
+### ไฟล์ตาม docs/pack-diff.md
+
+| ไฟล์เดิม | สถานะ | ผล |
+|---|---|---|
+| `_admin/_setting/index.php` | diff 2 (jl 0) | **ทำแล้ว** — textarea `address_cn` มี class `addcomma` (แบบ jl) |
+| `get_resource.php` | diff 2 (jl 0) | **ทำแล้ว** — PACK `require system_config.php` → ข้อความทุกตัวของภาษาตาม cookie `pack-cargo-lang` (แบบ jl; SR = จีนเสมอ) — byte ตรงกับเดิมทั้ง th/en/cn |
+| `system_ckupload.php` | diff 35 | **ทำแล้ว** — ต้องมีสิทธิ์ `admin_notice` หรือ `admin_mall` (ไม่มี = `callFunction(fn, '', 'No permission.')`) — SR ยอมทุกคนที่ล็อกอิน |
+| `system_upload.php` | diff 44 (jl 44) | **ทำแล้ว** — รายการนามสกุลของ PACK (ตรงตัวพิมพ์): jpg/png/jpeg/JPG/JPEG/PNG/pdf/PDF/zip/rar/7z/doc/docx/DOC/DOCX/xls/xlsx/XLS/XLSX, ชื่อใหม่ `randd().'.'.<นามสกุลเดิม>`, ข้อความ error ของ PACK (`error : รองรับ .png, .jpg, .jpeg, .pdf, .zip, .rar, .7z เท่านั้น`, `error: เกิดข้อผิพลาดในการอัพโหลดไฟล์`), ย่อรูป |
+| `resource.php` | same | ตรง (th, `admin_email` ไม่ถูก define แบบเดิม) |
+| ไฟล์ `same` อื่น (exchange, product_type, shipping_type, setting/save, get_price, index_close, load_quick_search, system_upload_2) | same | ไม่ต้องแก้ — เทียบผลกับ :8114 แล้วตรง |
+
+ไม่มี SR-only / pack-only ในกลุ่มนี้
+
+### getupload() ของ PACK (App\Domain\Settings\UploadBox — ของกลาง)
+- PACK ยังใช้ `getupload()` / `getupload_inline()` รุ่นเก่า (แบบ jl ก่อนแก้ UI): รูป = นามสกุลใน `jpg,png,jpeg,JPG,JPEG,PNG` (ตรงตัวพิมพ์), ไฟล์อื่น = ลิงก์ `class='fancybox'` ชื่อไฟล์; หลังอัปโหลด `.zip/.rar/.7z` แสดงชื่อไฟล์ อื่นๆ เป็นรูปตัวอย่างจาก `upload/temp`
+- `UploadBox::getupload()` / `getuploadInline()` เปลี่ยนเป็นรุ่น PACK (ไม่มี target="_blank", ชื่อไฟล์ escape); `getuploadmultiple()` ปุ่มลบ onclick = `$(this).parent().remove()` แบบ PACK
+- `App\Domain\Users\UploadBox::single()` (กล่องแนบบัตรหน้าสมัคร) เรียกของกลางตัวนี้ — หน้า register ตรงกับเดิม (ต่างแค่ target/favicon)
+- กลุ่มอื่นยังมีสำเนาของตัวเอง (points/reports ทำรุ่น PACK แล้ว) — รวมเป็นตัวเดียวภายหลัง
+
+### ต่างจาก PACK เดิมโดยตั้งใจ
+- `system_upload`: นามสกุลรูป/PDF ต้องเป็นรูป JPEG/PNG หรือ PDF จริง (finfo — การแก้ของ jl/SR) ไม่งั้นตอบ error รายการนามสกุล; ชนิดจริงไม่ตรงนามสกุล (เช่น PNG ชื่อ .jpg) ใช้นามสกุลตามชนิดจริง; zip/rar/7z/doc/docx/xls/xlsx ไม่ตรวจเนื้อไฟล์ (แบบเดิม); ต้องล็อกอิน (หรือมาจากหน้าสมัคร) — เดิมไม่ตรวจ
+- `system_ckupload`: ไม่ล็อกอิน = redirect /login (เดิม script "No permission."); เก็บผ่าน BlobStore เสิร์ฟที่ `href_blob` (เดิมเขียน webroot `upload/`)
+- `_admin/_setting/save`: อัปเดตเฉพาะคีย์ที่ส่งมา (การแก้ของ jl/SR — PACK เดิมเขียน `''` ทับทุกคีย์ที่ไม่ส่ง) และต้องมี `admin_setting` (เดิมไม่ตรวจ) — PACK: role 1 และ 7 ถือ admin_setting
+- ข้อที่เหลือของ SR/jl ด้านล่างยังอยู่ทั้งหมด (legacy.once ของ product_type/shipping_type, lock ของ exchange, LIKE escape, escape ค่าจาก DB)
+
+### ผลเทียบ (:8114 vs :8810, normalize href + ช่องว่าง)
+- แอดมิน 11938: admin/setting, product_type (+create, /1, /99999), shipping_type (+create, /1, /13, /62), exchange (+status/1, 2, /18, /1) — ต่างแค่ favicon, morris/dashboard.js ของ layout, target="_blank"
+- staff: role 4 (302: ไม่มี setting/shipping_type), role 7 (923: ไม่มี exchange), role 3 (524), role 6 (5), ลูกค้า — หน้าที่ไม่มีสิทธิ์ = no-permission (ตั้งใจ), grid ที่ไม่มีสิทธิ์ = ว่างเหมือนเดิม
+- ajax: product_type grid ×2, shipping_type grid ×3, exchange grid ×3, load_cal_1/2 ×5, get_price (view_bol ไม่มีใครถือ = ErrorBox สิทธิ์), load_quick_search ×3 — ตรง (ต่างแค่ target)
+- สาธารณะ th/en/cn: get_resource, resource = byte ตรง; index_close ต่างแค่ favicon
+
+### E2E (Laravel เท่านั้น, แถว zz_ แล้วลบตาม id, snapshot ก่อน)
+- system_upload: png/jpg/zip/PNG ผ่าน (นามสกุลตามที่ส่ง), PHP ชื่อ .jpg และ .Jpg = error, ไม่ล็อกอิน = 302 /login
+- system_ckupload: แอดมิน, role 4, role 7 ได้ URL `https://image.pack-cargo.net/upload/<time>_<16>.png`; role 3 และลูกค้า = "No permission."
+- setting: บันทึกทั้งฟอร์มด้วยค่าเดิม = ไม่มีแถวเปลี่ยน, คีย์เดียว = เปลี่ยนแถวเดียว, POST ว่าง = ErrorBox, ลูกค้า = ปฏิเสธ, role 7 = บันทึกได้ → คืนค่า = ตรง snapshot ทุกแถว
+- product_type: สร้าง (ส่งซ้อน = แถวเดียว + "ส่งซ้ำ"), แก้, ลบ (`arr_id=,<id>` แบบเดิม)
+- shipping_type: สร้าง (ส่งซ้อน = แถวเดียว), save_new_price_by_kg/cubic (+ max ≤ min = ErrorBox), load_cal_1, แก้เป็น is_use_rate 1 + rate_id[], save_listno, delete_cal, delete
+- exchange (balance_withdraw_cn zz 2 แถวของ 11937): อนุมัติ 10 หยวน ส่งซ้อน 2 ครั้ง → balance +42.30 (× 4.23) แถวเดียว; ยกเลิก 20.50 ส่งซ้อน → balance_cn +20.50 แถวเดียว + "ยกเลิกโดย ZZFDN2"; อนุมัติรายการที่ยกเลิกแล้ว = ErrorBox
+- ลบแล้ว: product_type 10, shipping_type 76 + shipping_type_rate 11–12, balance_withdraw_cn 27–28, balance 65076, balance_cn 2263, ไฟล์ทดสอบใน storage/app/legacy-upload
+
+### bench (`bin/bench -n 30 -c 1`, แอดมิน, `artisan optimize`, 2 รอบ — :8114 มีงานของ agent อื่นพร้อมกัน ตัวเลขเดิมสูงกว่าปกติ)
+
+| หน้า | เดิม mean ms | ใหม่ mean ms |
+|---|---|---|
+| /admin/setting | 5191 / 2283 | 117 / 79 |
+| /_admin/_shipping_type/grid | 1262 / 287 | 63 / 50 |
+
+### test
+- `tests/Feature/Settings/SettingsUploadTest.php`: system_ckupload ต้องมี admin_notice/admin_mall, system_upload รายการนามสกุล PACK
+
+### คำถามถึงเจ้าของ
+1. `system_upload` ยังตรวจเนื้อไฟล์รูป/PDF (การแก้ของ jl/SR) แต่รับ zip/rar/7z/doc/docx/xls/xlsx ตาม PACK โดยไม่ตรวจเนื้อไฟล์ — ต้องการจำกัดเฉพาะรูป/PDF แบบ jl/SR หรือไม่
+2. `getupload()` ใช้หน้าตารุ่น PACK (PDF ที่อัปโหลดแสดงเป็นรูปเสีย/fancybox ว่างแบบเดิม) — ต้องการรุ่นที่แก้ UI แล้วของ jl/SR หรือไม่
+3. รูปจาก CKEditor ใหม่อยู่ที่ `image.pack-cargo.net/upload/` (Azure) แทน `portal.pack-cargo.net/upload/` — production ต้องให้ nginx เสิร์ฟ `upload/` เดิมต่อ (รูปเก่าในประกาศ)
+
 ## SR (2026-10-20)
 
 branch `mod/settings` · worktree `/home/admin/laravel/sr-wt/settings` · dev port 8313 · เทียบกับ :8111 (`/home/admin/bench/sr-old`, DB `admin_sr_bench`)

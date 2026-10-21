@@ -35,7 +35,6 @@ class RouteSecurityTest extends TestCase
         '_register/lost_password' => 'ขอรหัสผ่านใหม่ทางอีเมล (ajax)',
         'system_upload' => 'แนบสำเนาบัตรในหน้าสมัคร: legacy.auth_or_signup (ล็อกอิน หรือ Referer /register + จำกัดต่อ IP)',
         'system_check_username' => 'validationEngine ตรวจ username ซ้ำตอนสมัคร',
-        'password' => 'password.php เดิม (สคริปต์ย้ายรหัส ตาราง user_copy ไม่มีแล้ว) ตอบว่างเสมอ',
         'index_close' => 'settings: หน้าปิดปรับปรุง (ข้อความคงที่ เดิมสาธารณะ)',
         'get_resource' => 'settings: ข้อความภาษาของระบบ (lang/*, เดิมสาธารณะ)',
         'resource' => 'settings (SR resource.php): ข้อความภาษาไทยของระบบ (lang/th, เดิมสาธารณะ)',

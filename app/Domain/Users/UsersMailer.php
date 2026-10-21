@@ -23,19 +23,19 @@ use Illuminate\Support\Facades\Mail;
  */
 final class UsersMailer
 {
-    /** _register/email.php ของ SR — หลังสมัครสมาชิก (ไทย + จีน, ไม่มีรหัสผ่าน) */
+    /** _register/email.php ของ PACK — หลังสมัครสมาชิก (ไทย + จีน, ไม่มีรหัสผ่าน; เบอร์/LINE/อีเมลติดต่อของ PACK) */
     public static function registered(int $id): void
     {
         $u = self::user($id);
         $name = e((string) ($u->username ?? ''));
-        $subject = 'เเจ้งสถานะการสมัครสมาชิก SRShippingSystem';
+        $subject = 'เเจ้งสถานะการสมัครสมาชิก PACK-Cargo';
         $body = "\n<p>เรียน ท่านผู้สมัครสมาชิก ".$name."</p>\n"
-            ."<p style='text-indent:40px'>ตามที่ท่านได้ยื่นหลักฐานการสมัครสมาชิกกับทาง SRShippingSystem นั้น ขณะนี้ผลการสมัครสมาชิกของท่านอยู่ระหว่างการตรวจสอบความถูกต้องของข้อมูล โดยจะใช้เวลาในการตรวจสอบประมาณ1-2วัน เมื่อผลการสมัครสมาชิกของท่านผ่านการอนุมัติแล้ว ระบบจะทำการส่งข้อความยืนยันการอนุมัติให้ท่านทราบทาง E-mail ค่ะ</p>\n"
-            ."\n<p>* หากมีข้อสงสัยหรือไม่ได้รับE-mailอนุมัติผลการสมัคร <br />\nกรุณาติดต่อหมายเลขโทรศัพท์ : <br />\nเวลาทำการ วันจันทร์-เสาร์ เวลา 9.30-17.30 น.\n</p>\n"
-            ."\n<p style='margin-top:20px'>关于审核 SRShippingSystem 会员申请的通知</p>\n"
+            ."<p style='text-indent:40px'>ตามที่ท่านได้ยื่นหลักฐานการสมัครสมาชิกกับทาง PACK-Cargo นั้น ขณะนี้ผลการสมัครสมาชิกของท่านอยู่ระหว่างการตรวจสอบความถูกต้องของข้อมูล โดยจะใช้เวลาในการตรวจสอบประมาณ1-2วัน เมื่อผลการสมัครสมาชิกของท่านผ่านการอนุมัติแล้ว ระบบจะทำการส่งข้อความยืนยันการอนุมัติให้ท่านทราบทาง E-mail ค่ะ</p>\n"
+            ."\n<p>* หากมีข้อสงสัยหรือไม่ได้รับE-mailอนุมัติผลการสมัคร <br />\nกรุณาติดต่อหมายเลขโทรศัพท์ : 0626482220, 0966977336, Line id : @packcargo, Email : packcargo789@gmail.com<br />\nเวลาทำการ วันจันทร์-เสาร์ เวลา 9.30-17.30 น.\n</p>\n"
+            ."\n<p style='margin-top:20px'>关于审核PACK-Cargo会员申请的通知</p>\n"
             .'<p>尊敬的 '.$name." 您好：</p>\n"
-            ."<p style='text-indent:40px'>根据您所提交的申请 SRShippingSystem 会员的信息，工作人员将需要1～2天的时间来审核您的信息。若您提交的申请通过审核后，系统将会通过电子邮件的方式通知您成功申请会员。</p>\n"
-            ."\n<p>* 若您没有收到成功申请会员的电子邮件 <br />\n请致电：<br />\n时间：周一至周六  09：30～17：30\n</p>";
+            ."<p style='text-indent:40px'>根据您所提交的申请PACK-Cargo会员的信息，工作人员将需要1～2天的时间来审核您的信息。若您提交的申请通过审核后，系统将会通过电子邮件的方式通知您成功申请会员。</p>\n"
+            ."\n<p>* 若您没有收到成功申请会员的电子邮件 <br />\n请致电：0626482220, 0966977336 Line id : @packcargo, Email : packcargo789@gmail.com<br />\n时间：周一至周六  09：30～17：30\n</p>";
         self::send('register', $id, $subject, $body, $u);
     }
 
@@ -45,7 +45,7 @@ final class UsersMailer
         $u = self::user($id);
         $subject = 'แจ้งรหัสผ่านใหม่ '.($u->code ?? '').' (Success)';
         $body = self::credentials($u, "\n<p>ระบบได้ทำการรีเซตรหัสผ่านของท่านแล้ว</p>\n<p>ท่านสามารถเข้าระบบโดย ผู้ใช้งานและรหัสผ่านดังต่อไปนี้</p>")
-            .self::button('background-color:#a3b2f1;padding: 10px 25px 10px 0px;');
+            .self::button('background-color:#eb4823;padding: 10px 25px 10px 0px;');
         self::send('lost password', $id, $subject, $body, $u);
     }
 
@@ -66,7 +66,7 @@ final class UsersMailer
         $code = (string) ($u->code ?? '');
         $subject = 'แจ้งผลอนุมัติการสมัครสมาชิก '.$code.' (Success)';
         $body = self::credentials($u, "\n<p>ผลการสมัครสมาชิกของท่านได้อนุมัติเป็นที่เรียบร้อยแล้ว โดยรหัสลูกค้าที่ใช้ในการสั่งซื้อและจัดส่งสินค้าของท่านคือ ".e($code)."\nท่านสามารถเข้าระบบโดย ผู้ใช้งานและรหัสผ่านดังต่อไปนี้</p>")
-            .self::button('background-color:#a3b2f1;padding:10px 25px 10px 0px;');
+            .self::button('background-color:#eb4823;padding:10px 25px 10px 0px;');
         self::send('approved', $id, $subject, $body, $u);
     }
 
@@ -98,7 +98,7 @@ final class UsersMailer
         $body = self::credentials($u, "\n<p>ทางทีมงานได้มีการแก้ไขข้อมูลของลูกค้า รายละเอียดดังต่อไปนี้</p>");
         $body .= '<div style="text-indent:0px!important;"><p style="margin-top: 40px;">ค่าขนส่งทางรถ (4-6 วัน)</p>'."\n".self::rateTable($car)
             ."\n".'<div style="height:20px"></div>'."\n".'<p>ค่าขนส่งทางเรือ</p>'."\n".self::rateTable($ship).'</div>';
-        $body .= self::button('background-color:#a3b2f1;padding:10px 25px 10px 0px;');
+        $body .= self::button('background-color:#eb4823;padding:10px 25px 10px 0px;');
         self::send('update', $id, $subject, $body, $u);
     }
 
@@ -145,7 +145,7 @@ final class UsersMailer
         return DB::table('user')->where('id', $id)->first();
     }
 
-    /** ประกอบแม่แบบ email_header + <strong>หัวเรื่อง</strong> + email_center + เนื้อหา + email_footer (ของ SR) */
+    /** ประกอบแม่แบบ email_header + <strong>หัวเรื่อง</strong> + email_center + เนื้อหา + email_footer (config('legacy.mail')) */
     public static function wrap(string $subject, string $body): string
     {
         return config('legacy.mail.header').'<strong>'.$subject.'</strong>'.config('legacy.mail.center').$body.config('legacy.mail.footer');

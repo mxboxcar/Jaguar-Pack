@@ -121,7 +121,7 @@
 		        <div class="form-group">
 		            <label class="col-md-4 control-label"> {!! res('cn_address') !!}</label>
 		            <div class="col-md-6">
-		            	<textarea rows="5" name="address_cn" class=" form-control text-left validate[required]" >{{ $s['address_cn'] ?? '' }}</textarea>
+		            	<textarea rows="5" name="address_cn" class="addcomma form-control text-left validate[required]" >{{ $s['address_cn'] ?? '' }}</textarea>
 		            </div>
 		        </div>
 
