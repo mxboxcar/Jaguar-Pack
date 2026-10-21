@@ -71,8 +71,8 @@ branch `mod/users` (รวมกลุ่ม settings ใน worktree เดี�
 
 ### test
 - `tests/Feature/Users/UsersPackDbTest.php` (แทน UsersSrDbTest): PACK####, hotfix ชื่อไฟล์, ลำดับ/คอลัมน์ของ profile save, ผู้ถือ admin_user ทุก role เปลี่ยนรหัส (ให้ role 4 ชั่วคราวใน transaction ที่ rollback)
-- `php8.4 vendor/bin/phpunit`: ผ่านทั้งหมด (329 tests, 110 skipped)
-- `JL_BENCH_DB_TESTS=1`: users/settings ผ่านทั้งหมด; ล้มของกลุ่มอื่น (คอลัมน์ SR ที่ PACK ไม่มี เช่น tracking.subuser, bill_payment.receipt_*): Lot, Messaging, Money ×8, Order ×7, Payment ×5, Reports ×2, Shop ×2, Tracking ×6, Warehouse ×2
+- `php8.4 vendor/bin/phpunit` (หลัง merge main 7d3086c): ผ่านทั้งหมด (327 tests, 111 skipped) — ต้องรัน `bin/wt-vendor` ก่อน (classmap เก่ายังชี้ model ที่ foundation ลบ)
+- `JL_BENCH_DB_TESTS=1`: users/settings ผ่านทั้งหมด (45); ล้มของกลุ่มที่ยังไม่ merge (คอลัมน์ SR ที่ PACK ไม่มี เช่น tracking.subuser, bill_payment.receipt_*): Lot ×3, Money ×7 (LegacyRisks ×2, BillGrid, CartCheckout, GridPerf, MoneyMove, Payment), Order ×7, Payment ×5, Shop ×2
 
 ### คำถามถึงเจ้าของ
 1. สิทธิ์กำพร้าใน PACK: `admin_warehouse` ไม่มี role ใดถือ → `/admin/warehouse` และ `_admin/_warehouse/*` เข้าไม่ได้แม้แอดมิน (เหมือนเว็บเดิม) — ต้องการ fallback หรือติ๊กให้ role ใดหรือไม่ (`admin_user_view`, `admin_mall` ไม่มีผลจริง)
