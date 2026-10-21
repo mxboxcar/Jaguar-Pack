@@ -23,7 +23,6 @@ use Illuminate\Support\Facades\Log;
  * หน้าสาธารณะของกลุ่ม users (ยังไม่ล็อกอิน):
  *   GET  /register                = register.php
  *   GET  /lostpassword            = lost_password.php (RewriteRule) — /lost_password ด้วย
- *   GET  /password                = password.php (สคริปต์ย้ายรหัสครั้งเดียว: ตาราง user_copy ไม่มี → ว่าง)
  *   POST /_register/save          = _register/save.php (+ _register/email.php)
  *   POST /_register/lost_password = _register/lost_password.php (+ _register/email_lost_password.php)
  *   GET  /system_check_username   = system_check_username.php (validationEngine ajax[checkusername])
@@ -56,11 +55,6 @@ class RegisterController extends Controller
     {
         // lost_password.php เดิมไม่ redirect เมื่อล็อกอินอยู่
         return response()->view('users.lost_password')->header('Cache-control', 'private');
-    }
-
-    public function password(): Response
-    {
-        return response('');
     }
 
     /** _register/save.php ของ PACK (= SR ไม่มีการเทียบรหัสสุ่มกับ username, รหัสลูกค้า PACK####, บัตรประชาชนขึ้น Azure) */
@@ -107,6 +101,13 @@ class RegisterController extends Controller
         // เดิมอ่าน user_count แล้วค่อย +1 แยกกัน (สมัครพร้อมกัน 2 คนได้รหัสลูกค้าซ้ำ) → ล็อกแถว user_count ใน transaction
         $id = DB::transaction(function () use ($request, $username, $password, $name, $email, $phone, $userType, $upload, $address, $phone2, $lineid, $wechatid) {
             $count = DB::table('user_count')->where('id', '1')->lockForUpdate()->value('count');
+            // กดสมัครซ้อน (ดับเบิลคลิก/ส่งซ้ำ): เดิมได้ผู้ใช้ username เดียวกัน 2 แถว (ตรวจซ้ำก่อนล็อก) → ตรวจอีกครั้งหลังได้ล็อก user_count
+            if (DB::table('user')->where('username', trim($username))->exists()) {
+                return 'username';
+            }
+            if (DB::table('user')->where('email', trim($email))->exists()) {
+                return 'email';
+            }
             $next = Php74::num($count) + 1;
             $id = (int) DB::table('user')->insertGetId([
                 'create_date' => DB::raw('NOW()'), 'create_by' => '', 'mod_date' => DB::raw('NOW()'), 'mod_by' => '',
@@ -120,6 +121,12 @@ class RegisterController extends Controller
 
             return $id;
         });
+        if ($id === 'username') {
+            return $this->js("ErrorBox('ผู้ใช้งานนี้มีในระบบแล้ว', 'CloseLoading()'); ");
+        }
+        if ($id === 'email') {
+            return $this->js("ErrorBox('อีเมล์นี้มีในระบบแล้ว', 'CloseLoading()'); ");
+        }
 
         $this->storeIdentity($upload);
         if (! config('legacy.debug_mail')) {

@@ -647,7 +647,7 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_register/lost_password.php` | `/_register/lost_password` |  |  |
 | `_register/save.php` | `/_register/save` |  |  |
 | `lost_password.php` | `/lost_password` |  |  |
-| `password.php` | `/password` |  | ใช้ตาราง `user_copy` ซึ่งไม่มีใน DB (query ล้มเงียบ) |
+| `password.php` | `/password` |  | **dead ใน PACK** (SR-only: ไม่มีไฟล์ใน PACK — ไม่ทำ route) |
 | `register.php` | `/register` |  |  |
 | `system_check_username.php` | `/system_check_username` |  |  |
 
