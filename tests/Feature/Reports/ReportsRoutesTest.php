@@ -31,15 +31,6 @@ class ReportsRoutesTest extends TestCase
         'POST _admin/_export/save_approved' => 'legacy.perm:admin_export',
         'POST _admin/_export/save_delete' => 'legacy.perm:admin_payment',
         'GET _admin/_export/print' => 'legacy.auth',
-        // SR-only
-        'GET _admin/_export/printprice' => 'legacy.auth',
-        'GET _admin/_export/print_receipt' => 'legacy.auth',
-        'GET _admin/_report/printtax' => 'legacy.auth',
-        'GET admin/export/receipt/{id}' => 'legacy.perm:admin_payment',
-        'POST _admin/_export/receipt_1' => 'legacy.perm:admin_payment',
-        'POST _admin/_export/receipt_2' => 'legacy.perm:admin_payment',
-        'POST _admin/_export/calvat' => 'legacy.perm:admin_export',
-        'POST _admin/_export/save_receipt' => 'legacy.perm:admin_export',
         'GET _admin/_export/email_success' => 'legacy.perm:admin_export',
         'POST _admin/_export/email_cancel' => 'legacy.perm:admin_export',
         'GET admin/report' => 'legacy.perm:admin_report',
@@ -59,6 +50,13 @@ class ReportsRoutesTest extends TestCase
         'POST _admin/_log/grid' => 'legacy.auth',
         'GET admin/nobilling' => 'legacy.perm:admin_nobilling',
         'GET download_file' => 'legacy.perm:admin_lot,admin_lot_view',
+    ];
+
+    /** SR-only (ใบเสร็จ/ภาษีขาย bill_payment.receipt_*) — PACK ไม่มีไฟล์เหล่านี้ */
+    private const REMOVED = [
+        'GET _admin/_export/printprice', 'GET _admin/_export/print_receipt', 'GET _admin/_report/printtax',
+        'GET admin/export/receipt/{id}', 'POST _admin/_export/receipt_1', 'POST _admin/_export/receipt_2',
+        'POST _admin/_export/calvat', 'POST _admin/_export/save_receipt',
     ];
 
     /** @return array<string, list<string>> */
@@ -86,6 +84,15 @@ class ReportsRoutesTest extends TestCase
         }
     }
 
+    public function test_sr_only_receipt_routes_are_gone(): void
+    {
+        $routes = $this->routes();
+        foreach (self::REMOVED as $key) {
+            $this->assertArrayNotHasKey($key, $routes, "PACK ไม่มี $key");
+        }
+        $this->assertFalse(Route::has('page.admin_export_receipt'));
+    }
+
     public function test_ajax_endpoints_require_xhr_like_system_check_ajax(): void
     {
         $routes = $this->routes();
@@ -99,7 +106,7 @@ class ReportsRoutesTest extends TestCase
     public function test_pages_are_named_for_the_page_query_hook(): void
     {
         foreach (['dashboard', 'export', 'export_detail', 'admin_export', 'admin_export_detail', 'admin_report',
-            'admin_report_detail', 'admin_log', 'admin_nobilling', 'admin_export_receipt'] as $page) {
+            'admin_report_detail', 'admin_log', 'admin_nobilling'] as $page) {
             $this->assertTrue(Route::has('page.'.$page), "page.$page");
             $this->assertSame($page, Route::getRoutes()->getByName('page.'.$page)->defaults['legacy_page']);
         }
@@ -111,15 +118,6 @@ class ReportsRoutesTest extends TestCase
         $this->assertSame('index', $this->match('GET', '/admin/export/status/2'));
         $this->assertSame('print', $this->match('GET', '/_admin/_export/print/'));
         $this->assertSame('form', $this->match('GET', '/admin/report/3'));
-        $this->assertSame('printPrice', $this->match('GET', '/_admin/_export/printprice/'));
-        $this->assertSame('print', $this->match('GET', '/_admin/_export/print_receipt/'));
-        $this->assertSame('form', $this->match('GET', '/admin/export/receipt/12'));
-    }
-
-    /** save_receipt ออกเลขใบเสร็จ → กันส่งซ้อน (lock) แต่บันทึกค่าเดิมซ้ำได้ */
-    public function test_save_receipt_is_guarded(): void
-    {
-        $this->assertContains('legacy.once:lock', $this->routes()['POST _admin/_export/save_receipt']);
     }
 
     public function test_php74_loose_compare_used_by_report_types(): void

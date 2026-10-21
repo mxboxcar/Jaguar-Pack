@@ -3,7 +3,6 @@
 use App\Http\Controllers\Reports\Admin\AdminExportController;
 use App\Http\Controllers\Reports\Admin\AdminLogController;
 use App\Http\Controllers\Reports\Admin\AdminNobillingController;
-use App\Http\Controllers\Reports\Admin\AdminReceiptController;
 use App\Http\Controllers\Reports\Admin\AdminReportController;
 use App\Http\Controllers\Reports\DashboardController;
 use App\Http\Controllers\Reports\DownloadFileController;
@@ -57,25 +56,9 @@ Route::middleware('legacy.auth')->group(function () {
     // ไม่มีสิทธิ์ admin_export: grid ตอบว่าง, print ตอบ "ERROR : access denied" (ตรวจใน controller)
     Route::post('/_admin/_export/grid', [AdminExportController::class, 'grid'])->middleware('legacy.ajax');
     Route::get('/_admin/_export/print', [AdminExportController::class, 'print']);
-    // SR: บิลชำระเงิน (printprice.php + print_3.php) — สิทธิ์/ผลแบบ print.php
-    Route::get('/_admin/_export/printprice', [AdminExportController::class, 'printPrice']);
-    // SR: พิมพ์ใบเสร็จ / รายงานภาษีขาย — ไม่มีสิทธิ์ admin_export ตอบ "ERROR : access denied" (ตรวจใน controller)
-    Route::get('/_admin/_export/print_receipt', [AdminReceiptController::class, 'print']);
-    Route::get('/_admin/_report/printtax', [AdminReceiptController::class, 'printtax']);
 });
-
-// ---------- SR: ใบเสร็จรับเงิน/ใบกำกับภาษี (bill_payment.receipt_*) ----------
-Route::middleware('legacy.perm:admin_payment')->group(function () {
-    Route::get('/admin/export/receipt/{id}', [AdminReceiptController::class, 'form'])->whereNumber('id')
-        ->defaults('legacy_page', 'admin_export_receipt')->name('page.admin_export_receipt');
-    Route::post('/_admin/_export/receipt_1', [AdminReceiptController::class, 'table1'])->middleware('legacy.ajax');
-    Route::post('/_admin/_export/receipt_2', [AdminReceiptController::class, 'table2'])->middleware('legacy.ajax');
-});
-Route::middleware(['legacy.perm:admin_export', 'legacy.ajax'])->group(function () {
-    Route::post('/_admin/_export/calvat', [AdminReceiptController::class, 'calvat']);
-    // บันทึกซ้ำได้ (แก้ข้อมูลใบเสร็จ) → lock อย่างเดียว ไม่กัน payload ซ้ำ
-    Route::post('/_admin/_export/save_receipt', [AdminReceiptController::class, 'save'])->middleware('legacy.once:lock');
-});
+// PACK ไม่มีใบเสร็จ/ใบกำกับภาษีของ SR (bill_payment ไม่มีคอลัมน์ receipt_*): ไม่มี route admin/export/receipt/{id},
+// _admin/_export/{receipt,receipt_1,receipt_2,calvat,save_receipt,print_receipt,printprice,print_3}, _admin/_report/printtax (→ 404 = หน้าแรก)
 
 // ---------- แอดมิน: รายงาน ----------
 Route::middleware('legacy.perm:admin_report')->group(function () {
