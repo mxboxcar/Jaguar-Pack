@@ -33,8 +33,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // cookie ของเว็บเดิมเป็นค่าดิบ ต้องไม่ถูก Laravel เข้ารหัส/ถอดรหัส
         $middleware->encryptCookies(except: [
-            'PHPSESSID', 'srshippingsystem', 'srshippingsystem-role', 'srshippingsystem-lang', 'srshippingsystem-menu',
-            'srshippingsystem-admin-menu', 'srshippingsystem-cart', 'srshippingsystem-portal',
+            'PHPSESSID', 'pack-cargo', 'pack-cargo-role', 'pack-cargo-lang', 'pack-cargo-menu',
+            'pack-cargo-admin-menu', 'pack-cargo-cart', 'pack-cargo-portal',
         ]);
 
         // group สำหรับทุกหน้าที่พอร์ตจากเว็บเดิม: ไม่ใช้ session/CSRF token ของ Laravel
