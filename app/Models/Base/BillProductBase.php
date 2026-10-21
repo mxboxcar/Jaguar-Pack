@@ -34,8 +34,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\CarbonImmutable|null $who_did_this_1_date datetime
  * @property int|null $who_did_this_3 int
  * @property \Carbon\CarbonImmutable|null $who_did_this_3_date datetime
- * @property string|null $run_id varchar(50) default ''
- * @property int|null $is_print int default '0'
  */
 abstract class BillProductBase extends Model
 {
@@ -52,7 +50,7 @@ abstract class BillProductBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'user', 'total', 'usecash', 'exchange_rate', 'attachment', 'submit_date', 'submit_remark', 'status', 'quote', 'ship', 'is_lock', 'cancel_remark', 'admin_quote', 'who_did_this_1', 'who_did_this_1_date', 'who_did_this_3', 'who_did_this_3_date', 'run_id', 'is_print'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'user', 'total', 'usecash', 'exchange_rate', 'attachment', 'submit_date', 'submit_remark', 'status', 'quote', 'ship', 'is_lock', 'cancel_remark', 'admin_quote', 'who_did_this_1', 'who_did_this_1_date', 'who_did_this_3', 'who_did_this_3_date'];
 
     protected function casts(): array
     {

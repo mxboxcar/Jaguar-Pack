@@ -169,10 +169,9 @@ final class Pricing
     public static function getShippingTypePrice(mixed $id, mixed $paymentRef, mixed $sender): ?array
     {
         $rows = DB::table('tracking as t')
-            ->leftJoin('user', 'user.id', '=', 't.user')
             ->leftJoin('bill_payment_detail_temp as t2', 't.id', '=', 't2.shipping_id')
             ->where('t2.random', $paymentRef)
-            ->get(['t.weight', 't.width', 't.height', 't.long', 't.amount', 'user.code']);
+            ->get(['t.weight', 't.width', 't.height', 't.long', 't.amount']);
 
         return self::shippingType($id, $rows, $sender);
     }
@@ -184,10 +183,9 @@ final class Pricing
         // ส่วน tracking.id อยู่ในคอลัมน์ id → น้ำหนัก/ขนาดที่ใช้คิดค่าส่งแบบ rate (และ VAT) มาจาก tracking ผิดแถว
         // แก้ (เจ้าของอนุมัติ 2026-10-18): join t.id = t2.id
         $rows = DB::table('tracking as t')
-            ->leftJoin('user', 'user.id', '=', 't.user')
             ->leftJoin('bill_payment_detail as t2', 't.id', '=', 't2.id')
             ->where('t2.payment_id', $paymentId)
-            ->get(['t.weight', 't.width', 't.height', 't.long', 't.amount', 'user.code']);
+            ->get(['t.weight', 't.width', 't.height', 't.long', 't.amount']);
 
         return self::shippingType($id, $rows, $sender);
     }
@@ -197,13 +195,9 @@ final class Pricing
     {
         $w = 0.0;
         $c = 0.0;
-        $code = '';
         foreach ($rows as $r) {
             $w += self::n($r->weight) * self::n($r->amount);
             $c += ((self::n($r->width) * self::n($r->height) * self::n($r->long)) / 1000000) * self::n($r->amount);
-            if ($code === '') {
-                $code = (string) ($r->code ?? '');
-            }
         }
         $row = DB::table('shipping_type')->where('id', $id)->where('is_delete', 0)->first();
         $data = $row ? (array) $row : null;
@@ -217,15 +211,8 @@ final class Pricing
                 ->orderByDesc('max')->limit(1)->value('value');
         }
         if ($sender == 1) {
-            // SR: ค่าเปลี่ยนผู้ส่งต่อรหัสลูกค้า setting charge_sender_edit = "CODE|ค่า,CODE|ค่า" (ตัวท้ายที่ตรงชนะ, เทียบแบบ == เดิม)
-            $fee = Lookup::getSetting('change_sender');
-            foreach (explode(',', (string) Lookup::getSetting('charge_sender_edit')) as $item) {
-                $p = explode('|', $item);
-                if ($p[0] == $code) {
-                    $fee = $p[1] ?? null;
-                }
-            }
-            $data['price_thai_storage'] = self::n($data['price_thai_storage'] ?? null) + self::n($fee);
+            // PACK (= jl): ค่าเปลี่ยนผู้ส่ง = setting change_sender อย่างเดียว (ไม่มี charge_sender_edit ต่อรหัสลูกค้าแบบ SR)
+            $data['price_thai_storage'] = self::n($data['price_thai_storage'] ?? null) + self::n(Lookup::getSetting('change_sender'));
         }
 
         return $data;

@@ -688,3 +688,38 @@
 | `tracking` | `is_takeapic` | int | **ไม่มี** |
 | `tracking` | `subuser` | varchar(225) | **ไม่มี** |
 
+<!-- เขียนมือ: tools/pack-diff.py คงส่วนนี้ไว้ตอนสร้างใหม่ -->
+
+## foundation helpers
+
+ฟังก์ชันใน `system_status_function.php` / `system_config.php` ที่ PACK ต่างจาก SR (เทียบทีละฟังก์ชันแบบไม่สนช่องว่าง, bench copy 2026-10-22)
+ฟังก์ชันที่ไม่อยู่ในตาราง = เหมือน SR ทุกตัว (GetCalPrice/CalPrice/CalPriceAutoDiff/getPrice/calPoint/getPayType/getstatus*/getPinBox/Format ทั้งหมด —
+`tests/fixtures/legacy-format-cases.json` สร้างใหม่จาก PACK แล้วต่างแค่ blocklist)
+
+| ฟังก์ชันเดิม | PACK ต่างจาก SR | Laravel / กลุ่มที่ต้องใช้ |
+|---|---|---|
+| `getShippingTypePrice`, `getShippingTypePrice_EditSender` | ไม่มี `charge_sender_edit` ต่อรหัสลูกค้า: ค่าเปลี่ยนผู้ส่ง = setting `change_sender` อย่างเดียว (= jl) | `App\Support\Legacy\Pricing` แก้แล้ว (foundation) · **payment**: `Domain/Payment/PaymentTotals.php:138` และ `PaymentController.php:203` ยังมี charge_sender_edit ของ SR ต้องตัด |
+| `is_blocked_name` | คำต้องห้าม `packcargo`, `pack` (SR: `srshipping`, `srs`) | `App\Support\Legacy\Blocklist` แก้แล้ว |
+| `check_jail_ip_v3` | หน้า 403 ต่อท้าย `<p>IP</p>` | `Jail::forbiddenBody()` + `LegacyJail` แก้แล้ว (escape IP) |
+| `check_unjail` | ลบ `sessions` ที่ data ว่างด้วย (SR คอมเมนต์ทิ้ง) | `App\Domain\Shop\Unjail` ทำอยู่แล้ว (มาจาก jl) — ไม่ต้องแก้ |
+| `sendmail` / `email_footer.php` | Mailgun `mg.pack-cargo.net`, from `PACK-Cargo<no-reply@pack-cargo.net>`, footer `PACK-Cargo` | `config('legacy.mail')`, `config/services.php` แก้แล้ว · FOOTER คงที่ใน `PaymentMailer`/`LostPackageMailer` แก้แล้ว |
+| `goLog`, `goLogMessage`, `SaveLog`, `getPermission`, `getError` | ต่างแค่ path log / ช่องว่าง | ไม่ต้องแก้ |
+| `getupload`, `getupload_inline` (system_config) และ `getuploadmultiple` (system_status_function) | รุ่นเก่า (= jl ก่อนแก้ PDF): รูปเช็คด้วย `$cool_extensions` jpg/png/jpeg, ไฟล์อื่นเป็นลิงก์ `class='fancybox'` (ไม่มี `download`), ไม่มี handler `change.reselect`, preview: ถ้า response มี .zip/.rar/.7z แสดง response ดิบ ไม่งั้นเป็น `<img>`; `getuploadmultiple` ไม่มีพารามิเตอร์ `$callback/$callbackremove` | ยังเป็นแบบ SR ในสำเนาของแต่ละกลุ่ม: `Domain/Settings/UploadBox` (**users**: register/profile), `Domain/Tracking/UploadBox` + `Domain/Warehouse/UploadBox` (**tracking**), `Domain/MoneyMove/UploadBox` (**lot**), `Domain/Reports/UploadBox` (**reports**), `Domain/Payment/UploadBox` (**payment**) — ใช้ markup ของ jl Laravel เป็นแม่แบบ (`target="_blank"` ยังต้องไม่มีตามคำสั่งเจ้าของ) |
+| `upload_image_extensions` / `upload_allowed_extensions` / `upload_is_image` | SR-only — PACK `system_upload.php` รับ jpg/png/jpeg/pdf/zip/rar/7z/doc(x)/xls(x) ตามนามสกุล | **users** (settings: `system_upload.php` diff 44) |
+| `CombineTrack` | ไม่มีคอลัมน์ `date_section`, `subuser`, `is_takeapic` | **tracking**: `Domain/Tracking/CombineTrack.php` |
+| `notify_message`, `push_notification`, `sendLineImage` | SR-only / no-op (LINE ตัดทิ้ง) | **messaging**: ลบ `Domain/Messaging/NotifyMessage.php` + test |
+| `getRunning`, `updateRunning` | SR-only (ตาราง `running` ไม่มีใน PACK) | **reports**: `Domain/Reports/Running.php`, `AdminReceiptController` |
+| `getstatusprint` | SR-only (printorder) | **order**: `Domain/Order/PrintOrder.php` |
+| `MakePagingFixed` | SR-only (PACK ไม่ได้เรียก) | ไม่ต้องแก้ (`Format::makePaging`) |
+| `calDiscountPayment`, `calDiscountPaymentDisplay` | PACK-only (คูปองส่วนลด bill_payment.discount) | **payment** (`_payment/save_submit_payment.php`, `_admin/_payment/create_form.php`, `save_submit_payment.php`) |
+| `readRedis`, `writeRedis`, `cleanSql`, `getcache`, `savecache` | PACK-only: cache 10 นาที key `pack--<sql>` (ใช้ใน `_admin/_order/load_paging.php`, `load_total_order.php`) | **order** — แม่แบบ jl `Domain/Order/OrderQueries.php`; prefix อยู่ที่ `config('legacy.redis.prefix')` = `pack` |
+| `define('nobody', 'PACKnocode')` | SR = `nobody` | `config('legacy.nobody')` ใช้แล้วใน AdminTrackingController / AdminLotSaveController / AdminGoodsconfirmController · `Domain/Warehouse/ShelfAllocator` (ชั้นวาง SR-only) ยังใช้ `'nobody'` → **tracking** ลบทิ้ง |
+
+### อื่นๆ ระดับ foundation (PACK)
+
+- `content.php`: PACK ไม่มีหน้า `linenotify`, `findproduct(_detail)`, `admin_export_receipt`, `admin_check`, `admin_printorder(_detail)`, `admin_nobilling`, `admin_receipt(_create/_detail)`, `admin_warehouse(_detail)`, `admin_warehouse_section(_detail/_move)`, `admin_findproduct(_detail)` · มีเพิ่ม `admin_coupon`, `admin_coupon_detail` → route ของกลุ่มต้องตัด/เพิ่มตามนี้ (เมนูเปลี่ยนแล้ว: มี `admin/coupon`, ไม่มี receipt/printorder/warehouse/warehouse_section)
+- `system_lang_guard.php` (PACK-only, `auto_prepend_file` ของ pool): คุกกี้ภาษาไม่ใช่ th/en/cn → th — Laravel ทำอยู่แล้ว (`App\Support\Legacy\Lang` รับเฉพาะ th/en/cn) ไม่ต้องพอร์ต
+- `track_external.php` (PACK-only): หน้าค้นหาพัสดุ **ไม่ต้องล็อกอิน** (POST `search` = เลขพัสดุ → แสดงรหัสลูกค้า, ล็อต, จำนวน, คิว, น้ำหนัก, ประเภทสินค้า, ไทม์ไลน์) — SQL ต่อ string ตรง (SQLi), ไม่มีลิงก์จากหน้าไหน → ไม่ใช่ foundation; ให้ **tracking**/เจ้าของตัดสินว่าจะพอร์ต (bind ค่า + escape) หรือปล่อยตาย
+- session: PACK ใช้ programster handler (REPLACE ทุก request → อายุฝั่ง server 7 วันนับจากใช้ล่าสุด เหมือนเดิม) แต่ **ไม่ได้** ต่ออายุ cookie (php.ini `session.cookie_lifetime = 0` → cookie หมดเมื่อปิดเบราว์เซอร์) — Laravel ยังส่ง cookie 7 วันแบบ jl/SR (คำถามเจ้าของ)
+- หน้า login/lost password ของ PACK เป็นแบบ `login.css` (`<!DOCTYPE html PUBLIC ...>`, title ` | Backend Management System`, `$site`/`$error` ไม่ได้กำหนด → ค่าว่าง) — login แปลงแล้ว (`tools/port-layout.php`); `lost_password.blade.php` ยังเป็นแบบ SR → **users** (`lost_password.php` diff 105)
+- `_register/email.php` ของ PACK มีเบอร์/Line/อีเมลติดต่อเพิ่ม → **users** (`UsersMailer`)

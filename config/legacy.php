@@ -11,23 +11,25 @@ return [
     'href' => env('LEGACY_HREF'),
 
     // define('href_blob', ...) เดิม: ที่อยู่ไฟล์แนบ (Azure blob ผ่าน CDN)
-    'href_blob' => env('LEGACY_HREF_BLOB', 'https://image.srshippingsystem.com/upload/'),
+    'href_blob' => env('LEGACY_HREF_BLOB', 'https://image.pack-cargo.net/upload/'),
 
-    'project_name' => 'SRShippingSystem',
-    'proj_name' => '',                      // SR เดิมไม่มี define('proj_name') → ค่าว่าง
-    'admin_email' => 'ship2you@outlook.co.th',   // define ใน system_db.php เดิมของ SR
-    'version' => '4.9',
+    'project_name' => 'PACK-Cargo ',       // PACK เดิมมีช่องว่างท้ายชื่อ (define('project_name', 'PACK-Cargo '))
+    'proj_name' => '',                      // PACK/SR เดิมไม่มี define('proj_name') → ค่าว่าง
+    'admin_email' => 'packcargo789@gmail.com',   // define ใน system_db.php เดิมของ PACK
+    'version' => '1',
+    // define('nobody', 'PACKnocode') เดิม: รหัสผู้ใช้ (user.code) ที่ใช้เก็บ tracking ไม่มีเจ้าของ (SR = 'nobody')
+    'nobody' => 'PACKnocode',
     'cookie_path' => '/',
 
     // ชื่อ cookie เดิม (ต้องตรงเป๊ะ เว็บเดิมกับใหม่ใช้ร่วมกัน)
     'cookies' => [
-        'main' => 'srshippingsystem',
-        'role' => 'srshippingsystem-role',
-        'lang' => 'srshippingsystem-lang',
-        'menu' => 'srshippingsystem-menu',
-        'admin_menu' => 'srshippingsystem-admin-menu',
-        'cart' => 'srshippingsystem-cart',
-        'portal' => 'srshippingsystem-portal',
+        'main' => 'pack-cargo',
+        'role' => 'pack-cargo-role',
+        'lang' => 'pack-cargo-lang',
+        'menu' => 'pack-cargo-menu',
+        'admin_menu' => 'pack-cargo-admin-menu',
+        'cart' => 'pack-cargo-cart',
+        'portal' => 'pack-cargo-portal',
     ],
 
     // session ร่วมกับเว็บเดิม (programster/mysql-session-handler บนตาราง sessions_v2)
@@ -41,7 +43,7 @@ return [
         'salt' => env('LEGACY_SESSION_SALT'),
     ],
 
-    // legacy.csrf: host อื่นที่ยอมให้ POST มาได้ (คั่นด้วย ,) เช่น portal.srshippingsystem.com — ปกติไม่ต้องตั้ง
+    // legacy.csrf: host อื่นที่ยอมให้ POST มาได้ (คั่นด้วย ,) เช่น portal.pack-cargo.net — ปกติไม่ต้องตั้ง
     'trusted_origins' => env('LEGACY_TRUSTED_ORIGINS', ''),
 
     // clientIp(): เชื่อ X-Real-IP เฉพาะเมื่อ REMOTE_ADDR เป็น loopback/private หรืออยู่ในรายการนี้ (คั่นด้วย ,)
@@ -65,9 +67,9 @@ return [
 
     // notify-server (socket.io) — secret อยู่ในไฟล์นอก repo เท่านั้น
     'notify' => [
-        'site' => 'srshippingsystem',
+        'site' => 'pack-cargo',
         'secret_file' => env('LEGACY_NOTIFY_SECRET_FILE'),          // prod: /home/admin/tmp/notify.secret
-        'counts_file' => env('LEGACY_NOTIFY_COUNTS_FILE'),          // prod: /home/admin/tmp/notify/counts-srshippingsystem.json
+        'counts_file' => env('LEGACY_NOTIFY_COUNTS_FILE'),          // prod: /home/admin/tmp/notify/counts-pack-cargo.json
         'counts_max_age' => 30,
         'counts_stale_max' => 600,
     ],
@@ -94,7 +96,7 @@ return [
         'host' => env('LEGACY_REDIS_HOST'),
         'port' => env('LEGACY_REDIS_PORT', 6379),
         'password' => env('LEGACY_REDIS_PASSWORD'),
-        'prefix' => 'sr',
+        'prefix' => 'pack',                 // define('refisprefix', 'pack') เดิม
     ],
 
     // บริการภายนอกอื่นๆ (getcache/savecache, LINE push) — dev ห้ามเรียกจริง
@@ -111,23 +113,23 @@ return [
         'unban_token' => env('LEGACY_SHOP_UNBAN_TOKEN'),                  // unban
     ],
 
-    // dev: ส่งต่อ URL ที่ยังไม่พอร์ตไปเว็บเดิม (เช่น http://127.0.0.1:8111) เพื่อให้เมนู/แจ้งเตือนใช้ได้
+    // dev: ส่งต่อ URL ที่ยังไม่พอร์ตไปเว็บเดิม (เช่น http://127.0.0.1:8114) เพื่อให้เมนู/แจ้งเตือนใช้ได้
     // production ไม่ใช้ — nginx เป็นคนเลือกว่า URL ไหนไป Laravel
     'proxy_url' => env('LEGACY_PROXY_URL'),
 
     // ค่าที่ debug_mail เดิมใช้ (false = ทำงานจริง)
     'debug_mail' => false,
 
-    // อีเมลของเว็บเดิม SR: sendmail() ใน system_config.php ส่งผ่าน Mailgun (domain mg.srshippingsystem.com)
-    //   from = 'SRShippingSystem<no-reply@srshippingsystem.com>' ตายตัว — Mailer ทุกกลุ่มใช้ค่านี้ (ไม่ใช้ MAIL_FROM_* ของ Laravel)
+    // อีเมลของเว็บเดิม PACK: sendmail() ใน system_config.php ส่งผ่าน Mailgun (domain mg.pack-cargo.net)
+    //   from = 'PACK-Cargo<no-reply@pack-cargo.net>' ตายตัว — Mailer ทุกกลุ่มใช้ค่านี้ (ไม่ใช้ MAIL_FROM_* ของ Laravel)
     // แม่แบบ email_header.php / email_center.php / email_footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → ข้อความคงที่ (CRLF ตามไฟล์เดิม)
     //   ใช้: header.'<strong>'.$subject.'</strong>'.center.$body.footer
     'mail' => [
-        'from_address' => env('LEGACY_MAIL_FROM_ADDRESS', 'no-reply@srshippingsystem.com'),
-        'from_name' => env('LEGACY_MAIL_FROM_NAME', 'SRShippingSystem'),
+        'from_address' => env('LEGACY_MAIL_FROM_ADDRESS', 'no-reply@pack-cargo.net'),
+        'from_name' => env('LEGACY_MAIL_FROM_NAME', 'PACK-Cargo'),
         'header' => '<div style="font-family: arial,sans-serif;font-size:13px;max-width: 560px">',
         'center' => '<div style="text-indent: 30px;">',
-        'footer' => "</div>\r\nขอแสดงความนับถือ<br />\r\nSRShippingSystem\r\n</div>",
+        'footer' => "</div>\r\nขอแสดงความนับถือ<br />\r\nPACK-Cargo\r\n</div>",
     ],
 
     // _profile/pin (method=verified): ผิดครบ max_attempts ครั้งใน decay_minutes นาที ต่อ (ผู้ใช้ + IP) = ล็อก
@@ -147,7 +149,7 @@ return [
     | - ปิดทั้งหมด: LEGACY_PERMISSION_FALLBACKS=false · เปลี่ยน/ลบรายการ: แก้ array นี้ (เหตุผลและ role ที่ได้ ดู docs/CONVENTIONS.md ข้อ 3.1)
     */
     'permission_fallbacks_enabled' => env('LEGACY_PERMISSION_FALLBACKS', true),
-    // SR (admin_sr 2026-10-20): ไม่มีสิทธิ์กำพร้า — ทุกสิทธิ์ที่โค้ดตรวจมี role ถืออยู่ใน role_on_detail แล้ว
+    // SR (admin_sr 2026-10-20) — PACK (admin_pack_bench 2026-10-22) ใช้ค่าเดียวกันไปก่อน (กลุ่มที่พบสิทธิ์กำพร้าให้รายงาน): ไม่มีสิทธิ์กำพร้า — ทุกสิทธิ์ที่โค้ดตรวจมี role ถืออยู่ใน role_on_detail แล้ว
     // map ของ jl (admin_point ← admin_shop_cashback ฯลฯ) จะให้สิทธิ์เกินที่ SR ตั้งไว้ จึงว่าง (ดู docs/CONVENTIONS.md ข้อ 3.1)
     'permission_fallbacks' => [
     ],
