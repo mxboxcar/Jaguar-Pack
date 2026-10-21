@@ -13,27 +13,20 @@ use Illuminate\Support\Facades\Mail;
  *
  * - อีเมล: เดิม sendmail() → Mailgun; ที่นี่ใช้ Mail ของ Laravel (dev: MAIL_MAILER=log = ไม่ส่งจริง)
  * - LINE: sendLine()/sendLineImage()/push_notification() เดิมเป็นฟังก์ชันว่าง (โค้ดถูก comment) → ไม่ส่งอะไร
- *   (SR: email_approved/email_cancel ของ payment ไม่เรียก sendLine/push แล้ว; ของ alipay ยังเรียกแต่เป็นฟังก์ชันว่าง)
+ *   (PACK: email_approved/email_cancel ของ payment และ email_success/email_cancel ของ alipay ไม่เรียก sendLine/push)
  * - แม่แบบ email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → ข้อความคงที่ด้านล่าง
- *   SR: ใช้เนื้อหาก่อน hotfix 2026-10-18 — บรรทัดกันเปิดตรง `<?php ... ?>` ที่ hotfix ใส่หัวไฟล์จะติดไปในอีเมลด้วย file_get_contents
- * - ผู้ส่ง: SR sendmail() = Mailgun from "SRShippingSystem<no-reply@srshippingsystem.com>"
- *   (อ่านจาก config('legacy.mail') ที่เดียวกับทุกกลุ่ม)
+ *   (config('legacy.mail') header/center/footer — เนื้อหาก่อน hotfix 2026-10-18: บรรทัดกันเปิดตรง `<?php ... ?>` ที่ hotfix ใส่หัวไฟล์จะติดไปในอีเมลด้วย file_get_contents)
+ * - ผู้ส่ง: PACK sendmail() = Mailgun from "PACK-Cargo<no-reply@pack-cargo.net>" (config('legacy.mail') ที่เดียวกับทุกกลุ่ม)
  * - ค่าจาก DB (เหตุผลยกเลิก, หมายเหตุ) escape ก่อนใส่ HTML (เดิมต่อดิบ)
  * - เดิม catch แล้ว `echo $e` (ข้อความ exception ติดไปในคำตอบ ajax ที่หน้าเว็บ eval) → log อย่างเดียว
  */
 final class PaymentMailer
 {
-    private const HEADER = '<div style="font-family: arial,sans-serif;font-size:13px;max-width: 560px">';
+    /** ปุ่ม "ดูรายละเอียด" ของ payment (email_approved/email_cancel.php ของ PACK — สี #eb4823) */
+    private const BUTTON_PAYMENT = 'width:100%;text-align:center;font-size:15px;background-color:#eb4823;padding:10px 0px;';
 
-    private const CENTER = '<div style="text-indent: 30px;">';
-
-    private const FOOTER = "</div>\r\nขอแสดงความนับถือ<br />\r\nPACK-Cargo\r\n</div>";
-
-    /** ปุ่ม "ดูรายละเอียด" ของ payment (email_approved/email_cancel.php ของ SR) */
-    private const BUTTON_PAYMENT = 'width:100%;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 0px;';
-
-    /** ปุ่มของ alipay (email_success/email_cancel.php ของ SR) */
-    private const BUTTON_ALIPAY = 'width:200px;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 25px 10px 0px;';
+    /** ปุ่มของ alipay (email_success/email_cancel.php ของ PACK) */
+    private const BUTTON_ALIPAY = 'width:200px;text-align:center;font-size:15px;background-color:#eb4823;padding:10px 25px 10px 0px;';
 
     /** _admin/_payment/email_approved.php */
     public static function paymentApproved(int|string $id): void
@@ -62,7 +55,7 @@ final class PaymentMailer
     public static function alipaySuccess(int|string $id): void
     {
         $data = DB::table('bill_alipay')->leftJoin('user', 'bill_alipay.user', '=', 'user.id')
-            ->where('bill_alipay.id', $id)->first(['bill_alipay.*', 'user.email', 'user.line_uid', 'user.id as userid']);
+            ->where('bill_alipay.id', $id)->first(['bill_alipay.*', 'user.email']);
         $no = PaymentLookups::prefix('alipay').$id;
         $link = Legacy::href('alipay/'.$id);
         $subject = 'แจ้งรายการเติมอลีเพล '.$no.' (Success)';
@@ -92,7 +85,8 @@ final class PaymentMailer
 
     private static function send(string $kind, int|string $id, string $subject, string $body, string $to): void
     {
-        $html = self::HEADER.'<strong>'.$subject.'</strong>'.self::CENTER.$body.self::FOOTER;
+        $m = config('legacy.mail');
+        $html = $m['header'].'<strong>'.$subject.'</strong>'.$m['center'].$body.$m['footer'];
         try {
             if ($to === '') {
                 throw new \RuntimeException('no recipient');

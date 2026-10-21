@@ -38,7 +38,9 @@
                             <th class="text-center" style="width: 100px;">{!! res('customer_code') !!}</th>
                             <th class="text-center" style="width: 93px;">{!! res('working_date') !!}</th>
                             <th class="text-center" style="width: 93px;">{!! res('approved_date') !!}</th>
+                            @if ($viewPrice)
                             <th class="text-center">{!! res('amount') !!}</th>
+                            @endif
                             <th class="text-center" style="width: 92px;">{!! res('status') !!}</th>
                             <th class="text-center" style="width: 60px;">{!! res('action') !!}</th>
                         </tr>
@@ -56,8 +58,13 @@
                                 {!! P::dateCell($item->approved_date, true) !!}
                             </td>
                             
-                            <td class="text-right">{!! Format::numberformat($item->total) !!}</td>
-                            <td class="text-center">{!! Status::getstatus($item->status) !!}</td>
+                            @if ($viewPrice)
+                            <td class="text-right">{!! Format::numberformat(Php74::num($item->total) - Php74::num($item->discount)) !!}</td>
+                            @endif
+                            <td class="text-center">
+                                {!! Status::getstatus($item->status) !!}
+                                @if (Php74::eq($item->is_vat, 1))<br/><span class='label label-danger'>VAT</span>@endif
+                            </td>
                             <td class="text-center">
                             	<a href="{{ legacy_href() }}admin/payment/{{ $item->id }}" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
                             </td>

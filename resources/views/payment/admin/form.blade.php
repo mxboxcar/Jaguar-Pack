@@ -180,6 +180,12 @@
     <p class="text-muted font-13 m-b-30">
     </p>
     	<div class="form-horizontal" role="form">
+    		<div class="form-group">
+            <label class="col-md-4 control-label"> คิด VAT</label>
+            <div class="col-md-7">
+               @if (Php74::eq($data->is_vat, 0))<button type="button" class="btn btn-xs btn-primary waves-effect waves-light" onclick="vatting(1)" type="button">{!! res('active') !!}</button>@else<button type="button" class="btn btn-xs btn-danger waves-effect waves-light" onclick="vatting(0)" type="button">{!! res('disable') !!}</button>@endif
+   </div>
+        </div>
 
     		<div class="form-group">
 	            <label class="col-md-4 control-label"> {!! res('no_for_grid') !!}</label>
@@ -191,6 +197,12 @@
 	            <label class="col-md-4 control-label"> {!! res('customer_code') !!}</label>
 	            <div class="col-md-7 form-control-static">
 	            	{{ $data->code }}
+	            </div>
+	        </div>
+	        <div class="form-group">
+	            <label class="col-md-4 control-label"> รหัสคูปองส่วนลด</label>
+	            <div class="col-md-7 form-control-static">
+	            	{{ $coupon === null ? '-' : $coupon->name }}
 	            </div>
 	        </div>
             <div class="form-group">
@@ -233,7 +245,6 @@
 		            <th class="text-center">{!! res('lot_list').'/'.res('no') !!}</th>
 		            <th class="text-center">{!! res('tracking') !!}</th>
 		            <th class="text-center">{!! res('order') !!}</th>
-					<th class="text-center">รหัสย่อย</th>
 		            <th class="text-center">{!! res('remark') !!}</th>
 		            <th class="text-center">{!! res('amount') !!}</th>
 		            <th class="text-center">{!! res('weight') !!}</th>
@@ -243,13 +254,15 @@
 		            <th class="text-center">{!! res('cubic') !!}</th>
 		            <th class="text-center">{!! res('type') !!}</th>
 		            <th class="text-center">{!! res('service_price') !!}</th>
+		            @if ($viewPrice)
 		            <th class="text-center">{!! res('price_kg') !!}</th>
 		            <th class="text-center">{!! res('price_cubic') !!}</th>
+		            @endif
 		        </tr>
 		    </thead>
 
 		    <tbody>
-		@include('payment.partials.detail_rows', ['orderBase' => 'admin/order/', 'orderWithTracking' => true, 'note' => 'remark', 'emptyCols' => 11])
+		@include('payment.partials.detail_rows', ['orderBase' => 'admin/order/', 'orderWithTracking' => true, 'note' => 'remark', 'emptyCols' => 11, 'showPrice' => $viewPrice])
 		</tbody>
 		@include('payment.partials.detail_totals', ['admin' => true])
 
@@ -428,26 +441,18 @@ function CalculateTotal() {
 }
 @endif
 
-
-</script>
-
-
-<script>
-@php
-    // SR: console.log ราคาต่อแถวเทียบเรท user_type_detail ของลูกค้า (ค่าในสตริง JS escape — เดิมต่อดิบ)
-    $jq = fn ($v) => str_replace(['\\', '"', "'", "\r", "\n", '</'], ['\\\\', '\\"', "\\'", '\\r', '\\n', '<\\/'], (string) $v);
-    $count = 0;
-@endphp
-@foreach ($items as $item)
-@php
-    $count++;
-    $rate = $rates[(string) $item->product_type_id] ?? null;
-    $w = (Php74::num($item->weight) * Php74::num($item->amount)) * Php74::num($rate->kg ?? null);
-    $c = P::cubic($item) * Php74::num($rate->cubic ?? null);
-@endphp
-console.log("{!! $jq($item->tracking) !!}");
-console.log('round:{!! $jq($count.':kg  '.$item->price_kg) !!}-{!! $jq(P::s($w)) !!}');
-console.log('round:{!! $jq($count.':cb  '.$item->price_cubic) !!}-{!! $jq(P::s($c)) !!}');
-console.log("--");
-@endforeach
+function vatting(value) {
+    ConfirmBox(function() {
+        OpenLoading();
+        $.ajax({
+            type: 'POST',
+            async: true,
+            data : 'id={{ $data->id }}&value=' + value,
+            url: rooturl + '_admin/_payment/save_vat',
+            success: function(data) {
+            	window.location.reload();
+            }
+        });
+    })
+}
 </script>@endsection

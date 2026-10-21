@@ -98,7 +98,7 @@ class AdminPaymentCreateController extends Controller
         return response($html);
     }
 
-    /** POST /_admin/_payment/load_create — รายการพัสดุของลูกค้า (SR: ไม่มีตารางเรท) */
+    /** POST /_admin/_payment/load_create — รายการพัสดุของลูกค้า (PACK = SR: ไม่มีตารางเรท, ไม่มีรหัสย่อยใต้รหัสลูกค้า) */
     public function loadCreate(Request $request): Response
     {
         $userId = $this->in($request, 'user_id');
@@ -184,7 +184,7 @@ class AdminPaymentCreateController extends Controller
         $shippingType = $this->in($request, 'shipping_type');
         $senderType = $this->in($request, 'sender_type');
         $payNow = $this->in($request, 'pay_now');
-        // SR: hack yd (9 บริษัทจัดส่ง, 10 รับเอง) เปิดใช้ในฝั่งแอดมินด้วย (jl comment ไว้)
+        // hack yd (9 บริษัทจัดส่ง, 10 รับเอง) เปิดใช้ในฝั่งแอดมินด้วย (PACK = SR; jl comment ไว้)
         $radio = $this->in($request, 'shipping_type_radio');
         if (Php74::eq($radio, 9) || Php74::eq($radio, 10)) {
             $shippingType = $radio;
@@ -240,6 +240,8 @@ class AdminPaymentCreateController extends Controller
                 'shipping_type' => $shippingType, 'ref_id' => $code, 'sender_type' => $senderType,
                 'sender_name' => $this->in($request, 'sender_name'), 'sender_address' => $this->in($request, 'sender_address'),
                 'sender_phone' => $this->in($request, 'sender_phone'), 'sender_charge' => P::s($fees['sender_charge']),
+                // PACK: INSERT `discount` = '$discount' ที่ไม่ได้กำหนด (บรรทัดคำนวณถูก comment) → '' = 0.00
+                'discount' => '0',
             ]);
             foreach ($items as $item) {
                 DB::table('tracking')->where('header', $item->id)->update(['payment_id' => (string) $id, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid]);
@@ -249,11 +251,9 @@ class AdminPaymentCreateController extends Controller
                 foreach (['no', 'tracking', 'order', 'price_kg', 'price_cubic', 'price_shipping', 'price_amount', 'rate_kg', 'rate_cubic',
                     'product_type_id', 'lot_id', 'user', 'weight', 'width', 'height', 'long', 'amount', 'ship', 'is_craft', 'is_qc', 'quote',
                     'price_qc', 'price_repack', 'price_express', 'price_else', 'price_craft', 'date_warehouse', 'date_outofchina',
-                    'date_thai', 'date_finish', 'remark', 'remark_shop', 'header', 'subuser'] as $k) {
+                    'date_thai', 'date_finish', 'remark', 'remark_shop', 'header'] as $k) {
                     $row[$k] = P::s($item->{$k} ?? null);
                 }
-                // SR: เดิม INSERT `is_takeapic` จาก $item['is_takeapic'] ที่ไม่ได้ SELECT มา (= '' → 0)
-                $row['is_takeapic'] = 0;
                 // tracking_id = AUTO_INCREMENT (PK), id = tracking.id (ซ้ำได้ถ้า tracking เคยอยู่ในบิลที่ยกเลิก)
                 DB::table('bill_payment_detail')->insert($row);
             }
@@ -287,6 +287,6 @@ class AdminPaymentCreateController extends Controller
         return ['tracking.id', 'tracking.tracking', 'tracking.quote', 'tracking.amount', 'tracking.weight', 'tracking.width', 'tracking.height',
             'tracking.long', 'tracking.product_type_id', 't1.kg as price_kg', 't1.cubic as price_cubic', 't1.qc as price_qc',
             't1.repack as price_repack', 't1.express as price_express', 't1.else as price_else', 't1.craft as price_craft',
-            'lot.name as lot_name', 'lot.type as lot_type', 'product_type.name as type_name', 'tracking.subuser'];
+            'lot.name as lot_name', 'lot.type as lot_type', 'product_type.name as type_name'];
     }
 }

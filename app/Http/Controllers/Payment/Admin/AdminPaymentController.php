@@ -75,6 +75,8 @@ class AdminPaymentController extends Controller
             'total' => $total,
             'txtsearch' => $this->php($request, 'txtsearch'),
             'prefix' => P::prefix('payment'),
+            // PACK: คอลัมน์ยอดเงินแสดงเฉพาะผู้มีสิทธิ์ admin_viewprice_on_payment
+            'viewPrice' => perm('admin_viewprice_on_payment'),
         ])->render());
     }
 
@@ -88,18 +90,10 @@ class AdminPaymentController extends Controller
             return response()->view('legacy.no-permission', ['module' => 'admin_payment']);
         }
         $canChange = perm('admin_change_sender');
-        // SR: console.log ต่อแถว — เดิม SELECT t.kg, t.cubic FROM user LEFT JOIN user_type_detail t ... WHERE user.id = ? AND t.product_type_id = ?
-        // ทีละแถว (แถวแรก = id น้อยสุด: สแกนตาม PK) → ดึงครั้งเดียว
-        $rates = [];
-        $type = DB::table('user')->where('id', $data->user)->value('type');
-        if ($type !== null) {
-            foreach (DB::table('user_type_detail')->where('user_type_id', $type)->orderBy('id')->get(['product_type_id', 'kg', 'cubic']) as $r) {
-                $rates[(string) $r->product_type_id] ??= P::str($r);
-            }
-        }
 
         return view('payment.admin.form', PaymentController::detailData($data, $id, true) + [
-            'rates' => $rates,
+            // PACK: ราคา kg/คิว + ยอดรวมท้ายตาราง แสดงเฉพาะผู้มีสิทธิ์ admin_viewprice_on_payment
+            'viewPrice' => perm('admin_viewprice_on_payment'),
             'canChangeSender' => $canChange,
             'shippingTypes' => $canChange ? P::strAll(DB::table('shipping_type')->where('is_delete', 0)->where('is_quick_show', 0)->orderBy('no')->get()) : collect(),
         ]);
