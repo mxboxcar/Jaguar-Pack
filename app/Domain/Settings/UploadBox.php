@@ -2,13 +2,14 @@
 
 namespace App\Domain\Settings;
 
-use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
 
 /**
- * getupload() / getupload_inline() (system_config.php) / getuploadmultiple() (SR: system_status_function.php) เดิม — กล่องแนบไฟล์ (jQuery dropper → POST /system_upload)
- * HTML/JS ตรงกับเดิมทุกตัวอักษร ยกเว้นชื่อไฟล์จาก DB ถูก escape (เดิมต่อดิบ = stored XSS ผ่านชื่อไฟล์)
+ * getupload() / getupload_inline() (system_config.php) / getuploadmultiple() (system_status_function.php) เดิม — กล่องแนบไฟล์ (jQuery dropper → POST /system_upload)
+ * getupload/getupload_inline = รุ่นของ PACK (รุ่นเก่าแบบ jl ก่อน hotfix UI ของ jl/SR): รูปดูจากนามสกุล jpg/png/jpeg/JPG/JPEG/PNG (ตรงตัวพิมพ์),
+ * ไฟล์อื่นเป็นลิงก์ fancybox ชื่อไฟล์; หลังอัปโหลด .zip/.rar/.7z แสดงชื่อไฟล์ อื่นๆ เป็นรูปตัวอย่างจาก upload/temp
+ * HTML/JS ตรงกับเดิมทุกตัวอักษร ยกเว้น: ชื่อไฟล์จาก DB ถูก escape (เดิมต่อดิบ = stored XSS ผ่านชื่อไฟล์), ไม่มี target="_blank" (เจ้าของ)
  * $field / $class มาจากโค้ดเท่านั้น (ถูกฝังเป็นชื่อฟังก์ชัน JS / class) ห้ามส่งค่าจากผู้ใช้
  *
  * ใช้ร่วมได้ทุกกลุ่ม: {!! \App\Domain\Settings\UploadBox::getupload('path', $row->path, true) !!}
@@ -26,7 +27,7 @@ final class UploadBox
     }
 
     /**
-     * SR: getuploadmultiple() อยู่ใน system_status_function.php และต่างจาก jl (สำเนาเดียวกับ App\Domain\Tracking\UploadBox::multiple()) —
+     * getuploadmultiple() อยู่ใน system_status_function.php (PACK = SR ไม่มี $callback/$callbackremove; ปุ่มลบ onclick ไม่มี "; " ต่อท้าย) —
      * ไฟล์เดิมเป็นรูปดูจากนามสกุล jpg/png/jpeg (ตัวเล็ก/ใหญ่) ไม่ใช่รูป = ลิงก์ fancybox ชื่อไฟล์; หลังอัปโหลด .zip/.rar/.7z
      * ต่อท้ายชื่อไฟล์ + ปุ่มลบ ไม่งั้นเป็นรูปตัวอย่าง (ไม่มีตัวล้างช่อง input) — ไม่มี target="_blank" (เจ้าของ)
      * พารามิเตอร์ $callback/$callbackremove เดิมไม่มีใครส่ง (และ eval ฝั่ง PHP) → ไม่พอร์ต
@@ -74,7 +75,7 @@ final class UploadBox
         $html .= ' if(response.toLowerCase().indexOf(".zip") > -1 || response.toLowerCase().indexOf(".rar") > -1 || response.toLowerCase().indexOf(".7z") > -1) { ';
         $html .= ' $(".upload_'.$rand.'_preview ").append(response + \'<div class="upload_'.$rand.'_delete" style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">'.$del.'</div></div>\'); ';
         $html .= ' } else {';
-        $html .= ' $(".upload_'.$rand.'_preview").append(\'<div class="image_list_items"><a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><input type="hidden" class="" id="upload_'.$rand.'" name="upload_'.$rand.'_mul[]" value="\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a><div onclick="$(this).parent().remove(); " style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">'.$del.'</div></div></div>\'); ';
+        $html .= ' $(".upload_'.$rand.'_preview").append(\'<div class="image_list_items"><a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><input type="hidden" class="" id="upload_'.$rand.'" name="upload_'.$rand.'_mul[]" value="\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a><div onclick="$(this).parent().remove()" style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">'.$del.'</div></div></div>\'); ';
         $html .= ' } ';
         $html .= ' $("input[name=\'upload_'.$rand.'\']").val(response);';
         $html .= ' }';
@@ -85,6 +86,9 @@ final class UploadBox
 
         return $html;
     }
+
+    /** getupload()/getupload_inline() เดิม: นามสกุลที่แสดงเป็นรูป (in_array ตรงตัวพิมพ์) */
+    private const IMAGE_EXT = ['jpg', 'png', 'jpeg', 'JPG', 'JPEG', 'PNG'];
 
     private static function render(string $variant, string $rand, string $filename, bool $isDelete, bool $isValidate, string $class): string
     {
@@ -99,10 +103,10 @@ final class UploadBox
             ? '<div style="float:left;clear: none;margin-left: 10px;" class=" upload_'.$rand.'_preview">'
             : '<div style="float:left;clear: both;margin-top: 10px;" class=" upload_'.$rand.'_preview">';
         if ($filename !== '') {
-            if (Format::uploadIsImage($filename)) {
+            if (in_array(pathinfo($filename, PATHINFO_EXTENSION), self::IMAGE_EXT, true)) {
                 $html .= "<a class='fancybox' style='float:left;' href='".$blob."'><img src='".$blob."' style='max-width: 120px;max-height: 120px;' /></a>";
             } else {
-                $html .= "<a style='float:left;' download='".$f."' href='".$blob."'>".$f.'</a>';
+                $html .= "<a class='fancybox' style='float:left;' href='".$blob."'>".$f.'</a>';
             }
         }
         $html .= '</div>';
@@ -124,22 +128,21 @@ final class UploadBox
         }
 
         $temp = $href.'upload/temp/';
+        $size = $variant === 'inline' ? '21px' : '120px';
         $html .= '<script>';
         $html .= '$(".upload_'.$rand.'").dropper({';
         $html .= 'action: rooturl + \'system_upload\',';
         $html .= 'label: "'.Lang::get('click_to_add_attachment').'",';
         $html .= 'maxQueue : 1,';
         $html .= '}).on("start.dropper", '.$rand.'_start).on("fileComplete.dropper", '.$rand.');';
-        $html .= '$(".upload_'.$rand.'").find(".dropper-input").on("change.reselect", function() { var el = this; setTimeout(function() { el.value = ""; }, 0); });';
         $html .= 'function '.$rand.'(e, file, response) {';
         $html .= ' if (response.trim() === "" || response.toLowerCase().indexOf("error") > -1) {';
         $html .= ' ErrorBox(response.toLowerCase(), "CloseLoading()"); $(".upload_'.$rand.'_preview").html("");$("input[name=\'upload_'.$rand.'\']").val("") ';
         $html .= ' } else {';
-        $html .= ' if(/\.(jpg|jpeg|png)$/i.test(response)) { ';
-        $size = $variant === 'inline' ? '21px' : '120px';
-        $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" href="'.$temp.'\' + response + \'"><img src="'.$temp.'\' + response + \'" style="max-width: '.$size.';max-height: '.$size.';" /></a>\'); ';
+        $html .= ' if(response.toLowerCase().indexOf(".zip") > -1 || response.toLowerCase().indexOf(".rar") > -1 || response.toLowerCase().indexOf(".7z") > -1) { ';
+        $html .= ' $(".upload_'.$rand.'_preview").html(response); ';
         $html .= ' } else {';
-        $html .= ' $(".upload_'.$rand.'_preview").html(\'<a style="float:left" download href="'.$temp.'\' + response + \'">\' + response + \'</a>\'); ';
+        $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" href="'.$temp.'\' + response + \'"><img src="'.$temp.'\' + response + \'" style="max-width: '.$size.';max-height: '.$size.';" /></a>\'); ';
         $html .= ' } ';
         $html .= ' $("input[name=\'upload_'.$rand.'\']").val(response);';
         $html .= ' $(".upload_'.$rand.'_delete").css("display", "block");';
