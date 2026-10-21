@@ -70,6 +70,21 @@ class SettingsUploadTest extends TestCase
         $this->assertSame([], glob($this->dir.'/*') ?: []);
     }
 
+    /** PACK system_upload: รายการนามสกุลเดิม (ตรงตัวพิมพ์) รวม zip/rar/7z/doc(x)/xls(x), นามสกุลตามที่ส่งมา, ข้อความ error เดิม */
+    public function test_upload_accepts_pack_extension_list(): void
+    {
+        $this->assertMatchesRegularExpression('/^[A-Z]{10}\.zip$/', $this->send('system_upload', UploadedFile::fake()->createWithContent('a.zip', "PK\x03\x04zz")));
+        $this->assertMatchesRegularExpression('/^[A-Z]{10}\.DOCX$/', $this->send('system_upload', UploadedFile::fake()->createWithContent('a.DOCX', 'zz')));
+        $this->assertMatchesRegularExpression('/^[A-Z]{10}\.7z$/', $this->send('system_upload', UploadedFile::fake()->createWithContent('a.7z', 'zz')));
+        // รูปจริงคงนามสกุลเดิม (ตัวพิมพ์ใหญ่ด้วย) — ชนิดจริงไม่ตรงใช้นามสกุลตามชนิดจริง
+        $this->assertMatchesRegularExpression('/^[A-Z]{10}\.PNG$/', $this->send('system_upload', $this->png('x.PNG')));
+        $this->assertMatchesRegularExpression('/^[A-Z]{10}\.png$/', $this->send('system_upload', $this->png('x.jpg')));
+        foreach (['x.Jpg', 'x.gif', 'x.exe', 'x', 'x.html'] as $name) {
+            $this->assertSame('error : รองรับ .png, .jpg, .jpeg, .pdf, .zip, .rar, .7z เท่านั้น', $this->send('system_upload', UploadedFile::fake()->createWithContent($name, 'zz')), $name);
+        }
+        $this->assertCount(5, glob($this->dir.'/*'));
+    }
+
     public function test_upload_2_uses_the_real_type_extension(): void
     {
         $im = imagecreatetruecolor(4, 4);
@@ -79,9 +94,40 @@ class SettingsUploadTest extends TestCase
         $this->assertMatchesRegularExpression('/^[A-Z]{10}\.jpg\[NIDA\]photo\.png$/', $out);
     }
 
-    /** SR system_ckupload: รูปจริง → URL ของที่เก็บถาวร (BlobStore local ใน test), ไม่ใช่รูป → ข้อความเดิม */
+    /** สิทธิ์สมมติของผู้เรียก (ไม่มีผู้ใช้ใน test — Permissions อ่าน map ที่เติมไว้) */
+    private function grant(array $modules): void
+    {
+        $map = \App\Support\Legacy\Permissions::build(array_map(fn ($n) => (object) ['name' => $n, 'permission' => '1'], $modules));
+        $p = $this->app->make(\App\Support\Legacy\Permissions::class);
+        (function () use ($map) {
+            $this->forUser = null;
+            $this->map = $map;
+        })->call($p);
+    }
+
+    /** PACK system_ckupload: ต้องมี admin_notice หรือ admin_mall — ไม่มี = "No permission." (ไม่เก็บไฟล์) */
+    public function test_ckupload_requires_notice_or_mall_permission(): void
+    {
+        $perm = $this->dir.'-perm';
+        config(['legacy.upload.driver' => 'local', 'legacy.upload.local_dir' => $perm]);
+        foreach ([[[], 'No permission.'], [['profile', 'admin_user'], 'No permission.'], [['admin_mall'], ''], [['admin_notice'], '']] as [$mods, $want]) {
+            $this->grant($mods);
+            $res = $this->post('/system_ckupload?CKEditorFuncNum=3', ['upload' => $this->png('x.png')]);
+            preg_match("~callFunction\\((-?\\d+), '([^']*)', '([^']*)'\\)~", (string) $res->getContent(), $m);
+            $this->assertSame($want, $m[3] ?? null, implode(',', $mods));
+            $this->assertSame($want === '', ($m[2] ?? '') !== '', implode(',', $mods));
+        }
+        $this->assertCount(2, glob($perm.'/*') ?: []);
+        foreach (glob($perm.'/*') ?: [] as $f) {
+            unlink($f);
+        }
+        is_dir($perm) && rmdir($perm);
+    }
+
+    /** system_ckupload: รูปจริง → URL ของที่เก็บถาวร (BlobStore local ใน test), ไม่ใช่รูป → ข้อความเดิม */
     public function test_ckupload_stores_real_images_only(): void
     {
+        $this->grant(['admin_notice']);
         $perm = $this->dir.'-perm';
         config(['legacy.upload.driver' => 'local', 'legacy.upload.local_dir' => $perm]);
         $ck = function (?UploadedFile $f, string $fn = '7') {
