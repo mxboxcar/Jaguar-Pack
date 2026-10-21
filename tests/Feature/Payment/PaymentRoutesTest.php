@@ -29,10 +29,11 @@ class PaymentRoutesTest extends TestCase
         'POST _payment/load_create_sum' => 'legacy.perm:payment',
         'POST _payment/load_select_lot' => 'legacy.perm:payment',
         'POST _payment/load_shipping_price' => 'legacy.perm:payment',
+        'POST _payment/load_discoutcode' => 'legacy.perm:payment',
         'POST _payment/save_create' => 'legacy.perm:payment',
         'POST _payment/save_submit_payment' => 'legacy.perm:payment',
         'POST _payment/save_delete' => 'legacy.perm:payment',
-        'POST _payment/save' => 'legacy.perm:refill',
+        'POST _payment/save' => 'legacy.perm:refill', // PACK: + legacy.perm:payment (ตรวจใน test_payment_save_needs_both_permissions)
         'GET _payment/view_example' => 'legacy.auth',
         'POST _payment/view_example' => 'legacy.auth',
         // แอดมิน: payment
@@ -44,6 +45,7 @@ class PaymentRoutesTest extends TestCase
         'POST _admin/_payment/save_delete' => 'legacy.perm:admin_payment',
         'POST _admin/_payment/save_deletenopush' => 'legacy.perm:admin_payment',
         'POST _admin/_payment/load_shipping_price' => 'legacy.perm:admin_payment',
+        'POST _admin/_payment/save_vat' => 'legacy.perm:admin_payment',
         'POST _admin/_payment/save_new_sender' => 'legacy.perm:admin_change_sender',
         'GET _admin/_payment/email_approved' => 'legacy.perm:admin_payment',
         'GET _admin/_payment/email_cancel' => 'legacy.perm:admin_payment',
@@ -63,7 +65,6 @@ class PaymentRoutesTest extends TestCase
         'GET alipay/{id}' => 'legacy.perm:alipay',
         'POST _alipay/grid' => 'legacy.auth',
         'POST _alipay/save' => 'legacy.perm:alipay',
-        'POST _alipay/cancel' => 'legacy.perm:alipay',
         // แอดมิน: alipay
         'GET admin/alipay' => 'legacy.perm:admin_alipay',
         'GET admin/alipay/create' => 'legacy.perm:admin_alipay',
@@ -75,30 +76,53 @@ class PaymentRoutesTest extends TestCase
         'POST _admin/_alipay/rollback' => 'legacy.perm:admin_alipay',
         'GET _admin/_alipay/email_cancel' => 'legacy.perm:admin_alipay',
         'GET _admin/_alipay/email_success' => 'legacy.perm:admin_alipay',
-        // แอดมิน: รายการใบเสร็จ (SR เท่านั้น)
-        'GET admin/receipt' => 'legacy.perm:admin_receipt',
-        'GET admin/receipt/status/{status}' => 'legacy.perm:admin_receipt',
-        'POST _admin/_receipt/grid' => 'legacy.auth',
+        // แอดมิน: คูปองส่วนลด (PACK เท่านั้น)
+        'GET admin/coupon' => 'legacy.perm:admin_coupon',
+        'GET admin/coupon/status/{status}' => 'legacy.perm:admin_coupon',
+        'GET admin/coupon/create' => 'legacy.perm:admin_coupon',
+        'GET admin/coupon/{id}' => 'legacy.perm:admin_coupon',
+        'POST _admin/_coupon/grid' => 'legacy.auth',
+        'POST _admin/_coupon/save' => 'legacy.perm:admin_coupon',
+        // delete.php เดิม = สำเนาของ product_type/delete (ตรวจ admin_product_type)
+        'POST _admin/_coupon/delete' => 'legacy.perm:admin_product_type',
     ];
 
     /**
-     * ไฟล์ที่มีเฉพาะ jl (ระบบ VAT / ที่อยู่ใบกำกับ) — SR ไม่มีไฟล์เหล่านี้ → ต้องไม่มี route (404 → หน้าแรก)
-     * และหน้า admin/receipt/{id}, admin/receipt/create ชี้ไป _admin/_receipt/form.php ที่ไม่มีในเว็บเดิม (dead)
+     * PACK ไม่มีไฟล์เหล่านี้ → ต้องไม่มี route (404 → หน้าแรก):
+     * ที่อยู่ใบกำกับของ jl (_payment/load_vat ฯลฯ), รายการใบเสร็จของ SR (_admin/_receipt), ไฟล์สำรอง _payment/create_form_bk.php (ไม่มีใครลิงก์)
      */
-    private const JL_ONLY = [
+    private const NOT_IN_PACK = [
         'POST _payment/load_vat', 'POST _payment/load_receipt_address', 'POST _payment/save_create_receiptaddress',
-        'POST _payment/save_deleteaddress', 'POST _payment/save_deletereceiptaddress', 'POST _admin/_payment/save_vat',
-        'GET admin/receipt/{id}', 'GET admin/receipt/create',
+        'POST _payment/save_deleteaddress', 'POST _payment/save_deletereceiptaddress',
+        'GET admin/receipt', 'GET admin/receipt/status/{status}', 'POST _admin/_receipt/grid',
+        'GET admin/receipt/{id}', 'GET admin/receipt/create', 'GET _payment/create_form_bk', 'POST _payment/create_form_bk',
     ];
 
-    public function test_jl_only_and_dead_urls_have_no_route(): void
+    public function test_urls_without_pack_legacy_file_have_no_route(): void
     {
         $routes = $this->routes();
-        foreach (self::JL_ONLY as $key) {
-            $this->assertArrayNotHasKey($key, $routes, "$key ต้องไม่มี (SR ไม่มีไฟล์เดิม)");
+        foreach (self::NOT_IN_PACK as $key) {
+            $this->assertArrayNotHasKey($key, $routes, "$key ต้องไม่มี (PACK ไม่มีไฟล์เดิม)");
         }
         $this->assertSame(404, $this->routeStatus('POST', '/_payment/load_vat'));
+        $this->assertSame(404, $this->routeStatus('GET', '/admin/receipt'));
         $this->assertSame(404, $this->routeStatus('GET', '/admin/receipt/5'));
+    }
+
+    public function test_payment_save_needs_both_permissions(): void
+    {
+        $mw = $this->routes()['POST _payment/save'];
+        // เดิมตรวจ payment ก่อน แล้วจึง refill (ต้องมีทั้งสอง)
+        $this->assertContains('legacy.perm:payment', $mw);
+        $this->assertContains('legacy.perm:refill', $mw);
+        $this->assertLessThan(array_search('legacy.perm:refill', $mw, true), array_search('legacy.perm:payment', $mw, true));
+    }
+
+    public function test_alipay_cancel_is_a_no_op_like_the_commented_out_legacy_file(): void
+    {
+        $mw = $this->routes()['POST _alipay/cancel'];
+        $this->assertContains('legacy.auth', $mw);
+        $this->assertSame('', (new \App\Http\Controllers\Payment\AlipayController)->cancel()->getContent());
     }
 
     private function routeStatus(string $method, string $uri): int
@@ -187,9 +211,13 @@ class PaymentRoutesTest extends TestCase
 
     public function test_bill_total_formula_matches_legacy(): void
     {
-        // SR ไม่มี VAT: total = nfs(storage) + nfs(price_shipping) + nfs(extened) + nfs(thai_shipping)
+        // total = nfs(storage) + nfs(price_shipping) + nfs(extened) + nfs(thai_shipping)
         $this->assertEquals(265.72, PaymentTotals::plain('10.00', 155.72, '0.00', '100.00'));
-        $this->assertFalse(method_exists(PaymentTotals::class, 'vat'));
+        // PACK VAT: vat_before = nfs(nfs(total * v) / 100), shipvat = nfs(total + vat_before) (ไม่มีหัก ณ ที่จ่าย 3% แบบ jl)
+        // ค่าจริงบน bench: บิล 12635 ยอดก่อน VAT 321.40 (v = 7) → vat_before 22.49, total 343.89
+        $this->assertSame(['vat_before' => '22.49', 'shipvat' => '343.89'], PaymentTotals::vat(321.40, '7'));
+        // ส่วนลดคูปองหักก่อนคิด VAT: 3152 - 50 = 3102 → 217.14 / 3319.14 (ตรงกับ _payment/load_shipping_price เดิม)
+        $this->assertSame(['vat_before' => '217.14', 'shipvat' => '3319.14'], PaymentTotals::vat(3152.0 - 50, '7'));
     }
 
     public function test_row_sums_follow_legacy_order_and_types(): void

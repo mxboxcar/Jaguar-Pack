@@ -24,10 +24,21 @@ class LegacyRisksDbTest extends BenchDbTestCase
     /** SR: _shop_cashback/save ถาม PIN จ่ายเงินก่อน — ตั้ง PIN ให้ลูกค้าทดสอบภายใน transaction ที่ rollback */
     private const PIN = '135790';
 
-    /** shipping_type ใน admin_pack_bench: 43 = รับสินค้าเองที่โกดัง (ไม่มีค่าส่ง), 14 = นิวมงเซ้ง (storage 50 + shipping 100) */
-    private const SHIP_FREE = 43;
+    /**
+     * shipping_type ของ test (แถว zz_ ที่ rollback): ไม่มีค่าส่ง / ค่าฝาก 50 + ค่าส่ง 100
+     * (เดิมอ้าง id 43/14 ของ SR — ใน PACK id 14 = ค่าฝาก 70 + ค่าส่ง 100)
+     */
+    private int $shipFree;
 
-    private const SHIP_150 = 14;
+    private int $ship150;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $row = ['is_enable' => 1, 'price_extened' => 0, 'is_use_rate' => 0, 'is_quick_show' => 0, 'no' => 0];
+        $this->shipFree = $this->insertRow('shipping_type', ['name' => 'zz_risk free', 'price_thai_storage' => 0, 'price_thai_shipping' => 0] + $row);
+        $this->ship150 = $this->insertRow('shipping_type', ['name' => 'zz_risk 150', 'price_thai_storage' => 50, 'price_thai_shipping' => 100] + $row);
+    }
 
     private function cust(): User
     {
@@ -75,11 +86,11 @@ class LegacyRisksDbTest extends BenchDbTestCase
         // เจ้าของยืนยัน 2026-10-18: เปลี่ยนประเภทการส่งแล้วยอดติดลบได้ (เหมือนเว็บเดิม)
         $cust = $this->cust();
         $this->admin();
-        $billId = $this->paidBill($cust, self::SHIP_FREE, 500);
+        $billId = $this->paidBill($cust, $this->shipFree, 500);
         $this->credit($cust, 50 - $this->cash($cust));
         $this->assertSame(50.0, $this->cash($cust));
 
-        $out = $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost($billId, self::SHIP_150));
+        $out = $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost($billId, $this->ship150));
 
         $this->assertStringContainsString('SuccessBox(', $out);
         $this->assertSame(-650.0, $this->deduction($billId));
@@ -90,25 +101,25 @@ class LegacyRisksDbTest extends BenchDbTestCase
     {
         $cust = $this->cust();
         $this->admin();
-        $billId = $this->paidBill($cust, self::SHIP_FREE, 500);
+        $billId = $this->paidBill($cust, $this->shipFree, 500);
         $this->credit($cust, 150 - $this->cash($cust)); // พอดี
 
-        $out = $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost($billId, self::SHIP_150));
+        $out = $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost($billId, $this->ship150));
 
         $this->assertStringContainsString('SuccessBox(', $out);
         $this->assertSame(-650.0, $this->deduction($billId));
         $this->assertSame(0.0, $this->cash($cust));
-        $this->assertSame((string) self::SHIP_150, (string) DB::table('bill_payment')->where('id', $billId)->value('shipping_type'));
+        $this->assertSame((string) $this->ship150, (string) DB::table('bill_payment')->where('id', $billId)->value('shipping_type'));
     }
 
     public function test_sender_change_to_cheaper_refunds_difference_even_with_zero_balance(): void
     {
         $cust = $this->cust();
         $this->admin();
-        $billId = $this->paidBill($cust, self::SHIP_150, 650);
+        $billId = $this->paidBill($cust, $this->ship150, 650);
         $this->credit($cust, 0 - $this->cash($cust));
 
-        $out = $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost($billId, self::SHIP_FREE));
+        $out = $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost($billId, $this->shipFree));
 
         $this->assertStringContainsString('SuccessBox(', $out);
         $this->assertSame(-500.0, $this->deduction($billId));
