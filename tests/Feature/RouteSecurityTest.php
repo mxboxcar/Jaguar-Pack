@@ -23,8 +23,7 @@ class RouteSecurityTest extends TestCase
         'up' => 'health check ของ Laravel',
         'dev/whoami' => 'dev เท่านั้น: บอกว่า session นี้เป็นใคร',
         // shop: API ของ crawler/cron (เดิมไม่ต้องล็อกอิน ตรวจ token) — token อยู่ใน .env (config legacy.shop.*), ไม่ตั้ง = ปิด
-        '_api/get_order_number_v2' => 'token API: รายการเลขออเดอร์ที่ยังไม่มี tracking',
-        '_api/get_order_number_v3' => 'token API: รายการเลขออเดอร์ + URL',
+        '_api/get_order_number_v2' => 'token API: รายการเลขออเดอร์ที่ยังไม่มี tracking + URL',
         '_api/submit_order_number_v2' => 'token API: crawler ส่งเลข tracking กลับมา',
         '_api/unban' => 'token API: cron ปลดแบน IP',
         // กลุ่ม users: หน้าสาธารณะของเว็บเดิม (ยังไม่มีบัญชี / ลืมรหัสผ่าน)

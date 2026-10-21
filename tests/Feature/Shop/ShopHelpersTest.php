@@ -69,14 +69,6 @@ class ShopHelpersTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_load_product_v2_parser_on_empty_output(): void
-    {
-        $out = json_decode(ApiController::parseV2('', 'http://www.vcanbuy.com/x?u=https://item.taobao.com/item.htm?id=9', 'https://item.taobao.com/item.htm?id=9'), true);
-        $this->assertSame('', $out['product_name']);
-        $this->assertSame('https://item.taobao.com/item.htm?id=', $out['url']);
-        $this->assertSame([], $out['color']);
-    }
-
     public function test_upload_temp_path_cannot_escape_temp_dir(): void
     {
         config(['legacy.upload.temp_dir' => '/tmp/zz-shop-temp']);
@@ -92,6 +84,11 @@ class ShopHelpersTest extends TestCase
         $this->assertStringContainsString('value="a&quot;b.pdf"', $html);
         $this->assertStringContainsString('$(".upload_file").dropper({', $html);
         $this->assertStringNotContainsString('validate[requiredattachment]', $html);
+        // PACK = getupload รุ่นเก่า: ไฟล์ที่ไม่ใช่รูปเป็นลิงก์ fancybox, ไม่มี reselect, zip/rar/7z แสดง response
+        $this->assertStringContainsString("<a class='fancybox' style='float:left;' href='", $html);
+        $this->assertStringNotContainsString('change.reselect', $html);
+        $this->assertStringContainsString('indexOf(".zip") > -1', $html);
+        $this->assertStringNotContainsString('target=', $html);
     }
 
     public function test_random_user_agent_comes_from_legacy_list(): void

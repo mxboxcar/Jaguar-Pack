@@ -1,14 +1,10 @@
-{{-- _cart/load_choose_product.php เดิม --}}
+{{-- _cart/load_choose_product.php เดิม — PACK เป็นรุ่นเก่า (2020): ไม่มี search_color_a/size_a, changesku(), สินค้าคงเหลือ, id ปุ่ม submitbtn --}}
 <input type="hidden" name="search_product_name" value="" />
 <input type="hidden" name="search_shop_name" value="" />
 <input type="hidden" name="search_main_image" value="" />
 <input type="hidden" name="search_color" value="" />
 <input type="hidden" name="search_size" value="" />
 <input type="hidden" name="search_url" value="" />
-
-<input type="hidden" name="search_color_a" value="" />
-<input type="hidden" name="search_size_a" value="" />
-
 
     <div class="form-horizontal col-xs-4" role="form">    
         <div class="form-group col-xs-12">
@@ -54,7 +50,7 @@
                         <span class="input-group-addon" onclick="switchpricedown();" style="cursor:pointer;padding: 6px">
                             <i class="fa  fa-minus"></i>
                         </span>
-                        <input style="font-weight: normal;text-align:center" type="text" onkeyup="changesku()" id="search_amount" name="search_amount" class="form-control" value="1">
+                        <input style="font-weight: normal;text-align:center" type="text" id="search_amount" name="search_amount" class="form-control" value="1">
                         <span class="input-group-addon" onclick="switchpriceup();" style="cursor:pointer;padding: 6px">
                             <i class="fa  fa-plus"></i>
                         </span>
@@ -79,15 +75,6 @@
 
         <div class="form-group">
             <div  class="control-label col-xs-3">
-                สินค้าคงเหลือ:
-            </div>
-            <div class="form-control-static col-xs-9" id="search_qty">
-                9,999
-            </div>
-        </div>
-
-        <div class="form-group">
-            <div  class="control-label col-xs-3">
                 {!! res('remark') !!}:
             </div>
             <div class="col-xs-8" >
@@ -106,6 +93,6 @@
     </div>
 
 <div class="text-center">
-<button style="padding: 10px 50px;" type="button" class="btn btn-success waves-effect waves-light" id="submitbtn" onclick="submittingtocart()">{!! res('add_to_list') !!}</button>
+<button style="padding: 10px 50px;" type="button" class="btn btn-success waves-effect waves-light" onclick="submittingtocart()">{!! res('add_to_list') !!}</button>
 </div>
     

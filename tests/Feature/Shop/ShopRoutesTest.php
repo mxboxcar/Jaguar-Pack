@@ -19,29 +19,20 @@ class ShopRoutesTest extends TestCase
         ['GET', 'cart/checkout', 'legacy.perm:order', 'checkout'],
         ['GET', 'cart/checkout/{ids}', 'legacy.perm:order', 'checkout'],
         ['GET', 'cart/product/{url?}', 'legacy.perm:order', 'checkout_product'],
-        ['GET', 'findproduct', 'legacy.auth', 'findproduct'],                     // SR เท่านั้น — ตรวจ findproduct ใน view
-        ['GET', 'findproduct/create', 'legacy.perm:findproduct', 'findproduct_detail'],
-        ['GET', 'findproduct/{id}', 'legacy.perm:findproduct', 'findproduct_detail'],
         // ajax
-        ['POST', '_admin/_mallstock/grid', 'legacy.auth', null],                 // SR: ตรวจ admin_balance ใน controller (เดิม exit เงียบ)
-        ['POST', '_admin/_mallstock/load_amount', 'legacy.perm:admin_balance', null], // SR = สำเนา _admin/_balance
+        ['POST', '_admin/_mallstock/grid', 'legacy.auth', null],                 // PACK/SR: ตรวจ admin_balance ใน controller (เดิม exit เงียบ)
+        ['POST', '_admin/_mallstock/load_amount', 'legacy.perm:admin_balance', null], // PACK/SR = สำเนา _admin/_balance
         ['POST', '_admin/_mallstock/save_amount', 'legacy.perm:admin_balance', null],
-        ['POST', '_findproduct/grid', 'legacy.auth', null],
-        ['POST', '_findproduct/save', 'legacy.perm:findproduct', null],
-        ['POST', '_findproduct/delete', 'legacy.perm:findproduct', null],
         ['POST', '_api/blockblob', 'legacy.auth', null],
         ['POST', '_api/blockblob_ajax', 'legacy.auth', null],
         ['POST', '_api/crawl_guard', 'legacy.auth', null],
         ['GET', '_api/get_order_number_v2', null, null],
-        ['GET', '_api/get_order_number_v3', null, null],
         ['POST', '_api/image_shrink', 'legacy.auth', null],
         ['POST', '_api/load_product', 'legacy.perm:order', null],
-        ['POST', '_api/load_product_v2', 'legacy.perm:order', null],
         ['POST', '_api/load_product_v5', 'legacy.auth', null],
-        ['POST', '_api/load_product_v7', 'legacy.auth', null],
-        ['POST', '_api/send_sms', 'legacy.auth', null],
         ['GET', '_api/submit_order_number_v2', null, null],
         ['GET', '_api/unban', null, null],
+        ['POST', '_api/unban', null, null],                                       // PACK = jl: token จาก POST ก็ได้
         ['POST', '_api/useragent', 'legacy.auth', null],
         ['POST', '_cart/delete_cart', 'legacy.perm:order', null],
         ['POST', '_cart/delete_carts', 'legacy.perm:order', null],
@@ -53,7 +44,6 @@ class ShopRoutesTest extends TestCase
         ['POST', '_cart/save_craft', 'legacy.perm:order', null],
         ['POST', '_cart/save_product', 'legacy.perm:order', null],
         ['POST', '_cart/save_qc', 'legacy.perm:order', null],
-        ['POST', '_cart/save_takeapic', 'legacy.perm:order', null],             // SR เท่านั้น
         ['POST', '_taobao/grid', 'legacy.auth', null],
         ['POST', '_taobao/load_calculator', 'legacy.perm:taobao', null],
         ['POST', '_taobao/load_new_line', 'legacy.perm:taobao', null],
@@ -91,12 +81,15 @@ class ShopRoutesTest extends TestCase
         $this->assertSame([], $problems);
     }
 
-    /** ไฟล์ที่มีแต่ใน jl (SR ไม่มี) และหน้าที่ไม่มีใน content.php ของ SR (dead) → ไม่มี route (404 → หน้าแรก) */
-    public function test_jl_only_and_dead_shop_urls_are_not_routed(): void
+    /** ไฟล์ที่ PACK ไม่มี (jl-only, SR-only ตาม docs/pack-diff.md) และหน้าที่ไม่มีใน content.php (dead) → ไม่มี route (404 → หน้าแรก) */
+    public function test_files_missing_in_pack_and_dead_shop_urls_are_not_routed(): void
     {
-        $gone = ['_cart/cart', '_cart/product_2', '_taobao/delete', '_api/updateImagePrefix', 'admin/mall_stock',
+        $gone = ['_cart/cart', '_cart/product_2', '_cart/product_bk', '_taobao/delete', '_api/updateImagePrefix', 'admin/mall_stock',
             'admin/mall_stock/{id}', 'admin/findproduct', 'admin/findproduct/create', 'admin/findproduct/{id}',
-            '_admin/_findproduct/grid', 'mall', 'mall/cart', '_mall/grid', 'admin/mall', '_admin/_mall/grid'];
+            '_admin/_findproduct/grid', 'mall', 'mall/cart', '_mall/grid', 'admin/mall', '_admin/_mall/grid',
+            // SR-only
+            '_cart/save_takeapic', 'findproduct', 'findproduct/create', 'findproduct/{id}', '_findproduct/grid', '_findproduct/save',
+            '_findproduct/delete', '_api/load_product_v2', '_api/load_product_v7', '_api/send_sms', '_api/get_order_number_v3'];
         $uris = array_map(fn ($r) => $r->uri(), Route::getRoutes()->getRoutes());
         $this->assertSame([], array_values(array_intersect($gone, $uris)));
     }
