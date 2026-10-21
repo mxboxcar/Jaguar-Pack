@@ -49,7 +49,8 @@ class ReportsRoutesTest extends TestCase
         'GET admin/log' => 'legacy.perm:admin_log',
         'POST _admin/_log/grid' => 'legacy.auth',
         'GET admin/nobilling' => 'legacy.perm:admin_nobilling',
-        'GET download_file' => 'legacy.perm:admin_lot,admin_lot_view',
+        // PACK hotfix: พนักงาน (role ไม่ใช่ 0/2/8) ตรวจใน controller
+        'GET download_file' => 'legacy.auth',
     ];
 
     /** SR-only (ใบเสร็จ/ภาษีขาย bill_payment.receipt_*) — PACK ไม่มีไฟล์เหล่านี้ */

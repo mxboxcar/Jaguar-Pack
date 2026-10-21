@@ -91,5 +91,5 @@ Route::post('/_admin/_log/grid', [AdminLogController::class, 'grid'])->middlewar
 Route::get('/admin/nobilling', [AdminNobillingController::class, 'index'])->middleware('legacy.perm:admin_nobilling')
     ->defaults('legacy_page', 'admin_nobilling')->name('page.admin_nobilling');
 
-// ---------- download_file.php (ลิงก์ไฟล์แนบในหน้า admin lot) — เดิมไม่ต้องล็อกอิน ----------
-Route::get('/download_file', DownloadFileController::class)->middleware('legacy.perm:admin_lot,admin_lot_view');
+// ---------- download_file.php (ลิงก์ไฟล์แนบในหน้า admin lot) — PACK hotfix: พนักงานที่ล็อกอิน (role ไม่ใช่ 0/2/8) ตรวจใน controller ----------
+Route::get('/download_file', DownloadFileController::class)->middleware('legacy.auth');

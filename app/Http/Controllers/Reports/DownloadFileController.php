@@ -13,11 +13,12 @@ use Symfony\Component\HttpFoundation\Response;
  * GET /download_file?path=<url>&filename=<ชื่อ> — download_file.php (ลิงก์ไฟล์แนบใน _admin/_lot/form.php, grid.php)
  *
  * ก่อน hotfix: ไม่ต้องล็อกอิน, file_get_contents(urldecode($path)) ของ URL/ไฟล์อะไรก็ได้ (SSRF + อ่านไฟล์ในเครื่อง)
- *       แล้ว file_put_contents("upload/".$filename) (SR; jl = upload/temp/) — path traversal → เขียนไฟล์ .php ลง webroot = RCE
- * SR production hotfix 2026-10-18 (= ที่นี่): ต้องมีสิทธิ์ admin_lot หรือ admin_lot_view, path ต้องขึ้นต้นด้วย href_blob และไม่มี '..',
- *       ส่งไฟล์ให้เบราว์เซอร์ตรง ไม่เขียนลงดิสก์ — pdf/รูป = inline ตามชนิด, อื่นๆ = attachment octet-stream, ชื่อไฟล์ = basename(filename) หรือ 'file'
- *       ผลแบบ hotfix: path ผิด = 400 "bad request", ดึงไม่ได้ = 404 "not found"
- *       (ไม่มีสิทธิ์: hotfix ตอบ 403 "forbidden" — ที่นี่ legacy.perm ตอบหน้าแจ้งไม่มีสิทธิ์แบบหน้าอื่น)
+ *       แล้ว file_put_contents("upload/".$filename) — path traversal → เขียนไฟล์ .php ลง webroot = RCE
+ * PACK production hotfix (= ที่นี่): เฉพาะพนักงานที่ล็อกอิน (role ไม่ใช่ 0, 2 สิทธิ์ลูกค้า, 8 ลูกค้า — ตามไฟล์เดิม; SR ใช้สิทธิ์ admin_lot/admin_lot_view),
+ *       path ต้องขึ้นต้นด้วย href_blob และไม่มี '..', ส่งไฟล์ให้เบราว์เซอร์ตรง ไม่เขียนลงดิสก์ — pdf/รูป = inline ตามชนิด,
+ *       อื่นๆ = attachment octet-stream, ชื่อไฟล์ = basename(filename) หรือ 'file'
+ *       ผลแบบ hotfix: ลูกค้า = 403 "forbidden", path ผิด = 400 "bad request", ดึงไม่ได้ = 404 "not found"
+ *       (ไม่ได้ล็อกอิน: hotfix ตอบ 403 "forbidden" — ที่นี่ legacy.auth พาไปหน้า login แบบหน้าอื่น)
  *  - LEGACY_EXTERNAL_ENABLED=false (dev): ไม่ดึงไฟล์เอง → redirect ไป URL ของ blob (เบราว์เซอร์โหลดเอง)
  *  - เปิด (production): ดึงจาก blob (timeout 20 วินาที, ไม่ตาม redirect) แล้วส่งต่อ
  */
@@ -27,8 +28,14 @@ class DownloadFileController extends Controller
 
     private const INLINE = ['pdf' => 'application/pdf', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp'];
 
+    /** role ที่ไม่ใช่พนักงานตาม hotfix ของ PACK: in_array((int) $u['role'], [0, 2, 8], true) */
+    private const CUSTOMER_ROLES = [0, 2, 8];
+
     public function __invoke(Request $request): Response
     {
+        if (in_array((int) (Legacy::user()->role ?? 0), self::CUSTOMER_ROLES, true)) {
+            return response('forbidden', 403);
+        }
         $path = urldecode($this->get($request, 'path'));
         $raw = $request->query('filename');
         $name = basename(str_replace('\\', '/', is_string($raw) ? $this->get($request, 'filename') : 'file'));
