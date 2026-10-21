@@ -77,18 +77,22 @@ class AdminLotController extends Controller
         $first = [];
         $unpaid = [];
         if ($ids !== []) {
-            $counts = DB::table('tracking')->where('is_delete', 0)->whereIn('lot_id', $ids)
-                ->groupBy('lot_id')->pluck(DB::raw('COUNT(id)'), 'lot_id')->all();
-            $ranked = DB::table('tracking')->where('is_delete', 0)->whereIn('lot_id', $ids)
-                ->select(['lot_id', 'date_warehouse', 'date_outofchina', 'date_thai',
-                    DB::raw('ROW_NUMBER() OVER (PARTITION BY lot_id ORDER BY date_warehouse ASC, id ASC) AS rn')]);
-            $first = DB::query()->fromSub($ranked, 'x')->where('rn', 1)
-                ->get(['lot_id', 'date_warehouse', 'date_outofchina', 'date_thai'])
-                ->keyBy(fn ($r) => (int) $r->lot_id)->all();
-            // GROUP BY user เดิมนับ user ที่เป็น NULL เป็นกลุ่มหนึ่งด้วย → COALESCE
-            $unpaid = DB::table('tracking')->where('payment_id', '0')->where('is_delete', 0)->whereIn('lot_id', $ids)
-                ->groupBy('lot_id')->pluck(DB::raw('COUNT(DISTINCT COALESCE(`user`, -2147483648))'), 'lot_id')
-                ->map(fn ($v) => (int) $v)->all();
+            // PACK: tracking ไม่มี index lot_id → ทุก query ที่กรอง lot_id สแกนทั้งตาราง (~250 ms ต่อครั้งบน bench)
+            // → ดึงแถวของล็อตในหน้านี้ครั้งเดียว (เรียง date_warehouse, id แบบ ORDER BY เดิม) แล้วนับใน PHP
+            $rows = DB::table('tracking')->where('is_delete', 0)->whereIn('lot_id', $ids)
+                ->orderBy('lot_id')->orderBy('date_warehouse')->orderBy('id')
+                ->get(['id', 'lot_id', 'user', 'payment_id', 'date_warehouse', 'date_outofchina', 'date_thai']);
+            $users = [];
+            foreach ($rows as $r) {
+                $lid = (int) $r->lot_id;
+                $counts[$lid] = ($counts[$lid] ?? 0) + 1;
+                $first[$lid] ??= $r;
+                // "ค้างจ่าย" = จำนวนกลุ่ม GROUP BY user ของ tracking payment_id = '0' (user NULL นับเป็นกลุ่มหนึ่ง)
+                if ($r->payment_id !== null && (string) $r->payment_id === '0') {
+                    $users[$lid][$r->user === null ? 'null' : 'u'.$r->user] = true;
+                }
+            }
+            $unpaid = array_map('count', $users);
         }
 
         return response(view('lot.admin.grid', [
