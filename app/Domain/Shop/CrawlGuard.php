@@ -14,6 +14,9 @@ final class CrawlGuard
 {
     public const USER_HOUR = 45;
 
+    /** ต่อบัญชีต่อชั่วโมง เมื่อโควตาวัน ≥150 (2026-10-21 คุณ MAX) */
+    public const USER_HOUR_TRUSTED = 90;
+
     public const IP_DAY = 300;
 
     public const NET_DAY = 300;
@@ -27,6 +30,11 @@ final class CrawlGuard
      * $paid = บิลสั่งซื้อสำเร็จ (status 3) · $billed = บิลที่พนักงานอนุมัติ/แจ้งชำระแล้ว (status 1, 2)
      * $arrived = แทร็กกิ้งที่เข้าโกดังแล้ว (ลูกค้าส่งของเองก็นับ) · บิลรอตรวจสอบ (0) และแทร็กที่แค่แจ้งไว้ไม่นับ (บอทสร้างเองได้)
      */
+    public static function userHourMax(int $dayMax): int
+    {
+        return $dayMax >= 150 ? self::USER_HOUR_TRUSTED : self::USER_HOUR;
+    }
+
     public static function userDayMax(int $paid, int $billed = 0, int $arrived = 0): int
     {
         if ($paid >= 5 || $arrived >= 10) {
@@ -75,7 +83,7 @@ final class CrawlGuard
         $dmax = self::userDayMax($paid, (int) ($b->billed ?? 0), $arrived);
         $u = DB::table('crawl_guard_log')->where('user', $uid)->where('ok', 1)->whereRaw('`ts` >= CURDATE()')
             ->selectRaw('COUNT(*) AS d, COALESCE(SUM(`ts` >= NOW() - INTERVAL 1 HOUR), 0) AS h')->first();
-        if ($u && (int) $u->h >= self::USER_HOUR) {
+        if ($u && (int) $u->h >= self::userHourMax($dmax)) {
             $reason = 'user_hour';
         } elseif ($u && (int) $u->d >= $dmax) {
             $reason = 'user_day_'.$dmax;

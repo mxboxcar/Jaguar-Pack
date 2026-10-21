@@ -50,6 +50,9 @@ class ShopHelpersTest extends TestCase
         $this->assertSame(150, CrawlGuard::userDayMax(0, 0, 1));   // ของเข้าโกดังแล้ว
         $this->assertSame(300, CrawlGuard::userDayMax(0, 3, 10));
         $this->assertSame(150, CrawlGuard::userDayMax(4, 9, 9));
+        $this->assertSame(45, CrawlGuard::userHourMax(50));
+        $this->assertSame(90, CrawlGuard::userHourMax(150));
+        $this->assertSame(90, CrawlGuard::userHourMax(300));
     }
 
     public function test_product_crawler_never_calls_out_when_external_disabled(): void
