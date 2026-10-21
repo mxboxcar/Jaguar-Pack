@@ -161,6 +161,17 @@
 				        	<input type="text" value="{{ $g('cashback') }}" class="form-control" name="cashback" />
 		            	</div>
 		            </div>
+
+		            {{-- PACK: ยอดคืนเป็นบาท (ค่าเริ่มต้น = cashback × exchange_rate คูณแบบ PHP 7.4) — save_approved ใช้ค่านี้ --}}
+		            <div class="col-md-4">
+		            	<div class="input-group">
+		            		<span class="input-group-addon">
+				        		฿
+				        	</span>
+				        	<input type="text" value="{{ Php74::str(Php74::num($g('cashback')) * Php74::num($g('exchange_rate'))) }}" class="form-control" name="cashback_th" />
+		            	</div>
+		            </div>
+
 @else
 		            <div class="col-md-4 form-control-static">
 		           		{!! Format::numberformat($g('cashback'), true, true, true) !!}
@@ -360,6 +371,7 @@
 	            type: 'POST',
 	            async: true,
 	            data : 'id={{ $jsId }}&cashback=' + $("input[name='cashback']").val()
+	            + '&cashback_th=' + $("input[name='cashback_th']").val()
 	            + '&approved_remark=' + $("textarea[name='approved_remark']").val() ,
 	            url: rooturl + '_admin/_lost_package/save_approved',
 	            success: function(data) {
