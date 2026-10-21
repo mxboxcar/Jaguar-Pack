@@ -119,9 +119,9 @@
 | 107 | 155 | `^admin/export/status/([0-9]+)$` | `?page=admin_export&status=$1`  | admin_export | _admin/_export/index.php | **reports** |
 | 108 | 156 | `^admin/export/([0-9]+)$` | `?page=admin_export_detail&id=$1`  | admin_export_detail | _admin/_export/form.php | **reports** |
 | 109 | 157 | `^admin/export/receipt/([0-9]+)$` | `?page=admin_export_receipt&id=$1`  | admin_export_receipt | _admin/_export/receipt.php | **reports** |
-| 110 | 159 | `^admin/receipt$` | `?page=admin_receipt`  | admin_receipt | _admin/_receipt/index.php | **payment** |
+| 110 | 159 | `^admin/receipt$` | `?page=admin_receipt`  | admin_receipt | _admin/_receipt/index.php | **dead (PACK ไม่มี `_admin/_receipt` — route ถูกลบ)** |
 | 111 | 160 | `^admin/receipt/([0-9]+)$` | `?page=admin_receipt_detail&id=$1`  | admin_receipt_detail | _admin/_receipt/form.php (**ไม่มีไฟล์นี้ในเว็บเดิม** — หน้าเดิม error/ว่าง) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
-| 112 | 161 | `^admin/receipt/status/([0-9]+)$` | `?page=admin_receipt&status=$1`  | admin_receipt | _admin/_receipt/index.php | **payment** |
+| 112 | 161 | `^admin/receipt/status/([0-9]+)$` | `?page=admin_receipt&status=$1`  | admin_receipt | _admin/_receipt/index.php | **dead (PACK ไม่มี `_admin/_receipt` — route ถูกลบ)** |
 | 113 | 162 | `^admin/receipt/create$` | `?page=admin_receipt_detail&id=0`  | admin_receipt_detail | _admin/_receipt/form.php (**ไม่มีไฟล์นี้ในเว็บเดิม** — หน้าเดิม error/ว่าง) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
 | 114 | 165 | `^admin/transfer$` | `?page=admin_transfer`  | admin_transfer | _admin/_transfer/index.php | **money-move** |
 | 115 | 166 | `^admin/transfer/create$` | `?page=admin_transfer_detail&id=0`  | admin_transfer_detail | _admin/_transfer/form.php | **money-move** |
@@ -131,6 +131,10 @@
 | 119 | 171 | `^admin/alipay/create$` | `?page=admin_alipay_detail&id=0`  | admin_alipay_detail | _admin/_alipay/form.php | **payment** |
 | 120 | 172 | `^admin/alipay/status/([0-9]+)$` | `?page=admin_alipay&status=$1`  | admin_alipay | _admin/_alipay/index.php | **payment** |
 | 121 | 173 | `^admin/alipay/([0-9]+)$` | `?page=admin_alipay_detail&id=$1`  | admin_alipay_detail | _admin/_alipay/form.php | **payment** |
+| PACK | 106 | `^admin/coupon$` | `?page=admin_coupon`  | admin_coupon | _admin/_coupon/index.php | **payment** (PACK เท่านั้น) |
+| PACK | 107 | `^admin/coupon/create$` | `?page=admin_coupon_detail&id=0`  | admin_coupon_detail | _admin/_coupon/form.php | **payment** (PACK เท่านั้น) |
+| PACK | 108 | `^admin/coupon/status/([0-9]+)$` | `?page=admin_coupon&status=$1`  | admin_coupon | _admin/_coupon/index.php | **payment** (PACK เท่านั้น) |
+| PACK | 109 | `^admin/coupon/([0-9]+)$` | `?page=admin_coupon_detail&id=$1`  | admin_coupon_detail | _admin/_coupon/form.php | **payment** (PACK เท่านั้น) |
 | 122 | 175 | `^admin/tracking$` | `?page=admin_tracking`  | admin_tracking | _admin/_tracking/index.php | **tracking** |
 | 123 | 176 | `^admin/tracking/create$` | `?page=admin_tracking_detail&id=0`  | admin_tracking_detail | _admin/_tracking/form.php | **tracking** |
 | 124 | 177 | `^admin/tracking/status/([0-9]+)$` | `?page=admin_tracking&status=$1`  | admin_tracking | _admin/_tracking/index.php | **tracking** |
@@ -395,10 +399,16 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_payment/save_delete.php` | `/_admin/_payment/save_delete` |  |  |
 | `_admin/_payment/save_deletenopush.php` | `/_admin/_payment/save_deletenopush` |  |  |
 | `_admin/_payment/save_new_sender.php` | `/_admin/_payment/save_new_sender` |  |  |
+| `_admin/_payment/save_vat.php` | `/_admin/_payment/save_vat` |  | PACK (สูตร VAT ของ PACK — ไม่มีหัก ณ ที่จ่าย 3% แบบ jl) |
 | `_admin/_payment/save_submit_payment.php` | `/_admin/_payment/save_submit_payment` |  |  |
-| `_admin/_receipt/grid.php` | `/_admin/_receipt/grid` |  |  |
-| `_admin/_receipt/index.php` | `/_admin/_receipt/index` | admin_receipt |  |
-| `_alipay/cancel.php` | `/_alipay/cancel` |  |  |
+| `_admin/_receipt/grid.php` | `/_admin/_receipt/grid` |  | **dead** — PACK ไม่มีไฟล์ (SR เท่านั้น) → ไม่มี route |
+| `_admin/_receipt/index.php` | `/_admin/_receipt/index` | admin_receipt | **dead** — PACK ไม่มีไฟล์ (SR เท่านั้น) → ไม่มี route |
+| `_admin/_coupon/index.php` | `/_admin/_coupon/index` | admin_coupon | PACK เท่านั้น (สิทธิ์ admin_coupon) |
+| `_admin/_coupon/grid.php` | `/_admin/_coupon/grid` |  | PACK เท่านั้น (ไม่มีสิทธิ์ = ตอบว่าง) |
+| `_admin/_coupon/form.php` | `/_admin/_coupon/form` | admin_coupon_detail | PACK เท่านั้น |
+| `_admin/_coupon/save.php` | `/_admin/_coupon/save` |  | PACK เท่านั้น |
+| `_admin/_coupon/delete.php` | `/_admin/_coupon/delete` |  | PACK: สำเนาของ `_admin/_product_type/delete.php` (ตรวจ admin_product_type แล้วลบ product_type) → ตอบสำเร็จโดยไม่ลบอะไร |
+| `_alipay/cancel.php` | `/_alipay/cancel` |  | PACK: ทั้งไฟล์ถูก comment → ตอบว่าง ไม่ทำอะไร |
 | `_alipay/form.php` | `/_alipay/form` | alipay_detail |  |
 | `_alipay/grid.php` | `/_alipay/grid` |  |  |
 | `_alipay/index.php` | `/_alipay/index` | alipay |  |
@@ -412,6 +422,8 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_payment/load_create_sum.php` | `/_payment/load_create_sum` |  |  |
 | `_payment/load_select_lot.php` | `/_payment/load_select_lot` |  |  |
 | `_payment/load_shipping_price.php` | `/_payment/load_shipping_price` |  |  |
+| `_payment/load_discoutcode.php` | `/_payment/load_discoutcode` |  | PACK เท่านั้น (คูปองส่วนลด) |
+| `_payment/create_form_bk.php` | `/_payment/create_form_bk` |  | **dead** — ไฟล์สำรองของ PACK ไม่มีใครลิงก์ → ไม่พอร์ต |
 | `_payment/save.php` | `/_payment/save` |  |  |
 | `_payment/save_create.php` | `/_payment/save_create` |  |  |
 | `_payment/save_delete.php` | `/_payment/save_delete` |  |  |
