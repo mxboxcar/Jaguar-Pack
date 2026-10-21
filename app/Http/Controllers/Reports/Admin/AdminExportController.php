@@ -104,6 +104,8 @@ class AdminExportController extends Controller
         }
         $shipName = DB::table('shipping_type')->where('id', $data->shipping_type)->value('name');
         $details = ExportBill::details($id);
+        // PACK: ราคา/ยอดรวม/รายการเงินค่าขนส่ง เฉพาะผู้มีสิทธิ์ admin_viewprice_on_payment (ไม่มี = เห็นเฉพาะรายการเงิน prefix export)
+        $prices = perm('admin_viewprice_on_payment');
         $exportDate = '';
         if (Php74::neq($data->export_date, '0000-00-00 00:00:00') && Php74::neq($data->export_date, '')) {
             $exp = explode(' ', (string) $data->export_date);
@@ -116,8 +118,10 @@ class AdminExportController extends Controller
             'shipName' => $shipName,
             'details' => $details,
             'totals' => ExportBill::totals($details),
-            'rows' => ExportBill::trackingRows($details, true),
-            'balance' => ExportBill::balanceBox($id, true),
+            'rows' => ExportBill::trackingRows($details, true, $prices),
+            'balance' => ExportBill::balanceBox($id, true, ! $prices),
+            'prices' => $prices,
+            'coupon' => ExportBill::coupon($data->id),
             'prefix' => Rows::prefix('payment'),
             'exportDate' => $exportDate,
             'upload' => UploadBox::single('file', (string) $data->export_attachment, true),
@@ -227,17 +231,6 @@ class AdminExportController extends Controller
     /** GET /_admin/_export/print?id= — ใบปะหน้า (ตั้ง is_print) */
     public function print(Request $request): Response
     {
-        return $this->printPage($request, false);
-    }
-
-    /** GET /_admin/_export/printprice?id= — SR: บิลชำระเงิน (printprice.php + print_3.php = ใบปะหน้า + ราคา, ตั้ง is_print เหมือน print.php) */
-    public function printPrice(Request $request): Response
-    {
-        return $this->printPage($request, true);
-    }
-
-    private function printPage(Request $request, bool $withPrice): Response
-    {
         $id = $this->get($request, 'id');
         if (! perm('admin_export') || $id === '' || $id === '0') {
             return response('ERROR : access denied');
@@ -255,7 +248,6 @@ class AdminExportController extends Controller
             'data' => $data,
             'shipName' => $shipName,
             'details' => $details,
-            'withPrice' => $withPrice,
         ])->render());
     }
 

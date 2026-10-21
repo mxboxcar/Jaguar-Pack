@@ -1,4 +1,4 @@
-{{-- _export/form.php ของ SR (ลูกค้า: + ส่วนผู้ส่ง, คอลัมน์รหัสย่อย, ไม่มี VAT) — ค่าจาก DB escape ทั้งหมด (เดิม echo ดิบ) --}}
+{{-- _export/form.php ของ PACK (ลูกค้า: ส่วนผู้ส่งแบบ SR, ไม่มีคอลัมน์รหัสย่อย, แถว Discount + คูปองส่วนลด + VAT) — ค่าจาก DB escape ทั้งหมด (เดิม echo ดิบ) --}}
 @extends('legacy.layout')
 
 @php
@@ -176,6 +176,12 @@
 	            <label class="col-md-4 control-label"> {!! res('no_for_grid') !!}</label>
 	            <div class="col-md-7 form-control-static">
 	            	{{ $prefix.$d('id') }}
+	            </div>
+	        </div>
+	         <div class="form-group">
+	            <label class="col-md-4 control-label"> รหัสคูปองส่วนลด</label>
+	            <div class="col-md-7 form-control-static">
+	            	{{ $coupon === null ? '-' : $coupon->name }}
 	            </div>
 	        </div>
             <div class="form-group">
