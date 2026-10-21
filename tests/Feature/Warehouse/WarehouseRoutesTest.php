@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Warehouse;
 
-use App\Domain\Warehouse\ShelfAllocator;
 use App\Domain\Warehouse\WarehouseLookups;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
@@ -34,33 +33,33 @@ class WarehouseRoutesTest extends TestCase
         'POST _admin/_goodsconfirm/save_approved' => 'legacy.perm:admin_goodsconfirm',
         'POST _admin/_goodsconfirm/save_image' => 'legacy.perm:admin_goodsconfirm',
         'POST _admin/_goodsconfirm/save_unapproved' => 'legacy.perm:admin_goodsconfirm',
-        // แอดมิน warehouse
-        'GET admin/warehouse' => 'legacy.perm:admin_warehouse',
-        'GET admin/warehouse/create' => 'legacy.perm:admin_warehouse',
-        'GET admin/warehouse/{id}' => 'legacy.perm:admin_warehouse',
-        'POST _admin/_warehouse/grid' => 'legacy.auth',
-        'POST _admin/_warehouse/load_editshelf' => 'legacy.perm:admin_warehouse',
-        'POST _admin/_warehouse/load_lot_detail' => 'legacy.perm:admin_warehouse',
-        'POST _admin/_warehouse/load_lot_detail_thai' => 'legacy.perm:admin_warehouse',
-        'POST _admin/_warehouse/load_tracking' => 'legacy.perm:admin_warehouse',
-        'POST _admin/_warehouse/load_tracking_edit' => 'legacy.perm:admin_warehouse',
-        'POST _admin/_warehouse/save' => 'legacy.perm:admin_warehouse_section',
-        'POST _admin/_warehouse/save_cancel_warehouse_calculate' => 'legacy.perm:admin_warehouse',
-        'POST _admin/_warehouse/save_editshelf' => 'legacy.perm:admin_warehouse',
-        'GET _admin/_warehouse/save_lot_detail' => 'legacy.perm:admin_warehouse',
-        'POST _admin/_warehouse/save_new_warehouse' => 'legacy.perm:admin_warehouse',
-        'POST _admin/_warehouse/save_push_track' => 'legacy.perm:admin_warehouse',
-        'POST _admin/_warehouse/save_track_weight' => 'legacy.perm:admin_warehouse',
-        // แอดมิน ชั้นวาง
-        'GET admin/warehouse_section' => 'legacy.perm:admin_warehouse_section',
-        'GET admin/warehouse_section/create' => 'legacy.perm:admin_warehouse_section',
-        'GET admin/warehouse_section/{id}' => 'legacy.perm:admin_warehouse_section',
-        'GET admin/warehouse_section_move' => 'legacy.perm:admin_warehouse_section',
-        'POST _admin/_warehouse_section/grid' => 'legacy.auth',
-        'POST _admin/_warehouse_section/save' => 'legacy.perm:admin_warehouse_section',
-        'POST _admin/_warehouse_section/delete' => 'legacy.perm:admin_product_type',
-        'POST _admin/_warehouse_section_move/grid' => 'legacy.auth',
     ];
+
+    /** PACK: หน้า/ajax รับสินค้าเข้าโกดังและชั้นวาง = dead (content.php ไม่มี page, ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ) */
+    private const DEAD = [
+        'GET admin/warehouse', 'GET admin/warehouse/create', 'GET admin/warehouse/{id}', 'GET admin/warehouse_section',
+        'GET admin/warehouse_section/create', 'GET admin/warehouse_section/{id}', 'GET admin/warehouse_section_move',
+        'POST _admin/_warehouse/grid', 'POST _admin/_warehouse/load_editshelf', 'POST _admin/_warehouse/load_lot_detail',
+        'POST _admin/_warehouse/load_lot_detail_thai', 'POST _admin/_warehouse/load_tracking', 'POST _admin/_warehouse/load_tracking_edit',
+        'POST _admin/_warehouse/save', 'POST _admin/_warehouse/save_cancel_warehouse_calculate', 'POST _admin/_warehouse/save_editshelf',
+        'GET _admin/_warehouse/save_lot_detail', 'POST _admin/_warehouse/save_new_warehouse', 'POST _admin/_warehouse/save_push_track',
+        'POST _admin/_warehouse/save_track_weight', 'POST _admin/_warehouse_section/grid', 'POST _admin/_warehouse_section/save',
+        'POST _admin/_warehouse_section/delete', 'POST _admin/_warehouse_section_move/grid',
+    ];
+
+    public function test_pack_dead_warehouse_urls_have_no_route(): void
+    {
+        $found = [];
+        foreach (Route::getRoutes() as $r) {
+            foreach ($r->methods() as $m) {
+                $found[$m.' '.$r->uri()] = true;
+            }
+        }
+        foreach (self::DEAD as $key) {
+            $this->assertArrayNotHasKey($key, $found, "$key = dead ใน PACK");
+        }
+        $this->assertFalse(class_exists(\App\Models\Warehouse::class));
+    }
 
     public function test_every_legacy_url_has_a_route_with_the_legacy_permission(): void
     {
@@ -88,9 +87,6 @@ class WarehouseRoutesTest extends TestCase
             'goodsconfirm' => 'goodsconfirm', 'goodsconfirm/{id}' => 'goodsconfirm_detail',
             'admin/goodsconfirm' => 'admin_goodsconfirm', 'admin/goodsconfirm/create' => 'admin_goodsconfirm_detail',
             'admin/goodsconfirm/status/{status}' => 'admin_goodsconfirm', 'admin/goodsconfirm/{id}' => 'admin_goodsconfirm_detail',
-            'admin/warehouse' => 'admin_warehouse', 'admin/warehouse/create' => 'admin_warehouse_detail', 'admin/warehouse/{id}' => 'admin_warehouse_detail',
-            'admin/warehouse_section' => 'admin_warehouse_section', 'admin/warehouse_section/create' => 'admin_warehouse_section_detail',
-            'admin/warehouse_section/{id}' => 'admin_warehouse_section_detail', 'admin/warehouse_section_move' => 'admin_warehouse_section_move',
         ];
         $seen = 0;
         foreach (Route::getRoutes() as $r) {
@@ -100,16 +96,6 @@ class WarehouseRoutesTest extends TestCase
             }
         }
         $this->assertSame(count($pages), $seen);
-    }
-
-    public function test_save_lot_detail_prints_parsing(): void
-    {
-        $this->assertSame([5440], ShelfAllocator::parsePrints('5440'));
-        $this->assertSame([1, 2], ShelfAllocator::parsePrints('1, 2'));
-        $this->assertSame([null], ShelfAllocator::parsePrints('null'));   // jQuery val() ของ select ว่าง
-        $this->assertNull(ShelfAllocator::parsePrints(''));               // IN () = SQL error เดิม
-        $this->assertNull(ShelfAllocator::parsePrints('1) OR (1=1'));
-        $this->assertNull(ShelfAllocator::parsePrints('1,,2'));
     }
 
     public function test_paging_offset_and_upload_names(): void

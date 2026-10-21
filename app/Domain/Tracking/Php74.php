@@ -112,6 +112,38 @@ final class Php74
         return $s;
     }
 
+    /**
+     * round($v, $places) ของ PHP 7.4 (_php_math_round: pre-round ที่ 15 หลักสำคัญ แล้ว PHP_ROUND_HALF_UP)
+     * 8.4 เลิก pre-rounding → ต่างที่หลักสุดท้ายได้ (เช่น round(1.69 / 5.2, 2): 7.4 = 0.33, 8.4 = 0.32)
+     */
+    public static function round(int|float $v, int $places = 0): float
+    {
+        $value = (float) $v;
+        if (! is_finite($value) || $value == 0.0) {
+            return $value;
+        }
+        $pow = fn (int $p): float => $p > 22 ? 10.0 ** $p : (float) (10 ** $p);
+        $basic = fn (float $x, int $p): float => $p >= 0 ? $x * $pow($p) : $x / $pow(-$p);
+        $helper = fn (float $x): float => $x >= 0.0 ? floor($x + 0.5) : ceil($x - 0.5);
+        $precisionPlaces = 14 - (int) floor(log10(abs($value)));
+        $f1 = $pow(abs($places));
+        if ($precisionPlaces > $places && $precisionPlaces - 15 < $places) {
+            $use = max($precisionPlaces, -60);
+            $tmp = $helper($basic($value, $use));
+            $tmp = $tmp / $pow(abs(max(-60, $places - $use)));
+        } else {
+            $tmp = $places >= 0 ? $value * $f1 : $value / $f1;
+            if (abs($tmp) >= 1e15) {
+                return $value;
+            }
+        }
+        if (abs($tmp - $helper($tmp)) >= 1e-15) {
+            $tmp = $helper($tmp);
+        }
+
+        return $places > 0 ? $tmp / $f1 : $tmp * $f1;
+    }
+
     /** id จาก POST ที่ไฟล์เดิมฝังลง `id IN (...)` ตรงๆ: คืน list ของ int หรือ null ถ้าเดิมจะเป็น SQL error */
     public static function idList(string $csv): ?array
     {

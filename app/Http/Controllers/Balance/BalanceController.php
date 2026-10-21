@@ -93,15 +93,20 @@ class BalanceController extends Controller
     }
 
     /**
-     * POST /_balance/save_withdraw — _balance/save_withdraw.php ของ SR
-     * ลำดับเดิม: สิทธิ์ → PIN จ่ายเงิน → ถอนได้ 1 รายการ/สัปดาห์ (bypass_withdraw) → บัญชีดำ → ตรวจยอด → INSERT
+     * POST /_balance/save_withdraw — _balance/save_withdraw.php ของ PACK
+     * ลำดับเดิม (PACK): สิทธิ์ → บัญชีดำ → PIN จ่ายเงิน → ถอนได้ 1 รายการ/สัปดาห์ (bypass_withdraw) → ตรวจยอด → INSERT
+     * (SR: สิทธิ์ → PIN → รายสัปดาห์ → บัญชีดำ → ...)
      */
     public function saveWithdraw(Request $request): Response
     {
         if (! perm('balance')) {
             return response('');
         }
-        // SR: ถาม PIN (ของ jl ถูก comment ไว้) — PinBox::guard = hash_equals + PinThrottle แทน != หลวมของเดิม
+        // PACK: ตรวจบัญชีดำมิจฉาชีพก่อน PIN (SR ตรวจหลังจำกัดรายสัปดาห์) — เทียบชื่อ+นามสกุลตรงทั้งคู่
+        if (Blocklist::guard(Ledger::php($request, 'branch_name'), 'withdraw_thb', 'ธนาคาร='.Ledger::php($request, 'branch_bank')) !== false) {
+            return response(Alerts::error('CloseLoading()', 'ไม่สามารถบันทึกข้อมูลบัญชีนี้ได้ กรุณาติดต่อเจ้าหน้าที่'));
+        }
+        // PACK/SR: ถาม PIN (ของ jl ถูก comment ไว้) — PinBox::guard = hash_equals + PinThrottle แทน != หลวมของเดิม
         $user = Legacy::user();
         if (($js = PinBox::guard($request, $user, '.cashback_form', 0, 'withdrawcashing()')) !== null) {
             return response($js);
@@ -117,11 +122,6 @@ class BalanceController extends Controller
             return response(Alerts::error('CloseLoading()', Money::BAD_AMOUNT));
         }
         $bank = [Ledger::in($request, 'bank_no'), Ledger::in($request, 'branch_bank'), Ledger::in($request, 'branch_name')];
-
-        // บัญชีดำมิจฉาชีพ — เทียบชื่อ+นามสกุลตรงทั้งคู่
-        if (Blocklist::guard(Ledger::php($request, 'branch_name'), 'withdraw_thb', 'ธนาคาร='.Ledger::php($request, 'branch_bank')) !== false) {
-            return response(Alerts::error('CloseLoading()', 'ไม่สามารถบันทึกข้อมูลบัญชีนี้ได้ กรุณาติดต่อเจ้าหน้าที่'));
-        }
 
         // จำกัดรายสัปดาห์ตรวจซ้ำหลังล็อกแถว user (เดิมไม่มี lock: กดซ้อนกัน = ถอนได้ 2 รายการในสัปดาห์)
         $ok = Withdraw::submit($uid, $wantPhp, $wantSql, fn () => Withdraw::currentCash($uid), $bank,

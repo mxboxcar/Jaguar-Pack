@@ -1,5 +1,59 @@
 # กลุ่ม points — รายงานการพอร์ต
 
+## PACK (2026-10-22)
+
+พอร์ตใน worktree เดียวกับ messaging/balance: branch `mod/messaging` (`/home/admin/laravel/pack-wt/messaging`, port 8811) — เทียบกับ PACK เดิม `:8114` (`/home/admin/bench/pack-old`, DB `admin_pack_bench`)
+คงทุกการแก้ของ jl/SR (withdrawpoint อนุมัติ/ยกเลิกเฉพาะรายการรออนุมัติใน transaction + lock, PIN ผ่าน `PinBox::guard()`, `legacy.once`, ยอด shop_cashback > 0, escape ค่าจาก DB/ผู้ใช้)
+
+### ไฟล์เดิม → สถานะ (docs/pack-diff.md)
+
+| ไฟล์ | สถานะ |
+|---|---|
+| `_point/save_withdraw.php` (diff 4, jl 0) | **ทำแล้ว** — PACK = jl: ตรวจ PIN แล้ว**แลกแต้มจริง** (SR ตอบ "ยังไม่เปิดบริการให้แลก" แล้ว exit ทุกครั้ง) → นำโค้ด jl กลับมา (revert commit SR `b3d1ffd`): transaction + `SELECT … FOR UPDATE` แถว user, ตรวจยอดด้วย `Rules::withdrawInvalid` (นิพจน์ 7.4 เดิม, fixture php7.4), `,` กำกวม = ErrorBox, INSERT `point` (status 1) + `balance_point` (-ยอด, type 1, prefix withdrawpoint) |
+| `_point/index.php` (diff 11, jl 0) | **ทำแล้ว** — JS ของ jl/PACK: ช่องว่าง = `ErrorBox('กรุณากรอกจำนวน')`, ConfirmBox → `withdrawpointing()` ส่ง `wantcash` + `paymentpin` (กล่อง PIN เรียก callback นี้ได้แล้ว — ใน SR เป็น JS error เงียบ) |
+| `_admin/_shop_cashback/email_approved.php`, `email_cancel.php` (diff 26) | **ทำแล้ว** — ปุ่ม "ดูรายละเอียด" สี `#eb4823` (SR `#a3b2f1`), ไม่มี `sendLine()`/`push_notification()` (ไม่เลือก `line_uid`); แม่แบบ/ผู้ส่ง = `config('legacy.mail')` (PACK-Cargo <no-reply@pack-cargo.net> จากฐานร่วม); เปิดตรง = 403 (hotfix 2026-10-18 มีใน PACK ด้วย) |
+| `getupload_inline()` (system_config.php — ใช้ใน `_shop_cashback/form`, `load_new_line`) | **ทำแล้ว** — PACK ใช้รุ่นเก่ากว่า SR/jl: ไม่มีตัวล้าง input (`change.reselect`), หลังอัปโหลด `.zip/.rar/.7z` แสดงชื่อไฟล์ นอกนั้นแสดงรูปย่อ; ไฟล์เดิมเป็นรูปเมื่อนามสกุลตรงตัวใน `jpg png jpeg JPG JPEG PNG` ไม่ใช่รูป = `<a class='fancybox'>` ไม่มี `download` (`App\Domain\Points\UploadInline`) |
+| ที่เหลือ 23 ไฟล์ (`same`) | ไม่เปลี่ยน — เทียบกับ :8114 แล้วตรง (ด้านล่าง) |
+
+`calPoint()` ของ PACK = SR ทุกบรรทัด (รวม `calpoint-dedupe-guard-v1`) → `App\Support\Legacy\PointCalc` ของฐานร่วมใช้ได้เลย (ไม่มีโค้ดในกลุ่ม points เรียก) — ด่านกันแจกซ้ำนับเฉพาะ prefix export ซึ่งสำคัญขึ้นใน PACK เพราะแถวแลกแต้ม (type 1, prefix withdrawpoint, ยอดติดลบ) เกิดขึ้นจริง
+
+### สิทธิ์ของ PACK (admin_pack_bench)
+
+`point` = role 1, 2 (ลูกค้า), 4, 7, 8, 9 · `shop_cashback` = 1, 2, 4, 5, 7, 8, 9 · `admin_shop_cashback` = 1, 4, 5 · `admin_point` = 1 · `admin_withdrawpoint` = 1, 4 — ไม่มีสิทธิ์กำพร้า (ไม่ต้อง fallback)
+
+### ผลเทียบกับ :8114 (session เดียวกัน, ตัดช่องว่าง + แทน href)
+
+ตรงกันทั้งหมด (ไม่นับ `target="_blank"`, escape และ `.text()` ของ upload):
+`/point` (ลูกค้า 348: 1,297 แถว), `_point/grid` หน้า 1/2/130 + ค้นหา `PAY-1`, `|1`, `WPOINT|2`, ภาษา cn, `load_withdraw`;
+`/shop_cashback`, `/shop_cashback/101`, `/shop_cashback/create`, `_shop_cashback/grid` (ผู้ใช้ 50) หน้า 1/2 + ค้นหา, `load_new_line`, `load_calculator` (byte);
+`/admin/point`, `/admin/withdrawpoint` (+`/status/1`), `/admin/withdrawpoint/{0,253,254,255}`, `/admin/shop_cashback` (+`/101`, `/create`), grid แอดมินทั้ง 3 หน้า 1/2 + ค้นหารหัสลูกค้า + สถานะ `|1`, `|-1`, `|2`;
+แถว zz ของผู้ใช้ทดสอบ (แลกแต้ม/คืนเงินร้านค้า) ใน grid ลูกค้า/แอดมินตรงกัน
+ปฏิเสธ: role 6 (ผู้ใช้ 5) `_point/grid` / `save_withdraw` = ว่าง, ลูกค้า 348 grid แอดมิน = ว่าง, `save_approved` = ErrorBox สิทธิ์ (ตรง byte); หน้า `/point` (role 6), `/admin/point`, `/admin/withdrawpoint` (ลูกค้า) = layout + ErrorBox ข้อความเดียวกัน (เดิมแสดงหัวหน้าก่อน ErrorBox — ข้อ jl)
+
+### E2E (เขียนเฉพาะฝั่ง Laravel — ผู้ใช้ทดสอบ zz_msg_cust (12286) ที่สร้างเอง + แอดมิน 11938, ลบตาม id แล้ว)
+
+- `_point/save_withdraw`: ยังไม่มี PIN → กล่องตั้ง PIN · ว่าง/`undefined` → กล่อง PIN callback `withdrawpointing()` ใน `.cashback_form` · ผิด → ErrorBox · แต้ม 0 / `0` / `0.00` / `abc` / เกินยอด / `1,000` (เกิน) → "แต้มไม่เพียงพอในการแลก" · `1,00` → ErrorBox ยอดกำกวม · `-10.5` ซ้อน 2 → สำเร็จ 1 + "กำลังดำเนินการ", ส่งซ้ำ → "ส่งซ้ำ" · `5` → สำเร็จ
+  แถวตรงกับ SQL เดิม: `point` (status 1, amount 10.50, date NOW, attachment/remark/approved_remark `''`, create_by = ผู้ใช้), `balance_point` (-10.50, `แลกแต้ม รายการแลกแต้ม WPOINT-254`, type 1, prefix 31, prefix_ref_id 254)
+- `_admin/_withdrawpoint/save_approved` ซ้อน 2 → `balance` แถวเดียว (+10.50 type 1 prefix 31 `แลกแต้ม รายการแลกแต้ม WPOINT-254`), `cancel` ซ้อน 2 → `balance_point` คืนแต้มแถวเดียว (`ยกเลิกรายการแลกแต้ม …`, cancel_remark `zz_no ,ยกเลิกโดย ZZFDN2`), ยกเลิกรายการที่อนุมัติแล้ว = ไม่ทำอะไร, อนุมัติรายการที่ยกเลิกแล้ว = ErrorBox, ลูกค้าเรียก = ErrorBox สิทธิ์
+- `_shop_cashback/save`: กล่อง PIN / PIN ผิด / ยอด -5 ปฏิเสธ / ส่งซ้อน 2 = 1 รายการ (`total` 1012.50, `1,000` → 1000.00, วันที่ `5 ตุลาคม 2026|14:05` → `2026-10-05 14:05:00`) · `save_remark` ของตัวเอง = แก้, ของคนอื่น = ไม่แก้
+- แอดมิน `save_approved` ซ้อน 2 → `balance_cn` แถวเดียว (type 9 prefix 28), `save_cancel` ซ้อน 2, `save_remark`, `save` (remark_admin) — อีเมล 2 ฉบับลง log mailer: From `PACK-Cargo <no-reply@pack-cargo.net>`, ปุ่ม `#eb4823`
+- ลบแล้ว: point 254–255, balance_point 12445–12447, 12450, balance 64832, shop_cashback 119, shop_cashback_detail 129–130, balance_cn 2208, ips 479–481, ผู้ใช้ 12286 (+ แถวของกลุ่ม balance — ดู balance.md)
+
+### bench (`bin/bench`, -n 20 -c 1, artisan optimize; เครื่อง load ~8–10)
+
+| หน้า | เดิม mean ms | ใหม่ mean ms |
+|---|---|---|
+| `/point` (ลูกค้า 348, หน้าเต็ม) | 449 | 62 |
+| `/_point/grid` (ลูกค้า 348, 1,297 แถว) | 266 | 163 |
+| `/_admin/_withdrawpoint/grid` | 61 | 37 |
+
+### ให้เจ้าของตัดสินใจ
+
+- การแลกแต้มของ PACK **เปิดอยู่** (ต่างจาก SR) — Laravel ทำตาม PACK (แลกได้จริง, แอดมินอนุมัติ = เติมเงินบาท)
+- `getupload_inline()` ของ PACK เป็นรุ่นเก่า (ไฟล์ PDF หลังอัปโหลดแสดงเป็นรูปเสีย, เลือกไฟล์เดิมซ้ำไม่ได้หลังกดลบ) — ทำตาม PACK; ถ้าต้องการพฤติกรรมที่แก้แล้วของ SR/jl ให้สั่ง
+
+---
+
 ## SR (2026-10-20)
 
 พอร์ตกลุ่ม points ให้ตรงกับเว็บเดิมของ SR บน branch `mod/points` (worktree `/home/admin/laravel/sr-wt/points`, port 8307) — โค้ดตั้งต้นคือที่ jl พอร์ตไว้ (รายงานเดิมด้านล่าง) คงทุกการแก้ช่องโหว่/การตัดสินใจของ jl:

@@ -1,7 +1,8 @@
-{{-- _admin/_tracking/grid.php เดิม (จำนวนหน้าโหลดแยกจาก load_paging) --}}
+{{-- _admin/_tracking/grid.php เดิม (PACK: จำนวนหน้าอยู่ท้ายตาราง ไม่มี load_paging / คอลัมน์ชั้นวาง / รหัสย่อย / ถ่ายรูป ของ SR) --}}
 @php
     use App\Domain\Tracking\Php74;
     use App\Support\Legacy\Alerts;
+    use App\Support\Legacy\Paging;
     use App\Support\Legacy\Status;
     $st = $s[1] ?? null;
 @endphp
@@ -45,7 +46,6 @@
                                 <th> <div class="text-center" >{!! res('customer_code') !!}</div></th>
                                 <th> <div class="text-center" >{!! res('calculate_price') !!}</div></th>
                                 <th style="min-width:150px;"> <div class="text-center" >{!! res('detail') !!}</div></th>
-                                <th> <div class="text-center" >{!! res('shelf_manage') !!}</div></th>
                                 <th style="width:100px;"> <div class="text-center" >{!! res('attachment') !!}</div></th>
                                 <th style="width:70px;"> <div class="text-center" >{!! res('invoice') !!}</div></th>
                                 <th class="text-center" style="width: 60px;">{!! res('action') !!}</th>
@@ -56,7 +56,6 @@
                     @forelse ($items as $item)
                         @php
                             $tid = (int) $item->id;
-                            $section = $sections[$tid] ?? null;
                         @endphp
                         <tr>
                             <td>
@@ -77,10 +76,10 @@
                                     <tr>
                                         <td class="text-right left">{!! res('lot_and_no') !!} : </td>
                                         <td style="padding-left:3px" class="text-left">
-                                            {!! Status::getShipType($item->ship) !!} <a href='{{ legacy_href() }}admin/lot/{{ $item->lot_real_id }}'>{{ $item->lot_name }}</a>/{{ $item->no }}
+                                            {!! Status::getShipType($item->ship) !!} <a href='{{ legacy_href() }}admin/lot/{{ $item->lot_id }}'>{{ $item->lot_name }}</a>/{{ $item->no }}
                                         </td>
                                     </tr>
-                                    @include('tracking.partials.flags', ['typeName' => $item->product_type_name, 'takeapic' => true])
+                                    @include('tracking.partials.flags', ['typeName' => $item->product_type_name])
                                     <tr>
                                         <td class="text-right left">{!! res('admin_remark') !!} : </td>
                                         <td style="padding-left:3px" class="text-left">
@@ -98,7 +97,7 @@
                                 </table>
                             </td>
                             <td style="vertical-align: top;text-align:center">
-                                <div style="padding: 0 10px 0 10px;">{{ $item->code }}<br/><span class="text-danger">{{ $item->subuser }}</span></div>
+                                <div style="padding: 0 10px 0 10px;">{{ $item->code }}</div>
                             </td>
                             <td>
 @include('tracking.partials.prices', ['admin' => true])
@@ -107,14 +106,6 @@
 
                             <td class="text-center boxcar-td" style="vertical-align: top;">
 @include('tracking.partials.dates', ['admin' => true])
-                            </td>
-
-                            <td class="text-center boxcar-td" style="vertical-align:top">
-                                @if (Php74::neq($item->payment_id, 0) || Php74::eq($item->payment_id, '-2') || Php74::eq($item->payment_id, '-3'))
-ตัดออกจากโกดังแล้ว<br/>{{ $section }}
-                                @else
-{{ Php74::eq($section, '') ? '-' : $section }}
-                                @endif
                             </td>
 
                             <td class="text-center boxcar-td" style="vertical-align:top">
@@ -150,8 +141,8 @@
                     @endforelse
                     </tbody>
                 </table>
-                <div class="pull-right" id="paging">
-                    กำลังจัดทำหน้า...
+                <div class="pull-right">
+                    {!! Paging::getpaging($page, $total, 10, $ajaxpage) !!}
                 </div>
             </div>
 		</div>
@@ -163,17 +154,6 @@
 <input type="hidden" id="txtSearch" value="{{ $txtsearch }}">
 
 <script>
-
-    $.ajax({
-                type: 'POST',
-                async: true,
-                data : 'txtsearch=' + $('#txtSearch').val() + '&page={!! Alerts::js(e($page)) !!}',
-                url: rooturl + '{{ $ajaxpage }}/../load_paging',
-                success: function(data) {
-                    $("#paging").html(data);
-                }
-            });
-    
 	function keypressInBox(e) {
 		GenerateWhere();
 	    var code = (e.keyCode ? e.keyCode : e.which);
