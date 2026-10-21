@@ -2,6 +2,7 @@
 
 namespace App\Domain\Lot;
 
+use App\Support\Legacy\Legacy;
 use App\Support\Legacy\Lookup;
 use Illuminate\Support\Facades\DB;
 
@@ -22,6 +23,18 @@ final class LotLookups
     public static function flush(): void
     {
         self::$prefix = [];
+    }
+
+    /** PACK: ผู้ใช้ที่แก้ล็อตได้ในหน้า (form.php / load_lot_detail.php / index.php เดิม: checkUser()['id'] == 5 ฮาร์ดโค้ด) */
+    public const EDITOR_USER_ID = 5;
+
+    /**
+     * PACK: เดิมฟอร์มเพิ่ม/แก้ tracking, ช่องแก้หัวล็อต, ปุ่มตั้งวันที่/พิมพ์, ช่องเลือก/แก้/ลบในตาราง และปุ่มสร้างล็อต แสดงเฉพาะ user id 5
+     * (เฉพาะหน้าจอ — endpoint เขียนยังตรวจสิทธิ์ admin_lot ตามเดิม)
+     */
+    public static function allowEdit(): bool
+    {
+        return (int) Legacy::userId() === self::EDITOR_USER_ID;
     }
 
     /** MakePaging() เดิม: LIMIT (10*page-10), 10 — ค่าติดลบ/ไม่ใช่จำนวนเต็ม = SQL error → ไม่มีแถว (null) */

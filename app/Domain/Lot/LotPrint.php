@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * หน้าพิมพ์ของล็อต: _admin/_lot/print.php, print_receive.php เดิม (SR ไม่มี print_all.php)
- * SR print.php: ไม่มีคอลัมน์ราคา/kg ราคา/คิว และเครื่องหมาย "ตรวจแล้ว" (SR ไม่มี tracking.is_checked)
+ * PACK print.php = jl: มีคอลัมน์ราคา/kg ราคา/คิว + ผลรวมราคาต่อลูกค้า แต่ไม่มีเครื่องหมาย "ตรวจแล้ว" (ไม่มี tracking.is_checked)
  * HTML สร้างแบบเดียวกับไฟล์เดิม (ต่อ string) แต่ค่าจาก DB ผ่าน e() — เดิม echo ดิบ
  * แถวลูก (header = id) เดิม query ทีละแถว → ดึงครั้งเดียว (LotLookups::childTrackings)
  */
@@ -141,7 +141,7 @@ final class LotPrint
 
 		<table class=" lot_table_cus" style="width:100%;margin-top:10px;">
 			<thead>
-				<th class="text-left" style="font-size:40px!important" colspan="5">'.$e($item->code).'</th>
+				<th class="text-left" style="font-size:40px!important" colspan="7">'.$e($item->code).'</th>
 				<th class="text-center" style="font-size:40px!important" colspan="3">'.$e($head).'</th>
 			</thead>
 			<thead>
@@ -153,6 +153,8 @@ final class LotPrint
 				<th class="text-center">'.self::r('weight').'</th>
 				<th class="text-center">'.self::r('cubic').'</th>
 				<th class="text-center">'.self::r('type').'</th>
+				<th class="text-center" >'.self::r('price_kg').'</th>
+				<th class="text-center" >'.self::r('price_cubic').'</th>
 			</thead>
 		';
             }
@@ -184,6 +186,8 @@ final class LotPrint
 		<td style="vertical-align:top" rowspan="'.$rs.'" class="text-right">'.Format::numberformatone(self::n($item->weight) * self::n($item->amount)).'</td>
 		<td style="vertical-align:top" rowspan="'.$rs.'" class="text-right">'.Format::cubicformat($cubic).'</td>
 		<td style="vertical-align:top" rowspan="'.$rs.'" class="text-center">'.$e($item->type_name).'</td>
+		<td style="vertical-align:top" rowspan="'.$rs.'" class="text-right">'.Format::numberformat($item->price_kg).'</td>
+		<td style="vertical-align:top" rowspan="'.$rs.'" class="text-right">'.Format::numberformat($item->price_cubic).'</td>
 	</tr>
 	';
             foreach ($children[(string) $item->id] ?? [] as $child) {
@@ -203,12 +207,14 @@ final class LotPrint
 				<th class="text-right">'.Format::numberformatone($t['weight']).'</th>
 				<th class="text-right">'.Format::cubicformat($t['cubic']).'</th>
 				<th ></th>
+				<th class="text-right">'.Format::numberformat($t['price_kg']).'</th>
+				<th class="text-right">'.Format::numberformat($t['price_cubic']).'</th>
 			</thead>
 			</table>
 		';
                 $html .= "<p style='page-break-before: always;'></p>";
                 $count = 0;
-                $t = self::zeroTotals();
+                $t = self::zeroTotals(0);
             }
         }
 
@@ -289,10 +295,10 @@ table { border-collapse: collapse; }
         return $str.'<script>window.print();</script>';
     }
 
-    /** ผลรวมต่อตารางลูกค้า (SR ไม่แสดงผลรวมราคา) */
-    private static function zeroTotals(): array
+    /** ผลรวมต่อตารางลูกค้า — ราคาเริ่ม null (ตัวแปรเดิมยังไม่กำหนด) ตารางแรก, 0 หลังรีเซ็ต */
+    private static function zeroTotals(mixed $price = null): array
     {
-        return ['amount' => 0, 'weight' => 0, 'cubic' => 0];
+        return ['amount' => 0, 'weight' => 0, 'cubic' => 0, 'price_kg' => $price, 'price_cubic' => $price];
     }
 
     private static function addTotals(array &$t, object $item, int|float $cubic): void
@@ -300,5 +306,7 @@ table { border-collapse: collapse; }
         $t['cubic'] = $t['cubic'] + $cubic;
         $t['amount'] = $t['amount'] + self::n($item->amount);
         $t['weight'] = $t['weight'] + (self::n($item->weight) * self::n($item->amount));
+        $t['price_kg'] = self::n($t['price_kg']) + self::n($item->price_kg);
+        $t['price_cubic'] = self::n($t['price_cubic']) + self::n($item->price_cubic);
     }
 }

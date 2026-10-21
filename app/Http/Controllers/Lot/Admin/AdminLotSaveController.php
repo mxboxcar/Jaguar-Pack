@@ -18,7 +18,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Log;
 
 /**
  * ajax ที่เขียนข้อมูลของแอดมินล็อต: _admin/_lot/save*.php, delete.php, cancel.php เดิม
@@ -44,9 +43,7 @@ class AdminLotSaveController extends Controller
         $isCraft = $this->in($request, 'is_craft');
         $isQc = $this->in($request, 'is_qc');
         $amount = $this->in($request, 'amount');
-        // SR: รหัสย่อย — เดิม nStr($_POST['subuser']) ซ้ำกับการแปลง ' ของ POST เดิม = ' ถูกเก็บเป็น '' ใน DB
-        $subuser = Format::nStr($this->in($request, 'subuser'));
-        // SR: รูปพัสดุ upload_upload_track_mul[] — เดิมทำเฉพาะเมื่อมีค่าส่งมา (ไม่ส่ง = ไม่แตะรูปเดิม); ชื่อไฟล์ต้องเป็นชื่อล้วน
+        // รูปพัสดุ upload_upload_track_mul[] — เดิมทำเฉพาะเมื่อมีค่าส่งมา (ไม่ส่ง = ไม่แตะรูปเดิม); ชื่อไฟล์ต้องเป็นชื่อล้วน
         $postedImages = LegacyInput::post($request, 'upload_upload_track_mul', null);
         $images = $postedImages === null || $postedImages === '' ? null : TempUpload::names($postedImages);
         // เดิม numberformat*(ค่า, false) ของตัวแปร PHP → string ตัวเลขที่ลง DB
@@ -78,7 +75,7 @@ class AdminLotSaveController extends Controller
             }
         }
 
-        $member = DB::table('user')->where('code', $code)->where('is_delete', 0)->first(['code', 'id', 'line_uid']);
+        $member = DB::table('user')->where('code', $code)->where('is_delete', 0)->first(['code', 'id']);
         $lot = DB::table('lot')->where('id', $lotId)->first(['id', 'type']);
         if ($member === null) {
             return response(Alerts::error('LoadDetail();', Lang::get('no_user')));
@@ -91,7 +88,7 @@ class AdminLotSaveController extends Controller
             'long' => $num['long'], 'no' => $no, 'is_craft' => $isCraft,
             'price_qc' => $num['price_qc'], 'price_repack' => $num['price_repack'], 'price_express' => $num['price_express'],
             'price_else' => $num['price_else'], 'remark' => $remark, 'price_craft' => $num['price_craft'],
-            'product_type_id' => $productTypeId, 'subuser' => $subuser,
+            'product_type_id' => $productTypeId,
         ];
 
         $js = '';
@@ -124,10 +121,8 @@ class AdminLotSaveController extends Controller
                     'is_craft' => $fields['is_craft'], 'quote' => '', 'price_qc' => $fields['price_qc'], 'price_repack' => $fields['price_repack'],
                     'price_express' => $fields['price_express'], 'price_else' => $fields['price_else'], 'price_craft' => $fields['price_craft'],
                     'remark' => $fields['remark'], 'date_warehouse' => DB::raw('NOW()'), 'is_qc' => $fields['is_qc'],
-                    'subuser' => $fields['subuser'],
                 ]);
-                // SR เดิมผูกรูปกับ $tracking_id ที่ว่างในกรณีเพิ่มใหม่ (= tracking_id 0: รูปหลุดเจ้าของ + ลบรูปกำพร้าทั้งหมด)
-                // → ผูกกับ tracking ที่เพิ่งสร้าง (ดู docs/modules/lot.md)
+                // PACK: รูปผูกกับ tracking ที่เพิ่งสร้าง ($id — SR เดิมใช้ $tracking_id ที่ว่าง)
                 if ($images !== null) {
                     $js = self::syncImages($id, $images, $uid);
                 }
@@ -144,15 +139,12 @@ class AdminLotSaveController extends Controller
             }
         });
 
-        // sendLine() / sendLineImage() เดิมเป็นฟังก์ชันว่าง (โค้ดถูก comment ทั้งหมด) → ไม่ส่ง LINE
-        Log::info('lot save: LINE notify skipped (legacy sendLine is a no-op)', ['tracking' => $tracking, 'line_uid_set' => (string) $member->line_uid !== '']);
-
-        // SR: ตอบ JS ย้ายรูปขึ้น storage (ถ้ามี) แล้ว reload หน้า (jl: SuccessBox + LoadDetail())
-        return response($js.'window.location.reload();');
+        // PACK: ตอบ JS ย้ายรูปขึ้น storage (ถ้ามี — echo ก่อน getSuccess เดิม) + SuccessBox แล้ว LoadDetail() (แบบ jl; SR = reload หน้า)
+        return response($js.Alerts::success('CloseLoading();LoadDetail();', Lang::get('success_process_no').Alerts::js($tracking)));
     }
 
     /**
-     * SR: รูปพัสดุของ tracking — ลบ (is_delete = 1) ของเดิมทั้งหมดแล้วเพิ่มตามรายการที่ส่งมา (save.php / save_quickfile.php เดิม)
+     * รูปพัสดุของ tracking — ลบ (is_delete = 1) ของเดิมทั้งหมดแล้วเพิ่มตามรายการที่ส่งมา (save.php / save_quickfile.php เดิม)
      * ไฟล์ที่อยู่ใน upload/temp ได้ JS เรียก _api/blockblob_ajax ย้ายขึ้น storage แบบเดิม (App\Domain\Tracking\TempUpload)
      *
      * @param  list<string>  $images
@@ -174,7 +166,7 @@ class AdminLotSaveController extends Controller
         return $js;
     }
 
-    /** POST /_admin/_lot/save_quickfile — SR: บันทึกรูปพัสดุจาก modal แนบด่วน → JSON [JS ย้ายรูป, HTML รูปเล็ก] */
+    /** POST /_admin/_lot/save_quickfile — บันทึกรูปพัสดุจาก modal แนบด่วน → JSON [JS ย้ายรูป, HTML รูปเล็ก] (สิทธิ์ admin_lot) */
     public function saveQuickfile(Request $request): Response
     {
         $id = $this->in($request, 'id');

@@ -6,10 +6,8 @@ use App\Domain\Lot\LotLookups;
 use App\Domain\Lot\Php74;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Lot\Concerns\ReadsLegacyInput;
-use App\Support\Legacy\Format;
 use App\Support\Legacy\LegacyInput;
 use App\Support\Legacy\Pricing;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +26,8 @@ class AdminLotController extends Controller
     /** GET /admin/lot — _admin/_lot/index.php */
     public function index(Request $request): View
     {
-        return view('lot.admin.index', ['status' => (string) LegacyInput::query($request, 'status')]);
+        // PACK: ปุ่ม "เพิ่มรายการใหม่" (สร้างล็อต) แสดงเฉพาะ user id 5 (checkUser()['id'] == 5 เดิม)
+        return view('lot.admin.index', ['status' => (string) LegacyInput::query($request, 'status'), 'allowEdit' => LotLookups::allowEdit()]);
     }
 
     /** GET /admin/lot/create, /admin/lot/{id} — _admin/_lot/form.php */
@@ -45,6 +44,8 @@ class AdminLotController extends Controller
             'nextNo' => Php74::num($lastNo) + 1,
             // เดิม: $permission_lot_view = true เมื่อมี admin_lot_view (แม้มี admin_lot ด้วย) → ซ่อนช่องราคา
             'lotView' => perm('admin_lot_view'),
+            // PACK: ฟอร์มเพิ่ม/แก้ tracking, ช่องแก้หัวล็อต, ปุ่มตั้งวันที่/พิมพ์ เฉพาะ user id 5 (คนอื่นเห็นหัวล็อตแบบอ่านอย่างเดียว)
+            'allowEdit' => LotLookups::allowEdit(),
         ]);
     }
 
@@ -105,10 +106,11 @@ class AdminLotController extends Controller
     }
 
     /**
-     * tracking ระดับบนของล็อต (ไม่ใช่แถวลูก craft) + ค้นหา รหัสลูกค้า/เลขพัสดุ — load_lot_detail.php / load_toptable.php เดิม
-     * (GROUP BY tracking.id แบบเดิม — sql_mode ว่าง: เลือก bill_product_id แถวแรก)
+     * POST /_admin/_lot/load_lot_detail — _admin/_lot/load_lot_detail.php
+     * PACK = แม่แบบ jl: ทั้งตารางในคำขอเดียว (ช่องค้นหา + หัว/ท้ายตาราง + ผลรวม hidden) — tracking ระดับบนของล็อต (ไม่ใช่แถวลูก craft)
+     * + ค้นหา รหัสลูกค้า/เลขพัสดุ (GROUP BY tracking.id แบบเดิม — sql_mode ว่าง: เลือก bill_product_id แถวแรก)
      */
-    private function lotTrackings(Request $request): Builder
+    public function loadLotDetail(Request $request): Response
     {
         $search = $this->php($request, 'search') === 'undefined' ? '' : $this->in($request, 'search');
         $q = DB::table('tracking')
@@ -122,81 +124,27 @@ class AdminLotController extends Controller
         if ($search !== '') {
             $q->where(fn ($w) => $w->where('user.code', $search)->orWhere('tracking.tracking', $search));
         }
+        $rows = $q->groupBy('tracking.id')->orderByDesc('tracking.no')
+            ->get(['tracking.*', 'user.code', 'product_type.name as type_name', 't2.bill_product_id']);
 
-        return $q->groupBy('tracking.id')->orderByDesc('tracking.no');
-    }
-
-    /**
-     * POST /_admin/_lot/load_lot_detail — _admin/_lot/load_lot_detail.php
-     * SR: ทีละ 10 แถว (LIMIT page*10, 10) แล้วตอบ script เรียกหน้าถัดไปเอง จนหมดจึงเรียก loadendtable() (= load_toptable)
-     * หัวตาราง/ช่องค้นหาอยู่ใน form.php แล้ว ไฟล์นี้ตอบเฉพาะแถว
-     */
-    public function loadLotDetail(Request $request): Response
-    {
-        $page = Php74::num($this->php($request, 'page'));
-        $start = $page * 10;
-        $rows = collect();
-        // เดิม LIMIT ติดลบ/ทศนิยม = SQL error → ไม่มีแถว (ไปจบที่ loadendtable แบบเดียวกับหน้าสุดท้าย)
-        if ($start >= 0 && floor($start) == $start) {
-            $rows = $this->lotTrackings($request)->offset((int) $start)->limit(10)
-                ->get(['tracking.*', 'user.code', 'product_type.name as type_name', 't2.bill_product_id']);
-        }
-
-        // SR: รูปพัสดุต่อแถว — เดิม JS loadImage() ยิง load_image ทีละ tracking (N ajax ต่อหน้า) → ใส่มาพร้อมแถว
-        // (div.img_track ที่มีเนื้อหาแล้ว JS เดิมจะข้าม) ดู docs/modules/lot.md
-        $images = LotLookups::trackingImages($rows->pluck('id')->all());
+        // รูปพัสดุต่อแถว: เดิม JS loadImage() ยิง load_image ทีละ tracking (N ajax ต่อหน้า) → ใส่มาพร้อมแถวใน query เดียว
+        // (div.img_track ที่มีเนื้อหาแล้ว JS เดิมจะข้าม) — load_image ของ PACK ต้องมี admin_lot จึงใส่ให้เฉพาะผู้ถือ admin_lot
+        $prefill = perm('admin_lot');
 
         return response(view('lot.admin.detail', [
             'rows' => $rows,
-            'images' => $images,
-            'next' => Php74::str($page + 1),
+            'images' => $prefill ? LotLookups::trackingImages($rows->pluck('id')->all()) : [],
+            'prefill' => $prefill,
+            // ค่าในช่องค้นหา = ตัวแปร PHP เดิม (' เป็น '')
+            'search' => $this->php($request, 'search') === 'undefined' ? '' : $this->php($request, 'search'),
             'orderPrefix' => LotLookups::prefix('order'),
+            'allowEdit' => LotLookups::allowEdit(),
+            // เดิม if(!getPermission('admin_lot_view')) รอบคอลัมน์ราคา kg/คิว (ผู้ถือ admin_lot_view ไม่เห็น แม้มี admin_lot)
+            'lotView' => perm('admin_lot_view'),
         ])->render());
     }
 
-    /** POST /_admin/_lot/load_toptable — SR: ผลรวมของทั้งล็อต (hidden input ให้ makeTopBottom() รวม) */
-    public function loadToptable(Request $request): Response
-    {
-        $n = fn ($v) => Php74::num($v);
-        $s = array_fill_keys(['amount', 'weight', 'cubic', 'kg', 'pcubic', 'width', 'height', 'long', 'qc', 'repack', 'express', 'else', 'craft'], null);
-        $rows = $this->lotTrackings($request)
-            ->get(['tracking.amount', 'tracking.weight', 'tracking.width', 'tracking.height', 'tracking.long', 'tracking.price_kg', 'tracking.price_cubic',
-                'tracking.price_qc', 'tracking.price_repack', 'tracking.price_express', 'tracking.price_else', 'tracking.price_craft']);
-        foreach ($rows as $it) {
-            $s['amount'] = $n($s['amount']) + $n($it->amount);
-            $s['weight'] = $n($s['weight']) + ($n($it->weight) * $n($it->amount));
-            $s['cubic'] = $n($s['cubic']) + ((($n($it->width) * $n($it->height) * $n($it->long)) / 1000000) * $n($it->amount));
-            $s['kg'] = $n($s['kg']) + $n($it->price_kg);
-            $s['pcubic'] = $n($s['pcubic']) + $n($it->price_cubic);
-            $s['width'] = $n($s['width']) + $n($it->width);
-            $s['height'] = $n($s['height']) + $n($it->height);
-            $s['long'] = $n($s['long']) + $n($it->long);
-            $s['qc'] = $n($s['qc']) + $n($it->price_qc);
-            $s['repack'] = $n($s['repack']) + $n($it->price_repack);
-            $s['express'] = $n($s['express']) + $n($it->price_express);
-            $s['else'] = $n($s['else']) + $n($it->price_else);
-            $s['craft'] = $n($s['craft']) + $n($it->price_craft);
-        }
-        $h = fn (string $cls, string $v) => '<input type="hidden" class="hid_sum_'.$cls.'" value="'.$v.'" />';
-
-        return response(
-            $h('amount', Format::numberformatzero($s['amount'], false))
-            .$h('weight', Format::numberformatone($s['weight'], false))
-            .$h('cubic', Format::cubicformat($s['cubic'], false))
-            .$h('kg', Format::numberformat($s['kg'], false, false))
-            .$h('pcubic', Format::numberformat($s['pcubic'], false, false))
-            .$h('width', Format::numberformatone($s['width'], false))
-            .$h('height', Format::numberformatone($s['height'], false))
-            .$h('long', Format::numberformatone($s['long'], false))
-            .$h('qc', Format::numberformat($s['qc'], false, false))
-            .$h('repack', Format::numberformat($s['repack'], false, false))
-            .$h('express', Format::numberformat($s['express'], false, false))
-            .$h('else', Format::numberformat($s['else'], false, false))
-            .$h('craft', Format::numberformat($s['craft'], false, false))
-        );
-    }
-
-    /** POST /_admin/_lot/load_image — SR: รูปพัสดุเล็กๆ ข้างเลข tracking (คงไว้ให้ JS เดิม; แถวใหม่มีรูปมาแล้ว) */
+    /** POST /_admin/_lot/load_image — รูปพัสดุเล็กๆ ข้างเลข tracking (คงไว้ให้ JS เดิม; แถวจาก load_lot_detail มีรูปมาแล้ว) — PACK: สิทธิ์ admin_lot */
     public function loadImage(Request $request): Response
     {
         $id = $this->in($request, 'id');
@@ -205,7 +153,7 @@ class AdminLotController extends Controller
         return response(view('lot.admin.img_track', ['list' => $list])->render());
     }
 
-    /** POST /_admin/_lot/load_quickfile — SR: กล่องแนบรูปพัสดุ (modal) ของ tracking หนึ่งรายการ */
+    /** POST /_admin/_lot/load_quickfile — กล่องแนบรูปพัสดุ (modal) ของ tracking หนึ่งรายการ — PACK: สิทธิ์ admin_lot */
     public function loadQuickfile(Request $request): Response
     {
         $id = $this->in($request, 'id');
@@ -216,7 +164,7 @@ class AdminLotController extends Controller
         return response(view('lot.admin.quickfile', ['data' => $data, 'list' => $list])->render());
     }
 
-    /** POST /_admin/_lot/load_unpaid — SR: รายการลูกค้าค้างจ่ายในล็อต (SQL เดิม — ค่าที่ฝังเปลี่ยนเป็น placeholder) */
+    /** POST /_admin/_lot/load_unpaid — รายการลูกค้าค้างจ่ายในล็อต (SQL เดิม — ค่าที่ฝังเปลี่ยนเป็น placeholder) */
     public function loadUnpaid(Request $request): Response
     {
         $id = $this->in($request, 'id');
@@ -340,8 +288,8 @@ class AdminLotController extends Controller
         $id = $this->in($request, 'id');
         $lots = DB::table('lot')
             ->where(fn ($w) => $w->where('id', $id)->orWhere('name', 'like', '%'.addcslashes($this->in($request, 'search'), '%_\\').'%'))
-            // SR: ไม่มี LIMIT 10 (jl มี) — แสดงทุกล็อตที่ตรง
-            ->where('is_delete', 0)->orderByDesc('id')->get(['id', 'type', 'name']);
+            // PACK = jl: LIMIT 10 (SR ไม่มี)
+            ->where('is_delete', 0)->orderByDesc('id')->limit(10)->get(['id', 'type', 'name']);
 
         return response(view('lot.admin.ref_print', ['lots' => $lots, 'id' => $this->php($request, 'id')])->render());
     }

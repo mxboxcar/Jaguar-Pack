@@ -14,9 +14,9 @@ use Illuminate\Support\Facades\Mail;
  *
  * - อีเมล: เดิม sendmail() ผ่าน Mailgun → ที่นี่ Mail ของ Laravel (dev: MAIL_MAILER=log = ไม่ส่งจริง), ห่อ try/catch เงียบแบบเดิม
  * - LINE: เดิม sendLine() เป็นฟังก์ชันว่าง → ไม่ส่ง (log จำนวนตัวอักษรไว้ตรวจเท่านั้น)
- * - email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → SR: config('legacy.mail') (header/center/footer + ผู้ส่ง
- *   SRShippingSystem <no-reply@srshippingsystem.com> ของ sendmail() เดิม — ใช้ร่วมกับกลุ่ม users)
- * - send_a_lot_mail() (SR system_config.php, SendGrid) ไม่มีใครเรียก — email.php ใช้ sendmail() → ไม่พอร์ต
+ * - email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → config('legacy.mail') (header/center/footer + ผู้ส่ง
+ *   ของ sendmail() เดิม ตามแบรนด์ของเว็บ — ฐานร่วม ใช้ร่วมกับทุกกลุ่ม)
+ * - send_a_lot_mail() (SR/PACK system_config.php, SendGrid) ไม่มีใครเรียก — email.php ใช้ sendmail() → ไม่พอร์ต
  */
 final class LotMailer
 {
@@ -101,8 +101,8 @@ final class LotMailer
     }
 
     /**
-     * email.php เดิม (SR): คอลัมน์ china_order_number ไม่มีในตาราง tracking → ช่อง "เลขที่ใบสั่งซื้อ" ได้ "-" เสมอ
-     * ช่อง "วลีช่วยจำ" = tracking.quote (jl: เช็ค order_id ที่ไม่มี → "-"), ปุ่มดูรายละเอียดสี #a3b2f1
+     * email.php เดิม (PACK): คอลัมน์ china_order_number / order_id ไม่มีในตาราง tracking → ช่อง "เลขที่ใบสั่งซื้อ" และ "วลีช่วยจำ" ได้ "-" เสมอ
+     * (แบบ jl — SR แสดง tracking.quote), ปุ่มดูรายละเอียดสี #eb4823 padding ขวา 0
      */
     private static function sendMail(int $lotId, int $userId, string $to, $items): void
     {
@@ -120,14 +120,14 @@ final class LotMailer
                 .e((string) $it->lot_name).'/'.e((string) $it->no)
                 .$t("</td>\n\t\t<td style=\"border:1px #ccc solid;padding:3px\">").e((string) $it->tracking).$t("</td>\n\t\t")
                 .'<td style="border:1px #ccc solid;padding:3px">-</td>'
-                .'<td style="border:1px #ccc solid;padding:3px">'.e((string) $it->quote).'</td>'
+                .'<td style="border:1px #ccc solid;padding:3px">-</td>'
                 .$t("\n\t\t<td style=\"border:1px #ccc solid;padding:3px;text-align:right\">").Format::numberformatone($it->weight)
                 .$t("</td>\n\t\t<td style=\"border:1px #ccc solid;padding:3px;text-align:right\">").Format::cubicformat(($n($it->long) * $n($it->width) * $n($it->height)) / 1000000)
                 .$t("</td>\n\t\t<td style=\"border:1px #ccc solid;padding:3px;text-align:center\">").Status::getlotstatus($it->status).$t("</td>\n\t</tr>\n\t");
         }
         $link = Legacy::href('payment/create');
         $body .= $t("\n</tbody>\n</table>\n\n\n<div style=\"height:20px\"></div>\n"
-            ."<p style=\"width:200px;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 25px 10px 0px;\" >\n"
+            ."<p style=\"width:200px;text-align:center;font-size:15px;background-color:#eb4823;padding:10px 25px 10px 0px;\" >\n"
             .'<a style="color:#ffffff;text-decoration:none" href="').$link.$t("\" >ดูรายละเอียด</a></p>\n");
         $html = config('legacy.mail.header').'<strong>'.$subject.'</strong>'.config('legacy.mail.center').$body.config('legacy.mail.footer');
 

@@ -1,4 +1,4 @@
-{{-- _admin/_lot/index.php เดิม (สิทธิ์ admin_lot / admin_lot_view ตรวจที่ middleware legacy.perm) --}}
+{{-- _admin/_lot/index.php เดิม (สิทธิ์ admin_lot / admin_lot_view ตรวจที่ middleware legacy.perm; PACK: ปุ่มสร้างล็อตเฉพาะ user 5) --}}
 @extends('legacy.layout')
 
 @section('content')
@@ -13,6 +13,8 @@
 		</li>
 	</ol>
 </div>
+{{-- PACK: ปุ่มสร้างล็อตแสดงเฉพาะ user id 5 (checkUser()['id'] == 5 เดิม) --}}
+@if ($allowEdit)
 <div class="col-sm-5 pull-right">
 	<div class="button-list">
 	    <a type="button" href="#" onclick="$('#lot_create .modal').modal('show');return false;" class="pull-right btn btn-info waves-effect waves-light">
@@ -21,6 +23,7 @@
 	    </a>
 	</div>
 </div>
+@endif
 
 <div id="gridAjax" class="col-sm-12"></div>
 
