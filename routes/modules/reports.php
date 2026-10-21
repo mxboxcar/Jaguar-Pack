@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Reports\Admin\AdminExportController;
 use App\Http\Controllers\Reports\Admin\AdminLogController;
-use App\Http\Controllers\Reports\Admin\AdminNobillingController;
 use App\Http\Controllers\Reports\Admin\AdminReportController;
 use App\Http\Controllers\Reports\DashboardController;
 use App\Http\Controllers\Reports\DownloadFileController;
@@ -10,7 +9,7 @@ use App\Http\Controllers\Reports\ExportController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| กลุ่ม: reports — _dashboard, _export, _admin/_export, _admin/_report, _admin/_log, _admin/_nobilling, download_file.php
+| กลุ่ม: reports — _dashboard, _export, _admin/_export, _admin/_report, _admin/_log, download_file.php (PACK: _admin/_nobilling = dead)
 | ดูรายการ URL/ไฟล์เดิมใน docs/url-map.md และรายงานใน docs/modules/reports.md
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 |
@@ -86,10 +85,8 @@ Route::get('/admin/log', [AdminLogController::class, 'index'])->middleware('lega
 // grid.php เดิมตรวจ getPermission('admin_balance') แล้ว exit() (ตอบว่าง) → ตรวจใน controller
 Route::post('/_admin/_log/grid', [AdminLogController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 
-// ---------- แอดมิน: ยังไม่ชำระเกิน 15 วัน ----------
-// เดิมไม่มี RewriteRule (เปิดได้ด้วย ?page=admin_nobilling; ลิงก์ admin/nobilling ใน notification.php เดิมเป็น 404) → ให้ URL นี้
-Route::get('/admin/nobilling', [AdminNobillingController::class, 'index'])->middleware('legacy.perm:admin_nobilling')
-    ->defaults('legacy_page', 'admin_nobilling')->name('page.admin_nobilling');
+// ---------- แอดมิน: ยังไม่ชำระเกิน 15 วัน (_admin/_nobilling/index.php) ----------
+// PACK: dead — content.php ไม่มี case 'admin_nobilling' (RewriteRule admin/nobilling → หน้า layout ว่าง) และไม่มีไฟล์ไหนลิงก์/include → ไม่มี route
 
 // ---------- download_file.php (ลิงก์ไฟล์แนบในหน้า admin lot) — PACK hotfix: พนักงานที่ล็อกอิน (role ไม่ใช่ 0/2/8) ตรวจใน controller ----------
 Route::get('/download_file', DownloadFileController::class)->middleware('legacy.auth');

@@ -48,16 +48,17 @@ class ReportsRoutesTest extends TestCase
         'GET _admin/_report/current_cash_cn' => 'legacy.auth',
         'GET admin/log' => 'legacy.perm:admin_log',
         'POST _admin/_log/grid' => 'legacy.auth',
-        'GET admin/nobilling' => 'legacy.perm:admin_nobilling',
         // PACK hotfix: พนักงาน (role ไม่ใช่ 0/2/8) ตรวจใน controller
         'GET download_file' => 'legacy.auth',
     ];
 
-    /** SR-only (ใบเสร็จ/ภาษีขาย bill_payment.receipt_*) — PACK ไม่มีไฟล์เหล่านี้ */
+    /** SR-only (ใบเสร็จ/ภาษีขาย bill_payment.receipt_*) — PACK ไม่มีไฟล์เหล่านี้ / หน้าที่ PACK เปิดไม่ได้ */
     private const REMOVED = [
         'GET _admin/_export/printprice', 'GET _admin/_export/print_receipt', 'GET _admin/_report/printtax',
         'GET admin/export/receipt/{id}', 'POST _admin/_export/receipt_1', 'POST _admin/_export/receipt_2',
         'POST _admin/_export/calvat', 'POST _admin/_export/save_receipt',
+        // PACK content.php ไม่มี page admin_nobilling
+        'GET admin/nobilling',
     ];
 
     /** @return array<string, list<string>> */
@@ -92,6 +93,7 @@ class ReportsRoutesTest extends TestCase
             $this->assertArrayNotHasKey($key, $routes, "PACK ไม่มี $key");
         }
         $this->assertFalse(Route::has('page.admin_export_receipt'));
+        $this->assertFalse(Route::has('page.admin_nobilling'));
     }
 
     public function test_ajax_endpoints_require_xhr_like_system_check_ajax(): void
@@ -107,7 +109,7 @@ class ReportsRoutesTest extends TestCase
     public function test_pages_are_named_for_the_page_query_hook(): void
     {
         foreach (['dashboard', 'export', 'export_detail', 'admin_export', 'admin_export_detail', 'admin_report',
-            'admin_report_detail', 'admin_log', 'admin_nobilling'] as $page) {
+            'admin_report_detail', 'admin_log'] as $page) {
             $this->assertTrue(Route::has('page.'.$page), "page.$page");
             $this->assertSame($page, Route::getRoutes()->getByName('page.'.$page)->defaults['legacy_page']);
         }
