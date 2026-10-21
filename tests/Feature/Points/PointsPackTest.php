@@ -13,12 +13,12 @@ use Tests\Concerns\FakeLegacyUser;
 use Tests\TestCase;
 
 /**
- * กลุ่ม points ของ SR (2026-10-20) — ไม่แตะ DB จริง (DB ปลอม: ถ้ามีคำสั่งอื่นนอกจาก ips = test ล้ม)
- * - _point/save_withdraw.php ของ SR: ตรวจ PIN แล้วตอบ 'ยังไม่เปิดบริการให้แลก' เสมอ (ไม่เขียน point / balance_point)
- * - _shop_cashback/save.php ของ SR: ถาม PIN จ่ายเงินก่อนบันทึก
- * - _admin/_shop_cashback/email_*.php: SR hotfix 2026-10-18 = include เท่านั้น เปิดตรง 403
+ * กลุ่ม points ของ PACK (2026-10-22) — ไม่แตะ DB จริง (DB ปลอม: ถ้ามีคำสั่งอื่นนอกจาก ips = test ล้ม)
+ * - _point/save_withdraw.php ของ PACK (= jl): ตรวจ PIN แล้วแลกแต้มจริง (SR ตอบ 'ยังไม่เปิดบริการให้แลก' เสมอ)
+ * - _shop_cashback/save.php (= SR): ถาม PIN จ่ายเงินก่อนบันทึก
+ * - _admin/_shop_cashback/email_*.php: hotfix 2026-10-18 = include เท่านั้น เปิดตรง 403; ปุ่มสี #eb4823 ของ PACK
  */
-class PointsSrTest extends TestCase
+class PointsPackTest extends TestCase
 {
     use FakeLegacyUser;
 
@@ -39,13 +39,21 @@ class PointsSrTest extends TestCase
         return (string) app(PointController::class)->saveWithdraw($req)->getContent();
     }
 
-    public function test_withdraw_with_correct_pin_is_not_open_and_writes_nothing(): void
+    public function test_withdraw_with_correct_pin_goes_on_to_the_exchange(): void
     {
-        DB::shouldReceive('transaction')->never();
-        $this->assertSame("ErrorBox('ยังไม่เปิดบริการให้แลก', 'CloseLoading()');", $this->withdraw(['paymentpin' => '123456']));
+        // PACK: PIN ถูก → ตรวจยอด/INSERT ใน transaction (ปลอมให้คืน null = แต้มไม่พอ)
+        DB::shouldReceive('transaction')->once()->andReturn(null);
+        $this->assertSame("ErrorBox('".\App\Support\Legacy\Lang::get('error_point')."', 'CloseLoading()'); ", $this->withdraw(['paymentpin' => '123456']));
+        $this->assertStringNotContainsString('ยังไม่เปิดบริการให้แลก', (string) file_get_contents(app_path('Http/Controllers/Points/PointController.php')));
     }
 
-    public function test_withdraw_asks_for_pin_with_sr_callback(): void
+    public function test_withdraw_rejects_ambiguous_comma_before_the_transaction(): void
+    {
+        DB::shouldReceive('transaction')->never();
+        $this->assertSame("ErrorBox('".\App\Domain\Money\Money::BAD_AMOUNT."', 'CloseLoading()');", $this->withdraw(['paymentpin' => '123456', 'wantcash' => '1,00']));
+    }
+
+    public function test_withdraw_asks_for_pin_with_withdrawpointing_callback(): void
     {
         foreach (['', 'undefined'] as $pin) {
             $out = $this->withdraw(['paymentpin' => $pin]);
@@ -89,20 +97,24 @@ class PointsSrTest extends TestCase
         }
     }
 
-    public function test_cashback_mail_button_is_sr_style(): void
+    public function test_cashback_mail_button_is_pack_style(): void
     {
         $m = new \ReflectionMethod(CashbackMailer::class, 'button');
         $html = $m->invoke(null, 'https://x/shop_cashback/1');
-        $this->assertStringContainsString('width:100%;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 0px;', $html);
+        $this->assertStringContainsString('width:100%;text-align:center;font-size:15px;background-color:#eb4823;padding:10px 0px;', $html);
         $this->assertStringNotContainsString('_blank', $html);
+        $this->assertStringNotContainsString('a3b2f1', $html);
         $this->assertStringNotContainsString('991b1e', $html);
+        // PACK ไม่มี sendLine / push_notification และไม่เลือก line_uid
+        $src = (string) file_get_contents(app_path('Domain/Points/CashbackMailer.php'));
+        $this->assertStringNotContainsString('line_uid', $src);
     }
 
-    public function test_point_page_js_is_sr(): void
+    public function test_point_page_js_is_pack(): void
     {
         $blade = file_get_contents(resource_path('views/points/point/index.blade.php'));
-        $this->assertStringNotContainsString('function withdrawpointing', $blade, 'SR ไม่มี withdrawpointing() ในหน้า');
-        $this->assertStringNotContainsString('&paymentpin=', $blade);
-        $this->assertStringContainsString("data : 'wantcash=' + \$(\"#wantcash\").val(),\n\t        url: rooturl + '_point/save_withdraw'", $blade);
+        $this->assertStringContainsString('function withdrawpointing()', $blade, 'PACK (= jl) มี withdrawpointing() ให้กล่อง PIN');
+        $this->assertStringContainsString("data : 'wantcash=' + \$(\"#wantcash\").val() + '&paymentpin=' + \$(\"input[name='paymentpin']\").val() ,", $blade);
+        $this->assertStringContainsString("ErrorBox('กรุณากรอกจำนวน');", $blade);
     }
 }
