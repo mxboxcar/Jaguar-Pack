@@ -11,7 +11,7 @@ use Tests\Feature\Money\BenchDbTestCase;
 
 /**
  * SR: ใบเสร็จ (save_receipt + เลขรัน running) และการหักแต้ม calPoint('-') ตอนยกเลิกบิลส่งสินค้า
- * รันกับ admin_sr_bench ใน transaction ที่ rollback (opt-in JL_BENCH_DB_TESTS=1)
+ * รันกับ admin_pack_bench ใน transaction ที่ rollback (opt-in JL_BENCH_DB_TESTS=1)
  */
 class ReportsSrDbTest extends BenchDbTestCase
 {

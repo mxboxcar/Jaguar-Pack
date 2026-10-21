@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Money\BenchDbTestCase;
 
 /**
- * กลุ่ม shop ของ SR กับ admin_sr_bench จริง (opt-in JL_BENCH_DB_TESTS=1, ทุกอย่าง rollback)
+ * กลุ่ม shop ของ SR กับ admin_pack_bench จริง (opt-in JL_BENCH_DB_TESTS=1, ทุกอย่าง rollback)
  *   - บริการถ่ายรูป (cart_detail.is_takeapic → bill_product_detail / tracking) และ save_takeapic
  *   - save_checkout: รายการที่ไม่มีลิงก์ไม่ลง bill_product_detail (แต่ยังนับในยอดรวม) — SR
  *   - _taobao/save: ต้องยืนยัน PIN, ราคา 0 = "กรุณาใส่ราคา"

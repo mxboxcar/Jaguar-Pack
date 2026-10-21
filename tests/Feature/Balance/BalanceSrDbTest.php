@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Money\BenchDbTestCase;
 
 /**
- * กลุ่ม balance ของ SR บน admin_sr_bench (transaction ที่ rollback, opt-in JL_BENCH_DB_TESTS=1)
+ * กลุ่ม balance ของ SR บน admin_pack_bench (transaction ที่ rollback, opt-in JL_BENCH_DB_TESTS=1)
  */
 class BalanceSrDbTest extends BenchDbTestCase
 {

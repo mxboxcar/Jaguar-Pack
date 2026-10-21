@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Money\BenchDbTestCase;
 
 /**
- * พฤติกรรมเฉพาะ SR ของกลุ่ม payment (รันกับ admin_sr_bench ใน transaction ที่ rollback — opt-in JL_BENCH_DB_TESTS=1)
+ * พฤติกรรมเฉพาะ SR ของกลุ่ม payment (รันกับ admin_pack_bench ใน transaction ที่ rollback — opt-in JL_BENCH_DB_TESTS=1)
  * ค่าที่คาดหวังได้จากการอ่านไฟล์เดิมของ SR (/home/admin/bench/sr-prehotfix) — ดู docs/modules/payment.md "SR (2026-10-20)"
  */
 class PaymentSrDbTest extends BenchDbTestCase

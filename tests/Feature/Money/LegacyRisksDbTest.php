@@ -24,7 +24,7 @@ class LegacyRisksDbTest extends BenchDbTestCase
     /** SR: _shop_cashback/save ถาม PIN จ่ายเงินก่อน — ตั้ง PIN ให้ลูกค้าทดสอบภายใน transaction ที่ rollback */
     private const PIN = '135790';
 
-    /** shipping_type ใน admin_sr_bench: 43 = รับสินค้าเองที่โกดัง (ไม่มีค่าส่ง), 14 = นิวมงเซ้ง (storage 50 + shipping 100) */
+    /** shipping_type ใน admin_pack_bench: 43 = รับสินค้าเองที่โกดัง (ไม่มีค่าส่ง), 14 = นิวมงเซ้ง (storage 50 + shipping 100) */
     private const SHIP_FREE = 43;
 
     private const SHIP_150 = 14;

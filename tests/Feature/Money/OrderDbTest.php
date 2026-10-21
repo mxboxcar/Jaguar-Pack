@@ -8,7 +8,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
- * order / taobao (รายงานข้อ 14) — รันกับ admin_sr_bench ใน transaction ที่ rollback (opt-in JL_BENCH_DB_TESTS=1)
+ * order / taobao (รายงานข้อ 14) — รันกับ admin_pack_bench ใน transaction ที่ rollback (opt-in JL_BENCH_DB_TESTS=1)
  */
 class OrderDbTest extends BenchDbTestCase
 {

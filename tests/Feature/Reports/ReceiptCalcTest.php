@@ -6,11 +6,11 @@ use App\Domain\Reports\Receipt;
 use Tests\TestCase;
 
 /**
- * SR: สูตรใบเสร็จ/ภาษีขาย (App\Domain\Reports\Receipt) — ค่าที่คาดหวังได้จากเว็บเดิม (PHP 7.4, :8111) ด้วยข้อมูลเดียวกัน (ไม่แตะ DB)
+ * SR: สูตรใบเสร็จ/ภาษีขาย (App\Domain\Reports\Receipt) — ค่าที่คาดหวังได้จากเว็บเดิม (PHP 7.4, :8114) ด้วยข้อมูลเดียวกัน (ไม่แตะ DB)
  */
 class ReceiptCalcTest extends TestCase
 {
-    /** calvat.php เดิม: urldecode(json_encode([...])) — byte ต่อ byte กับ :8111 */
+    /** calvat.php เดิม: urldecode(json_encode([...])) — byte ต่อ byte กับ :8114 */
     public function test_calvat_matches_legacy_json(): void
     {
         $this->assertSame('{"a":"1234.56","b":1320.9792,"c":"1234.56","d":"86.42","e":1320.98,"th":"'.$this->u('หนึ่งพันสามร้อยยี่สิบบาทเก้าสิบแปดสตางค์').'"}',

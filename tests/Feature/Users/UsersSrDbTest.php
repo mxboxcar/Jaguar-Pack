@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Money\BenchDbTestCase;
 
 /**
- * พฤติกรรมเฉพาะของ SR ในกลุ่ม users กับ admin_sr_bench จริง (JL_BENCH_DB_TESTS=1, rollback ทุก test)
+ * พฤติกรรมเฉพาะของ SR ในกลุ่ม users กับ admin_pack_bench จริง (JL_BENCH_DB_TESTS=1, rollback ทุก test)
  *   - สมัคร: รหัส SU####, lineid/wechatid, อีเมลซ้ำไม่ได้, ไม่มี commission
  *   - โปรไฟล์: ต้องยืนยัน PIN ก่อนบันทึก และบันทึกอีเมล/โทร/WeChat
  *   - แอดมิน: code จากฟอร์ม, รหัสผ่านเปลี่ยนได้เฉพาะ role 1, save_approved ตอบ $('form').submit(), type 4 = 500

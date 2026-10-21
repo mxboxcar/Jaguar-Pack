@@ -16,7 +16,7 @@ use Tests\TestCase;
  * test เงินที่ต้องรันกับ MySQL จริง (php8.4 บนเครื่องนี้ไม่มี pdo_sqlite) — **opt-in**: JL_BENCH_DB_TESTS=1
  *
  * ความปลอดภัย:
- *  - ต่อเฉพาะ DB ชื่อ admin_sr_bench (อ่านจาก .env; ชื่ออื่น = skip) และตรวจ SELECT DATABASE() อีกชั้น
+ *  - ต่อเฉพาะ DB ชื่อ admin_pack_bench (อ่านจาก .env; ชื่ออื่น = skip) และตรวจ SELECT DATABASE() อีกชั้น
  *  - ทุก test อยู่ใน transaction เดียวที่ rollBack ตอนจบเสมอ (ตารางที่ใช้เป็น InnoDB ทั้งหมด) → ไม่มีข้อมูลค้างใน bench
  *  - สร้างเฉพาะแถว zz_ ของตัวเอง, แก้/ล็อกเฉพาะแถวที่สร้าง, ไม่มี DDL (DDL = implicit commit)
  *  - Mail::fake() — ไม่ส่งอีเมล; LINE ในโค้ดเป็น no-op อยู่แล้ว
@@ -30,19 +30,19 @@ abstract class BenchDbTestCase extends TestCase
     {
         parent::setUp();
         if (getenv('JL_BENCH_DB_TESTS') !== '1') {
-            $this->markTestSkipped('ตั้ง JL_BENCH_DB_TESTS=1 เพื่อรัน test เงินกับ admin_sr_bench (ทุกอย่าง rollback)');
+            $this->markTestSkipped('ตั้ง JL_BENCH_DB_TESTS=1 เพื่อรัน test เงินกับ admin_pack_bench (ทุกอย่าง rollback)');
         }
         $env = Dotenv::parse((string) @file_get_contents(base_path('.env')));
-        if (($env['DB_DATABASE'] ?? '') !== 'admin_sr_bench') {
-            $this->markTestSkipped('.env ไม่ได้ชี้ admin_sr_bench');
+        if (($env['DB_DATABASE'] ?? '') !== 'admin_pack_bench') {
+            $this->markTestSkipped('.env ไม่ได้ชี้ admin_pack_bench');
         }
         config(['database.connections.bench' => array_merge(config('database.connections.mysql'), [
-            'host' => $env['DB_HOST'] ?? '127.0.0.1', 'port' => $env['DB_PORT'] ?? '3306', 'database' => 'admin_sr_bench',
+            'host' => $env['DB_HOST'] ?? '127.0.0.1', 'port' => $env['DB_PORT'] ?? '3306', 'database' => 'admin_pack_bench',
             'username' => $env['DB_USERNAME'] ?? '', 'password' => $env['DB_PASSWORD'] ?? '', 'unix_socket' => $env['DB_SOCKET'] ?? '',
         ])]);
         config(['database.default' => 'bench']);
         DB::purge('bench');
-        $this->assertSame('admin_sr_bench', DB::selectOne('SELECT DATABASE() AS d')->d);
+        $this->assertSame('admin_pack_bench', DB::selectOne('SELECT DATABASE() AS d')->d);
         DB::beginTransaction();
         $this->inTx = true;
         Mail::fake();

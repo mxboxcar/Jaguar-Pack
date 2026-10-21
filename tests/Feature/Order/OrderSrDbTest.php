@@ -14,7 +14,7 @@ use Tests\Feature\Money\BenchDbTestCase;
 /**
  * order ของ SR: PIN ตอนจ่ายเงิน, endpoint ที่มีเฉพาะ SR (delete_withcashback, save_changeuser, save_newrate,
  * save_change_send_type, save_takeapic) และหน้าพิมพ์รายการสั่งซื้อ (_admin/_printorder)
- * รันกับ admin_sr_bench ใน transaction ที่ rollback (opt-in JL_BENCH_DB_TESTS=1)
+ * รันกับ admin_pack_bench ใน transaction ที่ rollback (opt-in JL_BENCH_DB_TESTS=1)
  */
 class OrderSrDbTest extends BenchDbTestCase
 {

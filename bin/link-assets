@@ -7,13 +7,13 @@
 #
 # ใช้: bin/link-assets [--sync] [โฟลเดอร์โปรเจกต์]
 #   --sync  คัดลอกจากต้นทางใหม่ (ครั้งแรกทำให้อัตโนมัติ)
-# env: LEGACY_ASSETS_SRC (ค่าเริ่มต้น /home/admin/bench/sr-old), LEGACY_ASSETS_MIRROR (/home/admin/laravel/sr-legacy-assets)
+# env: LEGACY_ASSETS_SRC (ค่าเริ่มต้น /home/admin/bench/pack-old), LEGACY_ASSETS_MIRROR (/home/admin/laravel/pack-legacy-assets)
 set -euo pipefail
 SYNC=0
 [ "${1:-}" = "--sync" ] && { SYNC=1; shift; }
 D=$(cd "${1:-$(dirname "$0")/..}" && pwd)
-SRC=${LEGACY_ASSETS_SRC:-/home/admin/bench/sr-old}
-MIRROR=${LEGACY_ASSETS_MIRROR:-/home/admin/laravel/sr-legacy-assets}
+SRC=${LEGACY_ASSETS_SRC:-/home/admin/bench/pack-old}
+MIRROR=${LEGACY_ASSETS_MIRROR:-/home/admin/laravel/pack-legacy-assets}
 
 case "$SRC" in /home/admin/web/*) echo "ห้ามใช้ webroot production เป็นต้นทาง" >&2; exit 1;; esac
 

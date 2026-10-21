@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * grid ตารางใหญ่ (balance / refill): GridQuery ต้องได้ค่าเท่ากับ query เดิมทุกค่า + จำนวน query ต่อ request คงที่
- * รันกับ admin_sr_bench (opt-in JL_BENCH_DB_TESTS=1) — อ่านข้อมูลจริงอย่างเดียว; แถวทดสอบเฉพาะ balance_company ใน transaction ที่ rollback
+ * รันกับ admin_pack_bench (opt-in JL_BENCH_DB_TESTS=1) — อ่านข้อมูลจริงอย่างเดียว; แถวทดสอบเฉพาะ balance_company ใน transaction ที่ rollback
  */
 class GridPerfDbTest extends BenchDbTestCase
 {

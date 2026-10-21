@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * แจ้งไม่ได้รับสินค้า (lost_package): อนุมัติ = คืนเงินเข้า balance — ยกเลิก/อนุมัติได้เฉพาะรายการที่รอ (1)
  * e2e 2026-10-18: ลูกค้า/แอดมินยกเลิกรายการที่อนุมัติแล้ว (ไม่หักคืน) → RollBack (-1 → 1 ไม่หัก) → อนุมัติอีกครั้ง = คืนเงินซ้ำ
- * รันกับ admin_sr_bench ใน transaction ที่ rollback (opt-in JL_BENCH_DB_TESTS=1)
+ * รันกับ admin_pack_bench ใน transaction ที่ rollback (opt-in JL_BENCH_DB_TESTS=1)
  */
 class LostPackageDbTest extends BenchDbTestCase
 {
