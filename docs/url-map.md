@@ -118,7 +118,7 @@
 | 106 | 154 | `^admin/export$` | `?page=admin_export`  | admin_export | _admin/_export/index.php | **reports** |
 | 107 | 155 | `^admin/export/status/([0-9]+)$` | `?page=admin_export&status=$1`  | admin_export | _admin/_export/index.php | **reports** |
 | 108 | 156 | `^admin/export/([0-9]+)$` | `?page=admin_export_detail&id=$1`  | admin_export_detail | _admin/_export/form.php | **reports** |
-| 109 | 157 | `^admin/export/receipt/([0-9]+)$` | `?page=admin_export_receipt&id=$1`  | admin_export_receipt | _admin/_export/receipt.php | **reports** |
+| 109 | 157 | `^admin/export/receipt/([0-9]+)$` | `?page=admin_export_receipt&id=$1`  | admin_export_receipt | _admin/_export/receipt.php | **reports** (PACK: dead — ไม่มี RewriteRule/ไฟล์นี้) |
 | 110 | 159 | `^admin/receipt$` | `?page=admin_receipt`  | admin_receipt | _admin/_receipt/index.php | **payment** |
 | 111 | 160 | `^admin/receipt/([0-9]+)$` | `?page=admin_receipt_detail&id=$1`  | admin_receipt_detail | _admin/_receipt/form.php (**ไม่มีไฟล์นี้ในเว็บเดิม** — หน้าเดิม error/ว่าง) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
 | 112 | 161 | `^admin/receipt/status/([0-9]+)$` | `?page=admin_receipt&status=$1`  | admin_receipt | _admin/_receipt/index.php | **payment** |
@@ -175,7 +175,7 @@
 | 163 | 228 | `^admin/mall/([0-9]+)$` | `?page=admin_mall_detail&id=$1`  | admin_mall_detail | (ไม่มีใน content.php) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
 | 164 | 229 | `^admin/mall_stock/([0-9]+)$` | `?page=admin_mall_stock`  | admin_mall_stock | (ไม่มีใน content.php) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
 | 165 | 230 | `^admin/mall/create$` | `?page=admin_mall_detail&id=0`  | admin_mall_detail | (ไม่มีใน content.php) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
-| 166 | 232 | `^admin/nobilling$` | `?page=admin_nobilling`  | admin_nobilling | _admin/_nobilling/index.php | **reports** |
+| 166 | 232 | `^admin/nobilling$` | `?page=admin_nobilling`  | admin_nobilling | _admin/_nobilling/index.php | **reports** (PACK: dead — content.php ไม่มี case นี้) |
 | 167 | 234 | `^admin/warehouse_section$` | `?page=admin_warehouse_section`  | admin_warehouse_section | _admin/_warehouse_section/index.php | **warehouse** |
 | 168 | 235 | `^admin/warehouse_section/([0-9]+)$` | `?page=admin_warehouse_section_detail&id=$1`  | admin_warehouse_section_detail | _admin/_warehouse_section/form.php | **warehouse** |
 | 169 | 236 | `^admin/warehouse_section/create$` | `?page=admin_warehouse_section_detail&id=0`  | admin_warehouse_section_detail | _admin/_warehouse_section/form.php | **warehouse** |
@@ -695,8 +695,8 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 
 | ไฟล์ | URL เดิม | page | หมายเหตุ |
 |---|---|---|---|
-| `_admin/_dashboard/index.php` | `/_admin/_dashboard/index` |  |  |
-| `_admin/_export/calvat.php` | `/_admin/_export/calvat` |  |  |
+| `_admin/_dashboard/index.php` | `/_admin/_dashboard/index` |  | dead — ไม่มีไฟล์ไหน include และไม่มี RewriteRule (เหมือน jl/SR) |
+| `_admin/_export/calvat.php` | `/_admin/_export/calvat` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
 | `_admin/_export/email_cancel.php` | `/_admin/_export/email_cancel` |  |  |
 | `_admin/_export/email_success.php` | `/_admin/_export/email_success` |  |  |
 | `_admin/_export/form.php` | `/_admin/_export/form` | admin_export_detail |  |
@@ -704,18 +704,18 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_export/index.php` | `/_admin/_export/index` | admin_export |  |
 | `_admin/_export/print.php` | `/_admin/_export/print` |  |  |
 | `_admin/_export/print_2.php` | `/_admin/_export/print_2` |  |  |
-| `_admin/_export/print_3.php` | `/_admin/_export/print_3` |  |  |
-| `_admin/_export/print_receipt.php` | `/_admin/_export/print_receipt` |  |  |
-| `_admin/_export/printprice.php` | `/_admin/_export/printprice` |  |  |
-| `_admin/_export/receipt.php` | `/_admin/_export/receipt` | admin_export_receipt |  |
-| `_admin/_export/receipt_1.php` | `/_admin/_export/receipt_1` |  |  |
-| `_admin/_export/receipt_2.php` | `/_admin/_export/receipt_2` |  |  |
+| `_admin/_export/print_3.php` | `/_admin/_export/print_3` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
+| `_admin/_export/print_receipt.php` | `/_admin/_export/print_receipt` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
+| `_admin/_export/printprice.php` | `/_admin/_export/printprice` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
+| `_admin/_export/receipt.php` | `/_admin/_export/receipt` | admin_export_receipt | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
+| `_admin/_export/receipt_1.php` | `/_admin/_export/receipt_1` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
+| `_admin/_export/receipt_2.php` | `/_admin/_export/receipt_2` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
 | `_admin/_export/save_approved.php` | `/_admin/_export/save_approved` |  |  |
 | `_admin/_export/save_delete.php` | `/_admin/_export/save_delete` |  |  |
-| `_admin/_export/save_receipt.php` | `/_admin/_export/save_receipt` |  |  |
+| `_admin/_export/save_receipt.php` | `/_admin/_export/save_receipt` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
 | `_admin/_log/grid.php` | `/_admin/_log/grid` |  |  |
 | `_admin/_log/index.php` | `/_admin/_log/index` | admin_log |  |
-| `_admin/_nobilling/index.php` | `/_admin/_nobilling/index` | admin_nobilling |  |
+| `_admin/_nobilling/index.php` | `/_admin/_nobilling/index` | admin_nobilling | PACK: **dead** — content.php ของ PACK ไม่มี case admin_nobilling (admin/nobilling = หน้า layout ว่าง) และไม่มีไฟล์ไหนลิงก์ → ไม่มี route |
 | `_admin/_report/cashmove.php` | `/_admin/_report/cashmove` |  |  |
 | `_admin/_report/current_cash.php` | `/_admin/_report/current_cash` |  |  |
 | `_admin/_report/current_cash_cn.php` | `/_admin/_report/current_cash_cn` |  |  |
@@ -725,7 +725,7 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_report/form.php` | `/_admin/_report/form` | admin_report_detail |  |
 | `_admin/_report/grid.php` | `/_admin/_report/grid` |  |  |
 | `_admin/_report/index.php` | `/_admin/_report/index` | admin_report |  |
-| `_admin/_report/printtax.php` | `/_admin/_report/printtax` |  |  |
+| `_admin/_report/printtax.php` | `/_admin/_report/printtax` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
 | `_admin/_report/refill_5.php` | `/_admin/_report/refill_5` |  |  |
 | `_admin/_report/refill_6.php` | `/_admin/_report/refill_6` |  |  |
 | `_admin/_report/refill_7.php` | `/_admin/_report/refill_7` |  |  |
