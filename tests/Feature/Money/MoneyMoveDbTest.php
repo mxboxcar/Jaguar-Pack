@@ -57,13 +57,15 @@ class MoneyMoveDbTest extends BenchDbTestCase
         $this->assertStringContainsString('ErrorBox(', $out);
         $this->assertSame('-1', (string) DB::table('bill_transfer')->where('id', $t->id)->value('status'), 'ต้องยังเป็นยกเลิก');
 
-        // รายการรอโอน → 2; SR: บันทึกซ้ำ (status 2) = "รายการไม่พร้อม" (ไม่แตะเงิน, หลักฐานเดิมคงอยู่)
+        // รายการรอโอน → 2; PACK (= jl port): บันทึกซ้ำ (status 2) = บันทึกหลักฐานใหม่ได้ (ไม่แตะเงิน)
         $t2 = $this->transfer($cust);
         $this->actAs($admin);
         $before = $this->cash($cust);
         $this->assertStringContainsString('SuccessBox', $this->act(AdminTransferController::class, 'save', ['id' => $t2->id, 'approved_remark' => 'zz']));
-        $this->assertSame("ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();'); ", $this->act(AdminTransferController::class, 'save', ['id' => $t2->id, 'approved_remark' => 'zz2']));
-        $this->assertSame('zz', (string) DB::table('bill_transfer')->where('id', $t2->id)->value('approved_remark'));
+        $this->assertStringContainsString('SuccessBox', $this->act(AdminTransferController::class, 'save', ['id' => $t2->id, 'approved_remark' => 'zz2']));
+        $this->assertSame('zz2', (string) DB::table('bill_transfer')->where('id', $t2->id)->value('approved_remark'));
+        // ไม่พบรายการ = ปฏิเสธ
+        $this->assertStringContainsString('ErrorBox(', $this->act(AdminTransferController::class, 'save', ['id' => '999999999', 'approved_remark' => 'zz']));
         $this->assertSame('2', (string) DB::table('bill_transfer')->where('id', $t2->id)->value('status'));
         $this->assertSame($before, $this->cash($cust));
         // โอนสำเร็จแล้วยกเลิกไม่ได้ (เดิมก็ไม่ได้)
@@ -106,18 +108,19 @@ class MoneyMoveDbTest extends BenchDbTestCase
         $this->assertSame(-(float) $t2->usecash, $this->transferNet($t2));
     }
 
-    public function test_customer_cancel_refunds_once(): void
+    /** PACK: _transfer/cancel.php ถูก comment ทั้งไฟล์ → ตอบว่าง ไม่ยกเลิก/ไม่คืนเงิน */
+    public function test_customer_cancel_is_a_no_op(): void
     {
         $cust = $this->zzUser();
         $t = $this->transfer($cust);
         $after = $this->cash($cust);
-        $this->act(TransferController::class, 'cancel', ['id' => $t->id]);
-        $this->act(TransferController::class, 'cancel', ['id' => $t->id]);
-        $this->assertSame(round($after + (float) $t->usecash, 2), $this->cash($cust));
+        $this->assertSame('', $this->act(TransferController::class, 'cancel', ['id' => $t->id]));
+        $this->assertSame('1', (string) DB::table('bill_transfer')->where('id', $t->id)->value('status'));
+        $this->assertSame($after, $this->cash($cust));
     }
 
     /**
-     * SR: กระเป๋าหยวน — _transfer/save ใช้ balance_cn ก่อน ส่วนที่ขาด × เรท ตัดบาท; ยกเลิกคืนทั้งสองกระเป๋าครั้งเดียว;
+     * PACK (= SR): กระเป๋าหยวน — _transfer/save ใช้ balance_cn ก่อน ส่วนที่ขาด × เรท ตัดบาท; แอดมินยกเลิกคืนทั้งสองกระเป๋าครั้งเดียว;
      * RollBack ตัดคืนทั้งสองกระเป๋าเท่าที่ขาด และปฏิเสธเมื่อยอดหยวนไม่พอ
      */
     public function test_transfer_uses_yuan_wallet_first_and_refunds_both_once(): void
@@ -133,15 +136,15 @@ class MoneyMoveDbTest extends BenchDbTestCase
         $this->assertSame(-round(30 * $rate, 2), $this->transferNet($t));
         $this->assertSame(0.0, $this->cash($cust, 'balance_cn'));
 
-        // ยกเลิก (ลูกค้า) ซ้ำ 2 ครั้ง = คืนครั้งเดียวทั้งสองกระเป๋า
-        $this->act(TransferController::class, 'cancel', ['id' => $t->id]);
-        $this->act(TransferController::class, 'cancel', ['id' => $t->id]);
+        // ยกเลิก (แอดมิน) ซ้ำ 2 ครั้ง = คืนครั้งเดียวทั้งสองกระเป๋า (ครั้งที่ 2 = "รายการถูกยืนยันไปแล้ว")
+        $this->actAs($admin);
+        $this->act(AdminTransferController::class, 'cancel', ['id' => $t->id, 'cancel_remark' => 'zz']);
+        $this->assertStringContainsString('รายการถูกยืนยันไปแล้ว', $this->act(AdminTransferController::class, 'cancel', ['id' => $t->id]));
         $this->assertSame(0.0, $this->transferNet($t));
         $this->assertSame(0.0, $this->transferNet($t, 'balance_cn'));
         $this->assertSame(20.0, $this->cash($cust, 'balance_cn'));
 
         // RollBack ×2 = ตัดคืนครั้งเดียวทั้งสองกระเป๋า
-        $this->actAs($admin);
         $this->act(AdminTransferController::class, 'rollback', ['id' => $t->id]);
         $this->act(AdminTransferController::class, 'rollback', ['id' => $t->id]);
         $this->assertSame(-20.0, $this->transferNet($t, 'balance_cn'));
@@ -195,10 +198,10 @@ class MoneyMoveDbTest extends BenchDbTestCase
         $this->credit($cust, 500);
         $this->actAs($admin);
 
-        // จ่ายแล้ว (2) ยกเลิกไม่ได้ = ไม่คืนเงิน
+        // จ่ายแล้ว (2) ยกเลิกไม่ได้ = ไม่คืนเงิน (PACK hotfix 2026-10-21: getError('', 'รายการนี้ยกเลิกไม่ได้'))
         $paid = $this->withdraw($cust, 100, 2);
         $c0 = $this->cash($cust);
-        $this->assertStringContainsString('ErrorBox(', $this->act(AdminWithdrawCashController::class, 'cancel', ['id' => $paid]));
+        $this->assertSame("ErrorBox('รายการนี้ยกเลิกไม่ได้');", $this->act(AdminWithdrawCashController::class, 'cancel', ['id' => $paid]));
         $this->assertSame($c0, $this->cash($cust));
         $this->assertSame('2', (string) DB::table('balance_withdraw')->where('id', $paid)->value('status'));
 
@@ -238,10 +241,10 @@ class MoneyMoveDbTest extends BenchDbTestCase
 
         $this->actAs($admin);
         $this->assertStringContainsString('SuccessBox', $this->act(AdminRefillController::class, 'saveApproved', ['id' => $r->id]));
-        // SR: อนุมัติซ้ำ = "รายการไม่พร้อม" และบันทึกผู้อนุมัติ (approved_user)
+        // PACK (= SR ไม่มี approved_user): อนุมัติซ้ำ = "รายการไม่พร้อม"
         $this->assertSame("ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();'); ", $this->act(AdminRefillController::class, 'saveApproved', ['id' => $r->id]));
         $this->assertSame(1000.5, $this->cash($cust), 'อนุมัติซ้ำไม่เติมซ้ำ');
-        $this->assertSame((string) $admin->id, (string) DB::table('refill')->where('id', $r->id)->value('approved_user'));
+        $this->assertObjectNotHasProperty('approved_user', DB::table('refill')->where('id', $r->id)->first(), 'PACK ไม่มีคอลัมน์ approved_user');
 
         $out = $this->act(AdminRefillController::class, 'cancel', ['id' => $r->id, 'cancel_remark' => 'zz']);
         $this->assertSame("ErrorBox('รายการถูกดำเนินการสำเร็จไปแล้ว', 'window.location.reload();'); ", $out);

@@ -42,18 +42,21 @@ class RoleDenialTest extends TestCase
     }
 
     /** SR _admin/_transfer/form.php ตรวจ getPermission('admin_transfer') (jl ตรวจ 'transfer' = IDOR — SR แก้ในไฟล์เดิมแล้ว) */
-    public function test_admin_transfer_form_checks_admin_transfer(): void
+    /** PACK _admin/_transfer/form.php (= jl) ตรวจ getPermission('transfer') ก่อน → ผู้ไม่มี transfer ได้ข้อความโมดูล transfer เหมือนเดิม */
+    public function test_admin_transfer_form_checks_transfer_first(): void
     {
         foreach (['/admin/transfer/create', '/admin/transfer/123'] as $uri) {
+            // PACK role 3/5/6: ไม่มี transfer → เดิม "โอนเงินไปจีน"
             $req = $this->actAs(910, ['admin_tracking', 'admin_lot_view', 'admin_order']);
-            $this->assertSame('admin_transfer', $this->deniedModule('GET', $uri, $req), $uri);
+            $this->assertSame('transfer', $this->deniedModule('GET', $uri, $req), $uri);
+            $req = $this->actAs(912, ['admin_transfer']);
+            $this->assertSame('transfer', $this->deniedModule('GET', $uri, $req), $uri);
 
-            // ลูกค้า: มี transfer แต่ไม่มี admin_transfer → ปฏิเสธ
+            // ลูกค้า / role 7/9: มี transfer แต่ไม่มี admin_transfer → ปฏิเสธ (ต่างจากเดิมโดยตั้งใจ: IDOR)
             $req = $this->actAs(911, ['transfer', 'admin_order']);
             $this->assertSame('admin_transfer', $this->deniedModule('GET', $uri, $req), $uri);
 
-            // SR: admin_transfer อย่างเดียวพอ (ไม่ต้องมี transfer)
-            $req = $this->actAs(912, ['admin_transfer']);
+            $req = $this->actAs(914, ['transfer', 'admin_transfer']);
             $this->assertNull($this->deniedModule('GET', $uri, $req), $uri);
         }
     }

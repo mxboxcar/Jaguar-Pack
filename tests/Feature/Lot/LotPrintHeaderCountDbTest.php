@@ -63,10 +63,10 @@ class LotPrintHeaderCountDbTest extends BenchDbTestCase
             $this->assertStringContainsString("ZZPRINT{$lot}{$c}", $html);
         }
         $this->assertSame('1', (string) DB::table('lot')->where('id', $lot)->value('is_print'));
-        // SR print.php: ไม่มีคอลัมน์ราคา และไม่มีเครื่องหมายตรวจแล้ว (ไม่มี tracking.is_checked)
-        $this->assertStringNotContainsString(\App\Support\Legacy\Lang::get('price_kg'), $html);
+        // PACK print.php = jl: มีคอลัมน์ราคา kg/คิว (colspan 7) แต่ไม่มีเครื่องหมายตรวจแล้ว (ไม่มี tracking.is_checked)
+        $this->assertStringContainsString('<th class="text-center" >'.\App\Support\Legacy\Lang::get('price_kg').'</th>', $html);
         $this->assertStringNotContainsString('&#10004;', $html);
-        $this->assertStringContainsString('colspan="5">', $html);
+        $this->assertStringContainsString('colspan="7">', $html);
     }
 
     public function test_print_counts_children_once_instead_of_per_row(): void

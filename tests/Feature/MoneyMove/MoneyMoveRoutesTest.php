@@ -40,16 +40,16 @@ class MoneyMoveRoutesTest extends TestCase
         'GET _admin/_refill/email_cancel' => ['legacy.perm:admin_refill'],
         'GET admin/transfer' => ['legacy.perm:admin_transfer'],
         'GET admin/transfer/status/{status}' => ['legacy.perm:admin_transfer'],
-        // SR form.php ตรวจ admin_transfer (jl: transfer)
-        'GET admin/transfer/create' => ['legacy.perm:admin_transfer'],
-        'GET admin/transfer/{id}' => ['legacy.perm:admin_transfer'],
+        // PACK form.php ตรวจ transfer (= jl, IDOR) → ต้องมีทั้ง transfer และ admin_transfer (กติกา jl port)
+        'GET admin/transfer/create' => ['legacy.perm:transfer', 'legacy.perm:admin_transfer'],
+        'GET admin/transfer/{id}' => ['legacy.perm:transfer', 'legacy.perm:admin_transfer'],
         'POST _admin/_transfer/grid' => ['legacy.auth'],
         'POST _admin/_transfer/save' => ['legacy.perm:admin_transfer'],
         'POST _admin/_transfer/cancel' => ['legacy.perm:admin_transfer'],
         'POST _admin/_transfer/rollback' => ['legacy.perm:admin_transfer'],
         'GET _admin/_transfer/email_success' => ['legacy.perm:admin_transfer'],
         'GET _admin/_transfer/email_cancel' => ['legacy.perm:admin_transfer'],
-        // SR: index ตรวจ admin_withdrawpoint ใน controller (หลังพิมพ์หัวหน้า), form/grid = admin_withdrawcash, อนุมัติ/ยกเลิก = admin_withdrawpoint
+        // PACK = SR: index ตรวจ admin_withdrawpoint ใน controller (หลังพิมพ์หัวหน้า), form/grid = admin_withdrawcash, อนุมัติ/ยกเลิก = admin_withdrawpoint
         'GET admin/withdrawcash' => ['legacy.auth'],
         'GET admin/withdrawcash/status/{status}' => ['legacy.auth'],
         'GET admin/withdrawcash/{id}' => ['legacy.perm:admin_withdrawcash'],
@@ -77,11 +77,13 @@ class MoneyMoveRoutesTest extends TestCase
         }
     }
 
-    /** สิทธิ์ที่ SR ไม่ใช้แล้วต้องไม่ติดอยู่ (route ที่ต้องมีสิทธิ์ครบหลายตัวจะปฏิเสธคนที่ SR ยอม) */
+    /** สิทธิ์ที่ PACK (= SR) ไม่ใช้ที่ถอนเงินต้องไม่ติดอยู่ (route ที่ต้องมีสิทธิ์ครบหลายตัวจะปฏิเสธคนที่เว็บเดิมยอม) */
     public function test_sr_dropped_permissions(): void
     {
         $mw = fn (string $uri, string $m = 'GET') => Route::getRoutes()->match(\Illuminate\Http\Request::create($uri, $m))->gatherMiddleware();
-        $this->assertNotContains('legacy.perm:transfer', $mw('/admin/transfer/123'));
+        // PACK: admin transfer form ต้องมีทั้งสอง (เดิมตรวจแค่ transfer)
+        $this->assertContains('legacy.perm:transfer', $mw('/admin/transfer/123'));
+        $this->assertContains('legacy.perm:admin_transfer', $mw('/admin/transfer/123'));
         $this->assertNotContains('legacy.perm:admin_withdrawcash', $mw('/_admin/_withdrawcash/cancel', 'POST'));
         $this->assertNotContains('legacy.perm:admin_withdrawcash', $mw('/admin/withdrawcash'));
     }
@@ -133,14 +135,16 @@ class MoneyMoveRoutesTest extends TestCase
         $this->assertSame('51.5', Php74::str(Php74::num('10.3') * Php74::num('5')));
     }
 
-    /** SR: อีเมลแจ้งผลใช้แม่แบบ/ผู้ส่งของ SR (config legacy.mail) ไม่มีแบรนด์ jl หลงเหลือ */
+    /** PACK: อีเมลแจ้งผลใช้แม่แบบ/ผู้ส่งของเว็บ (config legacy.mail) ปุ่มสี PACK ไม่มีแบรนด์ jl/SR หลงเหลือ */
     public function test_mailer_has_no_jl_branding(): void
     {
         $src = (string) file_get_contents(app_path('Domain/MoneyMove/Mailer.php'));
         $this->assertStringNotContainsStringIgnoringCase('jlcargo', $src);
         $this->assertStringNotContainsString('#991b1e', $src);
         $this->assertStringContainsString("config('legacy.mail')", $src);
-        $this->assertStringContainsString('#a3b2f1', $src);
+        $this->assertStringContainsString('#eb4823', $src);
+        $this->assertStringNotContainsString('#a3b2f1', $src);
+        $this->assertStringNotContainsStringIgnoringCase('srshipping', $src);
         $this->assertStringNotContainsString('target=', $src);
     }
 

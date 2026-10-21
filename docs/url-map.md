@@ -530,7 +530,7 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_lot/load_lot_memo.php` | `/_admin/_lot/load_lot_memo` |  |  |
 | `_admin/_lot/load_quickfile.php` | `/_admin/_lot/load_quickfile` |  |  |
 | `_admin/_lot/load_ref_print.php` | `/_admin/_lot/load_ref_print` |  |  |
-| `_admin/_lot/load_toptable.php` | `/_admin/_lot/load_toptable` |  |  |
+| `_admin/_lot/load_toptable.php` | `/_admin/_lot/load_toptable` |  | **dead (PACK ไม่มีไฟล์ — SR-only; ผลรวมมากับ load_lot_detail แบบ jl) — ลบ route แล้ว** |
 | `_admin/_lot/load_tracking.php` | `/_admin/_lot/load_tracking` |  |  |
 | `_admin/_lot/load_unpaid.php` | `/_admin/_lot/load_unpaid` |  |  |
 | `_admin/_lot/load_user_rate.php` | `/_admin/_lot/load_user_rate` |  |  |
