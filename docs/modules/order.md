@@ -20,7 +20,7 @@ branch `mod/order` (worktree `/home/admin/laravel/pack-wt/order` ใช้ร่
 | `_admin/_order/email_{approved,cancel,cashback}.php`, `_admin/_taobao/email_{approved,cancel}.php` | diff 24–35 | ปุ่ม "ดูรายละเอียด" สี `#eb4823` (SR `#a3b2f1`); ไฟล์ PACK ไม่มีส่วน LINE/push (SR เป็น no-op อยู่แล้ว); header/footer/ผู้ส่ง = `config('legacy.mail')` (foundation PACK แล้ว) |
 | ไฟล์ `same` 48 ไฟล์ | same | ไม่แก้โค้ด — เทียบผลกับ :8114 แล้ว (ด้านล่าง) รวม `save_change_send_type` (มีใน PACK) |
 
-helper: `Php74::round()` (กลุ่ม order) = `round()` ของ PHP 7.4 (มี pre-rounding — PHP 8.4 ต่างที่หลักสุดท้าย เช่น round(2234.385, 2): 7.4 = 2234.39, 8.4 = 2234.38) ทดสอบ 1.5 ล้านค่าเทียบ php7.4 ตรงกันทั้งหมด (สำเนาเดียวกับ `App\Domain\Reports\Receipt::round` — ไม่ผูกกับกลุ่ม reports ที่อาจตัด receipt ออก)
+helper: `Php74::round()` (กลุ่ม order) = `round()` ของ PHP 7.4 (มี pre-rounding — PHP 8.4 ต่างที่หลักสุดท้าย เช่น round(2234.385, 2): 7.4 = 2234.39, 8.4 = 2234.38) ทดสอบ 1.5 ล้านค่าเทียบ php7.4 ตรงกันทั้งหมด (อัลกอริทึมเดียวกับ `Reports\Receipt::round` ของ SR ซึ่งกลุ่ม reports ของ PACK ลบไปพร้อมใบเสร็จแล้ว)
 `readRedis/writeRedis` (foundation helpers ระบุว่าเป็นของกลุ่ม order) = `Cache` ของ Laravel ใน `OrderQueries::cachedCount` (key = SQL + bind, 10 นาที) — ไม่ต่อ Redis ภายนอก ไม่ใช้ `config('legacy.redis.prefix')`
 
 ### ไฟล์ SR-only ที่ตัดออก (PACK ไม่มีไฟล์ → ไม่มี route, 404 → หน้าแรก; `docs/url-map.md` ระบุ dead แล้ว)
@@ -74,7 +74,7 @@ helper: `Php74::round()` (กลุ่ม order) = `round()` ของ PHP 7.4 (
 ### test
 
 `tests/Feature/Order/OrderRoutesTest.php` (route/สิทธิ์ PACK, URL ที่ PACK ไม่มี, `Php74::round`), `tests/Feature/Order/OrderPackDbTest.php` (แทน `OrderSrDbTest`; JL_BENCH_DB_TESTS=1): PIN ตอนจ่าย, send type, ยอดรวม round ใน load_detail/ฟอร์มลูกค้า (ไม่มีถ่ายรูป/VAT, ปุ่ม + แถวแรก), load_paging/load_total_order cache, add_new_track ผูกรายการ
-ผล: `php8.4 vendor/bin/phpunit` ผ่าน (323, skip 107) · `JL_BENCH_DB_TESTS=1` กลุ่ม order/shop ผ่านทั้งหมด — ที่ล้ม 28 ตัวเป็นของกลุ่มอื่น (lot/tracking/payment/reports/warehouse/messaging/money-move: คอลัมน์/ตาราง SR-only `subuser`, `is_takeapic`, `tracking_check`, `running`, `warehouse*`, `refill.approved_user`, `receipt_*`, และ LegacyRisks ค่าเปลี่ยนผู้ส่ง −670 ≠ −650 หลัง foundation ตัด `charge_sender_edit`)
+ผล (หลัง merge main 2026-10-22 รวม payment/tracking/warehouse/messaging/points/balance/reports): `php8.4 vendor/bin/phpunit` ผ่าน (325, skip 110) · `JL_BENCH_DB_TESTS=1` 320/325 — กลุ่ม order/shop ผ่านทั้งหมด; ที่ล้ม 5 ตัวเป็นของกลุ่มที่ยังไม่ merge: `LotSrDbTest` ×3 (`tracking.subuser`), `GridPerfDbTest` + `MoneyMoveDbTest` (`refill.approved_user`)
 
 ### คำถามถึงเจ้าของ
 

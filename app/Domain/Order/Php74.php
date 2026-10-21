@@ -101,7 +101,7 @@ final class Php74
     /**
      * round($v, $places) ของ PHP 7.4 (_php_math_round แบบมี "pre-rounding", PHP_ROUND_HALF_UP)
      * — PHP 8.4 เลิก pre-rounding: round(2234.385, 2) = 2234.39 (7.4) แต่ 2234.38 (8.4)
-     * (สำเนาเดียวกับ App\Domain\Reports\Receipt::round — กลุ่ม order ใช้เองเพื่อไม่ผูกกับกลุ่ม reports)
+     * (พอร์ตจาก _php_math_round ของ PHP 7.4 — เดิมเคยมีสำเนาใน Reports\Receipt ซึ่ง PACK ตัดออกแล้ว)
      */
     public static function round(mixed $v, int $places = 0): float
     {
