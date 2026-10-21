@@ -183,7 +183,6 @@
 		            <th class="text-center">{!! res('lot_list').'/'.res('no') !!}</th>
 		            <th class="text-center">{!! res('tracking') !!}</th>
 		            <th class="text-center">{!! res('order') !!}</th>
-					<th class="text-center">รหัสย่อย</th>
 		            <th class="text-center">{!! res('remark_for_this_order') !!}</th>
 		            <th class="text-center">{!! res('amount') !!}</th>
 		            <th class="text-center">{!! res('weight') !!}</th>
@@ -205,14 +204,14 @@
     $bp = $orderIds[(int) $item->id] ?? null;
     $bp = $bp === null ? '' : (string) $bp;
 @endphp
-<tr><td class="text-center">{{ P::lotLabel($item) }}</td><td style="white-space: nowrap;"><a href="{{ legacy_href().'order/'.$bp.'/'.$item->tracking }}">{{ $item->tracking }}</a></td><td style="white-space: nowrap;">@if ($bp !== '')<a href="{{ legacy_href().'order/'.$bp }}">{{ $orderPrefix.$bp }}</a>@else-@endif</td><td style="vertical-align:top"  style="white-space: nowrap;">{{ $item->subuser }}</td><td style="white-space: nowrap;">{{ $item->quote }}</td><td class="text-right">{!! Format::numberformatzero($item->amount) !!}</td><td class="text-right">{!! Format::numberformatone(Php74::num($item->weight) * Php74::num($item->amount)) !!}</td><td class="text-right">{!! Format::numberformatone($item->width) !!}</td><td class="text-right">{!! Format::numberformatone($item->height) !!}</td><td class="text-right">{!! Format::numberformatone($item->long) !!}</td><td class="text-right">{!! Format::cubicformat(P::cubic($item)) !!}</td><td class="text-center">{{ $item->type_name }}</td><td class="text-right showdetailbox">@include('payment.partials.service_cell')
+<tr><td class="text-center">{{ P::lotLabel($item) }}</td><td style="white-space: nowrap;"><a href="{{ legacy_href().'order/'.$bp.'/'.$item->tracking }}">{{ $item->tracking }}</a></td><td style="white-space: nowrap;">@if ($bp !== '')<a href="{{ legacy_href().'order/'.$bp }}">{{ $orderPrefix.$bp }}</a>@else-@endif</td><td style="white-space: nowrap;">{{ $item->quote }}</td><td class="text-right">{!! Format::numberformatzero($item->amount) !!}</td><td class="text-right">{!! Format::numberformatone(Php74::num($item->weight) * Php74::num($item->amount)) !!}</td><td class="text-right">{!! Format::numberformatone($item->width) !!}</td><td class="text-right">{!! Format::numberformatone($item->height) !!}</td><td class="text-right">{!! Format::numberformatone($item->long) !!}</td><td class="text-right">{!! Format::cubicformat(P::cubic($item)) !!}</td><td class="text-center">{{ $item->type_name }}</td><td class="text-right showdetailbox">@include('payment.partials.service_cell')
 							</td><td class="text-right">{!! Format::getBold(Format::numberformat($item->price_kg, true, false)) !!}</td><td class="text-right">{!! Format::getBold(Format::numberformat($item->price_cubic, true, false)) !!}</td></tr>
 @empty
 <tr><td style="height: 100px;" colspan="14" class="text-center">{!! res('no_data') !!}</td></tr>
 @endforelse
 		</tbody>
 			<thead>
-	            <th class="text-right " colspan="5"></th>
+	            <th class="text-right " colspan="4"></th>
 	            <th class="text-right" >{!! Format::numberformatzero($sum['amount']) !!}</th>
 	            <th class="text-right" >{!! Format::numberformatone($sum['weight']) !!}</th>
 	            <th class="text-right" >{!! Format::cubicformat($sum['width']) !!}</th>
@@ -226,25 +225,30 @@
 	            <!-- <th class="text-right" >{!! Format::numberformat($sum['pamount'], true, false) !!}</th> -->
 	        </thead>
 	        <thead>
-	            <th class="text-right" colspan="12">{!! res('total') !!}
+	            <th class="text-right" colspan="11">{!! res('total') !!}
 	            	<input type="hidden" class="hid_service" value="{!! Format::numberformat($sum['service'] + $sum['kg'] + $sum['pcubic'] + $sum['pamount'], false, false) !!}" />
 	            </th>
 	            <th class="text-right" colspan="8">{!! Format::numberformat($sum['service'] + $sum['kg'] + $sum['pcubic'] + $sum['pamount'], true, false) !!}</th>
 	        </thead>
 	        <thead>
-	            <th class="text-right" colspan="12">{!! res('price_thai_storage') !!}
+	            <th class="text-right" colspan="11">{!! res('price_thai_storage') !!}
 	            	<input type="hidden" class="hid_price_thai_storage" value="0" />
 	            </th>
 	            <th class="text-right price_thai_storage addcomma" colspan="3"></th>
 	        </thead>
 	        <thead>
-	            <th class="text-right" colspan="12">{!! res('price_thai_shipping') !!}
+	            <th class="text-right" colspan="11">{!! res('price_thai_shipping') !!}
 	            	<input type="hidden" class="hid_price_thai_shipping" value="0" />
 	            </th>
 	            <th class="text-right price_thai_shipping addcomma" colspan="3"></th>
 	        </thead>
 	        <thead>
-	            <th class="text-right" colspan="12">{!! res('total_net') !!}</th>
+	            <th class="text-right" colspan="11">Discount
+	            </th>
+	            <th class="text-right discount addcomma" colspan="3"></th>
+	        </thead>
+	        <thead>
+	            <th class="text-right" colspan="11">{!! res('total_net') !!}</th>
 	            <th class="text-right total_net addcomma" colspan="4"></th>
 	        </thead>
 		</table>
@@ -331,8 +335,13 @@ function CalculateTotal() {
 	var service = $(".hid_service").val();
 	var price_thai_shipping = $(".hid_price_thai_shipping").val();
 	var price_thai_storage = $(".hid_price_thai_storage").val();
+	//var discount = '0';
 
-	$(".total_net").text(eval(service) + eval(price_thai_storage) + eval(price_thai_shipping));
+	//var alldiscount = (eval(service) + eval(price_thai_storage) + eval(price_thai_shipping)) - eval(discount);
+	//$(".discount").text(alldiscount);
+	//$(".total_net").text((eval(service) + eval(price_thai_storage) + eval(price_thai_shipping)) - alldiscount);
+
+	$(".total_net").text((eval(service) + eval(price_thai_storage) + eval(price_thai_shipping)));
 	initialAddcommaText();
 }
 

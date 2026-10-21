@@ -106,6 +106,13 @@
 	            	{{ $no }}
 	            </div>
 	        </div>
+         	<div class="form-group">
+	            <label class="col-md-4 control-label"> รหัสคูปองส่วนลด</label>
+	            <div class="col-md-7 form-control-static">
+	            	{{ $coupon === null ? '-' : $coupon->name }}
+	            </div>
+	        </div>
+
             <div class="form-group">
 	            <label class="col-md-4 control-label"> {!! res('total_have_to_paided') !!}</label>
 	            <div class="col-md-7 form-control-static">
@@ -150,7 +157,6 @@
 		            <th class="text-center">{!! res('lot_list').'/'.res('no') !!}</th>
 		            <th class="text-center">{!! res('tracking') !!}</th>
 		            <th class="text-center">{!! res('order') !!}</th>
-					<th class="text-center">รหัสย่อย</th>
 		            <th class="text-center">{!! res('remark_for_this_order') !!}</th>
 		            <th class="text-center">{!! res('amount') !!}</th>
 		            <th class="text-center">{!! res('weight') !!}</th>

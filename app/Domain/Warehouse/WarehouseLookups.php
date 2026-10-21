@@ -6,7 +6,7 @@ use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Lookup;
 
 /**
- * ตัวช่วยร่วมของกลุ่ม warehouse (ไฟล์เดิม _admin/_warehouse*, _goodsconfirm, _admin/_goodsconfirm)
+ * ตัวช่วยร่วมของกลุ่ม warehouse (ไฟล์เดิม _goodsconfirm, _admin/_goodsconfirm)
  */
 final class WarehouseLookups
 {

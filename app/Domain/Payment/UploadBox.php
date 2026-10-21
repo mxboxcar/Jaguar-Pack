@@ -2,31 +2,25 @@
 
 namespace App\Domain\Payment;
 
-use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
 
 /**
- * getupload() / getuploadmultiple() ของ system_config.php เดิม (HTML + JS ของกล่องแนบไฟล์ dropper → system_upload)
+ * getupload() ของ system_config.php เดิมของ PACK (HTML + JS ของกล่องแนบไฟล์ dropper → system_upload) — ใช้ในหน้า alipay/{id}, admin/alipay/{id}
  *
- * ตาม CONVENTIONS ข้อ 8 เจ้าของคือกลุ่ม settings (ใช้ร่วม) — ยังไม่มีในฐานร่วม จึงสำเนาจาก App\Domain\Tracking\UploadBox (กลุ่ม tracking) ให้ payment/alipay ใช้ก่อน
- * ตอน merge ถ้า settings มีของกลางแล้ว ให้เปลี่ยนมาเรียกของกลาง (HTML ต้องเท่ากัน)
- * $field ถูกฝังเป็นชื่อฟังก์ชัน JS → ต้องเป็นค่าคงที่ในโค้ดเท่านั้น; $filename มาจาก DB → escape
+ * PACK ใช้ getupload รุ่นเก่า (แบบ jl ก่อนแก้): รูป = นามสกุล jpg/png/jpeg/JPG/JPEG/PNG (ตรงตัวพิมพ์), ไฟล์อื่นเป็นลิงก์ class fancybox ชื่อไฟล์,
+ * JS: ไฟล์ zip/rar/7z แสดงข้อความตอบกลับ, อื่นๆ แสดงเป็นรูปตัวอย่าง, ไม่มีตัวล้างช่อง input (change.reselect)
+ * ต่างจากเดิม: ไม่มี target="_blank" (นโยบายเจ้าของ), ชื่อไฟล์จาก DB escape
+ * $field ถูกฝังเป็นชื่อฟังก์ชัน JS → ต้องเป็นค่าคงที่ในโค้ดเท่านั้น
  */
 final class UploadBox
 {
+    private const IMAGE_EXT = ['jpg', 'png', 'jpeg', 'JPG', 'JPEG', 'PNG'];
+
     public static function single(string $field = 'path', ?string $filename = '', bool $isDelete = false, bool $isValidate = true, string $class = 'col-xs-12'): string
     {
-        return self::build($field, (string) $filename, $isDelete, $isValidate, $class, false);
-    }
-
-    public static function multiple(string $field = 'path', ?string $filename = '', bool $isDelete = false, bool $isValidate = true, string $class = 'col-xs-12'): string
-    {
-        return self::build($field, (string) $filename, $isDelete, $isValidate, $class, true);
-    }
-
-    private static function build(string $rand, string $filename, bool $isDelete, bool $isValidate, string $class, bool $multi): string
-    {
+        $rand = $field;
+        $filename = (string) $filename;
         $href = Legacy::href();
         $blob = Legacy::hrefBlob();
         $del = Lang::get('delete');
@@ -35,10 +29,10 @@ final class UploadBox
         $html .= '<div style="float:left" class="text-left upload_'.$rand.'"></div>';
         $html .= '<div style="float:left;clear: both;margin-top: 10px;" class=" upload_'.$rand.'_preview">';
         if ($filename !== '') {
-            if (Format::uploadIsImage($filename)) {
+            if (in_array(pathinfo($filename, PATHINFO_EXTENSION), self::IMAGE_EXT, true)) {
                 $html .= "<a class='fancybox' style='float:left;' href='".$blob.$f."'><img src='".$blob.$f."' style='max-width: 120px;max-height: 120px;' /></a>";
             } else {
-                $html .= "<a style='float:left;' download='".$f."' href='".$blob.$f."'>".$f.'</a>';
+                $html .= "<a class='fancybox' style='float:left;' href='".$blob.$f."'>".$f.'</a>';
             }
         }
         $html .= '</div>';
@@ -58,38 +52,25 @@ final class UploadBox
         $html .= '$(".upload_'.$rand.'").dropper({';
         $html .= 'action: rooturl + \'system_upload\',';
         $html .= 'label: "'.Lang::get('click_to_add_attachment').'",';
-        $html .= 'maxQueue : '.($multi ? '10' : '1').',';
+        $html .= 'maxQueue : 1,';
         $html .= '}).on("start.dropper", '.$rand.'_start).on("fileComplete.dropper", '.$rand.');';
-        $html .= '$(".upload_'.$rand.'").find(".dropper-input").on("change.reselect", function() { var el = this; setTimeout(function() { el.value = ""; }, 0); });';
         $html .= 'function '.$rand.'(e, file, response) {';
         $html .= ' if (response.trim() === "" || response.toLowerCase().indexOf("error") > -1) {';
         $html .= ' ErrorBox(response.toLowerCase(), "CloseLoading()"); $(".upload_'.$rand.'_preview").html("");$("input[name=\'upload_'.$rand.'\']").val("") ';
         $html .= ' } else {';
-        $html .= ' if(/\.(jpg|jpeg|png)$/i.test(response)) { ';
-        if ($multi) {
-            $html .= ' $(".upload_'.$rand.'_preview").append(\'<div class="image_list_items"><a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><input type="hidden" class="" id="upload_'.$rand.'" name="upload_'.$rand.'_mul[]" value="\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a><div onclick="$(this).parent().remove()" style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">'.$del.'</div></div></div>\'); ';
-            $html .= ' } else {';
-            $html .= ' $(".upload_'.$rand.'_preview").append(\'<div class="image_list_items"><a style="float:left" download href="'.$href.'upload/temp/\' + response + \'"><input type="hidden" class="" id="upload_'.$rand.'" name="upload_'.$rand.'_mul[]" value="\' + response + \'">\' + response + \'</a><div onclick="$(this).parent().remove()" style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">'.$del.'</div></div></div>\'); ';
-            $html .= ' } ';
-            $html .= ' $("input[name=\'upload_'.$rand.'\']").val(response);';
-            $html .= ' }';
-            $html .= '}';
-            $html .= 'function '.$rand.'_start(e, file, response) {';
-            $html .= '}';
-        } else {
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a>\'); ';
-            $html .= ' } else {';
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a style="float:left" download href="'.$href.'upload/temp/\' + response + \'">\' + response + \'</a>\'); ';
-            $html .= ' } ';
-            $html .= ' $("input[name=\'upload_'.$rand.'\']").val(response);';
-            $html .= ' $(".upload_'.$rand.'_delete").css("display", "block");';
-            $html .= ' }';
-            $html .= '}';
-            $html .= 'function '.$rand.'_start(e, file, response) {';
-            $html .= ' $(".upload_'.$rand.'_preview").html("<img src=\''.$href.'assets/images/loading.gif\' />"); ';
-            $html .= ' $(".upload_'.$rand.'_delete").css("display", "none");';
-            $html .= '}';
-        }
+        $html .= ' if(response.toLowerCase().indexOf(".zip") > -1 || response.toLowerCase().indexOf(".rar") > -1 || response.toLowerCase().indexOf(".7z") > -1) { ';
+        $html .= ' $(".upload_'.$rand.'_preview").html(response); ';
+        $html .= ' } else {';
+        $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a>\'); ';
+        $html .= ' } ';
+        $html .= ' $("input[name=\'upload_'.$rand.'\']").val(response);';
+        $html .= ' $(".upload_'.$rand.'_delete").css("display", "block");';
+        $html .= ' }';
+        $html .= '}';
+        $html .= 'function '.$rand.'_start(e, file, response) {';
+        $html .= ' $(".upload_'.$rand.'_preview").html("<img src=\''.$href.'assets/images/loading.gif\' />"); ';
+        $html .= ' $(".upload_'.$rand.'_delete").css("display", "none");';
+        $html .= '}';
         $html .= '</script>';
 
         return $html;

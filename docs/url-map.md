@@ -118,10 +118,10 @@
 | 106 | 154 | `^admin/export$` | `?page=admin_export`  | admin_export | _admin/_export/index.php | **reports** |
 | 107 | 155 | `^admin/export/status/([0-9]+)$` | `?page=admin_export&status=$1`  | admin_export | _admin/_export/index.php | **reports** |
 | 108 | 156 | `^admin/export/([0-9]+)$` | `?page=admin_export_detail&id=$1`  | admin_export_detail | _admin/_export/form.php | **reports** |
-| 109 | 157 | `^admin/export/receipt/([0-9]+)$` | `?page=admin_export_receipt&id=$1`  | admin_export_receipt | _admin/_export/receipt.php | **reports** |
-| 110 | 159 | `^admin/receipt$` | `?page=admin_receipt`  | admin_receipt | _admin/_receipt/index.php | **payment** |
+| 109 | 157 | `^admin/export/receipt/([0-9]+)$` | `?page=admin_export_receipt&id=$1`  | admin_export_receipt | _admin/_export/receipt.php | **reports** (PACK: dead — ไม่มี RewriteRule/ไฟล์นี้) |
+| 110 | 159 | `^admin/receipt$` | `?page=admin_receipt`  | admin_receipt | _admin/_receipt/index.php | **dead (PACK ไม่มี `_admin/_receipt` — route ถูกลบ)** |
 | 111 | 160 | `^admin/receipt/([0-9]+)$` | `?page=admin_receipt_detail&id=$1`  | admin_receipt_detail | _admin/_receipt/form.php (**ไม่มีไฟล์นี้ในเว็บเดิม** — หน้าเดิม error/ว่าง) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
-| 112 | 161 | `^admin/receipt/status/([0-9]+)$` | `?page=admin_receipt&status=$1`  | admin_receipt | _admin/_receipt/index.php | **payment** |
+| 112 | 161 | `^admin/receipt/status/([0-9]+)$` | `?page=admin_receipt&status=$1`  | admin_receipt | _admin/_receipt/index.php | **dead (PACK ไม่มี `_admin/_receipt` — route ถูกลบ)** |
 | 113 | 162 | `^admin/receipt/create$` | `?page=admin_receipt_detail&id=0`  | admin_receipt_detail | _admin/_receipt/form.php (**ไม่มีไฟล์นี้ในเว็บเดิม** — หน้าเดิม error/ว่าง) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
 | 114 | 165 | `^admin/transfer$` | `?page=admin_transfer`  | admin_transfer | _admin/_transfer/index.php | **money-move** |
 | 115 | 166 | `^admin/transfer/create$` | `?page=admin_transfer_detail&id=0`  | admin_transfer_detail | _admin/_transfer/form.php | **money-move** |
@@ -131,6 +131,10 @@
 | 119 | 171 | `^admin/alipay/create$` | `?page=admin_alipay_detail&id=0`  | admin_alipay_detail | _admin/_alipay/form.php | **payment** |
 | 120 | 172 | `^admin/alipay/status/([0-9]+)$` | `?page=admin_alipay&status=$1`  | admin_alipay | _admin/_alipay/index.php | **payment** |
 | 121 | 173 | `^admin/alipay/([0-9]+)$` | `?page=admin_alipay_detail&id=$1`  | admin_alipay_detail | _admin/_alipay/form.php | **payment** |
+| PACK | 106 | `^admin/coupon$` | `?page=admin_coupon`  | admin_coupon | _admin/_coupon/index.php | **payment** (PACK เท่านั้น) |
+| PACK | 107 | `^admin/coupon/create$` | `?page=admin_coupon_detail&id=0`  | admin_coupon_detail | _admin/_coupon/form.php | **payment** (PACK เท่านั้น) |
+| PACK | 108 | `^admin/coupon/status/([0-9]+)$` | `?page=admin_coupon&status=$1`  | admin_coupon | _admin/_coupon/index.php | **payment** (PACK เท่านั้น) |
+| PACK | 109 | `^admin/coupon/([0-9]+)$` | `?page=admin_coupon_detail&id=$1`  | admin_coupon_detail | _admin/_coupon/form.php | **payment** (PACK เท่านั้น) |
 | 122 | 175 | `^admin/tracking$` | `?page=admin_tracking`  | admin_tracking | _admin/_tracking/index.php | **tracking** |
 | 123 | 176 | `^admin/tracking/create$` | `?page=admin_tracking_detail&id=0`  | admin_tracking_detail | _admin/_tracking/form.php | **tracking** |
 | 124 | 177 | `^admin/tracking/status/([0-9]+)$` | `?page=admin_tracking&status=$1`  | admin_tracking | _admin/_tracking/index.php | **tracking** |
@@ -140,7 +144,7 @@
 | 128 | 183 | `^admin/send$` | `?page=admin_send`  | admin_send | _admin/_send/index.php | **messaging** |
 | 129 | 184 | `^admin/sendself$` | `?page=admin_sendself`  | admin_sendself | _admin/_send/index_self.php | **messaging** |
 | 130 | 185 | `^admin/setting$` | `?page=admin_setting`  | admin_setting | _admin/_setting/index.php | **settings** |
-| 131 | 186 | `^admin/check$` | `?page=admin_check`  | admin_check | _admin/_check/index.php | **tracking** |
+| 131 | 186 | `^admin/check$` | `?page=admin_check` | admin_check | _admin/_check/index.php (PACK: ไม่มี RewriteRule/ไฟล์ (SR-only)) | **dead ใน PACK (ไม่ทำ route)** |
 | 132 | 188 | `^admin/notice$` | `?page=admin_notice`  | admin_notice | _admin/_notice/index.php | **messaging** |
 | 133 | 189 | `^admin/notice/([0-9]+)$` | `?page=admin_notice_detail&id=$1`  | admin_notice_detail | _admin/_notice/form.php | **messaging** |
 | 134 | 190 | `^admin/notice/create$` | `?page=admin_notice_detail&id=0`  | admin_notice_detail | _admin/_notice/form.php | **messaging** |
@@ -175,14 +179,14 @@
 | 163 | 228 | `^admin/mall/([0-9]+)$` | `?page=admin_mall_detail&id=$1`  | admin_mall_detail | (ไม่มีใน content.php) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
 | 164 | 229 | `^admin/mall_stock/([0-9]+)$` | `?page=admin_mall_stock`  | admin_mall_stock | (ไม่มีใน content.php) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
 | 165 | 230 | `^admin/mall/create$` | `?page=admin_mall_detail&id=0`  | admin_mall_detail | (ไม่มีใน content.php) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
-| 166 | 232 | `^admin/nobilling$` | `?page=admin_nobilling`  | admin_nobilling | _admin/_nobilling/index.php | **reports** |
-| 167 | 234 | `^admin/warehouse_section$` | `?page=admin_warehouse_section`  | admin_warehouse_section | _admin/_warehouse_section/index.php | **warehouse** |
-| 168 | 235 | `^admin/warehouse_section/([0-9]+)$` | `?page=admin_warehouse_section_detail&id=$1`  | admin_warehouse_section_detail | _admin/_warehouse_section/form.php | **warehouse** |
-| 169 | 236 | `^admin/warehouse_section/create$` | `?page=admin_warehouse_section_detail&id=0`  | admin_warehouse_section_detail | _admin/_warehouse_section/form.php | **warehouse** |
-| 170 | 238 | `^admin/warehouse_section_move$` | `?page=admin_warehouse_section_move`  | admin_warehouse_section_move | _admin/_warehouse_section_move/index.php | **warehouse** |
-| 171 | 239 | `^admin/warehouse$` | `?page=admin_warehouse`  | admin_warehouse | _admin/_warehouse/index.php | **warehouse** |
-| 172 | 240 | `^admin/warehouse/([0-9]+)$` | `?page=admin_warehouse_detail&id=$1`  | admin_warehouse_detail | _admin/_warehouse/form.php | **warehouse** |
-| 173 | 241 | `^admin/warehouse/create$` | `?page=admin_warehouse_detail&id=0`  | admin_warehouse_detail | _admin/_warehouse/form.php | **warehouse** |
+| 166 | 232 | `^admin/nobilling$` | `?page=admin_nobilling`  | admin_nobilling | _admin/_nobilling/index.php | **reports** (PACK: dead — content.php ไม่มี case นี้) |
+| 167 | 234 | `^admin/warehouse_section$` | `?page=admin_warehouse_section` | admin_warehouse_section | _admin/_warehouse_section/index.php (PACK: ไม่มี page นี้ใน content.php — เว็บเดิมได้ layout เปล่า) | **dead ใน PACK (ไม่ทำ route)** |
+| 168 | 235 | `^admin/warehouse_section/([0-9]+)$` | `?page=admin_warehouse_section_detail&id=$1` | admin_warehouse_section_detail | _admin/_warehouse_section/form.php (PACK: ไม่มี page นี้ใน content.php — เว็บเดิมได้ layout เปล่า) | **dead ใน PACK (ไม่ทำ route)** |
+| 169 | 236 | `^admin/warehouse_section/create$` | `?page=admin_warehouse_section_detail&id=0` | admin_warehouse_section_detail | _admin/_warehouse_section/form.php (PACK: ไม่มี page นี้ใน content.php — เว็บเดิมได้ layout เปล่า) | **dead ใน PACK (ไม่ทำ route)** |
+| 170 | 238 | `^admin/warehouse_section_move$` | `?page=admin_warehouse_section_move` | admin_warehouse_section_move | _admin/_warehouse_section_move/index.php (PACK: ไม่มี page นี้ใน content.php — เว็บเดิมได้ layout เปล่า) | **dead ใน PACK (ไม่ทำ route)** |
+| 171 | 239 | `^admin/warehouse$` | `?page=admin_warehouse` | admin_warehouse | _admin/_warehouse/index.php (PACK: ไม่มี page นี้ใน content.php — เว็บเดิมได้ layout เปล่า) | **dead ใน PACK (ไม่ทำ route)** |
+| 172 | 240 | `^admin/warehouse/([0-9]+)$` | `?page=admin_warehouse_detail&id=$1` | admin_warehouse_detail | _admin/_warehouse/form.php (PACK: ไม่มี page นี้ใน content.php — เว็บเดิมได้ layout เปล่า) | **dead ใน PACK (ไม่ทำ route)** |
+| 173 | 241 | `^admin/warehouse/create$` | `?page=admin_warehouse_detail&id=0` | admin_warehouse_detail | _admin/_warehouse/form.php (PACK: ไม่มี page นี้ใน content.php — เว็บเดิมได้ layout เปล่า) | **dead ใน PACK (ไม่ทำ route)** |
 | 174 | 243 | `^admin/log$` | `?page=admin_log`  | admin_log | _admin/_log/index.php | **reports** |
 | 175 | 245 | `^admin/printorder$` | `?page=admin_printorder`  | admin_printorder | _admin/_printorder/index.php | **dead (PACK ไม่มีไฟล์ — ไม่มี route, 404 → หน้าแรก)** |
 | 176 | 246 | `^admin/printorder/([0-9]+)$` | `?page=admin_printorder_detail&id=$1`  | admin_printorder_detail | _admin/_printorder/form.php | **dead (PACK ไม่มีไฟล์ — ไม่มี route, 404 → หน้าแรก)** |
@@ -200,9 +204,9 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 
 | ไฟล์ | URL เดิม | page | หมายเหตุ |
 |---|---|---|---|
-| `_admin/_check/index.php` | `/_admin/_check/index` | admin_check |  |
-| `_admin/_check/save_clear.php` | `/_admin/_check/save_clear` |  |  |
-| `_admin/_check/save_clearall.php` | `/_admin/_check/save_clearall` |  |  |
+| `_admin/_check/index.php` | `/_admin/_check/index` | admin_check | **dead ใน PACK** — SR-only (ไม่มีไฟล์ใน PACK) |
+| `_admin/_check/save_clear.php` | `/_admin/_check/save_clear` |  | **dead ใน PACK** — SR-only (ไม่มีไฟล์ใน PACK) |
+| `_admin/_check/save_clearall.php` | `/_admin/_check/save_clearall` |  | **dead ใน PACK** — SR-only (ไม่มีไฟล์ใน PACK) |
 | `_admin/_combine_track/index.php` | `/_admin/_combine_track/index` | admin_combine_track |  |
 | `_admin/_combine_track/load_tracking.php` | `/_admin/_combine_track/load_tracking` |  |  |
 | `_admin/_combine_track/save_combine.php` | `/_admin/_combine_track/save_combine` |  |  |
@@ -219,7 +223,7 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_tracking/form.php` | `/_admin/_tracking/form` | admin_tracking_detail |  |
 | `_admin/_tracking/grid.php` | `/_admin/_tracking/grid` |  |  |
 | `_admin/_tracking/index.php` | `/_admin/_tracking/index` | admin_tracking |  |
-| `_admin/_tracking/load_paging.php` | `/_admin/_tracking/load_paging` |  |  |
+| `_admin/_tracking/load_paging.php` | `/_admin/_tracking/load_paging` |  | **dead ใน PACK** — SR-only (ไม่มีไฟล์ใน PACK) |
 | `_admin/_tracking/load_pricing.php` | `/_admin/_tracking/load_pricing` |  |  |
 | `_admin/_tracking/load_product_type.php` | `/_admin/_tracking/load_product_type` |  |  |
 | `_admin/_tracking/save.php` | `/_admin/_tracking/save` |  |  |
@@ -241,6 +245,7 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_tracking/load_product_type.php` | `/_tracking/load_product_type` |  |  |
 | `_tracking/save.php` | `/_tracking/save` |  |  |
 | `_tracking/save_quick_quote.php` | `/_tracking/save_quick_quote` |  |  |
+| `track_external.php` (PACK-only) | `/track_external` |  | **ไม่พอร์ต — รอเจ้าของ** (หน้าค้นสาธารณะไม่ต้องล็อกอิน ไม่มีลิงก์จากหน้าใด, SQL injection/XSS) |
 
 ### shop (43 ไฟล์)
 
@@ -397,10 +402,16 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_payment/save_delete.php` | `/_admin/_payment/save_delete` |  |  |
 | `_admin/_payment/save_deletenopush.php` | `/_admin/_payment/save_deletenopush` |  |  |
 | `_admin/_payment/save_new_sender.php` | `/_admin/_payment/save_new_sender` |  |  |
+| `_admin/_payment/save_vat.php` | `/_admin/_payment/save_vat` |  | PACK (สูตร VAT ของ PACK — ไม่มีหัก ณ ที่จ่าย 3% แบบ jl) |
 | `_admin/_payment/save_submit_payment.php` | `/_admin/_payment/save_submit_payment` |  |  |
-| `_admin/_receipt/grid.php` | `/_admin/_receipt/grid` |  |  |
-| `_admin/_receipt/index.php` | `/_admin/_receipt/index` | admin_receipt |  |
-| `_alipay/cancel.php` | `/_alipay/cancel` |  |  |
+| `_admin/_receipt/grid.php` | `/_admin/_receipt/grid` |  | **dead** — PACK ไม่มีไฟล์ (SR เท่านั้น) → ไม่มี route |
+| `_admin/_receipt/index.php` | `/_admin/_receipt/index` | admin_receipt | **dead** — PACK ไม่มีไฟล์ (SR เท่านั้น) → ไม่มี route |
+| `_admin/_coupon/index.php` | `/_admin/_coupon/index` | admin_coupon | PACK เท่านั้น (สิทธิ์ admin_coupon) |
+| `_admin/_coupon/grid.php` | `/_admin/_coupon/grid` |  | PACK เท่านั้น (ไม่มีสิทธิ์ = ตอบว่าง) |
+| `_admin/_coupon/form.php` | `/_admin/_coupon/form` | admin_coupon_detail | PACK เท่านั้น |
+| `_admin/_coupon/save.php` | `/_admin/_coupon/save` |  | PACK เท่านั้น |
+| `_admin/_coupon/delete.php` | `/_admin/_coupon/delete` |  | PACK: สำเนาของ `_admin/_product_type/delete.php` (ตรวจ admin_product_type แล้วลบ product_type) → ตอบสำเร็จโดยไม่ลบอะไร |
+| `_alipay/cancel.php` | `/_alipay/cancel` |  | PACK: ทั้งไฟล์ถูก comment → ตอบว่าง ไม่ทำอะไร |
 | `_alipay/form.php` | `/_alipay/form` | alipay_detail |  |
 | `_alipay/grid.php` | `/_alipay/grid` |  |  |
 | `_alipay/index.php` | `/_alipay/index` | alipay |  |
@@ -414,6 +425,8 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_payment/load_create_sum.php` | `/_payment/load_create_sum` |  |  |
 | `_payment/load_select_lot.php` | `/_payment/load_select_lot` |  |  |
 | `_payment/load_shipping_price.php` | `/_payment/load_shipping_price` |  |  |
+| `_payment/load_discoutcode.php` | `/_payment/load_discoutcode` |  | PACK เท่านั้น (คูปองส่วนลด) |
+| `_payment/create_form_bk.php` | `/_payment/create_form_bk` |  | **dead** — ไฟล์สำรองของ PACK ไม่มีใครลิงก์ → ไม่พอร์ต |
 | `_payment/save.php` | `/_payment/save` |  |  |
 | `_payment/save_create.php` | `/_payment/save_create` |  |  |
 | `_payment/save_delete.php` | `/_payment/save_delete` |  |  |
@@ -578,28 +591,28 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_goodsconfirm/save_approved.php` | `/_admin/_goodsconfirm/save_approved` |  |  |
 | `_admin/_goodsconfirm/save_image.php` | `/_admin/_goodsconfirm/save_image` |  |  |
 | `_admin/_goodsconfirm/save_unapproved.php` | `/_admin/_goodsconfirm/save_unapproved` |  |  |
-| `_admin/_warehouse/form.php` | `/_admin/_warehouse/form` | admin_warehouse_detail |  |
-| `_admin/_warehouse/grid.php` | `/_admin/_warehouse/grid` |  |  |
-| `_admin/_warehouse/index.php` | `/_admin/_warehouse/index` | admin_warehouse |  |
-| `_admin/_warehouse/load_editshelf.php` | `/_admin/_warehouse/load_editshelf` |  |  |
-| `_admin/_warehouse/load_lot_detail.php` | `/_admin/_warehouse/load_lot_detail` |  |  |
-| `_admin/_warehouse/load_lot_detail_thai.php` | `/_admin/_warehouse/load_lot_detail_thai` |  |  |
-| `_admin/_warehouse/load_tracking.php` | `/_admin/_warehouse/load_tracking` |  |  |
-| `_admin/_warehouse/load_tracking_edit.php` | `/_admin/_warehouse/load_tracking_edit` |  |  |
-| `_admin/_warehouse/save.php` | `/_admin/_warehouse/save` |  |  |
-| `_admin/_warehouse/save_cancel_warehouse_calculate.php` | `/_admin/_warehouse/save_cancel_warehouse_calculate` |  |  |
-| `_admin/_warehouse/save_editshelf.php` | `/_admin/_warehouse/save_editshelf` |  |  |
-| `_admin/_warehouse/save_lot_detail.php` | `/_admin/_warehouse/save_lot_detail` |  |  |
-| `_admin/_warehouse/save_new_warehouse.php` | `/_admin/_warehouse/save_new_warehouse` |  |  |
-| `_admin/_warehouse/save_push_track.php` | `/_admin/_warehouse/save_push_track` |  |  |
-| `_admin/_warehouse/save_track_weight.php` | `/_admin/_warehouse/save_track_weight` |  |  |
-| `_admin/_warehouse_section/delete.php` | `/_admin/_warehouse_section/delete` |  |  |
-| `_admin/_warehouse_section/form.php` | `/_admin/_warehouse_section/form` | admin_warehouse_section_detail |  |
-| `_admin/_warehouse_section/grid.php` | `/_admin/_warehouse_section/grid` |  |  |
-| `_admin/_warehouse_section/index.php` | `/_admin/_warehouse_section/index` | admin_warehouse_section |  |
-| `_admin/_warehouse_section/save.php` | `/_admin/_warehouse_section/save` |  |  |
-| `_admin/_warehouse_section_move/grid.php` | `/_admin/_warehouse_section_move/grid` |  |  |
-| `_admin/_warehouse_section_move/index.php` | `/_admin/_warehouse_section_move/index` | admin_warehouse_section_move |  |
+| `_admin/_warehouse/form.php` | `/_admin/_warehouse/form` | admin_warehouse_detail | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse/grid.php` | `/_admin/_warehouse/grid` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse/index.php` | `/_admin/_warehouse/index` | admin_warehouse | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse/load_editshelf.php` | `/_admin/_warehouse/load_editshelf` |  | **dead ใน PACK** — SR-only (ไม่มีไฟล์ใน PACK) |
+| `_admin/_warehouse/load_lot_detail.php` | `/_admin/_warehouse/load_lot_detail` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse/load_lot_detail_thai.php` | `/_admin/_warehouse/load_lot_detail_thai` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse/load_tracking.php` | `/_admin/_warehouse/load_tracking` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse/load_tracking_edit.php` | `/_admin/_warehouse/load_tracking_edit` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse/save.php` | `/_admin/_warehouse/save` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse/save_cancel_warehouse_calculate.php` | `/_admin/_warehouse/save_cancel_warehouse_calculate` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse/save_editshelf.php` | `/_admin/_warehouse/save_editshelf` |  | **dead ใน PACK** — SR-only (ไม่มีไฟล์ใน PACK) |
+| `_admin/_warehouse/save_lot_detail.php` | `/_admin/_warehouse/save_lot_detail` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse/save_new_warehouse.php` | `/_admin/_warehouse/save_new_warehouse` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse/save_push_track.php` | `/_admin/_warehouse/save_push_track` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse/save_track_weight.php` | `/_admin/_warehouse/save_track_weight` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse_section/delete.php` | `/_admin/_warehouse_section/delete` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse_section/form.php` | `/_admin/_warehouse_section/form` | admin_warehouse_section_detail | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse_section/grid.php` | `/_admin/_warehouse_section/grid` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse_section/index.php` | `/_admin/_warehouse_section/index` | admin_warehouse_section | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse_section/save.php` | `/_admin/_warehouse_section/save` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse_section_move/grid.php` | `/_admin/_warehouse_section_move/grid` |  | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
+| `_admin/_warehouse_section_move/index.php` | `/_admin/_warehouse_section_move/index` | admin_warehouse_section_move | **dead ใน PACK** — ไม่มีหน้าเรียก (content.php ไม่มี page), ตาราง warehouse* ไม่มี, admin_warehouse ไม่มีใครถือ |
 | `_goodsconfirm/form.php` | `/_goodsconfirm/form` | goodsconfirm_detail |  |
 | `_goodsconfirm/grid.php` | `/_goodsconfirm/grid` |  |  |
 | `_goodsconfirm/index.php` | `/_goodsconfirm/index` | goodsconfirm |  |
@@ -697,8 +710,8 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 
 | ไฟล์ | URL เดิม | page | หมายเหตุ |
 |---|---|---|---|
-| `_admin/_dashboard/index.php` | `/_admin/_dashboard/index` |  |  |
-| `_admin/_export/calvat.php` | `/_admin/_export/calvat` |  |  |
+| `_admin/_dashboard/index.php` | `/_admin/_dashboard/index` |  | dead — ไม่มีไฟล์ไหน include และไม่มี RewriteRule (เหมือน jl/SR) |
+| `_admin/_export/calvat.php` | `/_admin/_export/calvat` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
 | `_admin/_export/email_cancel.php` | `/_admin/_export/email_cancel` |  |  |
 | `_admin/_export/email_success.php` | `/_admin/_export/email_success` |  |  |
 | `_admin/_export/form.php` | `/_admin/_export/form` | admin_export_detail |  |
@@ -706,18 +719,18 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_export/index.php` | `/_admin/_export/index` | admin_export |  |
 | `_admin/_export/print.php` | `/_admin/_export/print` |  |  |
 | `_admin/_export/print_2.php` | `/_admin/_export/print_2` |  |  |
-| `_admin/_export/print_3.php` | `/_admin/_export/print_3` |  |  |
-| `_admin/_export/print_receipt.php` | `/_admin/_export/print_receipt` |  |  |
-| `_admin/_export/printprice.php` | `/_admin/_export/printprice` |  |  |
-| `_admin/_export/receipt.php` | `/_admin/_export/receipt` | admin_export_receipt |  |
-| `_admin/_export/receipt_1.php` | `/_admin/_export/receipt_1` |  |  |
-| `_admin/_export/receipt_2.php` | `/_admin/_export/receipt_2` |  |  |
+| `_admin/_export/print_3.php` | `/_admin/_export/print_3` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
+| `_admin/_export/print_receipt.php` | `/_admin/_export/print_receipt` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
+| `_admin/_export/printprice.php` | `/_admin/_export/printprice` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
+| `_admin/_export/receipt.php` | `/_admin/_export/receipt` | admin_export_receipt | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
+| `_admin/_export/receipt_1.php` | `/_admin/_export/receipt_1` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
+| `_admin/_export/receipt_2.php` | `/_admin/_export/receipt_2` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
 | `_admin/_export/save_approved.php` | `/_admin/_export/save_approved` |  |  |
 | `_admin/_export/save_delete.php` | `/_admin/_export/save_delete` |  |  |
-| `_admin/_export/save_receipt.php` | `/_admin/_export/save_receipt` |  |  |
+| `_admin/_export/save_receipt.php` | `/_admin/_export/save_receipt` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
 | `_admin/_log/grid.php` | `/_admin/_log/grid` |  |  |
 | `_admin/_log/index.php` | `/_admin/_log/index` | admin_log |  |
-| `_admin/_nobilling/index.php` | `/_admin/_nobilling/index` | admin_nobilling |  |
+| `_admin/_nobilling/index.php` | `/_admin/_nobilling/index` | admin_nobilling | PACK: **dead** — content.php ของ PACK ไม่มี case admin_nobilling (admin/nobilling = หน้า layout ว่าง) และไม่มีไฟล์ไหนลิงก์ → ไม่มี route |
 | `_admin/_report/cashmove.php` | `/_admin/_report/cashmove` |  |  |
 | `_admin/_report/current_cash.php` | `/_admin/_report/current_cash` |  |  |
 | `_admin/_report/current_cash_cn.php` | `/_admin/_report/current_cash_cn` |  |  |
@@ -727,7 +740,7 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_report/form.php` | `/_admin/_report/form` | admin_report_detail |  |
 | `_admin/_report/grid.php` | `/_admin/_report/grid` |  |  |
 | `_admin/_report/index.php` | `/_admin/_report/index` | admin_report |  |
-| `_admin/_report/printtax.php` | `/_admin/_report/printtax` |  |  |
+| `_admin/_report/printtax.php` | `/_admin/_report/printtax` |  | PACK: **dead** — ไม่มีไฟล์นี้ใน PACK (ใบเสร็จ/ภาษีขายของ SR, bill_payment ไม่มี receipt_*) → ไม่มี route (404 → หน้าแรก) |
 | `_admin/_report/refill_5.php` | `/_admin/_report/refill_5` |  |  |
 | `_admin/_report/refill_6.php` | `/_admin/_report/refill_6` |  |  |
 | `_admin/_report/refill_7.php` | `/_admin/_report/refill_7` |  |  |

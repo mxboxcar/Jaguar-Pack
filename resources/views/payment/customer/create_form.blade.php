@@ -1,4 +1,4 @@
-{{-- _payment/create_form.php เดิม (GET payment/create/{random}) — แสดงเฉพาะ tracking ของผู้ใช้นี้ --}}
+{{-- _payment/create_form.php เดิม (PACK: VAT + คูปองส่วนลด) (GET payment/create/{random}) — แสดงเฉพาะ tracking ของผู้ใช้นี้ --}}
 @extends('legacy.layout')
 @php
     use App\Support\Legacy\Format;
@@ -78,6 +78,16 @@
 	        </div>
 
 
+	        <div class="form-group " >
+	            <label class="col-md-4 control-label">ต้องการ VAT?
+	            </label>
+	            <div class="col-md-4">
+                	<select class="form-control  " name="is_vat" onchange="getShippingPrice($('select[name=\'shipping_type\']'))">
+                	<option selected="selected" value="0">ไม่</option><option value="1">ใช่</option>
+                	</select>
+	            </div>
+	        </div>
+
 	        <div class="form-group" style="border-top:1px #ccc dashed"></div>
 
 	        <div class="form-group">
@@ -141,6 +151,12 @@
     <p class="text-muted font-13 m-b-30">
     </p>
     	<div class="form-horizontal" role="form">
+    		<div class="form-group">
+	            <label class="col-md-4 control-label"> คูปองส่วนลด(ถ้ามี)</label>
+	            <div class="col-md-4">
+                	<input type="text" name="discount_code" id="discount_code" class="form-control" value="" autocomplete="new-password" onblur="getdiscoutcode($(this))">
+	            </div>
+	        </div>
             <div class="form-group">
 	            <label class="col-md-4 control-label"> {!! res('total_have_to_paid') !!}</label>
 	            <div class="col-md-7 form-control-static">
@@ -180,7 +196,6 @@
 		            <th class="text-center">{!! res('lot_list').'/'.res('no') !!}</th>
 		            <th class="text-center">{!! res('tracking') !!}</th>
 		            <th class="text-center">{!! res('order') !!}</th>
-					<th class="text-center">รหัสย่อย</th>
 		            <th class="text-center">{!! res('remark_for_this_order') !!}</th>
 		            <th class="text-center">{!! res('amount') !!}</th>
 		            <th class="text-center">{!! res('weight') !!}</th>
@@ -200,7 +215,7 @@
 		@include('payment.partials.detail_rows', ['orderBase' => 'order/', 'orderWithTracking' => false, 'note' => 'quote', 'emptyCols' => 11])
 		</tbody>
 			<thead>
-	            <th class="text-right " colspan="5"></th>
+	            <th class="text-right " colspan="4"></th>
 	            <th class="text-right" >{!! Format::numberformatzero($sum['amount']) !!}</th>
 	            <th class="text-right" >{!! Format::numberformatone($sum['weight']) !!}</th>
 	            <th class="text-right" >{!! Format::numberformatone($sum['width']) !!}</th>
@@ -214,27 +229,26 @@
 	            <!-- <th class="text-right" >{!! Format::numberformat($sum['pamount'], true, false) !!}</th> -->
 	        </thead>
 	        <thead>
-	            <th class="text-right" colspan="12">{!! res('total') !!}
+	            <th class="text-right" colspan="11">{!! res('total') !!}
 	            	<input type="hidden" class="hid_service" value="{!! Format::numberformat($sum['service'] + $sum['kg'] + $sum['pcubic'] + $sum['pamount'], false, false) !!}" />
 	            </th>
 	            <th class="text-right" colspan="8">{!! Format::numberformat($sum['service'] + $sum['kg'] + $sum['pcubic'] + $sum['pamount'], true, false) !!}</th>
 	        </thead>
 	        <thead>
-	            <th class="text-right" colspan="12">{!! res('price_thai_storage') !!}
+	            <th class="text-right" colspan="11">{!! res('price_thai_storage') !!}
 	            	<input type="hidden" class="hid_price_thai_storage" value="0" />
 	            </th>
 	            <th class="text-right price_thai_storage addcomma" colspan="3"></th>
 	        </thead>
 	        <thead>
-	            <th class="text-right" colspan="12"><small class="text-danger">({!! res('price_shipping_remark') !!})</small> {!! res('price_thai_shipping') !!}
+	            <th class="text-right" colspan="11"><small class="text-danger">({!! res('price_shipping_remark') !!})</small> {!! res('price_thai_shipping') !!}
 	            	<input type="hidden" class="hid_price_thai_shipping" value="0" />
 	            </th>
 	            <th class="text-right price_thai_shipping addcomma" colspan="3"></th>
 	        </thead>
 	        
-	        <thead>
-	            <th class="text-right" colspan="12">{!! res('total_net') !!}</th>
-	            <th class="text-right total_net addcomma" colspan="4"></th>
+	        <thead id="totalhtml">
+
 	        </thead>
 
 		</table>
@@ -245,163 +259,197 @@
 @include('payment.partials.example_modal')
 
 <script>
-$(function() {
-	$('.showdetailbox').on('touchstart mouseover', function (e) {
-	    $(this).css({'color':  '#ff0000'});
-		$(this).find('.lot_table_in').css('display', 'block');
+	$(function() {
+		$('.showdetailbox').on('touchstart mouseover', function(e) {
+			$(this).css({
+				'color': '#ff0000'
+			});
+			$(this).find('.lot_table_in').css('display', 'block');
+		});
+		$('.showdetailbox').on('touchend mouseout', function(e) {
+			$(this).css({
+				'color': '#797979'
+			});
+			$(this).find('.lot_table_in').css('display', 'none');
+		});
+		CalculateTotal();
+
+		var discount_code = $('#discount_code');
+		discount_code.val('');
+		discount_code.prop('type', 'text');
+		discount_code.removeAttr('autocomplete');
 	});
-	$('.showdetailbox').on('touchend mouseout', function (e) {
-	    $(this).css({'color': '#797979'});
-		$(this).find('.lot_table_in').css('display', 'none');
-	});
-	CalculateTotal();
-});
-function sumiting() {
-	if($("form").validationEngine('validate') == false) 
-	{ 
-		CloseLoading(); 
-	} else {
-		ConfirmBox(function () {
-			$("form").eq(0).submit();
+
+	function sumiting() {
+		if ($("form").validationEngine('validate') == false) {
+			CloseLoading();
+		} else {
+			ConfirmBox(function() {
+				$("form").eq(0).submit();
+			});
+		}
+	}
+
+	function canceling() {
+		ConfirmBox(function() {
+			$.ajax({
+				type: 'POST',
+				async: true,
+				data: 'id={!! \App\Support\Legacy\Alerts::js(e($random)) !!}',
+				url: rooturl + '_refill/cancel',
+				success: function(data) {
+					eval(data);
+				}
+			});
 		});
 	}
-}
 
-function canceling() {
-	ConfirmBox(function () {
-		$.ajax({
-            type: 'POST',
-            async: true,
-            data : 'id={!! \App\Support\Legacy\Alerts::js(e($random)) !!}' ,
-            url: rooturl + '_refill/cancel',
-            success: function(data) {
-            	eval(data);
-            }
-        });
+
+	$("form").validationEngine();
+	$("form").ajaxForm({
+		success: function(data) {
+			eval(data);
+		}
 	});
-}
+
+	$(function() {
+		$('#my_multi_select3').multiSelect({
+			selectableHeader: "<input type='text' class='form-control search-input' autocomplete='off' placeholder='{!! res('search') !!}'>",
+			selectionHeader: "<input type='text' class='form-control search-input' autocomplete='off' placeholder='{!! res('search') !!}'>",
+			afterInit: function(ms) {
+				var that = this,
+					$selectableSearch = that.$selectableUl.prev(),
+					$selectionSearch = that.$selectionUl.prev(),
+					selectableSearchString = '#' + that.$container.attr('id') + ' .ms-elem-selectable:not(.ms-selected)',
+					selectionSearchString = '#' + that.$container.attr('id') + ' .ms-elem-selection.ms-selected';
+
+				that.qs1 = $selectableSearch.quicksearch(selectableSearchString)
+					.on('keydown', function(e) {
+						if (e.which === 40) {
+							that.$selectableUl.focus();
+							return false;
+						}
+					});
+
+				that.qs2 = $selectionSearch.quicksearch(selectionSearchString)
+					.on('keydown', function(e) {
+						if (e.which == 40) {
+							that.$selectionUl.focus();
+							return false;
+						}
+					});
+			},
+			afterSelect: function() {
+				this.qs1.cache();
+				this.qs2.cache();
+			},
+			afterDeselect: function() {
+				this.qs1.cache();
+				this.qs2.cache();
+			}
+		});
+	});
+
+	function getShippingPrice(ele) {
+		$.ajax({
+			type: 'POST',
+			async: true,
+			data: 'id=' + ele.val() + '&payment_ref=' + $("input[name='ref_id']").val() + '&sender=' + $("select[name='sender_type']").val() + '&is_vat=' + $("select[name='is_vat']").val() + '&discount=' + $("input[name='discount_code']").val(),
+			url: rooturl + '_payment/load_shipping_price',
+			success: function(data) {
+				data = $.parseJSON(data);
+				if (data == false) {
+					$(".price_thai_storage").text(eval(0));
+					$(".price_thai_shipping").text(eval(0));
+
+					$(".hid_price_thai_storage").val(eval(0));
+					$(".hid_price_thai_shipping").val(eval(0));
+				} else {
+					$(".price_thai_storage").text(eval(data.price_thai_storage));
+					$(".price_thai_shipping").text(eval(data.price_thai_shipping));
+
+					$(".hid_price_thai_storage").val(eval(data.price_thai_storage));
+					$(".hid_price_thai_shipping").val(eval(data.price_thai_shipping));
+
+					$('#totalhtml').html(data.html);
+					CalculateTotal(data.total);
+					makeCurrency();
+				}
 
 
-$("form").validationEngine();
-$("form").ajaxForm({ 
-    success: function(data) {
-        eval(data);
-    }
-});
-
-$(function() {
-	$('#my_multi_select3').multiSelect({
-        selectableHeader: "<input type='text' class='form-control search-input' autocomplete='off' placeholder='{!! res('search') !!}'>",
-        selectionHeader: "<input type='text' class='form-control search-input' autocomplete='off' placeholder='{!! res('search') !!}'>",
-        afterInit: function (ms) {
-            var that = this,
-                $selectableSearch = that.$selectableUl.prev(),
-                $selectionSearch = that.$selectionUl.prev(),
-                selectableSearchString = '#' + that.$container.attr('id') + ' .ms-elem-selectable:not(.ms-selected)',
-                selectionSearchString = '#' + that.$container.attr('id') + ' .ms-elem-selection.ms-selected';
-
-            that.qs1 = $selectableSearch.quicksearch(selectableSearchString)
-                .on('keydown', function (e) {
-                    if (e.which === 40) {
-                        that.$selectableUl.focus();
-                        return false;
-                    }
-                });
-
-            that.qs2 = $selectionSearch.quicksearch(selectionSearchString)
-                .on('keydown', function (e) {
-                    if (e.which == 40) {
-                        that.$selectionUl.focus();
-                        return false;
-                    }
-                });
-        },
-        afterSelect: function () {
-            this.qs1.cache();
-            this.qs2.cache();
-        },
-        afterDeselect: function () {
-            this.qs1.cache();
-            this.qs2.cache();
-        }
-    });
-});
-
-function getShippingPrice(ele) {
-	$.ajax({
-        type: 'POST',
-        async: true,
-        data : 'id=' + ele.val() + '&payment_ref=' + $("input[name='ref_id']").val() + '&sender=' + $("select[name='sender_type']").val(),
-        url: rooturl + '_payment/load_shipping_price',
-        success: function(data) {
-        	data = $.parseJSON(data);
-        	if(data == false) {
-        		$(".price_thai_storage").text(eval(0));
-	        	$(".price_thai_shipping").text(eval(0));
-	        	
-				$(".hid_price_thai_storage").val(eval(0));
-	        	$(".hid_price_thai_shipping").val(eval(0));
-        	} else {
-        		$(".price_thai_storage").text(eval(data.price_thai_storage));
-	        	$(".price_thai_shipping").text(eval(data.price_thai_shipping));
-	        	
-				$(".hid_price_thai_storage").val(eval(data.price_thai_storage));
-	        	$(".hid_price_thai_shipping").val(eval(data.price_thai_shipping));
-
-        	}
-        	
-        	CalculateTotal();
-        }
-    });
-}
-
-
-function CalculateTotal() {
-	var service = $(".hid_service").val();
-	var price_thai_shipping = $(".hid_price_thai_shipping").val();
-	var price_thai_storage = $(".hid_price_thai_storage").val();
-
-	$(".total_net").text((eval(service) + eval(price_thai_storage) + eval(price_thai_shipping)).toFixed(2) );
-	initialAddcommaText();
-}
-
-function getSenderType(val) {
-	//var shipping_type = $("input[name='shipping_type_radio']:checked").val();
-	//if(shipping_type == "") {
-		getShippingPrice($("select[name='shipping_type']"));
-	//} else {
-	//	getShippingPrice($("input[name='shipping_type_radio']:checked"));
-	//}
-	if(val.val() == 1) {
-		$(".custom_sender").css('display', 'block');
-	} else {
-		$(".custom_sender").css('display', 'none');
+			}
+		});
 	}
-}
 
-function view_example() {
-	$.ajax({
-        type: 'POST',
-        async: true,
-        url: rooturl + '_payment/view_example',
-        success: function(data) {
-        	var url = '{{ legacy_href() }}_payment/view_example';
-        	url += '?cus_name=' + $("input[name='name']").val();
-        	url += '&cus_address=' + $("textarea[name='address']").val();
-        	url += '&cus_phone=' + $("input[name='phone']").val();
-        	url += '&ship_type=' + $("input[name='shipping_type_radio']:checked").val();
-        	url += '&send_name=' + $("input[name='sender_name']").val();
-        	url += '&send_address=' + $("textarea[name='sender_address']").val();
-        	url += '&send_phone=' + $("input[name='sender_phone']").val();
-        	url += '&submit_remark=' + $("textarea[name='submit_remark']").val();
-        	url += '&sender_type=' + $("select[name='sender_type']").val();
-        	url += '&ref_id=' + $("input[name='ref_id']").val();
-        	url += '&service=' + $(".price_thai_storage").text();
-        	url += '&shipping=' + $(".price_thai_shipping").text();
-        	url += '&total=' + $(".total_net").text();
-        	$("iframe").attr('src', url);
-        	$(".example_form").modal('show');
-        }
-    });
-}
+	function CalculateTotal(t) {
+		var service = $(".hid_service").val();
+		var price_thai_shipping = $(".hid_price_thai_shipping").val();
+		var price_thai_storage = $(".hid_price_thai_storage").val();
+
+		$(".total_net").text(eval(t).toFixed(2));
+		initialAddcommaText();
+	}
+
+	function getSenderType(val) {
+		//var shipping_type = $("input[name='shipping_type_radio']:checked").val();
+		//if(shipping_type == "") {
+		getShippingPrice($("select[name='shipping_type']"));
+		//} else {
+		//	getShippingPrice($("input[name='shipping_type_radio']:checked"));
+		//}
+		if (val.val() == 1) {
+			$(".custom_sender").css('display', 'block');
+		} else {
+			$(".custom_sender").css('display', 'none');
+		}
+	}
+
+	var discount = 0;
+
+	function getdiscoutcode(code) {
+		var t = code;
+		$.ajax({
+			type: 'POST',
+			async: true,
+			data: {
+				code: code.val()
+			},
+			url: rooturl + '_payment/load_discoutcode',
+			success: function(data) {
+				if (data.trim().search("ErrorBox") == -1) {
+					discount = eval(data);
+				} else {
+					eval(data);
+				}
+
+				getShippingPrice($('select[name=\'shipping_type\']'));
+			}
+		});
+	}
+
+	function view_example() {
+		$.ajax({
+			type: 'POST',
+			async: true,
+			url: rooturl + '_payment/view_example',
+			success: function(data) {
+				var url = '{{ legacy_href() }}_payment/view_example';
+				url += '?cus_name=' + $("input[name='name']").val();
+				url += '&cus_address=' + $("textarea[name='address']").val();
+				url += '&cus_phone=' + $("input[name='phone']").val();
+				url += '&ship_type=' + $("input[name='shipping_type_radio']:checked").val();
+				url += '&send_name=' + $("input[name='sender_name']").val();
+				url += '&send_address=' + $("textarea[name='sender_address']").val();
+				url += '&send_phone=' + $("input[name='sender_phone']").val();
+				url += '&submit_remark=' + $("textarea[name='submit_remark']").val();
+				url += '&sender_type=' + $("select[name='sender_type']").val();
+				url += '&ref_id=' + $("input[name='ref_id']").val();
+				url += '&service=' + $(".price_thai_storage").text();
+				url += '&shipping=' + $(".price_thai_shipping").text();
+				url += '&total=' + $(".total_net").text();
+				$("iframe").attr('src', url);
+				$(".example_form").modal('show');
+			}
+		});
+	}
 </script>@endsection

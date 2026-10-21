@@ -107,18 +107,16 @@ final class PaymentTotals
 
     /**
      * ค่าส่ง/ค่าฝาก/ค่าเปลี่ยนผู้ส่ง ของ save_submit_payment.php เดิม
+     * PACK: ค่าเปลี่ยนผู้ส่ง = setting change_sender เสมอ (เหมือน jl — ไม่มี charge_sender_edit ต่อรหัสลูกค้าแบบ SR)
      *
      * @param  object  $st  แถว shipping_type (ค่าแบบ string)
      * @param  array<string, mixed>|null  $stp  getShippingTypePrice(...)
      * @return array{storage: mixed, shipping: mixed, extened: mixed, sender_charge: mixed}
      */
-    public static function fees(object $st, mixed $senderType, ?array $stp, mixed $charge = null): array
+    public static function fees(object $st, mixed $senderType, ?array $stp): array
     {
         $shipping = $st->price_thai_shipping ?? null;
-        // ไม่ส่ง $charge = setting change_sender (แอดมินสร้างบิล / save_new_sender); ลูกค้าส่ง senderCharge(code) มา (ค่า null ได้แบบเดิม)
-        if (func_num_args() < 4) {
-            $charge = Lookup::getSetting('change_sender');
-        }
+        $charge = Lookup::getSetting('change_sender');
         $extened = $st->price_extened ?? null;
         $storage = Php74::eq($senderType, 1) ? self::plus($st->price_thai_storage ?? null, $charge) : ($st->price_thai_storage ?? null);
         if (Php74::eq($storage, 0)) {
@@ -134,28 +132,27 @@ final class PaymentTotals
         return ['storage' => $storage, 'shipping' => $shipping, 'extened' => $extened, 'sender_charge' => $charge];
     }
 
-    /**
-     * SR: ค่าเปลี่ยนผู้ส่ง = setting change_sender แต่ถ้ารหัสลูกค้าอยู่ใน charge_sender_edit ("CODE|ค่า,CODE|ค่า") ใช้ค่านั้น
-     * (ตัวท้ายที่ตรงชนะ, เทียบแบบ == เดิม — เหมือน Pricing::getShippingTypePrice) — _payment/create_form.php, save_submit_payment.php
-     */
-    public static function senderCharge(mixed $code): mixed
-    {
-        $charge = Lookup::getSetting('change_sender');
-        foreach (explode(',', (string) Lookup::getSetting('charge_sender_edit')) as $item) {
-            $p = explode('|', $item);
-            if ($p[0] == $code) {
-                $charge = $p[1] ?? null;
-            }
-        }
-
-        return $charge;
-    }
-
     /** total = nfs(storage) + nfs(price_shipping) + nfs(extened) + nfs(thai_shipping) (ไม่มี VAT) */
     public static function plain(mixed $storage, mixed $priceShipping, mixed $extened, mixed $thaiShipping): int|float
     {
         $nfs = fn ($x) => self::n(Format::numberformatforsubmit($x));
 
         return $nfs($storage) + $nfs($priceShipping) + $nfs($extened) + $nfs($thaiShipping);
+    }
+
+    /**
+     * VAT ของ PACK (_payment/load_shipping_price, _payment/save_submit_payment, _admin/_payment/save_vat):
+     *   vat_before = nfs(nfs(total * v) / 100); shipvat = nfs(total + vat_before) = ยอดสุทธิของบิล
+     * ($total = ยอดก่อน VAT หลังหักส่วนลดคูปองแล้ว) — ต่างจาก jl: ไม่มี "หัก ณ ที่จ่าย 3%" (บรรทัด $numvat / $shipvatbefore ถูก comment
+     * → คอลัมน์ vat / shipvat_before / shipv ได้ค่าว่าง = 0 ใน DB; save_vat ยังตั้ง shipv = 3)
+     *
+     * @return array{vat_before: string, shipvat: string}
+     */
+    public static function vat(int|float $total, mixed $v): array
+    {
+        $nfs = fn ($x) => Format::numberformatforsubmit($x);
+        $vatBefore = $nfs(self::n($nfs($total * self::n($v))) / 100);
+
+        return ['vat_before' => $vatBefore, 'shipvat' => $nfs($total + self::n($vatBefore))];
     }
 }

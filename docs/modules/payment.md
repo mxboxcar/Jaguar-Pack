@@ -1,5 +1,89 @@
 # กลุ่ม payment — รายงานการพอร์ต
 
+## PACK (2026-10-22)
+
+branch `mod/payment` · worktree `/home/admin/laravel/pack-wt/payment` · dev `bin/wt-serve payment` → http://127.0.0.1:8804 · เทียบกับเว็บเดิม PACK (admin_pack_bench)
+PACK = โค้ด SR + VAT/คูปองส่วนลดแบบ jl → ฐานคือ port ของ SR แล้วนำส่วน VAT ของ jl port กลับมาปรับเป็นสูตร PACK
+
+### เปลี่ยนตาม PACK
+- **VAT (สูตร PACK — ไม่มี "หัก ณ ที่จ่าย 3%" แบบ jl)**: `PaymentTotals::vat()` — ยอดก่อน VAT (หักคูปองแล้ว) → `vat_before = nfs(nfs(ยอด × v) / 100)` (nfs ตัดทศนิยม ไม่ปัด), `shipvat = total = ยอด + vat_before`; คอลัมน์ `vat`, `shipvat_before`, `shipv` ได้ '' = 0 (บรรทัดคำนวณเดิมถูก comment)
+  - ลูกค้า: ช่อง "ต้องการ VAT?" ใน `payment/create/{random}`, `_payment/load_shipping_price` คืน `total` + `html` (แถวส่วนลดท้ายบิล / ภาษีมูลค่าเพิ่ม / รวม), `save_submit_payment` เขียน is_vat/v/vat_before/shipvat
+  - หน้าบิล (`payment/{id}`, `admin/payment/{id}`): แถว VAT v% + ยอดสุทธิ; grid ลูกค้า/แอดมินมีป้าย VAT
+  - แอดมิน: ปุ่ม "คิด VAT" → `POST /_admin/_payment/save_vat` (เปิด: ยอด = ค่าฝาก + ค่าพัสดุ + ค่าส่งเพิ่ม (ไม่รวมค่าส่งในไทย) + VAT, shipv = 3; ปิด: ยอดรวมค่าส่งในไทย, VAT = 0) แก้แถว balance ตัดเงิน (prefix 18) ตามยอดใหม่
+- **คูปองส่วนลด** (ตาราง `coupon`: name, price, payment_id = บิลที่ใช้ — ใช้ได้ครั้งเดียว)
+  - ลูกค้า: ช่อง "คูปองส่วนลด(ถ้ามี)" → `POST /_payment/load_discoutcode` (ราคาส่วนลด / `ErrorBox('ไม่มีรหัสส่วนลดนี้')`), `load_shipping_price` รับ `discount`, `save_submit_payment` รับ `discount_code` (ไม่พบ = `ErrorBox('ไม่พบคูปองส่วนลดนี้')` ก่อนเช็ค 20 วินาที) หักจากยอดก่อน VAT แล้ว `UPDATE coupon SET payment_id` (ไม่ได้เขียน `bill_payment.discount` แบบเดิม → 0.00)
+  - หน้าบิล: "รหัสคูปองส่วนลด", แถว "Discount" (`bill_payment.discount`, ลูกค้า) และ "ส่วนลดท้ายบิล" (ราคาคูปอง); grid แสดง `total - discount`
+  - แอดมินสร้างบิล: แถว Discount ว่าง + บรรทัด JS ที่ถูก comment (`calDiscountPaymentDisplay()` คืน 0 เสมอ → พิมพ์ `'0'` ใน comment แบบเดิม); `save_submit_payment` เขียน `discount` = '' → 0.00
+- **สิทธิ์ `admin_viewprice_on_payment`** (role 1, 3): ไม่มีสิทธิ์ = grid แอดมินไม่มีคอลัมน์ยอดเงิน, หน้า `admin/payment/{id}` ไม่มีช่องราคา kg/คิว + ส่วนสรุปยอด และรายการ balance แสดงเฉพาะ prefix export
+- ค่าเปลี่ยนผู้ส่ง = setting `change_sender` เสมอ (แบบ jl — PACK ไม่มี `charge_sender_edit` ต่อรหัสลูกค้าแบบ SR; `PaymentTotals::senderCharge()` ลบแล้ว)
+- ไม่มีรหัสย่อย (tracking.subuser) / is_takeapic / date_section: ตัดช่องค้นหา + คอลัมน์ทุกหน้า, `bill_payment_detail` คัดลอกคอลัมน์ของ PACK (create_date … header)
+- `_payment/load_select_lot` = jl (ไม่มีช่องค้นหา), `payment/create` = หน้า jl; `_payment/load_create`: ลิงก์ tracking → `tracking/search/{tracking}` + รูป tracking_image (เหมือน SR)
+- `_admin/_payment/save_approved`: calPoint ทำงานจริงแบบ SR แต่ไม่มีขั้นลบพัสดุออกจากชั้นวาง (ไม่มีตาราง warehouse_section_detail)
+- `_admin/_payment/save_delete` = jl: เฉพาะสถานะ 1 (ไม่มีกิ่งสถานะ 0 แบบ SR)
+- `_payment/save` (สำเนา _refill/save): ตรวจสิทธิ์ `payment` ก่อนแล้ว `refill` (route มีทั้งสอง)
+- alipay: `_alipay/cancel.php` ถูก comment ทั้งไฟล์ → ตอบว่าง ไม่ยกเลิก/ไม่คืนเงิน และหน้า `alipay/{id}` ไม่มีปุ่มยกเลิก · `_admin/_alipay/cancel` คืนบาท/หยวนเฉพาะยอดที่ไม่เป็น 0 · `_admin/_alipay/save` ไม่มีเงื่อนไขสถานะ (= jl) → ใช้การแก้ของ jl port (ไม่ยอมบิลที่ยกเลิกแล้ว) · หน้า `admin/alipay/{id}` แถว balance_cn ใช้ numberformat แบบบาท + ลำดับ JS แบบ PACK
+- กล่องแนบไฟล์ (`App\Domain\Payment\UploadBox`) = getupload รุ่นเก่าของ PACK (นามสกุลรูป jpg/png/jpeg ตัวพิมพ์ตรง, ไฟล์อื่นเป็นลิงก์ fancybox, zip/rar/7z แสดงข้อความ, ไม่มีตัวล้าง input)
+- อีเมล: ปุ่มสี #eb4823, header/center/footer + ผู้ส่งจาก `config('legacy.mail')` (PACK-Cargo), alipay ไม่ select line_uid
+- สี icon หน้า create (#eb4823)
+
+### pack-only ที่พอร์ต
+- `admin/coupon` (+ `/status/{n}`), `admin/coupon/create`, `admin/coupon/{id}` (สิทธิ์ `admin_coupon` — role 1), `POST /_admin/_coupon/grid` (ไม่มีสิทธิ์ = ว่าง), `POST /_admin/_coupon/save` (`legacy.once`), `POST /_admin/_coupon/delete` — `App\Http\Controllers\Payment\Admin\AdminCouponController`, view `payment/admin_coupon/*`
+  - ฟอร์มเพิ่ม: ชื่อเริ่มต้น randd(6); แก้ได้เฉพาะคูปองที่ยังไม่ถูกใช้ (ใช้แล้วแสดงอย่างเดียว + ลิงก์บิล); ชื่อซ้ำตอนแก้ = `ErrorBox('คูปองส่วนลดซ้ำ')` (เทียบทุกแถวรวมที่ลบ/ใช้แล้ว แบบเดิม); `'` ในชื่อเก็บเป็น `''` แบบ nStr เดิม
+  - เมนู `admin/coupon` อยู่ใน layout ของฐานร่วมแล้ว
+- `POST /_admin/_payment/save_vat`, `POST /_payment/load_discoutcode`
+- `_payment/create_form_bk.php` = ไฟล์สำรองที่ไม่มีใครลิงก์ → dead (ไม่มี route)
+
+### ลบ (SR-only)
+`admin/receipt`, `admin/receipt/status/{n}`, `POST /_admin/_receipt/grid` (AdminReceiptController + view + test) · PaymentSrDbTest → PaymentPackDbTest
+
+### ต่างจากเดิมโดยตั้งใจ (เพิ่มจากของ SR/jl port)
+- คูปองที่ใช้ตอนจ่าย: อ่านแบบล็อกแถว (`SELECT … FOR UPDATE`) ภายใน transaction เดียวกับการสร้างบิล — เดิมอ่านนอก lock แล้ว UPDATE ท้ายไฟล์ (สองบิลพร้อมกันใช้คูปองใบเดียวได้)
+- `_admin/_coupon/save`: ส่วนลดต้องเป็นตัวเลขไม่ติดลบ (`Money::adminAmount`: "1,000" → 1000, "1,00"/"abc"/ติดลบ = ErrorBox) — เดิมลงดิบ (MySQL ตัดที่ , → "1,000" = 1.00)
+- `_admin/_coupon/delete`: ไฟล์เดิมเป็นสำเนา `_admin/_product_type/delete.php` (ตรวจ `admin_product_type` แล้ว `UPDATE product_type SET is_delete = 1 WHERE id = <id คูปอง>`) = ลบประเภทสินค้าผิดตัว ส่วนคูปองไม่ถูกลบ → ใหม่ตอบ `SuccessBox` แบบเดิม (grid โหลดใหม่ คูปองยังอยู่เหมือนเดิม) โดยไม่แตะตารางใด (สิทธิ์ยังเป็น admin_product_type ตามไฟล์เดิม)
+- `_admin/_payment/save_vat`: บิลสถานะ -1 / ไม่มีอยู่ ไม่ทำอะไร (เหมือน jl port) + ล็อกแถวบิล
+- `_alipay/cancel`: ต้องล็อกอิน (เดิมไฟล์ว่างทั้งไฟล์ ไม่ตรวจอะไร — ผลเหมือนกันคือไม่ทำอะไร)
+- grid คูปอง: ค่าค้นหา escape, ค่า page ใน JS กรองเหลือ `[0-9A-Za-z.-]`
+- ที่เหลือคงตาม SR/jl port (escape, ไม่มี target=_blank, favicon, ไม่มี key ตัวเลขซ้ำใน JSON ของ load_shipping_price, หน้าไม่มีสิทธิ์ไม่มีหัวหน้า)
+
+### ช่องโหว่/บั๊กเดิมที่เจอใน PACK
+1. `_admin/_coupon/delete.php` ลบ **product_type** ที่ id ตรงกับคูปอง (ข้อมูลประเภทสินค้าหาย) — ไม่พอร์ตส่วนที่ลบ
+2. คูปองใช้ซ้ำได้เมื่อจ่ายพร้อมกัน (อ่าน/ผูกคูปองนอก lock) — แก้แล้ว
+3. `save_vat` คิดยอดใหม่โดยไม่หักคูปอง และกิ่งเปิด VAT ไม่รวมค่าส่งในไทย → กด VAT กับบิลที่ใช้คูปองแล้ว แถวตัดเงินเปลี่ยนเป็นยอดไม่มีส่วนลด (E2E: บิลจ่าย 279.27 (คูปอง 40) → ปิด VAT 301.00 → เปิด VAT 322.07) — คงไว้ (ดูคำถาม)
+4. `_admin/_coupon/form.php` ลิงก์ "เลขบิล" ชี้ `admin/payment/<id คูปอง>` (ข้อความเป็นเลขบิลจริง) — คงไว้แบบเดิม
+5. `_admin/_coupon/grid.php` ค่าค้นหา/page ไม่ escape (XSS) — แก้แล้ว; `save.php` SQL ต่อ string — bind ทั้งหมด
+6. `_payment/create_form.php` JS เรียก `CalculateTotal()` ตอนโหลดโดยไม่ส่งค่า → `eval(undefined).toFixed` error ทำให้คำสั่งล้างช่องคูปองที่ตามมาไม่ทำงาน — คง JS เดิมทุกตัวอักษร
+7. hotfix "ATOMIC กัน double-submit" ใน `_payment/save_submit_payment.php` อ้าง `tracking.random` ที่ไม่มี → ไม่เคยทำงาน (เหมือน jl/SR — Laravel ใช้ lock + legacy.once)
+
+### การตรวจ (session เดียวกัน, normalize host/ช่องว่าง/target=_blank; ไฟล์เดิมรันด้วย php7.4 CLI แบบอ่านอย่างเดียว เพราะ :8114 ตอบ 2–27 วินาที/หน้าช่วงที่ทุกกลุ่มใช้พร้อมกัน)
+- **เท่ากันทุก byte หลัง normalize**: ลูกค้า 348 — `/payment` (+status), `_payment/grid` (หน้า 1–2, สถานะ -1, ค้นหา), `payment/create`, `load_select_lot`, `load_create` (ทั้งหมด/ถึงไทย/ค้นหา), `load_create_sum`, `payment/create/{random}`, `payment/{id}` (VAT/ไม่ VAT/ยกเลิก), `load_discoutcode` (ใช้ได้/ใช้แล้ว/ว่าง/ตัวพิมพ์เล็ก), `load_shipping_price` **36 แบบ** (VAT 0/1 × คูปอง ว่าง/ใช้ได้/ไม่มี × ประเภทส่ง 3 แบบ × ผู้ส่ง 0/1 — JSON เท่ากันเมื่อตัด key ตัวเลขซ้ำ); ลูกค้า 37/13 (บิลที่มีคูปอง/discount); ลูกค้า 57 `alipay`, `alipay/create`, `alipay/{id}` (สถานะ 2/-1), `_alipay/grid` (หน้า 1–2)
+  แอดมิน 11938 — `admin/payment` (+status), `_admin/_payment/grid` (หน้า 1–2, สถานะ, รหัสลูกค้า, PAY-id), `admin/payment/{id}` (VAT 12635, ยกเลิก 12618, คูปอง 8378/8369, 63 พัสดุ 478, ไม่ VAT), `admin/payment/create[/348]`, `admin/payment/create/{u}/{random}` (2 ชุด), `_admin/_payment/load_create`/`load_select_lot`/`load_autocomplete_user`/`load_user_by_id`/`load_shipping_price` (4 แบบ), `admin/alipay`, `_admin/_alipay/grid`, `admin/alipay/create`, `admin/alipay/{id}`, `admin/coupon`, `_admin/_coupon/grid` (หน้า 1–2, ค้นหาชื่อ/เลขบิล), `admin/coupon/{id}` (ใช้แล้ว/ยังไม่ใช้/ไม่มีอยู่), `admin/coupon/create` (ต่างแค่ randd)
+  role 7 (923, ไม่มี admin_viewprice_on_payment): `admin/payment/{id}` ×2, `_admin/_payment/grid` เท่ากัน; `admin/coupon` ไม่มีสิทธิ์ = ErrorBox (ใหม่ไม่มีหัวหน้า — ตามแบบ legacy.perm)
+  `_payment/view_example` (sender 0/1): ต่างเฉพาะ favicon
+- E2E (Laravel :8804 เท่านั้น, ผู้ใช้ zz_pay_e2e 12945 ที่สร้างเอง + แอดมิน 11938): คูปองเพิ่ม/ส่งซ้ำ (legacy.once)/ชื่อซ้ำ/"1,00"/แก้ "1,000"/ลบ (ไม่แตะอะไร) · ลูกค้าเลือกพัสดุ → หน้า create → load_discoutcode/load_shipping_price (279.27) → ไม่มี PIN/PIN ผิด/ส่งพร้อมกัน 2 ครั้ง (บิลเดียว, ครั้งที่สามได้ "ส่งซ้ำ") → บิล 279.27 (ค่าฝาก 70 + ผู้ส่ง 30 + พัสดุ 201 - คูปอง 40 + VAT 18.27, vat/shipvat_before/shipv/discount = 0) คูปองผูกบิล · คูปองใช้ซ้ำ = "ไม่พบคูปองส่วนลดนี้" · 20 วินาที · บิลที่สอง ไม่ VAT 100.50 · แอดมิน approve พร้อมกัน ×2 (แต้ม 1.34 / 0.67 ครั้งเดียว, อีเมล PACK-Cargo 1 ฉบับ) · save_vat ปิด/เปิด (301.00 / 322.07 + แถว balance ตาม) · ยกเลิกบิลสถานะ 2 = "รายการถูกยืนยันไปแล้ว" · แอดมินสร้างบิล pay_now (180.00, discount 0) + ส่งซ้ำ · ลูกค้ายกเลิกพร้อมกัน ×2 (คืน 180 ครั้งเดียว, แต้ม -0.53) · alipay 25¥ (หยวน 20 + บาท 25.75) + ส่งซ้ำ · ลูกค้ายกเลิก = ว่าง ไม่เปลี่ยน · แอดมิน save ×2 / cancel สถานะ 2 (ปฏิเสธ) / rollback / cancel ×2 (คืน 25.75 + 20¥ ครั้งเดียว) / save บิลที่ยกเลิก (ปฏิเสธ) — ตรงกับค่าที่อ่านจากโค้ดเดิมทุกแถว
+  ลบแถวที่สร้างทั้งหมดตาม id แล้ว: user 12945, tracking 99749–99751/99811, bill_payment 12846/12875/12876 + detail 69837/69838/69845/69846, temp 130623–130625, temp_admin 29437, balance 65356/65357/65465/65467–65470, balance_cn 2326/2354/2355, balance_point 12469/12473/12474, bill_alipay 456, coupon 36, ips 498, sessions_v2 ที่สร้างด้วย make_bench_session
+- test: `tests/Feature/Payment/PaymentPackDbTest.php` (11 test), `PaymentRoutesTest` (route คูปอง/save_vat/load_discoutcode, URL ที่ PACK ไม่มี = 404, `_payment/save` สองสิทธิ์), ปรับ `LegacyRisksDbTest` (ประเภทส่ง zz ของ test เอง — PACK id 14 = 170 ไม่ใช่ 150), `BillGridDbTest` (ข้ามแถว detail ที่ไม่มีบิลแม่)
+
+### bench (`bin/bench` n=10 c=1 1 รอบ, `artisan optimize`, mean ms — :8114 ใช้ร่วมกับทุกกลุ่ม (4 worker) และเครื่อง load ~7 ระหว่างวัด → ตัวเลขเดิมสูงกว่าปกติมาก)
+| หน้า | เดิม | ใหม่ |
+|---|---|---|
+| `GET /payment` (ลูกค้า 348) | 2400 | 104 |
+| `POST /_payment/grid` | 8087 | 124 |
+| `POST /_payment/load_shipping_price` (VAT + คูปอง) | 3284 | 479 |
+| `GET /admin/payment/12635` | 2746 | 92 |
+| `POST /_admin/_payment/grid` | 1844 | 118 |
+| `GET /admin/coupon` | 2028 | 85 |
+| `POST /_admin/_coupon/grid` | 381 | 73 |
+
+`load_shipping_price` ใหม่ ~350 ms (วัดเดี่ยว): `bill_payment_detail_temp` (130K แถว) ไม่มี index `random` → ตรวจเจ้าของ random + getShippingTypePrice + รวมค่าพัสดุ = สแกนทั้งตาราง 3 รอบ (เดิม 2 รอบ) — ข้อเสนอ: index `bill_payment_detail_temp (random)` (ยังไม่สร้าง — ห้ามแก้ schema)
+
+### คำถามถึงเจ้าของ
+1. ปุ่มลบคูปอง: เดิมลบประเภทสินค้าผิดตัวและคูปองไม่ถูกลบ — ใหม่ไม่ลบอะไร ควรให้ลบคูปอง (is_delete = 1 เฉพาะที่ยังไม่ถูกใช้, สิทธิ์ admin_coupon) หรือไม่
+2. `save_vat` กับบิลที่ใช้คูปอง: ยอดใหม่ไม่หักคูปอง และตอนเปิด VAT ไม่รวมค่าส่งในไทย (เหมือนไฟล์เดิม) — ควรคิดแบบเดียวกับตอนลูกค้าจ่ายหรือไม่
+3. ชื่อคูปองซ้ำได้ตอนเพิ่มใหม่ (เดิมตรวจเฉพาะตอนแก้) — ควรตรวจตอนเพิ่มด้วยหรือไม่
+4. ลูกค้ายกเลิกบิลสถานะ 1 ยังหักแต้ม (calPoint '-') แม้ยังไม่เคยได้แต้ม — เหมือนคำถาม SR ข้อ 1
+5. ลูกค้ายกเลิกรายการอลีเพลเองไม่ได้ (ไฟล์ถูก comment) — ยืนยันว่าตั้งใจ
+6. `admin_change_sender` ใน PACK มี role 1 ถือ (ไม่ใช่สิทธิ์กำพร้า) — fallback ว่างตาม SR จึงเปลี่ยนผู้ส่งได้เฉพาะ role 1
+
 ## SR (2026-10-20)
 
 branch `mod/payment` · worktree `/home/admin/laravel/sr-wt/payment` · dev `bin/wt-serve payment` → http://127.0.0.1:8304 · เทียบกับเว็บเดิม SR :8111 (admin_sr_bench)

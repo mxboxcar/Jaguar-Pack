@@ -60,7 +60,12 @@ class MessageController extends Controller
         return response(Chat::crlf($html));
     }
 
-    /** POST /_message/load — ข้อความในแผนกที่เลือก (JSON: html ที่ htmlentities แล้ว, title, page, sql) */
+    /**
+     * POST /_message/load — ข้อความในแผนกที่เลือก (JSON: html, title, page, sql)
+     * PACK: เดิมตอบ urldecode(json_encode(['html' => $html, ...])) — html ไม่ผ่าน htmlentities (JS ใส่ตรงด้วย .html())
+     * ที่นี่ urldecode ทีละค่าก่อน escape/json_encode (แบบ _admin/_message/load ของ jl): ผลเท่ากันปกติ ("+" → ช่องว่าง, %xx → อักขระ)
+     * แต่ JSON ไม่พังเมื่อข้อความมี %22 และข้อความแชทยัง escape (ChatText — เดิม stored XSS)
+     */
     public function load(Request $request): Response
     {
         $page = $this->php($request, 'page', null);
@@ -87,7 +92,7 @@ class MessageController extends Controller
                                 <div style="text-align:right;display: inline-block;padding: 2px 10px;position: relative;font-size: 9px;">'.Chat::stamp($row->create_date).'</div>
                                 <div class="ctext-wrap" style="float: right;clear: both;">
                                     <p style="font-size: 13px;">
-                                       '.ChatText::render($row->text).'
+                                       '.ChatText::render(urldecode((string) $row->text)).'
                                     </p>
                                 </div>
                             </div>
@@ -99,7 +104,7 @@ class MessageController extends Controller
                                 <div class="ctext-wrap" style="float: left;clear: both;">
                                     <i>PACK-Cargo Support Team</i>
                                     <p style="font-size: 13px;">
-                                       '.ChatText::render($row->text).'
+                                       '.ChatText::render(urldecode((string) $row->text)).'
                                     </p>
                                 </div>
                             </div>
@@ -110,10 +115,10 @@ class MessageController extends Controller
         $html .= '</div>';
 
         return response((string) json_encode([
-            'html' => htmlentities(Chat::crlf($html), ENT_COMPAT | ENT_HTML401, 'UTF-8'),
-            'title' => $title,
+            'html' => Chat::crlf($html),
+            'title' => $title === null ? null : urldecode((string) $title),
             'page' => null,
-            'sql' => $paging,
+            'sql' => urldecode($paging),
         ]));
     }
 

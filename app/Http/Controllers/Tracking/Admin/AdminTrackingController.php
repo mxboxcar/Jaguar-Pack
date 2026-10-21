@@ -59,7 +59,8 @@ class AdminTrackingController extends Controller
     }
 
     /**
-     * เงื่อนไขค้นหาของ grid/load_paging เดิม: [0]=เลขแทรค (SR: LIKE '%x%') [1]=ship [2]=ออเดอร์ (LIKE 'x%') [3]=รหัสลูกค้า (เท่ากับ)
+     * เงื่อนไขค้นหาของ grid เดิม: [0]=เลขแทรค [1]=ship [2]=ออเดอร์ [3]=รหัสลูกค้า (เท่ากับ)
+     * PACK: เลขแทรคและออเดอร์ค้นแบบขึ้นต้นด้วย (LIKE 'x%' แบบ jl — SR เป็น '%x%')
      *
      * @param  list<string|null>  $s
      */
@@ -72,8 +73,7 @@ class AdminTrackingController extends Controller
         }
         $or = [];
         if (($s[0] ?? '') !== '') {
-            // SR: เลขแทรคค้นแบบมีคำนี้ (LIKE '%x%') — jl เป็นขึ้นต้นด้วย (x%)
-            $or[] = fn (Builder $w) => $w->orWhere('tracking.tracking', 'like', '%'.addcslashes((string) $s[0], '%_\\').'%');
+            $or[] = fn (Builder $w) => $w->orWhere('tracking.tracking', 'like', addcslashes((string) $s[0], '%_\\').'%');
         }
         if (($s[2] ?? '') !== '') {
             $or[] = fn (Builder $w) => $w->orWhere('tracking.order', 'like', addcslashes((string) $s[2], '%_\\').'%');
@@ -92,7 +92,11 @@ class AdminTrackingController extends Controller
         return $q;
     }
 
-    /** POST /_admin/_tracking/grid */
+    /**
+     * POST /_admin/_tracking/grid
+     * PACK: จำนวนหน้าอยู่ในคำตอบเลย (MakePaging($rows) + getpaging() ท้ายตาราง — ไม่มี load_paging ของ SR)
+     * เดิมนับด้วย mysqli_num_rows ของ $sql เดียวกัน (LEFT JOIN user/lot/product_type ตาม id = 1 แถวต่อ tracking) → COUNT
+     */
     public function grid(Request $request): Response
     {
         if (! perm('admin_tracking')) {
@@ -103,6 +107,7 @@ class AdminTrackingController extends Controller
         $page = $this->php($request, 'page');
         $offset = TrackingLookups::offset($page);
 
+        $total = $this->applySearch(DB::table('tracking')->where('tracking.is_delete', 0), $s)->count('tracking.id');
         $items = collect();
         if ($offset !== null) {
             $q = DB::table('tracking')
@@ -113,8 +118,7 @@ class AdminTrackingController extends Controller
             $items = $this->applySearch($q, $s)
                 ->orderByDesc('tracking.date_warehouse')->orderByDesc('tracking.id')
                 ->offset($offset)->limit(10)
-                // SR: ชื่อล็อตอ่านจาก lot ทีละแถว (ลิงก์ใช้ lot.id ที่พบ — ไม่พบ = ลิงก์ admin/lot/ ว่าง) → LEFT JOIN แทน
-                ->get(['tracking.*', 'user.code', 'lot.id as lot_real_id', 'lot.name as lot_name', 'product_type.name as product_type_name']);
+                ->get(['tracking.*', 'user.code', 'lot.name as lot_name', 'lot.type as lot_type', 'product_type.name as product_type_name']);
         }
         $ids = $items->pluck('id')->map(fn ($v) => (int) $v)->all();
 
@@ -124,24 +128,15 @@ class AdminTrackingController extends Controller
             'orderIds' => TrackingLookups::orderIds($ids),
             'quotes' => TrackingLookups::adminQuotes($ids),
             'goods' => TrackingLookups::goodsconfirmIds($ids),
-            'sections' => TrackingLookups::sectionNames($ids),
             'images' => TrackingLookups::images($ids),
             's' => $sp,
             'page' => $page,
+            'total' => $total,
             'txtsearch' => $this->php($request, 'txtsearch'),
             'orderPrefix' => TrackingLookups::prefix('order'),
             'payPrefix' => TrackingLookups::prefix('payment'),
             'goodsPrefix' => TrackingLookups::prefix('goodsconfirm'),
         ])->render());
-    }
-
-    /** POST /_admin/_tracking/load_paging — นับจำนวนแถวแยก (SR: นับสดทุกครั้ง ไม่มี cache Redis / ไม่ตัด zero-width space แบบ jl) */
-    public function loadPaging(Request $request): Response
-    {
-        $s = explode('|', $this->in($request, 'txtsearch'));
-        $total = $this->applySearch(DB::table('tracking')->where('tracking.is_delete', 0), $s)->count('tracking.id');
-
-        return response(Paging::getpaging($this->php($request, 'page'), $total, 10, self::AJAX));
     }
 
     /** POST /_admin/_tracking/delete */
@@ -254,9 +249,6 @@ class AdminTrackingController extends Controller
             'is_craft' => $this->in($request, 'is_craft'),
             'is_qc' => $this->in($request, 'is_qc'),
             'remark' => $this->in($request, 'remark'),
-            // SR: รหัสย่อย — เดิมตัดช่องว่างแล้ว nStr() ซ้ำกับการแปลง ' ของ POST เดิม = ' ถูกเก็บเป็น '' ใน DB
-            'subuser' => Format::nStr(str_replace(' ', '', $this->in($request, 'subuser'))),
-            'is_takeapic' => $this->in($request, 'is_takeapic'),
         ];
         foreach (['weight', 'width', 'height', 'long', 'amount', 'price_qc', 'price_repack', 'price_express', 'price_else', 'price_craft'] as $k) {
             $v[$k] = $num($k);
