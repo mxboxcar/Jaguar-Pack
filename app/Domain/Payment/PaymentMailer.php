@@ -27,7 +27,7 @@ final class PaymentMailer
 
     private const CENTER = '<div style="text-indent: 30px;">';
 
-    private const FOOTER = "</div>\r\nขอแสดงความนับถือ<br />\r\nSRShippingSystem\r\n</div>";
+    private const FOOTER = "</div>\r\nขอแสดงความนับถือ<br />\r\nPACK-Cargo\r\n</div>";
 
     /** ปุ่ม "ดูรายละเอียด" ของ payment (email_approved/email_cancel.php ของ SR) */
     private const BUTTON_PAYMENT = 'width:100%;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 0px;';

@@ -6,7 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="author" content="Coderthemes">
 
-        <link rel="icon" href="{{ legacy_href() }}icons/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="{{ legacy_href() }}icons/favicon-32.png"><link rel="apple-touch-icon" href="{{ legacy_href() }}icons/apple-touch-icon.png"><link rel="manifest" href="{{ legacy_href() }}icons/site.webmanifest"><meta name="theme-color" content="#9b1c20">
+        <link rel="icon" href="{{ legacy_href() }}icons/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="{{ legacy_href() }}icons/favicon-32.png"><link rel="apple-touch-icon" href="{{ legacy_href() }}icons/apple-touch-icon.png"><link rel="manifest" href="{{ legacy_href() }}icons/site.webmanifest"><meta name="theme-color" content="#f37620">
 
         <title>{{ config('legacy.project_name') }}</title>
         <meta name="description" content="{{ trim(config('legacy.project_name')) }} ขนส่งสินค้าจากจีนมาไทย">
@@ -235,7 +235,7 @@
                     </div>
                 </div>
                     <div class="panel-heading">
-                        <h3 class="text-center"><img style="width: 330px;" src="{{ legacy_href() }}assets/images/logo_orange.png?s=s" /></h3>
+                        <h3 class="text-center"><img src="{{ legacy_href() }}assets/images/logo1.png" /></h3>
                     </div>
     
                     <div class="panel-body">
@@ -250,7 +250,7 @@
                                             </div>
                                         </div>
                 
-                                        <div class="col-xs-12  text-danger">*กรุณากรอกชื่อภาษาอังกฤษโดยพิมพ์ชื่อและนามสกุลติดกัน ไม่ต้องเว้นวรรค</div>
+                                        
 
                                         <div class="form-group ">
                                             <div class="col-xs-12">
@@ -281,18 +281,18 @@
 
                                         <div class="form-group ">
                                             <div class="col-xs-12">
-                                                <textarea name="address" class="form-control validate[required, minSize[25]]"  placeholder="{!! res('address_regis') !!}"></textarea>
+                                                <textarea name="address" class="form-control"  placeholder="{!! res('address_regis') !!}"></textarea>
                                             </div>
                                         </div>
 
                                         <div class="form-group ">
                                             <div class="col-xs-5">
-                                                <input class="form-control validate[required]" type="phone" name="phone" required="" placeholder="{!! res('phone_regis') !!}">
+                                                <input class="form-control" type="phone" name="phone" required="" placeholder="{!! res('phone_regis') !!}">
                                             </div>
                                         </div>
                                         <div class="form-group ">
                                             <div class="col-xs-5">
-                                                <input class="form-control validate[required]" type="phone" name="phone2" required="" placeholder="{!! res('phone_regis_2') !!}">
+                                                <input class="form-control" type="phone" name="phone2" required="" placeholder="{!! res('phone_regis_2') !!}">
                                             </div>
                                         </div>
                                         <div class="form-group ">
@@ -328,7 +328,7 @@
                                             <div class="col-xs-12">
     <p style="padding-top:10px;">*** รบกวนลูกค้าทุกท่านอ่านให้ละเอียดก่อนสมัครสมาชิก หากได้ทำการสมัครสมาชิกแล้วทางบริษัทถือว่าท่านได้ตกลงในเงื่อนไขการให้บริการ ***</p>
     <p style="padding-top:10px;">ข้อตกลงการใช้บริการ</p>
-    <p style="padding-top:10px;">เงื่อนไขและข้อตกลงนี้ถือว่าเป็นอันเข้าใจกันดีแล้วทั้งสองฝ่าย ซึ่งต่อไปนี้ขอแทน SRShippingSystem ว่า“ บริษัท” และแทนลูกค่าว่า “ท่าน”</p>
+    <p style="padding-top:10px;">เงื่อนไขและข้อตกลงนี้ถือว่าเป็นอันเข้าใจกันดีแล้วทั้งสองฝ่าย ซึ่งต่อไปนี้ขอแทน PACK-Cargo ว่า“ บริษัท” และแทนลูกค่าว่า “ท่าน”</p>
     <p style="padding-top:10px;">โดยท่านต้องยอมรับเงื่อนไข ขอบเขตความรับผิดชอบของทางบริษัท ก่อนใช้บริการ ดังต่อไปนี้</p>
 
     <p style="padding-top:10px;">1. ในกรณีที่ท่านใช้บริการฝากสั่งกับทางบริษัท (ให้บริษัทติดต่อซื้อสินค้าให้) ทางบริษัทเป็นเพียงตัวกลางในการติดต่อซื้อขาย จากร้านค้าที่ท่านเลือกมา ไม่มีส่วนในการรับผิดชอบการันตีความผิดพลาดของร้านค้าจีน อาทิเช่น สินค้าไม่เหมือนแบบ แตกหัก ส่งผิดไซส์ ส่งไม่ครบ ไม่คืนเงิน เป็นต้น ทางบริษัทยินดีเป็นสื่อกลางในการทวงถามติดตามเท่านั้น</p>
@@ -336,8 +336,6 @@
     <p style="padding-top:10px;">กรณีมีปัญหากับร้านค้าจีนนั้น ทางบริษัทมีค่าใช้จ่ายในการติดต่อทวงถาม แต่ไม่รับประกันผลการรับผิดชอบจากร้านค้าจีนได้ เนื่องจากท่านเป็นผู้เลือกร้านค้านั้นเอง ทางบริษัทเป็นเพียงสื่อกลางในการติดต่อให้เท่านั้น</p>
     <p style="padding-top:10px;">3. กรณีที่สินค้าสูญหายจากการขนส่งทางบริษัทรับผิดชอบตามมูลค่าสินค้าตามจริงไม่เกิน 3 เท่าของค่าขนส่งสินค้าที่สูญหาย ท่านสามารถทําประกันสินค้าโดยชําระ 5% ของราคาสินค้าเมื่อสูญหายทางบริษัทรับผิดชอบเต็ม 100% ของจำนวนมูลค่าสินค้านั้นๆ โดยการทำประกันสามารถติดต่อแจ้งกับทางบริษัทได้เลยคะ</p>
     <p style="padding-top:10px;">4. ทางบริษัทขอสงวนลิขสิทธิ์ไม่รับผิดชอบในกรณีสินค้าเสียหาย แตกหัก จากการบรรจุภัณฑ์ไม่เหมาะสม กรณีสินค้าที่แตกหักเสียหายง่าย ท่านควรแจ้งทางบริษัทหรือร้านค้าให้ตีลังสินค้า</p>
-
-    <p style="padding-top:10px;">เนื่องจากการขนส่งระหว่างประเทศจะมีการย้ายตู้ สินค้าจากตู้เดิมจะถูกขนย้ายสู่ตู้ใหม่ พนักงานขนถ่ายสินค้าจัดสินค้าตามขนาดของหีบห่อที่บรรจุรวมจะไม่สามารถรับประกันถึงความชำรุดเสียหายนี้ได้ หากท่านได้สมัครสมาชิกและส่งสินค้าเข้าระบบ ทางเราถือว่าท่านได้รับทราบข้อตกลงนี้แล้วทุกกรณี</p>
 
     <p style="padding-top:10px;">5. ในกรณีสินค้าพิเศษและสินค้าต้องห้าม หากพบว่ามีการแอบส่งโดยไม่แจ้งทางบริษัท กรณีโดนยึด และเกิดปัญหาต่างๆ ลูกค้าต้องรับผิดชอบความเสียหายนั้น และบริษัทจะไม่รับผิดชอบใดๆทั้งสิ้น</p>
     <p style="padding-top:10px;">6. ในกรณีที่ท่านได้รับสินค้า แล้วพบว่าบรรจุภัณฑ์เสียหาย สินค้าหลุดตก สินค้ามีรอยกรีด เกิดความเสียหายถึงตัวสินค้า อันเนื่องมาจากการขนส่ง การสุ่มตรวจสินค้าที่ด่านไทย ทางบริษัทไม่สามารถรับผิดชอบต่อเหตุการณ์ต่างๆนี้ได้</p>
@@ -353,7 +351,7 @@
 
     <p style="padding-top:10px;">各位尊敬的顾客，希望您能够在成为我们公司的会员之前仔细阅读我们公司的会员服务条款，若您成为了我们公司会员，则视为同意以下所有条款。</p>
     <p style="padding-top:10px;">服务协议</p>
-    <p style="padding-top:10px;">为了使双方便于理解对以上所提及到的服务条款以及服务协议，以下，则将以“我方”代表SRShippingSystem公司，将以“您”代表每一位顾客。</p>
+    <p style="padding-top:10px;">为了使双方便于理解对以上所提及到的服务条款以及服务协议，以下，则将以“我方”代表PACK-CARGO公司，将以“您”代表每一位顾客。</p>
     <p style="padding-top:10px;">此后，当您接受我方的服务之前，必须要接受我方的服务条款以及责任范围。</p>
 
     <p style="padding-top:10px;">1. 通过我方购买商品（我方联系购买商品事宜）的情况；我方仅作为联系中介，帮助联系您所选择的卖家。我方对于中方卖家的过错概不负责。例如：货不对版、货物残缺、尺码不对、货物数量不足、退款问题，等等。但我方会帮助您联系中方卖家，反应相关事宜。</p>

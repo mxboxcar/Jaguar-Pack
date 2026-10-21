@@ -119,9 +119,9 @@ return [
     */
 
     'from' => [
-        // เดิม (SR) 'from' => 'SRShippingSystem<no-reply@srshippingsystem.com>' — Mailer ของแต่ละกลุ่มใส่ from จาก config('legacy.mail')
-        'address' => env('MAIL_FROM_ADDRESS', 'no-reply@srshippingsystem.com'),
-        'name' => env('MAIL_FROM_NAME', 'SRShippingSystem'),
+        // เดิม (PACK) 'from' => 'PACK-Cargo<no-reply@pack-cargo.net>' — Mailer ของแต่ละกลุ่มใส่ from จาก config('legacy.mail')
+        'address' => env('MAIL_FROM_ADDRESS', 'no-reply@pack-cargo.net'),
+        'name' => env('MAIL_FROM_NAME', 'PACK-Cargo'),
     ],
 
 ];

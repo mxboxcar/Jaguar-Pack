@@ -2,9 +2,9 @@
 // สร้าง tests/fixtures/legacy-format-cases.json: php7.4 tools/gen-format-cases.php > tests/fixtures/legacy-format-cases.json
 // php7.4: ดึงฟังก์ชัน pure จากโค้ดเดิมมา eval แล้วคำนวณค่าคาดหวัง (ไม่ include system_config.php ทั้งไฟล์ เพื่อไม่ต่อ DB)
 error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
-chdir('/home/admin/bench/sr-old');
-define('cookiename_lang', 'srshippingsystem-lang'); define('project_name', 'SRShippingSystem'); define('href_blob', 'https://image.srshippingsystem.com/upload/'); define('admin_email','ship2you@outlook.co.th');
-$_COOKIE['srshippingsystem-lang'] = 'th';
+chdir('/home/admin/bench/pack-old');
+define('cookiename_lang', 'pack-cargo-lang'); define('project_name', 'PACK-Cargo '); define('href_blob', 'https://image.pack-cargo.net/upload/'); define('admin_email','packcargo789@gmail.com');
+$_COOKIE['pack-cargo-lang'] = 'th';
 function grab($file, $names) {
     $toks = token_get_all(file_get_contents($file)); $out = ''; $n = count($toks);
     for ($i = 0; $i < $n; $i++) {
@@ -49,7 +49,7 @@ foreach (['0.00', '0', 0, '0.000', '5', '<span class="currency">0.00</span>', 'a
 foreach ([-1, 0, 1, 2, 3, '2', 9] as $v) { $cases[] = ['getstatus', [$v], getstatus($v)]; $cases[] = ['getstatusorder', [$v], getstatusorder($v)]; }
 foreach ([0, 1, 2] as $v) $cases[] = ['getlotstatus', [$v], getlotstatus($v)];
 foreach ([0, 1] as $v) { $cases[] = ['getShipType', [$v], getShipType($v)]; $cases[] = ['getShipType', [$v, false], getShipType($v, false)]; }
-foreach (['admin', 'Adm1n', 'boyd', 'a-d-r-n-i-n', 'somchai', 'jl', 'srs', 'srshipping', 's-r-s', 'r00t', 'ａｄｍｉｎ'] as $v) { $cases[] = ['isBlockedName', [$v], is_blocked_name($v)]; $cases[] = ['normalizeText', [$v], normalize_text($v)]; }
+foreach (['admin', 'Adm1n', 'boyd', 'a-d-r-n-i-n', 'somchai', 'jl', 'srs', 'srshipping', 's-r-s', 'pack', 'packcargo', 'p-a-c-k', 'backpack', 'r00t', 'ａｄｍｉｎ'] as $v) { $cases[] = ['isBlockedName', [$v], is_blocked_name($v)]; $cases[] = ['normalizeText', [$v], normalize_text($v)]; }
 foreach (['นาย สมชาย  ใจดี', 'Mr. John Smith', "น.ส.\xE2\x80\x8Bสมหญิง"] as $v) $cases[] = ['normalizePersonName', [$v], normalize_person_name($v)];
 foreach ([[1, 5, 15], [1, 100, 10], [5, 100, 10], [9, 100, 10], [10, 100, 10], [2, 30, 15], [3, 200, 15]] as [$p, $t, $l]) $cases[] = ['getpaging', [$p, $t, $l, '_tracking/grid'], getpaging($p, $t, $l, '_tracking/grid')];
 echo json_encode($cases, JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);

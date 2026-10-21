@@ -119,6 +119,6 @@ class MessagingSrDbTest extends BenchDbTestCase
         $this->as(self::CUSTOMER);
         $j = json_decode($this->act(MessageController::class, 'load', ['id' => $dept, 'page' => 1]), true);
         $this->assertStringContainsString('zz_a+b %41', $j['html']);
-        $this->assertStringContainsString('&lt;i&gt;srshippingsystem Support Team&lt;/i&gt;', $j['html']);
+        $this->assertStringContainsString('&lt;i&gt;PACK-Cargo Support Team&lt;/i&gt;', $j['html']);
     }
 }

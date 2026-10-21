@@ -2,11 +2,11 @@
 /*
 | แปลง index.php / menu.php / menu_mobile.php / login.php / assets/validate/validationengine.php ของเว็บเดิม
 | → resources/views/legacy/*.blade.php แบบกลไก (หน้าตา/JS เหมือนเดิมทุกบรรทัด)
-| ใช้: php8.4 tools/port-layout.php /home/admin/bench/sr-old
+| ใช้: php8.4 tools/port-layout.php /home/admin/bench/pack-old
 | แปลงแล้วตรวจด้วย: grep -n 'mysqlquerys\|\$_GET\|\$_COOKIE\|\$resource\|href;' resources/views/legacy  (ต้องว่าง)
 */
 
-[$_, $src] = $argv + [null, '/home/admin/bench/sr-old'];
+[$_, $src] = $argv + [null, '/home/admin/bench/pack-old'];
 $dst = dirname(__DIR__).'/resources/views/legacy';
 @mkdir($dst.'/partials', 0750, true);
 
@@ -24,6 +24,9 @@ function convert(string $s): string
         '/<\?php\s+echo\s+cookiename_admin_menu;?\s*\?>/' => "{{ config('legacy.cookies.admin_menu') }}",
         '/<\?php\s+echo\s+\$cookie;?\s*\?>/' => '{{ $lang }}',
         '/<\?php\s+echo\s+date\("Y"\);?\s*\?>/' => "{{ date('Y') }}",
+        // PACK login.php: $site / $error ไม่เคยถูกกำหนด → echo ค่าว่าง
+        '/<\?php\s+echo\s+\$site\[\'data\'\]\[\'stitle\'\];?\s*\?>/' => '',
+        '/<\?php\s+echo\s+\$error;?\s*\?>/' => '',
         '/<\?php\s+echo\s+notify_token\(\);?\s*\?>/' => "{{ $L\\Notify::token() }}",
         // $resource['x'] เดิม echo ดิบ (ข้อความมี HTML) → {!! res() !!}
         '/<\?php\s+echo\s+\$resource\[[\'"]([a-zA-Z0-9_]+)[\'"]\];?\s*\?>/' => "{!! res('$1') !!}",
@@ -70,7 +73,7 @@ foreach ($jobs as $from => $to) {
     $s = file_get_contents("$src/$from");
     if ($from === 'index.php' || $from === 'login.php') {
         // ส่วนหัวก่อน <!DOCTYPE (ตรวจ login/ภาษา) ย้ายไป middleware + LayoutComposer แล้ว
-        $s = substr($s, strpos($s, '<!DOCTYPE html>'));
+        $s = substr($s, strpos($s, '<!DOCTYPE')); // PACK login.php ใช้ <!DOCTYPE html PUBLIC ...
     }
     $s = convert($s);
     $head = "{{-- สร้างจาก $from ของเว็บเดิมด้วย tools/port-layout.php — แก้ได้ แต่ให้เทียบหน้าตากับเดิมทุกครั้ง --}}\n";

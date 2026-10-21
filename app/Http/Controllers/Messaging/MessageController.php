@@ -97,7 +97,7 @@ class MessageController extends Controller
                             <div class="conversation-text">
                             <div style="display: inline-block;padding: 2px 10px;position: relative;font-size: 9px;">'.Chat::stamp($row->create_date).'</div>
                                 <div class="ctext-wrap" style="float: left;clear: both;">
-                                    <i>srshippingsystem Support Team</i>
+                                    <i>PACK-Cargo Support Team</i>
                                     <p style="font-size: 13px;">
                                        '.ChatText::render($row->text).'
                                     </p>
