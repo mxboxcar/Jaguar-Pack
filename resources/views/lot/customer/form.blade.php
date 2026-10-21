@@ -103,7 +103,6 @@
 			<div class="form-group text-center">
 				<span style="padding:2px 5px;background-color:#f9ffa5;">{!! res('qc') !!}&{!! res('wood_protect') !!}</span>
 				<span style="padding:2px 5px;background-color:#a5ffc5;">{!! res('qc') !!}</span>
-				<span style="padding:2px 5px;background-color:#768cf2;">ถ่ายรูป</span>
 				<span style="padding:2px 5px;background-color:#ffdfa5;">{!! res('wood_protect') !!}</span>
 				<span style="padding:2px 5px;background-color:#ff0c00;">{!! res('no_price') !!}</span>
 				<span style="padding:2px 5px;background-color:#e789ff;">claim</span>

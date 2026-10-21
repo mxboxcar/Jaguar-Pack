@@ -28,12 +28,13 @@ class LotViewOnlyTest extends TestCase
         ['POST', '_admin/_lot/save_status_reset_tracking'], ['POST', '_admin/_lot/save_status_tracking'], ['POST', '_admin/_lot/delete'],
         ['POST', '_admin/_lot/save_verified'], ['GET', '_admin/_lot/print'], ['GET', '_admin/_lot/print_receive'],
         ['GET', '_admin/_lot/email_lot'], ['POST', '_admin/_lot/save_quickfile'],
+        // PACK: load_image.php / load_quickfile.php (อ่าน) ตรวจ getPermission('admin_lot') อย่างเดียว → ผู้ถือ view อย่างเดียวถูกปฏิเสธเหมือนเดิม
+        ['POST', '_admin/_lot/load_image'], ['POST', '_admin/_lot/load_quickfile'],
     ];
 
     private const READS = [
         ['GET', 'admin/lot'], ['GET', 'admin/lot/{id}'], ['POST', '_admin/_lot/grid'],
         ['POST', '_admin/_lot/load_lot_detail'], ['POST', '_admin/_lot/load_lot_memo'], ['POST', '_admin/_lot/load_tracking'],
-        ['POST', '_admin/_lot/load_image'], ['POST', '_admin/_lot/load_quickfile'], ['POST', '_admin/_lot/load_toptable'],
         ['POST', '_admin/_lot/load_unpaid'],
     ];
 

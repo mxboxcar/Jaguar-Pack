@@ -43,11 +43,10 @@ class AdminRefillController extends Controller
     public function form(Request $request): View
     {
         $id = (int) ($request->route('id') ?? 0);
-        // SR: + ผู้อนุมัติ (refill.approved_user → user a)
+        // PACK = jl: ไม่มีช่องผู้อนุมัติ (ไม่มีคอลัมน์ refill.approved_user — SR-only)
         $data = DB::table('refill')->leftJoin('user', 'refill.user', '=', 'user.id')
-            ->leftJoin('user as a', 'refill.approved_user', '=', 'a.id')
             ->where('refill.id', $id)->where('refill.is_delete', 0)
-            ->first(['refill.*', 'user.code', 'user.id as user_id', 'a.code as a_code', 'a.id as a_id']);
+            ->first(['refill.*', 'user.code', 'user.id as user_id']);
         $balances = Lookups::balances([Lookups::prefixId('refill')], $id, true);
 
         return view('money-move.admin.refill.form', [
@@ -89,9 +88,8 @@ class AdminRefillController extends Controller
             : GridQuery::liveCount('refill', $filter);
         $page = $this->php($request, 'page');
         $offset = Lookups::offset($page);
-        // SR: คอลัมน์ "ผู้อนุมัติรายการ" (refill.approved_user → user a) — join เฉพาะ 10 แถวของหน้า (ไม่อยู่ใน COUNT)
-        $items = $offset === null ? collect() : $q->leftJoin('user as a', 'refill.approved_user', '=', 'a.id')
-            ->orderByDesc('refill.id')->offset($offset)->limit(10)->get(['refill.*', 'user.code', 'a.code as a_code']);
+        // PACK = jl: ไม่มีคอลัมน์ "ผู้อนุมัติรายการ" (SR-only refill.approved_user)
+        $items = $offset === null ? collect() : $q->orderByDesc('refill.id')->offset($offset)->limit(10)->get(['refill.*', 'user.code']);
 
         return response(view('money-move.refill.grid', [
             'admin' => true,
@@ -149,7 +147,7 @@ class AdminRefillController extends Controller
 
     /**
      * POST /_admin/_refill/save_approved — อนุมัติ (status 1 → 2) + เพิ่มเงิน + อีเมล
-     * SR: บันทึก approved_user = ผู้อนุมัติ; status ≠ 1 (รวมไม่พบ/ยกเลิก/อนุมัติแล้ว) = ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();')
+     * PACK (= SR ไม่มี approved_user): status ≠ 1 (รวมไม่พบ/ยกเลิก/อนุมัติแล้ว) = ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();')
      * เดิม: sleep(3) แล้วลบ balance ซ้ำ (กันกดอนุมัติซ้ำ) — ที่นี่ lock แถว refill ใน transaction จึงไม่ซ้ำ; คงขั้นลบซ้ำไว้ (ไม่ sleep)
      */
     public function saveApproved(Request $request): Response
@@ -166,7 +164,7 @@ class AdminRefillController extends Controller
                 return 'invalid';
             }
             Money::lockUser($data->user);
-            DB::table('refill')->where('id', $data->id)->update(['status' => '2', 'approved_user' => (string) $uid, 'approved_date' => DB::raw('NOW()')]);
+            DB::table('refill')->where('id', $data->id)->update(['status' => '2', 'approved_date' => DB::raw('NOW()')]);
             $pid = (string) (Lookups::prefixId('refill') ?? '');
             DB::table('balance')->insert([
                 'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,

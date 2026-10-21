@@ -61,12 +61,7 @@
 		    </button>
 @endif
 
-@if (Php74::eq($st, 1))
-			<button onclick="canceling()" type="button" class="pull-right btn btn-danger waves-effect waves-light">
-			    <span class="btn-label"><i class="fa fa-save"></i></span>
-			    {!! res('cancel_this') !!}
-		    </button>
-@endif
+{{-- PACK: ไม่มีปุ่มยกเลิกของลูกค้า (_transfer/cancel.php ถูก comment ทั้งไฟล์) --}}
 
 
 
@@ -189,19 +184,6 @@
 		}
 	}
 
-	function canceling() {
-		ConfirmBox(function () {
-			$.ajax({
-	            type: 'POST',
-	            async: true,
-	            data : 'id={{ $id }}' ,
-	            url: rooturl + '_transfer/cancel',
-	            success: function(data) {
-	            	eval(data);
-	            }
-	        });
-		});
-	}
 
 
 	$("form").validationEngine();

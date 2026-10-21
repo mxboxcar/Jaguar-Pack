@@ -33,6 +33,7 @@ Route::middleware('legacy.perm:transfer')->group(function () {
     Route::get('/transfer/{id}', [TransferController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'transfer_detail');
     Route::middleware('legacy.ajax')->group(function () {
         Route::post('/_transfer/save', [TransferController::class, 'save'])->middleware('legacy.once');
+        // PACK: _transfer/cancel.php ถูก comment ทั้งไฟล์ → ตอบว่าง ไม่เขียนอะไร
         Route::post('/_transfer/cancel', [TransferController::class, 'cancel']);
     });
 });
@@ -67,8 +68,10 @@ Route::middleware('legacy.perm:admin_transfer')->group(function () {
     Route::match(['GET', 'POST'], '/_admin/_transfer/email_success', [AdminTransferController::class, 'emailDirect']);
     Route::match(['GET', 'POST'], '/_admin/_transfer/email_cancel', [AdminTransferController::class, 'emailDirect']);
 });
-// form.php: jl ตรวจแค่ getPermission('transfer') (ลูกค้ามีทุกคน = IDOR) — SR แก้ในไฟล์เดิมแล้วเป็น admin_transfer
-Route::middleware('legacy.perm:admin_transfer')->group(function () {
+// form.php: PACK (= jl) ตรวจแค่ getPermission('transfer') (ลูกค้ามีทุกคน = IDOR) → ต้องมีทั้ง transfer และ admin_transfer (กติกา jl port)
+// ตรวจ transfer ก่อน: ผู้ไม่มี transfer ได้ ErrorBox โมดูล "โอนเงินไปจีน" เหมือนเดิม (PACK role 3/5/6);
+// ผู้มี transfer แต่ไม่มี admin_transfer (ลูกค้า role 2/8, role 7/9) ได้ ErrorBox "ผู้ดูแล - โอนเงินไปจีน" (ต่างจากเดิมโดยตั้งใจ — เดิมเห็นรายการของทุกคน)
+Route::middleware(['legacy.perm:transfer', 'legacy.perm:admin_transfer'])->group(function () {
     Route::get('/admin/transfer/create', [AdminTransferController::class, 'form'])->defaults('legacy_page', 'admin_transfer_detail');
     Route::get('/admin/transfer/{id}', [AdminTransferController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_transfer_detail');
 });

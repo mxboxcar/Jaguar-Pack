@@ -1,6 +1,7 @@
 {{-- _admin/_lot/form.php เดิม (สิทธิ์ตรวจที่ middleware; $lotView = มีสิทธิ์ admin_lot_view → ซ่อนช่องราคา)
-     SR: ถ่ายรูป (is_takeapic), รหัสย่อย (subuser), รูปพัสดุ (tracking_image), รายการทีละ 10 แถว + ผลรวมจาก load_toptable,
-         รายการลูกค้าค้างจ่าย (load_unpaid), modal แนบรูปด่วน (load_quickfile/save_quickfile) --}}
+     PACK: แม่แบบ jl + $allowEdit (เดิม checkUser()['id'] == 5 — ฟอร์มเพิ่ม/แก้ tracking, ช่องแก้หัวล็อต และปุ่มตั้งวันที่/พิมพ์ แสดงเฉพาะ user 5;
+           คนอื่นเห็นหัวล็อตแบบอ่านอย่างเดียว), รูปพัสดุ (tracking_image), รายการลูกค้าค้างจ่าย (load_unpaid), modal แนบรูปด่วน
+           (load_quickfile/save_quickfile), รูปเล็กข้างเลขพัสดุ (load_image) --}}
 @extends('legacy.layout')
 
 @php
@@ -25,6 +26,7 @@
 	</ol>
 </div>
 
+@if ($allowEdit)
 <form action="{{ legacy_href() }}_admin/_lot/save" method="post">
 
 <input type="hidden" name="id" value="{{ $d['id'] ?? '' }}">
@@ -113,29 +115,12 @@
                         </select>
 		            </div>
 		        </div>
-
-
-		        <div class="form-group">
-		            <label class="col-xs-3 control-label"> ถ่ายรูป</label>
-		            <div class="col-xs-7">
-		            	<select name="is_takeapic" class="form-control " >
-		            		<option value="0">{!! res('disable') !!}</option> 
-                        	<option value="1">{!! res('active') !!}</option> 
-                        </select>
-		            </div>
-		        </div>
         	</div>        
         	<div class="col-xs-12 col-md-6">
         		<div class="form-group">
 		            <label class="col-xs-3 control-label"> {!! res('customer_code') !!}</label>
 		            <div class="col-xs-7">
 		            	<input autocomplete='off'  type="text" name="code" onblur="onload_userrate()" class="form-control validate[required]" value="" />
-		            </div>
-		        </div>
-				<div class="form-group">
-		            <label class="col-xs-3 control-label"> รหัสย่อย</label>
-		            <div class="col-xs-7">
-		            	<input autocomplete='off'  type="text" name="subuser" class="form-control" value="" />
 		            </div>
 		        </div>
 		        <div class="form-group">
@@ -290,6 +275,7 @@
 	</div>
 </div>
 </form>
+@endif
 
 <div class="col-sm-12">
 	<div class="card-box col-xs-12">
@@ -297,6 +283,7 @@
 		<p class="text-muted font-13 m-b-30">
         </p>
         <div class="form-horizontal" role="form"> 
+	        @if ($allowEdit)
 	        <div class="col-xs-6">
 	        	<div class="form-group">
 		            <label class="col-xs-4 control-label"> {!! res('no_for_grid') !!}</label>
@@ -334,94 +321,54 @@
 		            	@include('lot.admin.upload_box', ['rand' => 'lot_'.($d['id'] ?? ''), 'filename' => (string) ($d['attachment_name'] ?? '')])
 		            </div>
 		        </div>
-        	</div>                                   
+        	</div> 
+        	@else
+        	<div class="col-xs-6">
+	        	<div class="form-group">
+		            <label class="col-xs-4 control-label"> {!! res('no_for_grid') !!}</label>
+		            <div class="col-xs-8  form-control-static">
+		            	{{ $no }}
+		            </div>
+		        </div>
+		        <div class="form-group">
+		            <label class="col-xs-4 control-label"> {!! res('name') !!}</label>
+		            <div class="col-xs-6 form-control-static">
+		            	{{ $d['name'] ?? '' }}
+		            </div>
+		        </div>
+		        <div class="form-group">
+		            <label class="col-xs-4 control-label"> {!! res('remark') !!}</label>
+		            <div class="col-xs-6 form-control-static">{{ $d['name_admin'] ?? '' }}
+		            </div>
+		        </div>
+		        <div class="form-group">
+		            <label class="col-xs-4 control-label"> {!! res('ship_type') !!}</label>
+		            <div class="col-xs-6  form-control-static">
+		            	{!! Status::getShipType($d['type'] ?? null) !!}
+		            </div>
+		        </div>
+		        <div class="form-group">
+		            <label class="col-xs-4 control-label"> {!! res('amount_shipping') !!}</label>
+		            <div class="col-xs-4 form-control-static">
+		            	{{ $d['shipping_amount'] ?? '' }}
+		            </div>
+		        </div>
+		        <div class="form-group">
+		            <label class="col-xs-4 control-label"> {!! res('attachment') !!}</label>
+		            <div class="col-xs-6  form-control-static">
+		            	{{-- เดิมต่อ path/filename ดิบลง href (ไม่ urlencode) — ค่าถูก escape --}}
+		            	<a style='float:left;' href='{{ legacy_href() }}download_file?path={{ $d['attachment'] ?? '' }}&filename={{ $d['attachment_name'] ?? '' }}'>{{ $d['attachment_name'] ?? '' }}</a>
+		            </div>
+		        </div>
+	        </div>
+	        @endif
 	    </div>
 
-	    <div class="col-xs-7" style="clear:both">
-			<div class="form-group">
-			    <label class="col-xs-4 control-label"> {!! res('customer_code') !!}/{!! res('tracking') !!}</label>
-			    <div class="col-xs-6 ">
-			    	<input type="text" class="form-control" value="" id="searching_lot_detail">
-			    </div>
-			    <div class="col-xs-2 ">
-			    	<button type="button" class="btn btn-primary" onclick="LoadDetail(0)">{!! res('search') !!}</button>
-			    </div>
-			</div>
-		</div>
-		<div class="col-xs-12 text-center" id="loadinglot" style="margin-top:10px;"></div>
-		<table class="lot_table" style="margin-top:20px;clear:both;float: left;">
-		    <thead>
-		        <tr>
-		            <th class="text-center " style="width:60px;"> 
-		            	<div class="text-center">
-		            		<input type="checkbox" class="cbxitem_head" onclick="CheckAll()" />
-		            	</div>
-		            </th>
-		            <th class="text-center" style="width: 30px;">{!! res('no') !!}</th>
-		            <th class="text-center">{!! res('tracking') !!}</th>
-		            <th class="text-center" style="width: 73px;">{!! res('date_warehouse') !!}</th>
-		            <th class="text-center" style="width: 73px;">{!! res('date_outofchina') !!}</th>
-		            <th class="text-center" style="width: 73px;">{!! res('date_thai') !!}</th>
-		            <th class="text-center" style="width: 70px;">{!! res('customer_code') !!}</th>
-		            <th class="text-center" style="width: 50px;">{!! res('amount') !!}</th>
-		            <th class="text-center" style="width: 50px;">{!! res('weight') !!}</th>
-		            <th class="text-center" style="width: 50px;">{!! res('width') !!}</th>
-		            <th class="text-center" style="width: 50px;">{!! res('height') !!}</th>
-		            <th class="text-center" style="width: 50px;">{!! res('long') !!}</th>
-		            <th class="text-center" style="width: 50px;">{!! res('cubic') !!}</th>
-		            <th class="text-center" style="width: 70px;">{!! res('type') !!}</th>
-		            <th class="text-center" style="width: 50px;">{!! res('qc') !!}</th>
-		            <th class="text-center" style="width: 50px;">{!! res('repack') !!}</th>
-		            <th class="text-center" style="width: 50px;">{!! res('express') !!}</th>
-		            <th class="text-center" style="width: 50px;">{!! res('else') !!}</th>
-		            <th class="text-center" style="width: 50px;">{!! res('price_craft') !!}</th>
-		            <th class="text-center" style="width: 50px;">{!! res('price_kg') !!}</th>
-		            <th class="text-center" style="width: 50px;">{!! res('price_cubic') !!}</th>
-		        </tr>
-		        <tr>
-		            <th colspan="7"></th>
-		            <th class="sum_amount text-right red"></th>
-		            <th class="sum_weight text-right red"></th>
-		            <th class="sum_width text-right red"></th>
-		            <th class="sum_height text-right red"></th>
-		            <th class="sum_long text-right red"></th>
-		            <th class="sum_cubic text-right red"></th>
-		            <th></th>
-		            <th class="sum_qc text-right red"></th>
-		            <th class="sum_repack text-right red"></th>
-		            <th class="sum_express text-right red"></th>
-		            <th class="sum_else text-right red"></th>
-		            <th class="sum_craft text-right red"></th>
-		            <th class="sum_kg text-right red"></th>
-		            <th class="sum_pcubic text-right red"></th>
-		        </tr>
-		    </thead>
+        <div id="lot_detail" >
+	    </div>
 
-		    <tbody id="lot_detail">
-	    	</tbody>
-			<thead>
-				<tr>
-		            <th colspan="7"></th>
-		            <th class="sum_amount text-right red"></th>
-		            <th class="sum_weight text-right red"></th>
-		            <th class="sum_width text-right red"></th>
-		            <th class="sum_height text-right red"></th>
-		            <th class="sum_long text-right red"></th>
-		            <th class="sum_cubic text-right red"></th>
-		            <th></th>
-		            <th class="sum_qc text-right red"></th>
-		            <th class="sum_repack text-right red"></th>
-		            <th class="sum_express text-right red"></th>
-		            <th class="sum_else text-right red"></th>
-		            <th class="sum_craft text-right red"></th>
-		            <th class="sum_kg text-right red"></th>
-		            <th class="sum_pcubic text-right red"></th>
-		        </tr>
-			</thead>
-		</table>
-
-
-	    <div class="form-horizontal col-xs-12" role="form" style="margin-top:10px;z-index: 0">     
+	    <div class="form-horizontal col-xs-12" role="form" style="margin-top:10px;z-index: 0">   
+	    	@if ($allowEdit)
 			<div class="form-group">
 				<div class="col-xs-2 col-xs-offset-2">
 					<select class="form-control " id="status">
@@ -440,10 +387,10 @@
 		        	<a href="{{ legacy_href() }}_admin/_lot/print_receive?id={{ $id }}" class="btn btn-primary" >{!! res('receive_page') !!}</a>
 		        </div>
 			</div>
+			@endif
 			<div class="form-group text-center col-xs-12">
 				<span style="padding:2px 5px;background-color:#f9ffa5;">{!! res('qc') !!}&{!! res('wood_protect') !!}</span>
 				<span style="padding:2px 5px;background-color:#a5ffc5;">{!! res('qc') !!}</span>
-				<span style="padding:2px 5px;background-color:#768cf2;">ถ่ายรูป</span>
 				<span style="padding:2px 5px;background-color:#ffdfa5;">{!! res('wood_protect') !!}</span>
 				<span style="padding:2px 5px;background-color:#ff0c00;">{!! res('no_price') !!}</span>
 				<span style="padding:2px 5px;background-color:#e789ff;">claim</span>
@@ -459,6 +406,7 @@
 <div id="lot_unpayment">
 	
 </div>
+
 
 <div id="panel-modal" class="upload_form modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="display: none;">
     <div class="modal-dialog modal-xs">
@@ -485,7 +433,7 @@
 
 <script>
 $(function() {
-	LoadDetail(0);
+	LoadDetail();
 	LoadMemo();
 	LoadUnpaid();
 	getTracking();
@@ -534,7 +482,6 @@ function getTracking(is_editz) {
 
 		        	if(data[0] == null) {
 		        		$("input[name='code']").val('');
-						$("input[name='subuser']").val('');
 			            $("input[name='order']").val('');
 			            $("textarea[name='remark']").val('');
 			            $("input[name='weight']").val(0.00);
@@ -553,7 +500,6 @@ function getTracking(is_editz) {
 			            $(".product_type_html").html(data[1]);
 			            $("select[name='is_craft']").val(0);
 			            $("select[name='is_qc']").val(0);
-			            $("select[name='is_takeapic']").val(0);
 
 			            
 			            $(".get_tracking_kg").text('');
@@ -588,13 +534,6 @@ function getTracking(is_editz) {
 			                    setTimeout(function() { $(window).scrollTop($("#searchform").offset().top - 60); }, 500);
 			                });
 		        		}
-		        		if(data[0].is_takeapic == "1") {
-		        			ErrorBox("ถ่ายรูป");
-		        			is_alert = true;
-		        			$("button[class='confirm']").click(function() {
-			                    setTimeout(function() { $(window).scrollTop($("#searchform").offset().top - 60); }, 500);
-			                });
-		        		}
 		        		//checking match lot
 		        		if(data[0].ship != eval(data[6].type)) {
 		        			if(data[0].ship == 0) {
@@ -608,9 +547,8 @@ function getTracking(is_editz) {
 		        				CloseLoading();
 		        			}
 		        		}
-		        		$("#attachment_tracking").html(data[7]);
+						$("#attachment_tracking").html(data[7]);
 		        		$("input[name='code']").val(data[0].code);
-						$("input[name='subuser']").val(data[0].subuser);
 			            $("input[name='order']").val(data[0].order);
 			            if(data[0].no != "0") {
 			            	$("input[name='no']").val(data[0].no);
@@ -632,7 +570,6 @@ function getTracking(is_editz) {
 			            $(".product_type_html").html(data[1]);
 			            $("select[name='is_craft']").val(data[0].is_craft);
 			            $("select[name='is_qc']").val(data[0].is_qc);
-			            $("select[name='is_takeapic']").val(data[0].is_takeapic);
 
 			            if(data[2] != "") {
 			            	var exp = data[2].split("|");
@@ -706,8 +643,7 @@ function getTracking(is_editz) {
 			            } else {
 			            	$("#is_craft_tracklist").css("display", "none");
 			            }
-			            setTimeout(function() { $("#upload_upload_track").removeClass('validate[requiredattachment]'); }, 1000);
-						
+						setTimeout(function() { $("#upload_upload_track").removeClass('validate[requiredattachment]'); }, 1000);	
 		        	}
 		        	if(is_editz) {
 		        		is_edit = false;
@@ -733,6 +669,22 @@ function LoadMemo() {
         url: rooturl + '_admin/_lot/load_lot_memo',
         success: function(data) {
             $("#lot_memo").html(data);
+			CloseLoading();
+        }
+    });
+}
+
+{{-- เดิม LoadUnpaid() ใส่ผลลงกล่อง #lot_memo (ชนกับ LoadMemo — กล่องไหนตอบทีหลังทับอีกกล่อง) ทั้งที่มี #lot_unpayment ว่างไว้
+     → ใส่ลง #lot_unpayment ให้เห็นทั้งสองกล่อง (เหมือน SR port — ดู docs/modules/lot.md) --}}
+function LoadUnpaid() {
+    OpenLoading();
+    $.ajax({
+        type: 'POST',
+        async: true,
+        data : 'id={{ $id }}',
+        url: rooturl + '_admin/_lot/load_unpaid',
+        success: function(data) {
+            $("#lot_unpayment").html(data);
 			CloseLoading();
         }
     });
@@ -775,22 +727,32 @@ function on_deletememo(id) {
 	});
 }
 
-{{-- SR: เดิม LoadUnpaid() ใส่ผลลงกล่อง #lot_memo (ชนกับ LoadMemo — กล่องไหนตอบทีหลังทับอีกกล่อง) ทั้งที่มี #lot_unpayment ว่างไว้
-     → ใส่ลง #lot_unpayment ให้เห็นทั้งสองกล่อง (ดู docs/modules/lot.md) --}}
-function LoadUnpaid() {
+function LoadDetail() {
     OpenLoading();
     $.ajax({
         type: 'POST',
         async: true,
-        data : 'id={{ $id }}',
-        url: rooturl + '_admin/_lot/load_unpaid',
+        data : 'id={{ $id }}&search=' + $("#searching_lot_detail").val(),
+        url: rooturl + '_admin/_lot/load_lot_detail',
         success: function(data) {
-            $("#lot_unpayment").html(data);
-			CloseLoading();
+            $("#lot_detail").html(data);
+
+            $('.showdetailbox').on('touchstart mouseover', function (e) {
+			    $(this).css({'color':  '#ff0000'});
+				$(this).find('.lot_table_in').css('display', 'block');
+			});
+			$('.showdetailbox').on('touchend mouseout', function (e) {
+			    $(this).css({'color': '#797979'});
+				$(this).find('.lot_table_in').css('display', 'none');
+			});
+
+            makeCurrency();
+            CloseLoading();
+            makeTopBottom();
+			loadImage();
         }
     });
 }
-
 
 
 function load_quickfile(id) {
@@ -827,6 +789,7 @@ function quicksavefile() {
 	});
 }
 
+{{-- เดิมยิง load_image ทีละแถว — load_lot_detail ใส่รูปมาพร้อมแถวแล้ว (div.img_track ไม่ว่าง → JS นี้ข้าม; ดู docs/modules/lot.md) --}}
 function loadImage() {
 	$(".img_track").each(function() {
 		var th = $(this);
@@ -846,61 +809,21 @@ function loadImage() {
 }
 
 
-function loadendtable() {
-    $.ajax({
-        type: 'POST',
-        async: true,
-        data : 'id={{ $id }}&search=' + $("#searching_lot_detail").val() ,
-        url: rooturl + '_admin/_lot/load_toptable',
-        success: function(data) {
-        	
-        	$("#lot_detail").append(data);
-            makeCurrency();
-            makeTopBottom();
-        }
-    });
-}
-
-function LoadDetail(page) {
-	if(page == 0) {
-		$("#lot_detail").html('');
-	}
-    $.ajax({
-        type: 'POST',
-        async: true,
-        data : 'id={{ $id }}&search=' + $("#searching_lot_detail").val() + '&page=' + page,
-        url: rooturl + '_admin/_lot/load_lot_detail',
-        success: function(data) {
-        	$("#loadinglot").html("กำลังโหลด " + (page * 10) + " แถวจากทั้งหมด " + $("#lot_detail").find('td').eq(1).text() + " แถว");
-            $("#lot_detail").append(data);
-
-            $('.showdetailbox').on('touchstart mouseover', function (e) {
-			    $(this).css({'color':  '#ff0000'});
-				$(this).find('.lot_table_in').css('display', 'block');
-			});
-			$('.showdetailbox').on('touchend mouseout', function (e) {
-			    $(this).css({'color': '#797979'});
-				$(this).find('.lot_table_in').css('display', 'none');
-			});
-
-            makeCurrency();
-            loadImage();
-        }
-    });
-}
-
-{{-- เดิม eval($(this).val()) ต่อ hidden input — ค่าเป็นตัวเลขไม่มีจุลภาค (numberformat*(x, false)) จึงใช้ parseFloat ได้ผลเท่ากัน --}}
 function makeTopBottom() {
-	var sums = ['amount', 'weight', 'cubic', 'width', 'height', 'long', 'kg', 'pcubic', 'qc', 'repack', 'express', 'else', 'craft'];
-	for (var i = 0; i < sums.length; i++) {
-		var total = 0;
-		$(".hid_sum_" + sums[i]).each(function() {
-			total = total + parseFloat($(this).val());
-		});
-		$(".sum_" + sums[i]).html("<span class='currency'>" + total.toFixed(sums[i] == 'cubic' ? 4 : 2) + "</span>");
-	}
+	$(".sum_amount").text($(".hid_sum_amount").val());
+	$(".sum_weight").text($(".hid_sum_weight").val());
+	$(".sum_cubic").text($(".hid_sum_cubic").val());
+	$(".sum_width").text($(".hid_sum_width").val());
+	$(".sum_height").text($(".hid_sum_height").val());
+	$(".sum_long").text($(".hid_sum_long").val());
+	$(".sum_kg").text($(".hid_sum_kg").val());
+	$(".sum_pcubic").text($(".hid_sum_pcubic").val());
 
-	makeCurrency();
+	$(".sum_qc").text($(".hid_sum_qc").val());
+	$(".sum_repack").text($(".hid_sum_repack").val());
+	$(".sum_express").text($(".hid_sum_express").val());
+	$(".sum_else").text($(".hid_sum_else").val());
+	$(".sum_craft").text($(".hid_sum_craft").val());
 }
 
 function LoadLastLot() {
@@ -930,7 +853,6 @@ function onclearform() {
 	$("input[name='tracking']").val('');
 	$("input[name='order']").val('');
 	$("input[name='code']").val('');
-	$("input[name='subuser']").val('');
 	$("input[name='remark']").val('');
 
 	$("input[name='weight']").val('0.0');
@@ -1003,7 +925,7 @@ function ondelete(id) {
 	        data : 'id=' + id ,
 	        url: rooturl + '_admin/_lot/save_remove_tracking',
 	        success: function(data) {
-	            window.location.reload();
+	            LoadDetail();
 	        }
 	    });
 	});
@@ -1049,7 +971,7 @@ function onstatussave() {
         data : 'id=' + allVals.toString() + '&status=' + $("#status").val() + '&date=' + $("#status_date").val(),
         url: rooturl + '_admin/_lot/save_status_tracking',
         success: function(data) {
-            window.location.reload();
+            LoadDetail();
         }
     });
 }
@@ -1065,7 +987,7 @@ function onstatusreset() {
         data : 'id=' + allVals.toString() + '&status=' + $("#status").val() + '&date=' + $("#status_date").val(),
         url: rooturl + '_admin/_lot/save_status_reset_tracking',
         success: function(data) {
-            window.location.reload();
+            LoadDetail();
         }
     });
 }

@@ -14,13 +14,17 @@ use Illuminate\Support\Facades\Mail;
 use Tests\Feature\Money\BenchDbTestCase;
 
 /**
- * SR: งานของกลุ่ม lot ที่ต่างจาก jl (JL_BENCH_DB_TESTS=1 — แถว zz_ ใน transaction ที่ rollback ทั้งหมด)
- * รหัสย่อย/รูปพัสดุใน save, save_quickfile, load_lot_detail ทีละ 10 แถว, load_toptable, load_unpaid, คอลัมน์ค้างจ่ายใน grid,
- * load_tracking ของผู้ถือ admin_lot_view ไม่เขียน product_type_id, อีเมลล็อตแบบ SR
+ * PACK: งานของกลุ่ม lot (JL_BENCH_DB_TESTS=1 — แถว zz_ ใน transaction ที่ rollback ทั้งหมด)
+ * รูปพัสดุใน save (ตอบ SuccessBox + LoadDetail แบบ jl), save_quickfile, load_lot_detail ทั้งตารางแบบ jl (ช่องแก้เฉพาะ user 5,
+ * ซ่อนราคาเมื่อมี admin_lot_view), load_unpaid, คอลัมน์ค้างจ่ายใน grid, load_tracking ของผู้ถือ admin_lot_view ไม่เขียน product_type_id,
+ * อีเมลล็อตแบบ PACK
  */
-class LotSrDbTest extends BenchDbTestCase
+class LotPackDbTest extends BenchDbTestCase
 {
     private const ADMIN = 11938;
+
+    /** PACK: ผู้ใช้ที่หน้าล็อตให้แก้ได้ (checkUser()['id'] == 5 เดิม) — role 6 ถือทั้ง admin_lot และ admin_lot_view */
+    private const EDITOR = 5;
 
     private string $tmp = '';
 
@@ -60,7 +64,7 @@ class LotSrDbTest extends BenchDbTestCase
 
     private function tempDir(): string
     {
-        $this->tmp = sys_get_temp_dir().'/sr-lot-test-'.bin2hex(random_bytes(4));
+        $this->tmp = sys_get_temp_dir().'/pack-lot-test-'.bin2hex(random_bytes(4));
         File::ensureDirectoryExists($this->tmp);
         config(['legacy.upload.temp_dir' => $this->tmp]);
 
@@ -70,12 +74,22 @@ class LotSrDbTest extends BenchDbTestCase
     private function savePost(int $lot, User $cust, array $extra): array
     {
         return $extra + ['id' => (string) $lot, 'no' => '7', 'tracking_id' => '', 'tracking' => 'ZZLOTSAVE'.bin2hex(random_bytes(4)),
-            'choose_price' => '1', 'code' => $cust->code, 'subuser' => "zz_s'ub", 'product_type_id' => '1', 'remark' => 'zz_r',
+            'choose_price' => '1', 'code' => $cust->code, 'product_type_id' => '1', 'remark' => "zz_r'1",
             'order' => 'zz_o', 'is_craft' => '0', 'is_qc' => '0', 'weight' => '2', 'width' => '10', 'height' => '10', 'long' => '10',
             'qc' => '0', 'repack' => '0', 'express' => '0', 'else' => '0', 'price_craft' => '0', 'amount' => '1'];
     }
 
-    public function test_save_insert_stores_subuser_and_attaches_photos_to_the_new_tracking(): void
+    /** role ชั่วคราว (rollback) ที่ถือ admin_lot_view อย่างเดียว — PACK ไม่มี role แบบนี้ใน DB (role 6/9 ถือทั้งสองสิทธิ์) */
+    private function viewOnlyUser(): User
+    {
+        $role = $this->insertRow('role', ['role_name' => 'zz_lot_view']);
+        $detail = (int) DB::table('role_detail')->where('role_detail_name', 'admin_lot_view')->value('id');
+        $this->insertRow('role_on_detail', ['role_id' => $role, 'role_detail_id' => $detail, 'permission' => 1]);
+
+        return $this->zzUser($role);
+    }
+
+    public function test_save_insert_attaches_photos_to_the_new_tracking(): void
     {
         $this->as(self::ADMIN);
         file_put_contents($this->tempDir().'/ZZLOTIMG1.jpg', 'x');
@@ -86,11 +100,13 @@ class LotSrDbTest extends BenchDbTestCase
 
         $out = $this->act(AdminLotSaveController::class, 'save', $post);
 
-        $this->assertStringEndsWith('window.location.reload();', $out, 'SR ตอบ reload (ไม่ใช่ SuccessBox)');
+        $this->assertStringStartsWith('$.ajax(', $out, 'JS ย้ายรูปมาก่อน getSuccess แบบเดิม');
+        $this->assertStringEndsWith("SuccessBox('ทำรายการสำเร็จ!<br />หมายเลขรายการ : ".$post['tracking']."','ทำรายการสำเร็จ!', 'CloseLoading();LoadDetail();');", $out, 'PACK = jl: SuccessBox + LoadDetail()');
         $this->assertStringContainsString('path=../upload/temp/ZZLOTIMG1.jpg', $out, 'ไฟล์ที่อยู่ใน temp ได้ JS ย้ายขึ้น storage');
         $this->assertStringNotContainsString('ZZLOTIMG2', $out, 'ไฟล์ที่ไม่อยู่ใน temp ไม่ต้องย้าย (แต่ยังบันทึก)');
         $row = DB::table('tracking')->where('tracking', $post['tracking'])->first();
-        $this->assertSame("zz_s''ub", $row->subuser, "nStr ซ้ำแบบเดิม: ' ถูกเก็บเป็น ''");
+        $this->assertObjectNotHasProperty('subuser', $row, 'PACK ไม่มีคอลัมน์ subuser');
+        $this->assertSame("zz_r'1", $row->remark);
         $this->assertSame((string) $lot, (string) $row->lot_id);
         $this->assertSame('0', (string) $row->ship, 'ship = type ของล็อต');
         $this->assertSame(['ZZLOTIMG1.jpg', 'ZZLOTIMG2.jpg'], $this->images((int) $row->id), 'รูปผูกกับ tracking ใหม่ ชื่อไฟล์ที่มี / ถูกตัดทิ้ง');
@@ -107,10 +123,10 @@ class LotSrDbTest extends BenchDbTestCase
         $this->insertRow('tracking_image', ['tracking_id' => $t, 'attachment' => 'ZZOLD1.jpg']);
         $this->insertRow('tracking_image', ['tracking_id' => $t, 'attachment' => 'ZZOLD2.jpg']);
 
-        $this->act(AdminLotSaveController::class, 'save', $this->savePost($lot, $cust, ['tracking_id' => (string) $t, 'subuser' => 'zz_sub2']));
+        $out = $this->act(AdminLotSaveController::class, 'save', $this->savePost($lot, $cust, ['tracking_id' => (string) $t]));
+        $this->assertStringStartsWith('SuccessBox(', $out, 'ไม่มีรูปใน temp = ไม่มี JS ย้ายรูป');
         $this->assertSame(['ZZOLD1.jpg', 'ZZOLD2.jpg'], $this->images($t), 'ไม่ส่งรายการรูป = ไม่แตะรูปเดิม');
         $row = DB::table('tracking')->where('id', $t)->first();
-        $this->assertSame('zz_sub2', $row->subuser);
         $this->assertSame((string) $lot, (string) $row->lot_id);
         $this->assertNotSame('0000-00-00 00:00:00', (string) $row->date_warehouse, 'date_warehouse = NOW() เมื่อเดิมเป็นศูนย์');
 
@@ -144,37 +160,79 @@ class LotSrDbTest extends BenchDbTestCase
         $this->assertSame($before, DB::table('tracking_image')->count(), 'id ที่ไม่ใช่ tracking จริง ไม่เขียนอะไร');
     }
 
-    public function test_lot_detail_pages_by_ten_then_loads_totals(): void
+    public function test_lot_detail_is_one_jl_table_with_editor_and_price_columns_by_user(): void
     {
-        $this->as(self::ADMIN);
         $cust = $this->zzUser(8);
         $lot = $this->lot();
         for ($i = 1; $i <= 12; $i++) {
-            $this->track($lot, $cust->id, ['no' => $i, 'subuser' => 'zz_sub'.$i, 'is_takeapic' => $i === 12 ? 1 : 0]);
+            $this->track($lot, $cust->id, ['no' => $i]);
         }
         $t1 = (int) DB::table('tracking')->where('lot_id', $lot)->where('no', 12)->value('id');
         $this->insertRow('tracking_image', ['tracking_id' => $t1, 'attachment' => 'ZZDETAIL.jpg']);
 
-        $p0 = $this->act(AdminLotController::class, 'loadLotDetail', ['id' => (string) $lot, 'search' => '', 'page' => '0']);
-        $this->assertSame(10, substr_count($p0, 'class="cbxitem"'));
-        $this->assertStringContainsString('LoadDetail(1);', $p0);
-        $this->assertStringContainsString('<tr style="background-color:#768cf2">', $p0, 'ถ่ายรูป');
-        $this->assertStringContainsString('<span class="text-danger">zz_sub12</span>', $p0);
-        $this->assertStringContainsString('ZZDETAIL.jpg', $p0, 'รูปพัสดุมาพร้อมแถว');
-        $this->assertStringNotContainsString('target=', $p0);
+        // แอดมิน 11938 (role 1: admin_lot ไม่มี admin_lot_view, ไม่ใช่ user 5)
+        $this->as(self::ADMIN);
+        $html = $this->act(AdminLotController::class, 'loadLotDetail', ['id' => (string) $lot, 'search' => 'undefined']);
+        $this->assertStringContainsString('id="searching_lot_detail"', $html, 'แบบ jl: ช่องค้นหามากับตาราง');
+        $this->assertSame(12, substr_count($html, 'load_quickfile('), 'ทุกแถวในคำขอเดียว (ไม่แบ่งหน้า)');
+        $this->assertSame(0, substr_count($html, 'class="cbxitem"'), 'ไม่ใช่ user 5 = ไม่มีช่องเลือก/แก้/ลบ');
+        $this->assertStringNotContainsString('cbxitem_head', $html);
+        $this->assertStringContainsString('class="sum_pcubic', $html, 'ไม่มี admin_lot_view = เห็นคอลัมน์ราคา');
+        $this->assertStringContainsString('class="hid_sum_amount" value="12"', $html);
+        $this->assertStringContainsString('class="hid_sum_weight" value="12.0"', $html);
+        $this->assertStringContainsString('class="hid_sum_cubic" value="0.0120"', $html);
+        $this->assertStringContainsString('ZZDETAIL.jpg', $html, 'รูปพัสดุมาพร้อมแถว');
+        $this->assertStringNotContainsString('LoadDetail(1)', $html);
+        $this->assertStringNotContainsString('loadendtable', $html);
+        $this->assertStringNotContainsString('target=', $html);
+        $this->assertStringNotContainsString('#768cf2', $html, 'PACK ไม่มีสีถ่ายรูป');
 
-        $p1 = $this->act(AdminLotController::class, 'loadLotDetail', ['id' => (string) $lot, 'search' => '', 'page' => '1']);
-        $this->assertSame(2, substr_count($p1, 'class="cbxitem"'));
-        $this->assertStringContainsString('LoadDetail(2);', $p1);
+        // user 5 (role 6: admin_lot + admin_lot_view) = ช่องเลือก/แก้/ลบ แต่ไม่เห็นคอลัมน์ราคา
+        $this->as(self::EDITOR);
+        $html = $this->act(AdminLotController::class, 'loadLotDetail', ['id' => (string) $lot, 'search' => '']);
+        $this->assertSame(12, substr_count($html, 'class="cbxitem"'));
+        $this->assertStringContainsString('cbxitem_head', $html);
+        $this->assertStringNotContainsString('class="sum_pcubic', $html);
+        $this->assertStringNotContainsString('class="sum_kg', $html);
 
-        $p2 = $this->act(AdminLotController::class, 'loadLotDetail', ['id' => (string) $lot, 'search' => '', 'page' => '2']);
-        $this->assertSame(0, substr_count($p2, 'class="cbxitem"'));
-        $this->assertStringContainsString('loadendtable();', $p2);
+        // ค้นหาด้วยรหัสลูกค้า / เลขพัสดุ
+        $no = (string) DB::table('tracking')->where('id', $t1)->value('tracking');
+        $html = $this->act(AdminLotController::class, 'loadLotDetail', ['id' => (string) $lot, 'search' => $no]);
+        $this->assertSame(1, substr_count($html, 'load_quickfile('));
+        $this->assertStringContainsString('value="'.$no.'" id="searching_lot_detail"', $html);
+    }
 
-        $top = $this->act(AdminLotController::class, 'loadToptable', ['id' => (string) $lot, 'search' => '']);
-        $this->assertStringContainsString('class="hid_sum_amount" value="12"', $top);
-        $this->assertStringContainsString('class="hid_sum_weight" value="12.0"', $top);
-        $this->assertStringContainsString('class="hid_sum_cubic" value="0.0120"', $top);
+    public function test_form_and_index_show_editing_only_to_user_5(): void
+    {
+        $lot = $this->lot();
+        $this->as(self::ADMIN);
+        $form = view('lot.admin.form', $this->formData($lot))->render();
+        $this->assertStringNotContainsString('_admin/_lot/save" method="post"', $form);
+        $this->assertStringNotContainsString('onblur="onsavelotname()"', $form);
+        $this->assertStringNotContainsString('onclick="onstatussave()"', $form);
+        $this->assertStringContainsString('<div class="col-xs-6 form-control-static">', $form, 'หัวล็อตแบบอ่านอย่างเดียว');
+        $this->assertStringContainsString('id="lot_unpayment"', $form);
+        $this->assertStringContainsString("url: rooturl + '_admin/_lot/load_unpaid'", $form);
+        $index = (string) $this->app->call([app(AdminLotController::class), 'index'])->render();
+        $this->assertStringNotContainsString("$('#lot_create .modal').modal('show')", $index);
+
+        $this->as(self::EDITOR);
+        $form = view('lot.admin.form', $this->formData($lot))->render();
+        $this->assertStringContainsString('_admin/_lot/save" method="post"', $form);
+        $this->assertStringContainsString('onblur="onsavelotname()"', $form);
+        $this->assertStringContainsString('onclick="onstatussave()"', $form);
+        $this->assertStringContainsString('id="attachment_tracking"', $form);
+        $index = (string) $this->app->call([app(AdminLotController::class), 'index'])->render();
+        $this->assertStringContainsString("$('#lot_create .modal').modal('show')", $index);
+    }
+
+    private function formData(int $lot): array
+    {
+        $req = \Illuminate\Http\Request::create('/admin/lot/'.$lot, 'GET');
+        $req->setRouteResolver(fn () => (new \Illuminate\Routing\Route('GET', 'admin/lot/{id}', []))->bind($req));
+        app()->instance('request', $req);
+
+        return app(AdminLotController::class)->form($req)->getData();
     }
 
     public function test_unpaid_list_and_grid_column_count_customers_with_unpaid_tracking(): void
@@ -208,20 +266,20 @@ class LotSrDbTest extends BenchDbTestCase
         $t = $this->track($lot, $cust->id, ['product_type_id' => $carA, 'tracking' => 'ZZLOTVIEW'.bin2hex(random_bytes(3))]);
         $no = (string) DB::table('tracking')->where('id', $t)->value('tracking');
 
-        $this->as($this->zzUser(12)->id); // role 12 = admin_lot_view อย่างเดียว
+        $this->as($this->viewOnlyUser()->id); // role ชั่วคราว = admin_lot_view อย่างเดียว
         $view = json_decode($this->act(AdminLotController::class, 'loadTracking', ['tracking' => $no, 'lot_id' => (string) $lot]), true);
         $this->assertSame($carA, (int) DB::table('tracking')->where('id', $t)->value('product_type_id'), 'admin_lot_view ไม่เขียน');
         $this->assertCount(8, $view);
-        $this->assertSame('', $view[5], 'SR: data_craft = "" เมื่อไม่ใช่ craft');
+        $this->assertSame('', $view[5], 'PACK = SR: data_craft = "" เมื่อไม่ใช่ craft');
         $this->assertStringContainsString('upload_upload_track', $view[7]);
 
         $this->as(self::ADMIN);
         $admin = json_decode($this->act(AdminLotController::class, 'loadTracking', ['tracking' => $no, 'lot_id' => (string) $lot]), true);
-        $this->assertSame($shipA, (int) DB::table('tracking')->where('id', $t)->value('product_type_id'), 'admin_lot: แก้ประเภทแบบ SR');
+        $this->assertSame($shipA, (int) DB::table('tracking')->where('id', $t)->value('product_type_id'), 'admin_lot: แก้ประเภทแบบเดิม (GetCalPrice ของ PACK = SR)');
         $this->assertSame($admin[2], $view[2], 'ราคาที่คำนวณเท่ากัน');
     }
 
-    public function test_lot_mail_uses_sr_sender_template_and_quote(): void
+    public function test_lot_mail_uses_pack_sender_template_and_dash_columns(): void
     {
         $cust = $this->zzUser(8);
         DB::table('user')->where('id', $cust->id)->update(['email' => 'zz_lot@example.invalid']);
@@ -241,9 +299,12 @@ class LotSrDbTest extends BenchDbTestCase
         $html = (string) $msg->getHtmlBody();
         $this->assertStringStartsWith((string) config('legacy.mail.header'), $html);
         $this->assertStringEndsWith((string) config('legacy.mail.footer'), $html);
-        $this->assertStringContainsString('zz_quote&lt;b&gt;', $html);
-        $this->assertStringContainsString('#a3b2f1', $html);
+        $this->assertStringNotContainsString('zz_quote', $html, 'PACK: ช่องวลีช่วยจำ = "-" (order_id ไม่มี) แบบ jl');
+        $this->assertSame(2, substr_count($html, '<td style="border:1px #ccc solid;padding:3px">-</td>'));
+        $this->assertStringContainsString('#eb4823', $html);
+        $this->assertStringNotContainsString('#a3b2f1', $html);
         $this->assertStringNotContainsString('JLcargo', $html);
+        $this->assertStringNotContainsStringIgnoringCase('srshipping', $html);
         $this->assertStringNotContainsString('target=', $html);
     }
 }

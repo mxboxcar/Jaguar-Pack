@@ -1,5 +1,82 @@
 # กลุ่ม lot — รายงานการพอร์ต
 
+## PACK (2026-10-22)
+
+branch `mod/lot` (worktree `/home/admin/laravel/pack-wt/lot`, กลุ่ม lot + money-move ใน worktree เดียว) · dev http://127.0.0.1:8808 · เทียบกับ PACK เดิม :8114 (`admin_pack_bench`)
+PACK = SR ส่วนใหญ่ แต่หน้า detail ของล็อตเป็นแบบ jl (ตารางเดียวจาก `load_lot_detail`) + ส่วนเสริมของ SR (รูปพัสดุ, ค้างจ่าย, แนบรูปด่วน) และมีการล็อก UI ให้ user id 5 เท่านั้น
+ข้อความด้านล่าง (หัวข้อ SR และของ jl) ยังใช้ได้กับ PACK ยกเว้นที่ระบุในหัวข้อนี้
+
+### สิ่งที่เปลี่ยนสำหรับ PACK (ตาม `docs/pack-diff.md` กลุ่ม lot)
+
+| ไฟล์เดิม | สถานะ | ที่ทำ |
+|---|---|---|
+| `_admin/_lot/form.php` | diff 375 (jl 208) | แม่แบบ jl (ช่องค้นหา/หัว-ท้ายตาราง/ผลรวมมากับ `load_lot_detail` คำขอเดียว, `makeTopBottom()` แบบ jl) + ของ PACK: ช่องแนบรูปพัสดุ (`#attachment_tracking`, `data[7]` ของ load_tracking), `#lot_unpayment` + `LoadUnpaid()`, modal แนบรูปด่วน (`load_quickfile`/`quicksavefile()`), `loadImage()` หลังโหลดตาราง; **`$allowEdit` = `checkUser()['id'] == 5`**: ฟอร์มเพิ่ม/แก้ tracking, ช่องแก้ชื่อ/หมายเหตุ/ค่าขนส่ง/ไฟล์ของล็อต, แถวตั้งวันที่ + ปุ่มพิมพ์ แสดงเฉพาะ user 5 — คนอื่นเห็นหัวล็อตแบบอ่านอย่างเดียว (ไฟล์แนบเป็นลิงก์ `download_file?path=…&filename=…`); ไม่มี "ถ่ายรูป"/"รหัสย่อย" (คอลัมน์ไม่มีใน PACK) |
+| `_admin/_lot/load_lot_detail.php` | diff 169 (jl 36) | แม่แบบ jl (ทั้งตาราง + hidden ผลรวม, แถว "ไม่พบข้อมูล" colspan 14) + ช่องเลือก/แก้/ลบเฉพาะ user 5 (คนอื่นได้ `<th>`/`<td>` ว่าง), คอลัมน์ราคา kg/คิว (หัว/ผลรวม/แถว) ซ่อนเมื่อมีสิทธิ์ `admin_lot_view` (เช่น user 5 role 6 ถือทั้งสองสิทธิ์ → ไม่เห็นราคา), ปุ่ม + แนบรูปด่วน และ `div.img_track`; ไม่มีพื้นเทา `is_checked` |
+| `_admin/_lot/save.php` | diff 45 (jl 86) | ไม่มี `subuser`; รูป `upload_upload_track_mul[]` แบบ SR port (ไม่ส่ง = ไม่แตะ, ส่ง = แทนทั้งหมด) — **ทางเพิ่มใหม่ของ PACK ผูกรูปกับ id ใหม่อยู่แล้ว** (ตรงกับที่ SR port แก้ไว้); ตอบ JS ย้ายรูป (`_api/blockblob_ajax`) ตามด้วย `SuccessBox(… , 'CloseLoading();LoadDetail();')` แบบ jl (SR = reload) |
+| `_admin/_lot/index.php` | diff 3 | ปุ่ม "เพิ่มรายการใหม่" (สร้างล็อต) เฉพาะ user 5 |
+| `_admin/_lot/load_image.php`, `load_quickfile.php`, `save_quickfile.php` | diff 12/9/9 | ตรวจ `getPermission('admin_lot')` อย่างเดียว (SR ยอม `admin_lot_view`) → route `legacy.perm:admin_lot` |
+| `_admin/_lot/load_toptable.php` | SR-only | **ลบ route/method** — PACK ไม่มีไฟล์และไม่มีหน้าใดเรียก (ผลรวมมากับ load_lot_detail) → `docs/url-map.md` ทำเครื่องหมาย dead |
+| `_admin/_lot/load_ref_print.php` | diff 2 (jl 0) | `LIMIT 10` แบบ jl |
+| `_admin/_lot/load_tracking.php` | diff 3 | ต่างแค่การจัดบรรทัด — ใช้ของ SR port (`data[5]` = "" หรือแถวลูก, `data[7]` ช่องแนบรูป; GetCalPrice ของ PACK = SR) |
+| `_admin/_lot/print.php` | diff 8 (jl 2) | แบบ jl: คอลัมน์ราคา kg/คิว + ผลรวมต่อลูกค้า (colspan 7) แต่ไม่มีเครื่องหมาย ✔ (`is_checked` ไม่มี) |
+| `_admin/_lot/email.php` | diff 6 (jl 2) | ช่อง "เลขที่ใบสั่งซื้อ" และ "วลีช่วยจำ" = `-` เสมอ (`china_order_number`/`order_id` ไม่มี — แบบ jl), ปุ่มสี `#eb4823` padding ขวา 0; ผู้ส่ง/หัว/ท้าย = `config('legacy.mail')` ของ PACK (ฐานร่วม) |
+| `_lot/form.php` | diff 1 (jl 0) | legend ไม่มี "ถ่ายรูป" (partial `row_color` กลับเป็นของ jl) |
+| ไฟล์ `same` อีก 33 ไฟล์ | same | ไม่ต้องแก้โค้ด — เทียบผลแล้ว (ด้านล่าง) |
+
+ไฟล์ที่แก้: `routes/modules/lot.php`, `AdminLotController` (form/index ส่ง `allowEdit`, `loadLotDetail` แบบ jl, ลบ `loadToptable`), `AdminLotSaveController::save`, `LotLookups::allowEdit()` (ค่าคงที่ `EDITOR_USER_ID = 5`), `LotPrint`, `LotMailer`, views `lot/admin/{form,detail,index}`, `lot/customer/form`, `lot/partials/row_color` · test: `LotPackDbTest` (แทน `LotSrDbTest`), `LotRoutesTest`, `LotViewOnlyTest`, `LotPrintHeaderCountDbTest`
+
+### ต่างจาก PACK เดิมโดยตั้งใจ
+
+- คงทุกข้อของ jl/SR port (admin_lot_view = อ่านอย่างเดียว, กันกดซ้ำ, bind SQL, escape, ไม่มี target blank, CSRF/cross-site GET ฯลฯ)
+- **user 5 เป็นแค่การซ่อนปุ่มบนหน้าจอ** (แบบเดิม): endpoint เขียน (`save`, `save_new_lot`, `save_lot_*`, `save_status_*`, `delete`, …) ยังตรวจสิทธิ์ `admin_lot` ตามเดิม — แอดมิน role 1/7/9 ยิงตรงได้ (เดิมก็ได้) — ดูคำถามข้อ 1
+- รูปเล็กข้างเลขพัสดุมาพร้อมแถวของ `load_lot_detail` (เดิม `loadImage()` ยิง `load_image` ทีละแถว) — เฉพาะผู้ถือ `admin_lot` (load_image ของ PACK ต้องมี admin_lot; ผู้ถือ view อย่างเดียวได้ div ว่างแล้ว JS เดิมยิง load_image → ErrorBox สิทธิ์แบบเดิม — PACK ไม่มี role แบบนี้)
+- `LoadUnpaid()` ใส่ผลลง `#lot_unpayment` (เดิมทับ `#lot_memo`) — เหมือน SR port; JS `ontempcal` ใช้ `parseFloat` แทน `eval` (เหมือน jl/SR port)
+- ฟอร์ม: รูปของ "tracking_id = id ล็อต" ที่เดิมแสดง/ส่งกลับไปบันทึก → เริ่มว่าง (เหมือน SR port)
+
+### ช่องโหว่/บั๊กเดิมของ PACK ที่เจอ
+
+1. `_admin/_lot/save.php` ฯลฯ ยังต่อ `$_POST` เข้า SQL ทุกไฟล์ (เหมือน SR/jl — port bind หมดแล้ว), `load_image`/`load_quickfile`/`save_quickfile` ต่อ id ลง SQL ดิบ
+2. การจำกัด "แก้ได้เฉพาะ user 5" อยู่แค่ใน HTML — endpoint เขียนไม่ตรวจ (ใครมี admin_lot หรือ admin_lot_view ก็ POST ได้ในเว็บเดิม)
+3. `_lot/grid.php` (ลูกค้า) บน bench ใช้เวลาหลายนาที: subquery `COUNT` ต่อแถวล็อต × 5,307 ล็อต โดยตาราง tracking ของ PACK **ไม่มี index `lot_id`** (คำขอทดสอบของลูกค้า 348 ค้าง >6 นาที จน :8114 ค้าง — ต้อง kill query เอง) — Laravel ตอบ ~185 ms (นับเฉพาะล็อตในหน้า); ข้อเสนอ index `tracking(lot_id, is_delete, user)` (ไม่ได้สร้างเอง)
+
+### การตรวจ (2026-10-22, :8114 เดิม vs :8808 ใหม่, session เดียวกัน, normalize host/รูป blob/ช่องว่าง/คอมเมนต์ HTML/target blank)
+
+- แอดมิน 11938 (role 1): `/admin/lot` (ตรง), grid หน้า 1/2/3 + ค้นหา `5294` + รถ `|0` + เรือ `|1` = **ตรง**, `/admin/lot/5294`, `/admin/lot/5305`, `/admin/lot/create` (ต่างเฉพาะ `#lot_unpayment` + `parseFloat`), `load_lot_detail` 5305/5294/ค้นรหัสลูกค้า/ล็อตไม่มี/`search=undefined` (ต่างเฉพาะรูปเล็กที่มาพร้อมแถว), `load_image`/`load_quickfile` (รูปของ 98864/98865), `load_unpaid`, `load_lot_memo` (ต่าง `.php` ใน URL autocomplete แบบ jl), `load_ref_print` ×2, `load_user_rate`, `load_lastest_lot`, autocomplete ×2, `print_receive` = ตรง
+- user 5 (PACKMAN role 6 — ผู้แก้ล็อตได้ + ถือ admin_lot_view): `/admin/lot` (มีปุ่มสร้าง) = ตรง, `/admin/lot/{5294,5305,create}` (ฟอร์มเต็ม, ภาษา en ด้วย) ต่างเฉพาะข้อตั้งใจข้างบน, `load_lot_detail` (ช่องเลือก/แก้/ลบ, ไม่มีคอลัมน์ราคา; ภาษา cn) = ตรง
+- role 7 (923): `/admin/lot`, `/admin/lot/5305` = ตรง (อ่านอย่างเดียว); ลูกค้า/role 3/role 4: ปฏิเสธ — ข้อความ ErrorBox ตรงกับเดิม
+- ลูกค้า 348: `/lot`, `/lot/5305`, `_lot/load_lot_detail` 5305/5294 = ตรง; `_lot/grid` เทียบสดไม่ได้ (ข้อ 3 — ไฟล์ same กับ SR ที่เทียบครบแล้ว)
+- ไม่ได้เทียบสด (ไฟล์เดิมเขียน DB): `load_tracking`, `print`, `email_lot`, ทุก `save*` — ตรวจด้วยการอ่านโค้ด + แถวที่เขียน
+- `load_toptable` → 404 (route ลบแล้ว)
+- หลัง merge main (UploadBox ของกลุ่ม tracking เป็น markup ของ PACK แล้ว, layout ฐานร่วม): `/admin/lot`, `/admin/lot/{5294,create}` (แอดมินและ user 5), `load_quickfile`, grid = ต่างเฉพาะข้อตั้งใจ
+
+### E2E เขียน (ฝั่ง Laravel :8808 เท่านั้น, แอดมิน 11938, ลูกค้า ZZFDN1 11937, แถว zz แล้วลบตาม id)
+
+`save_new_lot` (ล็อต 5380 ชื่อ = ชื่อมากสุด+1 แบบเดิม) → `save_lot_name` (`zz_lot_e2e'1` เก็บ `'`), `save_lot_name_admin`, `save_lot_ship_amount` (`1,234.5` → 1 แบบ MySQL non-strict เดิม) → `save` เพิ่มใหม่ ส่งซ้อน 2 คำขอ (= 1 แถว + "กำลังดำเนินการ"; ช่องว่างในเลขพัสดุ/ออเดอร์ถูกตัด, 2.55 → 2.5, `1,000` → 1000, รูป 2 ไฟล์ผูก id ใหม่ + JS blockblob 2 ตัว, `../x.jpg` ถูกทิ้ง; ตอบ JS + SuccessBox/LoadDetail) → `save` แก้ไข (ไม่ส่งรูป = รูปเดิมอยู่; ส่ง 1 รูป = แทนทั้งหมด; payload เดิมซ้ำ = "ส่งซ้ำ") → `save_quickfile` → `load_tracking` → `save_lot_memo` → `save_status_tracking` (วันที่รูปแบบ "21 ตุลาคม 2026"; `id=… ) OR (1=1` ไม่แก้แถวอื่น) / `reset` → `save_status_lot` / `_date` → `print` (is_print, cross-site = 403, คอลัมน์ราคา+ผลรวม) → `email_lot` ×2 (คิว 1 แถว) → `lot:mail-worker` (เมลใน log: ผู้ส่ง PACK-Cargo, ปุ่ม #eb4823, ช่อง `-` สองช่อง) → `delete` ล็อตที่มี tracking (ErrorBox) → `save_print` (array, ค่าถูก escape ใน JS) → `save_verified` (11938 = ไม่มีสิทธิ์) → `save_remove_tracking` (+ probe injection) → `delete` (is_delete=1) · `_admin/_lot/cancel` (refill zz: ยกเลิก 1 ครั้ง, ครั้งที่ 2 ErrorBox)
+ลบแล้ว: lot 5380, tracking 99443, tracking_image 47241–47245, lot_memo 4, lot_mail_queue 1 (+ แถวของ money-move ด้านใน money-move.md), ไฟล์ temp zz — นับหลังลบ = 0
+
+### bench (`bin/bench`, -n 20 -c 1 ×2 รอบ, `artisan optimize`; mean ms รอบ 2)
+
+| หน้า | เดิม mean ms (รอบ 1 / 2) | ใหม่ mean ms (รอบ 1 / 2) |
+|---|---|---|
+| `/admin/lot` (แอดมิน, -n 10) | 1404 / 1691 | 246 / 98 |
+| `_admin/_lot/grid` page 1 (-n 5) | 11492 / 11031 | 466 / 474 |
+| `/admin/lot/5305` (-n 10) | 3317 / 2343 | 440 / 381 |
+| `_admin/_lot/load_lot_detail` id=5305 (-n 10) | 2043 / 1448 | 560 / 1059 |
+| `/lot` (ลูกค้า 348) | 888 / 687 | 110 / 76 |
+| `_lot/load_lot_detail` 5305 (ลูกค้า 348) | 142 / 392 | 105 / 112 |
+
+(-n 10 -c 1 ×2 รอบ ยกเว้นที่ระบุ; เครื่องมี agent อื่นรันพร้อมกัน ตัวเลขแกว่ง) · ตาราง tracking ของ PACK ไม่มี index `lot_id` → ทุก query ที่กรองล็อตสแกนครึ่งตาราง (~250 ms) ทั้งเดิมและใหม่: grid แอดมินเดิมยิง 4 query ต่อแถว (~11 วินาทีต่อหน้า) ใหม่ดึงครั้งเดียว (~0.4 วินาที), `/admin/lot/{id}` และ `load_lot_detail` ใหม่ยังมี 1 สแกน (~0.3–0.5 วินาที) — ข้อเสนอ index `tracking(lot_id, is_delete)` จะทำให้เหลือหลักสิบ ms (ไม่ได้สร้างเอง); `_lot/grid` ลูกค้าเดิมเกินหลายนาทีบน bench จึงไม่ได้ bench (ใหม่ ~185 ms)
+
+### test
+
+`php8.4 vendor/bin/phpunit` และ `JL_BENCH_DB_TESTS=1` — ดูผลรวมในรายงานของ money-move (รันชุดเดียวกัน)
+
+### คำถามถึงเจ้าของ
+
+1. **user 5 เท่านั้นที่แก้ล็อตได้บนหน้าจอ** (ฮาร์ดโค้ด id 5 = PACKMAN) แต่ endpoint เขียนยังยอมทุกคนที่มี `admin_lot` (เดิมก็เป็น) — ต้องการบังคับที่ endpoint ด้วยหรือไม่ (เช่น ให้เฉพาะ user 5 หรือเปลี่ยนเป็นสิทธิ์) และถ้าเปลี่ยนคนดูแลล็อตต้องแก้ `LotLookups::EDITOR_USER_ID`
+2. user 5 (role 6) ถือ `admin_lot_view` ด้วย → **ไม่เห็นคอลัมน์ราคา** ในตารางล็อตและช่องราคาในฟอร์ม (เหมือนเดิม) — ตั้งใจหรือไม่
+3. index `tracking(lot_id, …)` สำหรับ `_lot/grid` ลูกค้า (ข้อ 3 ของช่องโหว่) — production มี index นี้หรือไม่ (bench ไม่มี)
+
 ## SR (2026-10-20)
 
 branch `mod/lot` ของ repo sr · worktree `/home/admin/laravel/sr-wt/lot` · dev http://127.0.0.1:8308 · เทียบกับ SR เดิม :8111 (`admin_sr_bench`)

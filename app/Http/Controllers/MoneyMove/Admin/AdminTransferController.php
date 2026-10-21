@@ -21,8 +21,8 @@ use Illuminate\View\View;
 
 /**
  * โอนเงินไปจีน (แอดมิน): _admin/_transfer/*.php เดิม — สิทธิ์ admin_transfer
- * form.php ของ jl ตรวจ getPermission('transfer') (สิทธิ์ลูกค้า = IDOR) — SR แก้ในไฟล์เดิมแล้วเป็น admin_transfer (ใช้ตามนั้น)
- * SR: bill_transfer.usecash_cn (เงินหยวนที่ใช้) — ยกเลิกคืนทั้งบาทและหยวน, RollBack ตัดคืนทั้งสองกระเป๋า
+ * form.php ของ PACK (= jl) ตรวจแค่ getPermission('transfer') (สิทธิ์ลูกค้า = IDOR) → route ต้องมีทั้ง transfer และ admin_transfer (กติกา jl port)
+ * PACK/SR: bill_transfer.usecash_cn (เงินหยวนที่ใช้) — ยกเลิกคืนทั้งบาทและหยวน (เฉพาะยอดที่ไม่เป็น 0 แบบ PACK), RollBack ตัดคืนทั้งสองกระเป๋า
  */
 class AdminTransferController extends Controller
 {
@@ -91,9 +91,9 @@ class AdminTransferController extends Controller
 
     /**
      * POST /_admin/_transfer/save — บันทึกหลักฐาน + status 2 + อีเมล
-     * jl เดิมไม่ตรวจ status: บันทึกรายการที่ยกเลิก (คืนเงินแล้ว) เป็น 2 ได้ → ลูกค้าได้ทั้งเงินคืนและการโอน
-     * SR แก้ในไฟล์เดิมแล้ว: เฉพาะ status 1 อื่นๆ (รวมไม่พบ) ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();')
-     * ที่นี่: แบบ SR + ล็อกแถวใน transaction (กันชนกับ cancel/rollback ที่มาพร้อมกัน)
+     * PACK = jl เดิม: ไม่ตรวจ status — บันทึกรายการที่ยกเลิก (คืนเงินแล้ว) เป็น 2 ได้ → ลูกค้าได้ทั้งเงินคืนและการโอน
+     * ใหม่ (กติกา jl port ที่เจ้าของสั่งแก้): ล็อกแถวใน transaction; status 1 → 2, status 2 = บันทึกหลักฐานซ้ำ (ไม่แตะเงิน),
+     * อื่นๆ (-1/ไม่พบ) ปฏิเสธ (SR ปฏิเสธทุกสถานะที่ไม่ใช่ 1 ด้วยข้อความ "รายการไม่พร้อม…" — PACK ไม่มีโค้ดนั้น)
      */
     public function save(Request $request): Response
     {
@@ -105,8 +105,11 @@ class AdminTransferController extends Controller
         }
         $result = DB::transaction(function () use ($uid, $id, $file, $request) {
             $data = DB::table('bill_transfer')->where('id', $id)->lockForUpdate()->first();
-            if ($data === null || ! Php74::eq($data->status, 1)) {
-                return null;
+            if ($data === null) {
+                return 'missing';
+            }
+            if (! Money::statusIn($data->status, [Money::PENDING, Money::DONE])) {
+                return 'cancelled';
             }
             DB::table('bill_transfer')->where('id', $data->id)->update([
                 'approved_remark' => $this->in($request, 'approved_remark'), 'approved_upload' => $file, 'status' => '2',
@@ -115,8 +118,11 @@ class AdminTransferController extends Controller
 
             return $data->id;
         });
-        if ($result === null) {
-            return response("ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();'); ");
+        if ($result === 'missing') {
+            return response(Money::refuse('ไม่พบรายการ'));
+        }
+        if ($result === 'cancelled') {
+            return response(Money::refuse('รายการนี้ถูกยกเลิกและคืนเงินแล้ว ไม่สามารถบันทึกการโอนได้ (ต้อง RollBack ก่อน)'));
         }
         $out = TempUpload::jsIfExists($file);
         Mailer::transferSuccess($result);
@@ -126,7 +132,7 @@ class AdminTransferController extends Controller
 
     /**
      * POST /_admin/_transfer/cancel — status 1 เท่านั้น: ยกเลิก + คืนเงิน + อีเมล
-     * SR: คืนทั้งบาท (usecash → balance) และหยวน (usecash_cn → balance_cn) ให้เจ้าของรายการ — เดิมเขียนทั้งสองแถวเสมอ (ยอด 0 ก็เขียน)
+     * PACK: คืนทั้งบาท (usecash → balance) และหยวน (usecash_cn → balance_cn) ให้เจ้าของรายการ เฉพาะยอดที่ไม่เป็น 0 (SR เขียนทั้งสองแถวเสมอ)
      * jl port: คืนเท่าที่รายการถูกตัดอยู่จริง ไม่เกินยอดของรายการ (ยอด 0/คืนแล้ว = ไม่เขียนแถว)
      */
     public function cancel(Request $request): Response
