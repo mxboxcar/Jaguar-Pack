@@ -10,10 +10,10 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * ข้อมูล/ตาราง "รายการพัสดุ" ของบิลส่งสินค้า (bill_payment) ที่ _export/form.php, _admin/_export/form.php, print.php/print_2.php, printprice.php/print_3.php (SR) ใช้ร่วมกัน
+ * ข้อมูล/ตาราง "รายการพัสดุ" ของบิลส่งสินค้า (bill_payment) ที่ _export/form.php, _admin/_export/form.php, print.php/print_2.php ใช้ร่วมกัน
  *
- * เดิมต่อแถวมี query ซ้อน (N+1): header_count (subquery ต่อแถว), bill_product_on_tracking (ต่อแถว), tracking ลูก (ต่อแถว),
- * (SR print_2 ไม่แสดงชั้นวาง — query warehouse_section_detail ถูก comment ในไฟล์เดิม) → ที่นี่โหลดเป็นชุดด้วย whereIn ครั้งละตาราง (จำนวน query คงที่) ลำดับเหมือนเดิม
+ * เดิมต่อแถวมี query ซ้อน (N+1): header_count (subquery ต่อแถว), bill_product_on_tracking (ต่อแถว), tracking ลูก (ต่อแถว)
+ * (PACK print_2 ไม่มีคอลัมน์ชั้นวาง และไม่มีตาราง warehouse_section*) → ที่นี่โหลดเป็นชุดด้วย whereIn ครั้งละตาราง (จำนวน query คงที่) ลำดับเหมือนเดิม
  */
 final class ExportBill
 {
@@ -65,6 +65,19 @@ final class ExportBill
         return $rows;
     }
 
+    /**
+     * PACK: คูปองส่วนลดของบิล — SELECT * FROM coupon WHERE payment_id = X AND is_delete = '0' (แถวแรก)
+     * null = ไม่มีบิล/ไม่มีคูปอง (เดิมบิลที่ไม่มีอยู่ query ด้วย payment_id = '' = คูปองที่ยังไม่ถูกใช้ — ไม่ทำแบบนั้น)
+     */
+    public static function coupon(mixed $paymentId): ?object
+    {
+        if ($paymentId === null || Php74::eq($paymentId, '') || Php74::eq($paymentId, 0)) {
+            return null;
+        }
+
+        return Rows::str(DB::table('coupon')->where('payment_id', $paymentId)->where('is_delete', '0')->orderBy('id')->first());
+    }
+
     /** n() = ค่าตัวเลขแบบ PHP 7.4 ของค่าจาก DB */
     private static function n(mixed $v): int|float
     {
@@ -99,8 +112,10 @@ final class ExportBill
     /**
      * <tbody> ของตาราง tracking ใน _export/form.php (ลูกค้า) / _admin/_export/form.php (แอดมิน)
      * ต่างกัน: ลิงก์ tracking (order/ vs admin/order/), คอลัมน์หมายเหตุ (quote vs remark), ช่องว่างก่อน class
+     * PACK: ไม่มีคอลัมน์ "รหัสย่อย" (ไม่มี bill_payment_detail.subuser); แอดมินเห็นช่องราคากิโล/คิวเฉพาะเมื่อมีสิทธิ์
+     * admin_viewprice_on_payment ($prices = false = ไม่แสดง 2 ช่องท้าย)
      */
-    public static function trackingRows(Collection $details, bool $admin): string
+    public static function trackingRows(Collection $details, bool $admin, bool $prices = true): string
     {
         if ($details->isEmpty()) {
             return '<tr><td style="height: 100px;" colspan="11" class="text-center">'.Lang::get('no_data').'</td></tr>';
@@ -114,7 +129,7 @@ final class ExportBill
             $rs = 'style="vertical-align:top" rowspan="'.(self::n($item->header_count) + 1).'"'.$sp;
             $bp = $item->bill_product_id;
             $trk = e((string) $item->tracking);
-            // SR: ไม่มีร้านค้า (MALL) — แสดง lot/no เสมอ
+            // PACK/SR: ไม่มีร้านค้า (MALL) — แสดง lot/no เสมอ
             $html .= '<td '.$rs.'class="text-center">'.$str.' '.e((string) $item->lot_name).'/'.e((string) $item->no).'</td>';
             $html .= '<td style="white-space: nowrap;"><a href="'.$href.($admin ? 'admin/order/' : 'order/').e((string) $bp).'/'.$trk.'">'.$trk.'</a></td>';
             $html .= '<td '.$rs.'style="white-space: nowrap;">';
@@ -124,8 +139,6 @@ final class ExportBill
                 $html .= '-';
             }
             $html .= '</td>';
-            // SR: คอลัมน์ "รหัสย่อย" (bill_payment_detail.subuser) — ไฟล์เดิมเขียน rowspan แล้วตามด้วยช่องว่าง 1 ตัวทั้งสองหน้า
-            $html .= '<td style="vertical-align:top" rowspan="'.(self::n($item->header_count) + 1).'" style="white-space: nowrap;">'.e((string) ($item->subuser ?? '')).'</td>';
             $html .= '<td '.$rs.'style="white-space: nowrap;">'.e((string) ($admin ? $item->remark : $item->quote)).'</td>';
             $html .= '<td '.$rs.'class="text-right">'.Format::numberformatzero($item->amount).'</td>';
             $html .= '<td '.$rs.'class="text-right">'.Format::numberformatone(self::n($item->weight) * self::n($item->amount)).'</td>';
@@ -156,8 +169,10 @@ final class ExportBill
 								</table>
 							</div>
 							</td>';
-            $html .= '<td '.$rs.'class="text-right">'.Format::getBold(Format::numberformat($item->price_kg, true, false)).'</td>';
-            $html .= '<td '.$rs.'class="text-right">'.Format::getBold(Format::numberformat($item->price_cubic, true, false)).'</td>';
+            if ($prices) {
+                $html .= '<td '.$rs.'class="text-right">'.Format::getBold(Format::numberformat($item->price_kg, true, false)).'</td>';
+                $html .= '<td '.$rs.'class="text-right">'.Format::getBold(Format::numberformat($item->price_cubic, true, false)).'</td>';
+            }
             $html .= '</tr>';
             foreach ($item->children as $child) {
                 $html .= '<tr style="background-color:#ffdfa5">
@@ -169,13 +184,17 @@ final class ExportBill
         return $html;
     }
 
-    /** รายการ balance ที่อ้างถึงบิล (prefix payment/export) — ส่วน "ref_balance_list" ท้ายฟอร์ม */
-    public static function balanceBox(mixed $id, bool $admin): string
+    /**
+     * รายการ balance ที่อ้างถึงบิล (prefix payment/export) — ส่วน "ref_balance_list" ท้ายฟอร์ม
+     * PACK: แอดมินที่ไม่มีสิทธิ์ admin_viewprice_on_payment เห็นเฉพาะ prefix export ($exportOnly)
+     */
+    public static function balanceBox(mixed $id, bool $admin, bool $exportOnly = false): string
     {
         // null = ไม่มีบิล (ไม่ต้อง query — ดู ExportController::form)
         $rows = $id === null ? collect() : Rows::strAll(DB::table('balance')
             ->leftJoin('prefix', 'balance.prefix', '=', 'prefix.id')
-            ->where(fn ($w) => $w->where('balance.prefix', Lookup::getPrefixID('payment'))->orWhere('balance.prefix', Lookup::getPrefixID('export')))
+            ->where(fn ($w) => $exportOnly ? $w->where('balance.prefix', Lookup::getPrefixID('export'))
+                : $w->where('balance.prefix', Lookup::getPrefixID('payment'))->orWhere('balance.prefix', Lookup::getPrefixID('export')))
             ->where('balance.prefix_ref_id', $id)->where('balance.is_delete', 0)
             ->get(['balance.*', ($admin ? 'prefix.link_admin' : 'prefix.link').' as link']));
         $href = Legacy::href();

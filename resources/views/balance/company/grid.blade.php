@@ -171,7 +171,7 @@
             data :  'id=' + id ,
             url: rooturl + '_admin/_balance_company/load_amount',
             success: function(data) {
-                data = $.parseJSON(data);
+                data = $.parseJSON(data); if(data == null) { data = false; }
                 $("input[name='amount_id']").val(data.id);
                 $("input[name='amount_code']").val(data.code);
                 $("input[name='amount_value']").val(data.amount);

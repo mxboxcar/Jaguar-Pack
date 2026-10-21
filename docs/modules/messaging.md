@@ -1,5 +1,64 @@
 # กลุ่ม messaging
 
+## PACK (2026-10-22)
+
+branch `mod/messaging` ใน `/home/admin/laravel/pack-wt/messaging` (port 8811 — worktree เดียวกับ points และ balance) — เทียบกับ PACK เดิม `:8114` (`/home/admin/bench/pack-old`, DB `admin_pack_bench`)
+ข้อตัดสินใจของ jl/SR ด้านล่างใช้กับ PACK ทั้งหมด (escape ข้อความแชท, ลบประกาศต้องมี 2 สิทธิ์, cron ต้องมีสิทธิ์, GET ที่เปลี่ยนข้อมูลกัน cross-site ฯลฯ) — ส่วนนี้คือสิ่งที่ต่างสำหรับ PACK
+
+### ไฟล์ใน docs/pack-diff.md
+
+| ไฟล์เดิม | สถานะ | ผล |
+|---|---|---|
+| `notification.php` | diff 34 | **ทำแล้ว** — ช่อง goodsconfirm ใช้สิทธิ์ `admin_withdrawpoint` (แบบ jl; SR = admin_goodsconfirm); **ไม่มี** ช่อง `admin/check` (PACK ไม่มีตาราง `tracking_check` — โค้ด SR ทำให้ 500 สำหรับทุกคนที่มี admin_export) และไม่มีช่อง `admin/nobilling`; ช่องอื่น (send/sendself 43/53, payment/create เฉพาะ `lot_id != 0`, กระดิ่งประกาศ) = SR |
+| `_message/load.php` | diff 8 | **ทำแล้ว** — PACK ตอบ `urldecode(json_encode(['html' => $html, 'title', 'page', 'sql' => $paging]))` ไม่มี htmlentities; ชื่อผู้ตอบ `PACK-Cargo Support Team` |
+| `_message/index.php` | diff 10 | **ทำแล้ว** — ไม่มี `decodeHtml()` (`.html(data.html)` / `.prepend(data.html)`) |
+| `_admin/_message/load.php` | diff 9 | **ทำแล้ว** — PACK ตอบ `urldecode(json_encode(['html' => str_replace('"', "'", $html), 'title', 'page']))` (ไม่มี `sql`); hotfix 2026-10-21 ของ PACK: ไม่มีสิทธิ์ admin_message = ตอบว่าง → route ย้ายเป็น `legacy.auth` แล้วตรวจสิทธิ์ใน controller (ตอบ `''` แบบเดิม) |
+| `_admin/_message/index.php` | diff 10 | **ทำแล้ว** — `.html($.parseHTML(data.html))` / `.prepend(data.html)` ไม่มี `decodeHtml()`; ปุ่มแนบรูปเรียก `_admin/_message/save_file` (= SR) |
+| `email_footer.php` | diff 2 | ไม่ต้องแก้ในกลุ่ม — "PACK-Cargo" อยู่ใน `config('legacy.mail.footer')` (ฐานร่วมแก้แล้ว) |
+| `notify_counts.php`, `notify_token.php` | diff 2 | ไม่ต้องแก้ในกลุ่ม — ต่างแค่ชื่อไฟล์/ชื่อเว็บ (`config('legacy.notify.site')` = pack-cargo จากฐานร่วม); `notify_token.php` ของ PACK ไม่มีส่วน LINE Notify (เป็น token ของ notify-server) |
+| ไฟล์ `same` อีก 27 ไฟล์ (_notice/*, _admin/_notice/*, _admin/_send/*, _message/ + _admin/_message/ ที่เหลือ, notifications.php, email_header/center) | same | **unchanged** — เทียบกับ :8114 แล้วตรง (ด้านล่าง) |
+
+helper: `notify_message()` ไม่มีใน PACK (และ LINE Notify ถูกตัด) → **ลบ** `App\Domain\Messaging\NotifyMessage` + test ของมัน; test `test_no_line_notify_leftovers` ตรวจว่าไม่มี URL `notify-api.line.me` เหลือในกลุ่ม
+(แถว `notify_message()` ในตาราง CONVENTIONS ข้อ 8 ไม่ใช้กับ PACK)
+
+### ต่างจาก PACK เดิมโดยตั้งใจ (นอกจากข้อของ jl/SR ด้านล่าง)
+
+1. แชท: ข้อความยัง escape (ChatText — เดิม stored XSS ทั้งสองฝั่ง เพราะ PACK ไม่มี htmlentities/decodeHtml เลย) → ข้อความที่มี `"` `&` `<` ในหน้าลูกค้าเป็น `&quot;` `&amp;` `&lt;` ใน JSON (แสดงผลเหมือนเดิม); ฝั่งแอดมินแทนทั้ง `"` และ `&quot;` เป็น `'` ให้แสดงผลเหมือน `str_replace` เดิม
+2. urldecode ทีละค่าก่อน escape + json_encode (แทน `urldecode()` ทั้งก้อน JSON) — ผลเท่ากันปกติ (`+` → ช่องว่าง, `%41` → `A`) แต่ JSON ไม่พังเมื่อข้อความมี `%22` / `%5C`
+3. รหัสลูกค้า/ชื่อผู้ส่งใน HTML ของแชทแอดมิน และ `title` (JS `.html(title)`) ถูก escape
+4. `_admin/_message/load`, `_message/load` ที่ยังไม่ล็อกอิน: redirect /login (เดิม hotfix ตอบว่าง) — เหมือน route อื่นของกลุ่ม
+5. รูปแนบเก่าใน DB ที่มี `target="_blank"` แสดงโดยตัด target (นโยบาย)
+
+### ผลเทียบกับ PACK เดิม (:8114, session เดียวกัน, ตัดช่องว่าง/แทน href)
+
+- `notification` ผู้ใช้ 1, 11938 (role 1), 302 (role 4), 923 (role 7), 524 (role 3), 5 (role 6), 348/25/11937 (ลูกค้า role 2) + ภาษา cn: **ตรงกัน** (ต่างแค่ขึ้นบรรทัด); ใส่ goodsconfirm zz status 1 แล้ว: role 4 (มี admin_withdrawpoint) เห็นช่อง, role 7 (มีแค่ admin_goodsconfirm) ไม่เห็น — ตรงกับเดิม
+- `notifications` ทุก role: ตรง byte
+- `_message/load` (ผู้ใช้ 25, แผนก 1/2/5 หน้า 1–3, แผนก 0/9, ลูกค้า 348): ตรง byte ยกเว้น `target="_blank"` ของรูปเก่า และ `&quot;` ของข้อความ zz ที่มี `"`
+- `_admin/_message/load` (แอดมิน, ผู้ใช้ 15/25/37/98/105/123/130 × หน้า 0–8, ผู้ใช้ 0 / ไม่มีจริง, role 4): ตรง byte ยกเว้น `target` ของรูปเก่า และ `&` ใน URL ที่ลูกค้าพิมพ์ (`&amp;`) — ข้อความที่มี `+` `%` `"` ตรงกัน; ลูกค้าเรียก = ว่างทั้งสองฝั่ง
+- `_message/load_dept`, `_admin/_message/load_dept`, `load_user` (มี/ไม่มีคำค้น, role 4): ตรง byte
+- หน้า message, admin/message (role 1, 4), notice, notice/42, admin/notice, admin/notice/42, admin/notice/create, admin/send (role 1, 3, 7), admin/sendself: เนื้อหาตรงกัน (ไม่นับ `target="_blank"`); `_notice/grid`, `_admin/_notice/grid` หน้า 1/2/5 + ค้นหา: ตรงกัน
+- ปฏิเสธสิทธิ์: ลูกค้า 348 เปิด admin/message, admin/notice, admin/send, admin/sendself = layout + ErrorBox (เดิมแสดงหน้า/ข้อมูล — ข้อ jl/SR); `_admin/_notice/grid` ของลูกค้า = ว่างทั้งสองฝั่ง
+
+### E2E (เขียนฝั่ง Laravel เท่านั้น — admin 11938 + ผู้ใช้ทดสอบ zz_msg_cust ที่สร้างเอง)
+
+- `_message/send` ×2 (2 แถว, `+` → ช่องว่างแบบ form), `_admin/_message/send`, `send_endconversation` ทั้งสองฝั่ง (is_read_admin = 1), `deletechat` ข้อความของลูกค้า = ไม่ลบ / ของตัวเอง = ลบ; โหลดแชทหลังส่ง เทียบกับ :8114 (อ่านอย่างเดียว) — แอดมินตรง byte
+- `_admin/_notice/save` สร้างซ้อน 2 (ได้ 1 แถว + "กำลังดำเนินการ"), แก้ไข, `save_isshow`, ลูกค้าบันทึก = ErrorBox สิทธิ์, `delete` = is_delete 1 ของประกาศ (product_type ไม่ถูกแตะ)
+- `_admin/_notice/email` → log mailer From `PACK-Cargo <no-reply@pack-cargo.net>`, cross-site = 403; `email_notice` ×2 = คิว 1,066 แถว (ครั้งที่ 2 ไม่เพิ่ม) — ไม่รัน worker (ไม่ส่ง 1,066 ฉบับลง log)
+- ลบแล้วตาม id: chat 20562–20563 (20564 ลบด้วย deletechat), notice 45 + notice_mail_queue noti_id 45 (1,066 แถว), goodsconfirm 59, ผู้ใช้ 12286
+
+### ผล bench (`bin/bench`, -n 20 -c 1, หลัง `artisan optimize`; เครื่อง load ~8–10 จาก agent อื่น ตัวเลขแกว่ง)
+
+| หน้า | เดิม mean ms | ใหม่ mean ms |
+|---|---|---|
+| `/notice` (ลูกค้า 348, หน้าเต็ม, 2 รอบ) | 944 / 1,823 | 93 / 118 |
+| `notification` (แอดมิน 11938) | 298 | 43 |
+| `_admin/_message/load` (ผู้ใช้ 25 แผนก 1) | 125 | 85 |
+
+### คำถามถึงเจ้าของ
+
+1. แชทของ PACK เดิมแสดงข้อความดิบ (ไม่มี htmlentities เลยทั้งสองฝั่ง) — Laravel ยัง escape (ข้อตัดสินใจ jl) ยืนยันหรือไม่
+2. ลบประกาศต้องมี `admin_product_type` + `admin_notice` (ข้อตัดสินใจ jl) — ใน PACK role 1, 4, 7 มีทั้งคู่ จึงไม่กระทบใคร
+
 ## SR (2026-10-20)
 
 branch `mod/messaging` ใน `/home/admin/laravel/sr-wt/messaging` (port 8311) — เทียบกับ SR เดิม `:8111` (`/home/admin/bench/sr-old`, DB `admin_sr_bench`)

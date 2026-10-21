@@ -15,13 +15,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
- * แชทฝั่งแอดมิน: _admin/_message/*.php เดิม — ทุก route ต้องมีสิทธิ์ admin_message
+ * แชทฝั่งแอดมิน: _admin/_message/*.php เดิม — ทุก route ต้องมีสิทธิ์ admin_message (load ตรวจใน controller: ตอบว่างแบบ hotfix ของ PACK)
  * (เดิมมีแค่ deletechat / save_file ที่ตรวจ; index, load, load_dept, load_user, send, send_endconversation
  *  ไม่ตรวจสิทธิ์ และ load.php ไม่ตรวจแม้แต่การล็อกอิน = ใครก็อ่านแชทของลูกค้าคนไหนก็ได้)
  *
  * JSON ของ load_dept / load_user เดิมเป็น urldecode(json_encode(...)) — ที่นี่ urldecode ทีละค่าแล้วค่อย escape + json_encode
  * (ผลเท่ากันในกรณีปกติ: "+" → ช่องว่าง, %xx → อักขระ; แต่ไม่สร้าง JSON พัง/HTML แทรกจาก %3C ได้อีก)
- * SR: load.php ตอบ json_encode(['html' => htmlentities($html), ...]) ไม่มี urldecode (JS decodeHtml() ก่อนแสดง) — เหมือน _message/load
+ * PACK: load.php ตอบ urldecode(json_encode(['html' => str_replace('"', "'", $html), 'title', 'page'])) ไม่มี 'sql'
+ *   (JS ใส่ด้วย .html($.parseHTML(data.html)) / .prepend(data.html)) — urldecode ทีละค่าเหมือน load_dept/load_user
  */
 class AdminMessageController extends Controller
 {
@@ -68,6 +69,9 @@ class AdminMessageController extends Controller
     /** POST /_admin/_message/load — ข้อความระหว่างแอดมินกับลูกค้า $user ในแผนก $id */
     public function load(Request $request): Response
     {
+        if (! perm('admin_message')) {
+            return response(''); // PACK: if (!getPermission('admin_message')) { exit(); }
+        }
         $page = $this->php($request, 'page', null);
         $dept = $this->php($request, 'id', null);
         $user = $this->php($request, 'user', null);
@@ -97,10 +101,10 @@ class AdminMessageController extends Controller
                             <div class="conversation-text">
                                 <div style="text-align:right;display: inline-block;padding: 2px 10px;position: relative;font-size: 9px;">'.Chat::stamp($row->create_date).'</div>
                                 <div class="ctext-wrap" style="float: right;clear: both;">
-                                    <i>'.ChatText::e($row->owner).' <span onclick="deletechat('.(int) $row->id.');" class="fa fa-close text-danger"></span></i>
+                                    <i>'.$this->u($row->owner).' <span onclick="deletechat('.(int) $row->id.');" class="fa fa-close text-danger"></span></i>
 
                                     <p style="font-size: 13px;">
-                                       '.ChatText::render($row->text).'
+                                       '.ChatText::render(urldecode((string) $row->text)).'
                                     </p>
                                 </div>
                             </div>
@@ -110,9 +114,9 @@ class AdminMessageController extends Controller
                             <div class="conversation-text">
                                 <div style="display: inline-block;padding: 2px 10px;position: relative;font-size: 9px;">'.Chat::stamp($row->create_date).'</div>
                                 <div class="ctext-wrap" style="float: left;clear: both;">
-                                    <i>'.ChatText::e($row->from_code).'</i>
+                                    <i>'.$this->u($row->from_code).'</i>
                                     <p style="font-size: 13px;">
-                                       '.ChatText::render($row->text).'
+                                       '.ChatText::render(urldecode((string) $row->text)).'
                                     </p>
                                 </div>
                             </div>
@@ -122,18 +126,14 @@ class AdminMessageController extends Controller
         }
         $html .= '</div>';
 
-        // 'sql' = คำสั่งที่เดิมส่งกลับมาด้วย (JS ไม่ได้ใช้) — คงรูปแบบไว้ ค่าเป็นค่าที่ถูก bind ไม่ใช่ SQL ที่รันจริง
-        $sql = str_replace('-10', '0', "SELECT chat.* , t3.code as owner, t4.code as from_code FROM `chat` \r\n"
-            ."        LEFT JOIN user as t3 ON chat.create_by = t3.id\r\n"
-            ."        LEFT JOIN user as t4 ON chat.from = t4.id\r\n"
-            ."\t\tWHERE (( `from` = '$user' OR `from` = '0') AND (`to` = '$user' OR `to` = '0' )) AND `dept` = '".$dept."' "
-            .' ORDER BY id DESC LIMIT '.$paging);
+        // PACK: เดิม str_replace('"', "'", $html) ทั้งก้อน — " ทุกตัว (attribute และข้อความ) กลายเป็น '
+        // ที่นี่ข้อความถูก escape แล้ว (" → &quot;) จึงแทน &quot; เป็น ' ด้วย ให้ข้อความแสดงเหมือนเดิม (ค่าอยู่ในเนื้อหา ไม่ใช่ใน attribute)
+        $html = str_replace(['"', '&quot;'], "'", Chat::crlf($html));
 
         return response((string) json_encode([
-            'html' => htmlentities(Chat::crlf($html), ENT_COMPAT | ENT_HTML401, 'UTF-8'),
-            'title' => $code === null ? null : ChatText::e($code), // JS .html(title) — escape (เดิมดิบ)
+            'html' => $html,
+            'title' => $code === null ? null : $this->u($code), // JS .html(title) — escape (เดิมดิบ)
             'page' => null,
-            'sql' => $sql,
         ]));
     }
 

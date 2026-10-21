@@ -72,13 +72,13 @@
                                 {!! $dt($item->approved_date) !!}
                             </td>
 @if ($admin)
-                            {{-- SR: แอดมินมีช่องหมายเหตุแอดมิน (lost_package.admin_quote) แก้ในตาราง → save_remark --}}
-                            <td class="text-left" style="white-space: nowrap;"><a href="{{ legacy_href() }}{{ $base }}order/{{ $item->order_id }}" >{{ $orderPrefix.$item->order_id }}</a></td>
-                            <td class="text-center" style="white-space: nowrap;">{{ $item->code }}</td>
-                            <td class="text-center" style="white-space: nowrap;">
+                            {{-- แอดมินมีช่องหมายเหตุแอดมิน (lost_package.admin_quote) แก้ในตาราง → save_remark --}}
+                            <td class="text-left"><a href="{{ legacy_href() }}{{ $base }}order/{{ $item->order_id }}" >{{ $orderPrefix.$item->order_id }}</a></td>
+                            <td class="text-center">{{ $item->code }}</td>
+                            <td class="text-center">
                                 <input onblur="on_saveremark($(this))" onkeydown="javascript: if(event.keyCode == 13) on_saveremark($(this));" class="editable" type="text" value="{{ $item->admin_quote }}" ref="{{ $item->id }}">
                             </td>
-                            <td class="text-left" style="word-break: break-all;">{{ $item->submit_remark }}</td>
+                            <td class="text-left">{{ $item->submit_remark }}</td>
 @else
                             <td class="text-left"><a href="{{ legacy_href() }}{{ $base }}order/{{ $item->order_id }}" >{{ $orderPrefix.$item->order_id }}</a></td>
                             <td class="text-left">{{ $item->submit_remark }}</td>

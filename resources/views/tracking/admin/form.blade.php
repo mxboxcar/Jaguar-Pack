@@ -88,13 +88,6 @@
 		                <input type="text" name="code" class="form-control validate[required]" value="{{ $g('code') }}" >
 		            </div>
 		        </div>
-		        {{-- SR: รหัสย่อย (tracking.subuser) --}}
-		        <div class="form-group">
-		            <label class="col-md-4 control-label"> รหัสย่อย</label>
-		            <div class="col-md-8">
-		                <input type="text" name="subuser" class="form-control" value="{{ $g('subuser') }}" >
-		            </div>
-		        </div>                         
 		        <div class="form-group">
 		            <label class="col-md-4 control-label"> {!! res('tracking') !!}</label>
 		            <div class="col-md-8">
@@ -143,17 +136,6 @@
 		                <select name="is_qc" class="form-control " >
 	                        <option {!! $sel('is_qc', '0') !!} value="0">{!! res('disable') !!}</option>
 	                        <option {!! $sel('is_qc', '1') !!} value="1">{!! res('active') !!}</option>
-	                    </select>
-		            </div>
-		        </div>
-
-		        <div class="form-group">
-		            {{-- SR: ถ่ายรูป (is_takeapic) แทน "รับเข้าไทยแล้ว?" (is_checked ของ jl — SR ไม่มีคอลัมน์นี้) --}}
-		            <label class="col-md-4 control-label"> ถ่ายรูป</label>
-		            <div class="col-md-5">
-		                <select name="is_takeapic" class="form-control " >
-	                        <option {!! $sel('is_takeapic', '0') !!} value="0">{!! res('disable') !!}</option>
-	                        <option {!! $sel('is_takeapic', '1') !!} value="1">{!! res('active') !!}</option>
 	                    </select>
 		            </div>
 		        </div>
@@ -320,6 +302,7 @@ $(function() {
 	//Calculate();
 	initialDatepicker2();
 	GetProductType('{!! Alerts::js(e($g('ship'))) !!}', false);
+	setTimeout(function() { $("#upload_upload_track").removeClass('validate[requiredattachment]'); }, 1000);
 });
 
 	function sumiting() {

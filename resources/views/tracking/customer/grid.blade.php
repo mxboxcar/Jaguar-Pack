@@ -35,7 +35,6 @@
                     <thead>
                         <tr>
                                 <th  style="min-width: 230px;" > <div class="text-center">{!! res('detail') !!}</div></th>
-                                <th> <div class="text-center" >{!! res('customer_code') !!}</div></th>
                                 <th> <div class="text-center" >{!! res('calculate_price') !!}</div></th>
                                 <th  style="min-width:150px;"> <div class="text-center" >{!! res('detail') !!}</div></th>
                                 <th style="width:100px;"> <div class="text-center" >{!! res('attachment') !!}</div></th>
@@ -79,7 +78,7 @@
                                             {!! Status::getShipType($item->ship) !!} {{ $item->lot_name }}/{{ $item->no }}
                                         </td>
                                     </tr>
-                                    @include('tracking.partials.flags', ['typeName' => $item->protype_name, 'takeapic' => true])
+                                    @include('tracking.partials.flags', ['typeName' => $item->protype_name])
                                     <tr>
                                         <td class="text-right left">{!! res('remark_for_this_order') !!} : </td>
                                         <td style="padding-left:3px" class="text-left">
@@ -93,9 +92,6 @@
                                        </td>
                                     </tr>
                                 </table>
-                            </td>
-                            <td style="vertical-align: top;text-align:center">
-                                <div style="padding: 0 10px 0 10px;"><span class="">{{ $item->subuser }}</span></div>
                             </td>
                             <td>
 @include('tracking.partials.prices', ['admin' => false])

@@ -1,4 +1,5 @@
-{{-- _admin/_export/form.php ของ SR (+ ปุ่มพิมพ์บิลชำระเงิน printprice, คอลัมน์รหัสย่อย, ไม่มี VAT) (สิทธิ์ admin_payment ตรวจที่ route) — ค่าจาก DB escape ทั้งหมด (เดิม echo ดิบ) --}}
+{{-- _admin/_export/form.php ของ PACK (สิทธิ์ admin_payment ตรวจที่ route): ปุ่มพิมพ์ใบปะหน้าปุ่มเดียว, คูปองส่วนลด + VAT,
+     ราคา/ยอดรวม/กล่อง "รายละเอียดการชำระ" เฉพาะผู้มีสิทธิ์ admin_viewprice_on_payment ($prices) — ค่าจาก DB escape ทั้งหมด (เดิม echo ดิบ) --}}
 @extends('legacy.layout')
 
 @php
@@ -30,14 +31,7 @@
 		<a class="pull-right btn btn-inverse waves-effect waves-light" 
 			href="{{ legacy_href() }}_admin/_export/print/?id={{ $data->id }}">
             <span class="btn-label"><i class="fa fa-print"></i></span>
-            {!! res('print') !!}ใบปะหน้า
-        </a>
-
-
-        <a class="pull-right btn btn-inverse waves-effect waves-light" 
-			href="{{ legacy_href() }}_admin/_export/printprice/?id={{ $data->id }}">
-            <span class="btn-label"><i class="fa fa-print"></i></span>
-            {!! res('print') !!}บิลชำระเงิน
+            {!! res('print') !!}
         </a>
 
         <button onclick="approved()" type="button" class="pull-right btn btn-success waves-effect waves-light">
@@ -184,6 +178,7 @@
 @include('reports.partials.export_table', ['admin' => true])
 
 
+@if ($prices)
 	<input type="hidden" name="id" value="{{ $id }}">
 	<div class="col-xs-12 col-md-6">
     <div class="card-box">
@@ -201,6 +196,12 @@
 	            <label class="col-md-4 control-label"> {!! res('customer_code') !!}</label>
 	            <div class="col-md-7 form-control-static">
 	            	{{ $data->code }}
+	            </div>
+	        </div>
+	        <div class="form-group">
+	            <label class="col-md-4 control-label"> รหัสคูปองส่วนลด</label>
+	            <div class="col-md-7 form-control-static">
+	            	{{ $coupon === null ? '-' : $coupon->name }}
 	            </div>
 	        </div>
             <div class="form-group">
@@ -230,6 +231,7 @@
         </div>
     </div>
 </div>
+@endif
 
 {!! $balance !!}
 

@@ -33,7 +33,6 @@ Route::post('/_message/save_file', [MessageController::class, 'saveFile'])->midd
 // ---- แอดมิน: แชท (_admin/_message) ----
 Route::middleware('legacy.perm:admin_message')->group(function () {
     Route::get('/admin/message', [AdminMessageController::class, 'index'])->defaults('legacy_page', 'admin_message');
-    Route::post('/_admin/_message/load', [AdminMessageController::class, 'load']);
     Route::middleware('legacy.ajax')->group(function () {
         Route::post('/_admin/_message/load_dept', [AdminMessageController::class, 'loadDept']);
         Route::post('/_admin/_message/load_user', [AdminMessageController::class, 'loadUser']);
@@ -43,6 +42,9 @@ Route::middleware('legacy.perm:admin_message')->group(function () {
         Route::post('/_admin/_message/save_file', [AdminMessageController::class, 'saveFile']);
     });
 });
+
+// PACK hotfix 2026-10-21 ของ load.php: ไม่มีสิทธิ์ admin_message → exit() ตอบว่าง (ไม่ใช่ ErrorBox) → ตรวจใน controller
+Route::post('/_admin/_message/load', [AdminMessageController::class, 'load'])->middleware('legacy.auth');
 
 // ---- ลูกค้า: ประกาศ (_notice) ----
 Route::middleware('legacy.auth')->group(function () {

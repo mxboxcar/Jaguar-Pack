@@ -2,7 +2,6 @@
 
 namespace App\Domain\Points;
 
-use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
 
@@ -14,6 +13,10 @@ use App\Support\Legacy\Legacy;
  *
  * $field ถูกฝังเป็นชื่อ class และชื่อฟังก์ชัน JS → ต้องเป็นค่าจากโค้ดเท่านั้น (ผู้เรียกส่ง 'file_'.(int) เสมอ)
  * เดิม _shop_cashback/load_new_line.php ส่ง $_POST['item'] ดิบเข้ามา = XSS
+ *
+ * PACK: getupload_inline() เป็นรุ่นเก่ากว่า SR/jl — ไฟล์เดิมเป็นรูปเมื่อนามสกุลอยู่ใน jpg/png/jpeg/JPG/JPEG/PNG (ตัวพิมพ์ตรงตัว)
+ * ไม่ใช่รูป = <a class='fancybox'>ชื่อไฟล์</a> (ไม่มี download); JS ไม่มีตัวล้างค่า input (change.reselect)
+ * และหลังอัปโหลด .zip/.rar/.7z แสดงชื่อไฟล์ นอกนั้นแสดงเป็นรูปย่อ — ที่นี่ใส่ชื่อไฟล์ด้วย .text() (เดิม .html() = HTML ในชื่อไฟล์ทำงาน)
  */
 final class UploadInline
 {
@@ -29,10 +32,10 @@ final class UploadInline
         $html .= '<div style="float:left" class="text-left upload_'.$rand.'"></div>';
         $html .= '<div style="float:left;clear: none;margin-left: 10px;" class=" upload_'.$rand.'_preview">';
         if ($filename !== '') {
-            if (Format::uploadIsImage($filename)) {
+            if (in_array(pathinfo($filename, PATHINFO_EXTENSION), ['jpg', 'png', 'jpeg', 'JPG', 'JPEG', 'PNG'], true)) {
                 $html .= "<a class='fancybox' style='float:left;' href='".$blob.$f."'><img src='".$blob.$f."' style='max-width: 120px;max-height: 120px;' /></a>";
             } else {
-                $html .= "<a style='float:left;' download='".$f."' href='".$blob.$f."'>".$f.'</a>';
+                $html .= "<a class='fancybox' style='float:left;' href='".$blob.$f."'>".$f.'</a>';
             }
         }
         $html .= '</div>';
@@ -55,15 +58,14 @@ final class UploadInline
             $html .= 'label: "'.Lang::get('click_to_add_attachment').'",';
             $html .= 'maxQueue : 1,';
             $html .= '}).on("start.dropper", '.$rand.'_start).on("fileComplete.dropper", '.$rand.');';
-            $html .= '$(".upload_'.$rand.'").find(".dropper-input").on("change.reselect", function() { var el = this; setTimeout(function() { el.value = ""; }, 0); });';
             $html .= 'function '.$rand.'(e, file, response) {';
             $html .= ' if (response.trim() === "" || response.toLowerCase().indexOf("error") > -1) {';
             $html .= ' ErrorBox(response.toLowerCase(), "CloseLoading()"); $(".upload_'.$rand.'_preview").html("");$("input[name=\'upload_'.$rand.'\']").val("") ';
             $html .= ' } else {';
-            $html .= ' if(/\.(jpg|jpeg|png)$/i.test(response)) { ';
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 21px;max-height: 21px;" /></a>\'); ';
+            $html .= ' if(response.toLowerCase().indexOf(".zip") > -1 || response.toLowerCase().indexOf(".rar") > -1 || response.toLowerCase().indexOf(".7z") > -1) { ';
+            $html .= ' $(".upload_'.$rand.'_preview").text(response); ';
             $html .= ' } else {';
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a style="float:left" download href="'.$href.'upload/temp/\' + response + \'">\' + response + \'</a>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 21px;max-height: 21px;" /></a>\'); ';
             $html .= ' } ';
             $html .= ' $("input[name=\'upload_'.$rand.'\']").val(response);';
             $html .= ' $(".upload_'.$rand.'_delete").css("display", "block");';

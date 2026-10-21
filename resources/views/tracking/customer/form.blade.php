@@ -140,7 +140,7 @@
 		            
 		            @if (Php74::eq($g('lot_id'), 0))
 		            <div class="col-md-5">
-		                <select name="is_craft" class="form-control "  onchange="openmodals($(this))">
+		                <select name="is_craft" class="form-control " >
 	                        <option {!! Php74::eq($g('is_craft'), '0') ? "selected='selected'" : '' !!} value="0">{!! res('disable') !!}</option>
 	                        <option {!! Php74::eq($g('is_craft'), '1') ? "selected='selected'" : '' !!} value="1">{!! res('active') !!}</option>
 	                    </select>
@@ -154,7 +154,7 @@
 		            <label class="col-md-4 control-label"> {!! res('qc') !!}</label>
 		            @if (Php74::eq($g('lot_id'), 0))
 		            <div class="col-md-5">
-		                <select name="is_qc" class="form-control " onchange="openmodals($(this))">
+		                <select name="is_qc" class="form-control " >
 	                        <option {!! Php74::eq($g('is_qc'), '0') ? "selected='selected'" : '' !!} value="0">{!! res('disable') !!}</option>
 	                        <option {!! Php74::eq($g('is_qc'), '1') ? "selected='selected'" : '' !!} value="1">{!! res('active') !!}</option>
 	                    </select>
@@ -166,21 +166,6 @@
 		        </div>
 
 
-		        {{-- SR: ถ่ายรูป (tracking.is_takeapic) --}}
-		        <div class="form-group">
-		            <label class="col-md-4 control-label"> ถ่ายรูป</label>
-		            
-		            @if (Php74::eq($g('lot_id'), 0))
-		            <div class="col-md-5">
-		                <select name="is_takeapic" class="form-control "  onchange="openmodals($(this))">
-	                        <option {!! Php74::eq($g('is_takeapic'), '0') ? "selected='selected'" : '' !!} value="0">{!! res('disable') !!}</option>
-	                        <option {!! Php74::eq($g('is_takeapic'), '1') ? "selected='selected'" : '' !!} value="1">{!! res('active') !!}</option>
-	                    </select>
-		            </div>
-		            @else
-<div class="col-md-5 form-control-static">{!! Php74::eq($g('is_takeapic'), 0) ? res('disable') : '' !!}{!! Php74::eq($g('is_takeapic'), 1) ? res('active') : '' !!}</div>
-		            @endif
-		        </div>
 		        <div class="form-group">
 		            <label class="col-md-4 control-label"> {!! res('payment_list') !!}</label>
 		            <div class="col-md-8 form-control-static">
@@ -332,37 +317,11 @@
 
 
 
-<div id="panel-modal" class="remark modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="display: none;">
-    <div class="modal-dialog modal-xs">
-        <div class="modal-content p-0 b-0">
-            <div class="panel panel-color panel-primary">
-                <div class="panel-heading"> 
-                    <button type="button" class="close m-t-5" data-dismiss="modal" aria-hidden="true">×</button> 
-                    <h3 class="panel-title">คำเตือน</h3> 
-                </div> 
-                <div class="panel-body"> 
-                    มีค่าใช้จ่าย ติดต่อสอบถามราคาเงื่อนไขได้ที่ ไลน์ @
-                </div> 
-                <div class="panel-footer text-right">
-                    <button type="button" class="btn btn-default waves-effect" type="button" onclick="$('.modal').modal('hide');">{!! res('close') !!}</button>
-                </div>
-            </div>
-
-        </div><!-- /.modal-content -->
-    </div><!-- /.modal-dialog -->
-</div><!-- /.modal -->
-
 <script>
 $(function() {
 	Calculate();
 	initialDatepicker2();
 });
-
-	function openmodals(ele) {
-		if(ele.val() == 1) {
-	        $(".remark").modal('show');
-	    }
-	}
 
 	function sumiting() {
 		if($("form").validationEngine('validate') == false) 

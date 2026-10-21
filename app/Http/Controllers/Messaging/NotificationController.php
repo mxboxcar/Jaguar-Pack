@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * แถบแจ้งเตือนด้านบน: notifications.php (ตัวเลขรวมให้ JS eval) และ notification.php (HTML ของแถบ)
  *
- * เดิม notification.php ยิง COUNT ทีละช่อง (SR สูงสุด ~20 query + getPrefix อีกช่องละ 1 query)
- * ที่นี่: COUNT ทุกช่องที่มีสิทธิ์รวมเป็น 1 query, prefix ทั้งหมด 1 query, nobilling นับด้วย COUNT แทนการดึงทุกแถว
+ * เดิม notification.php ยิง COUNT ทีละช่อง (PACK สูงสุด ~18 query + getPrefix อีกช่องละ 1 query)
+ * ที่นี่: COUNT ทุกช่องที่มีสิทธิ์รวมเป็น 1 query, prefix ทั้งหมด 1 query
  */
 class NotificationController extends Controller
 {
@@ -40,7 +40,7 @@ class NotificationController extends Controller
         return response($sum === null ? '' : (string) $sum);
     }
 
-    /** POST /notification — notification.php ของ SR */
+    /** POST /notification — notification.php ของ PACK (= SR ยกเว้น: ช่องแรกใช้สิทธิ์ admin_withdrawpoint แบบ jl, ไม่มีช่อง admin/check และ nobilling) */
     public function bar(): Response
     {
         $uid = (string) Legacy::userId();
@@ -54,9 +54,10 @@ class NotificationController extends Controller
             $self ? $s->whereIn('shipping_type', [43, 53]) : $s->where('shipping_type', '!=', 43)->where('shipping_type', '!=', 53);
         };
 
-        // [สิทธิ์, subquery COUNT] ตามลำดับบล็อกเดิม (SR)
+        // [สิทธิ์, subquery COUNT] ตามลำดับบล็อกเดิม (PACK)
         $blocks = [
-            'a0' => ['admin_goodsconfirm', $status('goodsconfirm', '1')],
+            // PACK: goodsconfirm ใช้สิทธิ์ admin_withdrawpoint (แบบ jl — SR ใช้ admin_goodsconfirm)
+            'a0' => ['admin_withdrawpoint', $status('goodsconfirm', '1')],
             'a1' => ['admin_user', $status('user', '0', 'is_approved')],
             'a2' => ['admin_order', $status('bill_product', '0')],
             'a3' => ['admin_order', $status('bill_product', '2')],
@@ -72,11 +73,7 @@ class NotificationController extends Controller
             'a13' => ['admin_shop_cashback', $status('shop_cashback_detail', '1')],
             'a14' => ['admin_export', $send(false)],
             'a15' => ['admin_export', $send(true)],
-            // SR: พัสดุรอตรวจ (tracking_check ของหน้า admin/check) — เดิมใช้สิทธิ์ admin_export (หน้า admin/check ใช้ admin_tracking)
-            'a16' => ['admin_export', fn ($s) => $s->from('tracking_check')
-                ->leftJoin('tracking', 'tracking.id', '=', 'tracking_check.tracking_id')
-                ->selectRaw('COUNT(tracking_check.id)')->where('tracking_check.is_checked', '0')
-                ->whereNotNull('tracking.tracking')],
+            // PACK ไม่มีช่อง admin/check (ตาราง tracking_check ไม่มีใน PACK) และไม่มีช่อง admin/nobilling ของ SR
             'c0' => ['payment', fn ($s) => $s->from('bill_payment')->selectRaw('COUNT(id)')
                 ->where('is_delete', '0')->where('status', '0')->where('user', $uid)],
             'c1' => ['order', fn ($s) => $s->from('bill_product')->selectRaw('COUNT(id)')
@@ -93,18 +90,17 @@ class NotificationController extends Controller
         $badge = fn ($n) => ' <span class="badge badge-xs badge-danger">'.$n.'</span>';
 
         $html = '';
-        $last = null; // $data ของบล็อกล่าสุดที่ทำงาน (nobilling เดิมเช็คค่านี้แทนจำนวนของตัวเอง)
-        $li = function (string $key, callable $build) use (&$html, &$last, $counts, $allowed) {
+        $li = function (string $key, callable $build) use (&$html, $counts, $allowed) {
             if (! array_key_exists($key, $allowed)) {
                 return;
             }
-            $last = $counts[$key] ?? 0;
-            if ($last !== 0) {
-                $html .= $build($last);
+            $n = $counts[$key] ?? 0;
+            if ($n !== 0) {
+                $html .= $build($n);
             }
         };
 
-        // SR: สิทธิ์ admin_goodsconfirm (jl ใช้ admin_withdrawpoint), ไม่มีเงื่อนไขมือถือ
+        // PACK: สิทธิ์ admin_withdrawpoint (แบบ jl; SR = admin_goodsconfirm), ไม่มีเงื่อนไขมือถือ
         $li('a0', fn ($n) => '<li><a href="'.$href.'admin/goodsconfirm/status/1" >
 	            <i class="text-danger fa fa-close"></i> <span class="text-danger triggermenu">'.$pre('goodsconfirm').'</span>'.$badge($n).'
 	        </a></li>');
@@ -140,25 +136,6 @@ class NotificationController extends Controller
         $li('a15', fn ($n) => '<li><a href="'.$href.'admin/sendself" >
 	            <i class="text-danger fa fa-send"></i> '.res('pick_alone').'<span class="text-danger triggermenu"></span>'.$badge($n).'
 	        </a></li>');
-        $li('a16', fn ($n) => '<li><a href="'.$href.'admin/check" >
-	            <i class="text-danger fa fa-check"></i><span class="text-danger triggermenu"></span>'.$badge($n).'
-	        </a></li>');
-
-        if (perm('admin_nobilling') && $last !== null && $last !== 0) {
-            $rows = DB::table('tracking')
-                ->leftJoin('user', 'tracking.user', '=', 'user.id')
-                ->leftJoin('lot', 'tracking.lot_id', '=', 'lot.id')
-                ->where('tracking.date_thai', '!=', '0000-00-00 00:00:00')
-                ->whereRaw('`tracking`.date_thai + INTERVAL 15 DAY <= NOW()')
-                ->where('tracking.date_finish', '0000-00-00 00:00:00')
-                ->where('payment_id', '0')->where('tracking.is_delete', '0')
-                ->where('lot.id', '!=', '0')
-                ->count();
-            $html .= '<li><a href="'.$href.'admin/nobilling" >
-	            <i class="text-danger fa fa-tags"></i> <span class="badge badge-xs badge-danger">'.$rows.'</span>
-	        </a></li>';
-        }
-
         $li('c0', fn ($n) => '<li><a href="'.$href.'export" >
 			<i class=" ti-money"></i><span class=" triggermenu">'.$pre('payment').'</span>'.$badge($n).'
 		</a></li>');
@@ -169,7 +146,7 @@ class NotificationController extends Controller
 	            <i class="  icon-layers"></i>'.$badge($n).'
 	        </a></li>');
 
-        // SR: กระดิ่งประกาศล่าสุด (notice.is_show = 1 แถวเดียว) — ข้อความเป็น HTML ของแอดมิน (strip_tags แล้ว แบบเดิม)
+        // SR/PACK: กระดิ่งประกาศล่าสุด (notice.is_show = 1 แถวเดียว) — ข้อความเป็น HTML ของแอดมิน (strip_tags แล้ว แบบเดิม)
         $notice = DB::table('notice')->where('is_show', 1)->orderByDesc('create_date')->first(['create_date', 'text']);
 
         return response(view('messaging.partials.notification', [

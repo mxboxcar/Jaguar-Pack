@@ -117,34 +117,6 @@ final class TrackingLookups
     }
 
     /**
-     * ชื่อชั้นวาง (warehouse_section) ล่าสุด: เดิม ORDER BY t2.id DESC LIMIT 1 (NULL อยู่ท้ายใน DESC)
-     *
-     * @param  list<int>  $ids
-     * @return array<int, mixed>
-     */
-    public static function sectionNames(array $ids): array
-    {
-        if ($ids === []) {
-            return [];
-        }
-        $best = [];
-        $rows = DB::table('warehouse_section_detail as t')
-            ->leftJoin('warehouse_section as t2', 't2.id', '=', 't.section_id')
-            ->whereIn('t.tracking_id', $ids)
-            ->where('t.is_delete', 0) // SR: ไม่นับแถวชั้นวางที่ลบแล้ว
-            ->get(['t.tracking_id', 't2.id as sid', 't2.name']);
-        foreach ($rows as $r) {
-            $k = (int) $r->tracking_id;
-            $cur = $best[$k] ?? null;
-            if ($cur === null || ($r->sid !== null && ($cur->sid === null || (int) $r->sid > (int) $cur->sid))) {
-                $best[$k] = $r;
-            }
-        }
-
-        return array_map(fn ($r) => $r->name, $best);
-    }
-
-    /**
      * SR: รูปพัสดุ (tracking_image) ต่อ tracking ใน grid — เดิม SELECT ทีละแถว WHERE tracking_id = x AND is_delete = 0 (ไม่มี ORDER BY → id)
      *
      * @param  list<int>  $ids

@@ -1,4 +1,4 @@
-{{-- _dashboard/index.php เดิม --}}
+{{-- _dashboard/index.php ของ PACK (สี #eb4823, ตารางชั้นวางสำหรับ admin_warehouse, ข้อความโกดังจีน/ไทยฝังในไฟล์เดิม) --}}
 @extends('legacy.layout')
 
 @php
@@ -33,7 +33,7 @@
 
 		<div class="col-sm-3 col-xs-12">
 			<div class="widget-panel widget-style-2 bg-white">
-				<i class="md   md-local-shipping text-gray" style="background-color: #ae75ff!important;"></i>
+				<i class="md   md-local-shipping text-gray" style="background-color: #eb4823!important;"></i>
 				<h2 class="m-0 text-dark counter font-600">{{ $user->code }}</h2>
 				<div class="text-muted m-t-5">{!! res('call_send_car') !!}</div>
 			</div>
@@ -41,7 +41,7 @@
 
 		<div class="col-sm-3 col-xs-12">
 			<div class="widget-panel widget-style-2 bg-white">
-				<i class="md   md-directions-ferry text-gray" style="background-color: #ae75ff!important;"></i>
+				<i class="md   md-directions-ferry text-gray" style="background-color: #eb4823!important;"></i>
 				<h2 class="m-0 text-dark counter font-600">{{ $user->code }} (SEA)</h2>
 				<div class="text-muted m-t-5">{!! res('call_send_ship') !!}</div>
 			</div>
@@ -77,24 +77,47 @@
 
 	</div>
 
+	{{-- PACK: เดิม query warehouse_section / warehouse_section_detail ซึ่งไม่มีใน DB ของ PACK (mysqli คืน false → ไม่มีแถว)
+	     → แสดงแค่หัวตารางแบบเดิม ไม่ query --}}
+	@perm('admin_warehouse')
+	<div class="col-xs-12">
+	    <div class="col-xs-12">
+	    	<table class="table table-striped table-bordered">
+	    		<tr>
+					<th class="text-center" style="width:165px"><strong>{!! res('shelf_manage') !!}</strong></th>
+					<th class="text-center">{!! res('remain') !!}</th>
+					<th class="text-center">{!! res('all') !!}</th>
+					<th class="text-center">{!! res('useded') !!}</th>
+				</tr>
+				
+			</table>
+	    </div>
+	</div>
+	@endperm
+
 	<div class="col-xs-12">
 		<div class="col-xs-9">
 			<table class="table table-striped table-bordered">
 				<tr>
-					<td class="text-left" style="width:165px"><strong>{!! res('how_to_cal_wood_protect') !!}</strong></td>
-					<td class="text-left">{!! Lookup::getSetting('calculate_woodprotect') !!}</td>
+					<td class="text-left" style="width:200px"><strong>{!! res('how_to_cal_wood_protect') !!}</strong></td>
+					<td class="text-left">คิว*1,500 = ราคาตีลังไม้ เริ่มต้น 200฿</td>
 				</tr>
 				<tr>
 					<td class="text-left"><strong>{!! res('cn_address') !!}</strong></td>
-					<td class="text-left">{!! Lookup::getSetting('address_cn') !!}</td>
+					<td class="text-left">收件人：PACK(ใส่รหัสในระบบ)<br/>
+收货地址 : 广州市白云区石井街道夏茅机场路2721号广花货运市场A1号，PACK 仓库<br/>
+电话13763392483<br/>
+PACK仓库 510000<br/>
+<br/>
+贴唛头:PACK(ใส่รหัสในระบบ)<br/></td>
 				</tr>
 				<tr>
 					<td class="text-left"><strong>{!! res('cn_tel') !!}</strong></td>
-					<td class="text-left">{!! Lookup::getSetting('phone_cn') !!}</td>
+					<td class="text-left">13763392483</td>
 				</tr>
 				<tr>
-					<td class="text-left"><strong>{!! res('th_tel') !!}</strong></td>
-					<td class="text-left">{!! Lookup::getSetting('phone_th') !!}</td>
+					<td class="text-left"><strong>{!! res('contact_thai_warehouse') !!}</strong></td>
+					<td class="text-left">ลูกค้าสามารถฝากข้อความ เเละติดต่อเข้ามาได้ที่เมนูข้อความ ได้เลยค่า หรือ ด่วน โทร 063-789-9461 / 062-261-8927</td>
 				</tr>
 			</table>
 		</div>
@@ -121,8 +144,6 @@
 		</div>
 	</div>
 
-	{{-- SR: ซ่อนตารางราคาสำหรับผู้ใช้ id 891 (checkUser()['id'] != 891 เดิม) --}}
-	@if ((int) $user->id !== 891)
 	<div class="col-xs-12">
 		
 		<div class="col-xs-6"><table class="table table-striped table-bordered">
@@ -162,7 +183,13 @@
 		</div>
 		
 	</div>
-	@endif
 
 </div>
+
+
+
+
+<script>
+
+</script>
 @endsection

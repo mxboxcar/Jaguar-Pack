@@ -1,14 +1,12 @@
-{{-- _admin/_report/grid.php ของ SR (+ type 97 รายงานภาษีขาย) --}}
+{{-- _admin/_report/grid.php เดิม --}}
 @php
     use App\Domain\Reports\BalanceReport;
     use App\Domain\Reports\Php74;
-    use App\Domain\Reports\Receipt;
     use App\Domain\Reports\Rows;
     use App\Support\Legacy\Format;
     use App\Support\Legacy\Paging;
     use App\Support\Legacy\Status;
     $is = fn ($v) => Php74::eq($type, $v);
-    $tax = Php74::eq($type, '97'); // SR: รายงานภาษีขาย
 @endphp
 
 <input type="hidden" name="type" value="{{ $typePhp }}" />
@@ -58,9 +56,6 @@
                             @if ($is(3))<th class="text-center" >{!! res('price_shipping') !!}</th><th class="text-center" >{!! res('price_thai_storage') !!}</th><th class="text-center" >{!! res('price_thai_shipping') !!}</th><th class="text-center" >{!! res('shipping_type') !!}</th>@elseif ($is(5))<th class="text-center" >{!! res('total') !!}</th><th class="text-center" >{!! res('status') !!}</th><th class="text-center" >{!! res('rate') !!}</th>@elseif ($is(6))<th class="text-center" >{!! res('total') !!}</th><th class="text-center" >{!! res('rate') !!}</th>@elseif ($is(7))<th class="text-center" >{!! res('service_price') !!}</th><th class="text-center" >{!! res('total') !!}</th><th class="text-center" >{!! res('rate') !!}</th>@endif
                             <th class="text-center" >{!! res('detail') !!}</th>
                             <th class="text-center" style="width: 130px;">{!! res('amount') !!}</th>
-                            @if ($tax)
-                                <th class="text-center" style="width: 130px;">จำนวนเงินภาษี</th>
-                            @endif
                         </tr>
                     </thead>
 
@@ -86,15 +81,9 @@
                             <td class="text-center">{{ $item->code }}</td>
                             @if ($is(3))<td class="text-right">{!! Format::numberformat($e('price_shipping'), true, true, false) !!}</td><td class="text-right">{!! Format::numberformat($e('price_thai_storage'), true, true, false) !!}</td><td class="text-right">{!! Format::numberformat($e('price_thai_shipping'), true, true, false) !!}</td><td class="text-center">{{ $e('ship_name') }}</td>@elseif ($is(5))<td class="text-right">{!! Format::numberformat($e('total'), true, true, true) !!}</td><td class="text-center">{!! Status::getstatus($item->status ?? null) !!}</td><td class="text-right">{!! Format::numberformat($e('rate'), true, true, false) !!}</td>@elseif ($is(6))<td class="text-right">{!! Format::numberformat($e('total'), true, true, true) !!}</td><td class="text-right">{!! Format::numberformat($e('rate'), true, true, false) !!}</td>@elseif ($is(7))<td class="text-right">{!! Format::numberformat($e('charge')) !!}</td><td class="text-right">{!! Format::numberformat($e('sum'), true, true, true) !!}</td><td class="text-right">{!! Format::numberformat($e('rate'), true, true, false) !!}</td>@endif
                             <td class="text-left"><a href="{{ legacy_href().($item->link ?? '').$ref }}">{{ $item->detail }}</a></td>
-                            @if ($tax)
-                            @php $t = Receipt::taxRow($item); @endphp
-                            <td style="text-align: right;vertical-align: top">{!! Format::numberformat($t['e']) !!}</td>
-                            <td style="text-align: right;vertical-align: top">{!! Format::numberformat($t['d']) !!}</td>
-                            @else
                             <td class="text-right">
                                 @if (Php74::num($item->amount) >= 0)<span class="text-success">+{!! Format::numberformat($item->amount) !!}</span>@else<span class="text-danger">{!! Format::numberformat($item->amount) !!}</span>@endif
                             </td>
-                            @endif
                         </tr>
                     @empty
                         <td class="text-center" colspan="20">{!! res('no_data') !!}</td>

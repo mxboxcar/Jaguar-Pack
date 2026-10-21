@@ -2,14 +2,14 @@
 
 use App\Http\Controllers\Tracking\Admin\AdminLostPackageController;
 use App\Http\Controllers\Tracking\Admin\AdminTrackingController;
-use App\Http\Controllers\Tracking\Admin\CheckController;
 use App\Http\Controllers\Tracking\Admin\CombineTrackController;
 use App\Http\Controllers\Tracking\LostPackageController;
 use App\Http\Controllers\Tracking\TrackingController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| กลุ่ม: tracking — _tracking, _admin/_tracking, _admin/_combine_track, _lost_package, _admin/_lost_package, _admin/_check (SR)
+| กลุ่ม: tracking — _tracking, _admin/_tracking, _admin/_combine_track, _lost_package, _admin/_lost_package
+| (track_external.php ของ PACK = หน้าค้นสาธารณะที่ไม่มีลิงก์ + SQL injection → ไม่พอร์ต รอเจ้าของตัดสินใจ)
 | ดูรายการ URL/ไฟล์เดิมใน docs/url-map.md และรายงานใน docs/modules/tracking.md
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 |
@@ -25,10 +25,11 @@ Route::middleware('legacy.perm:tracking')->group(function () {
 
     Route::middleware('legacy.ajax')->group(function () {
         Route::post('/_tracking/delete', [TrackingController::class, 'delete']);
-        Route::post('/_tracking/save', [TrackingController::class, 'save'])->middleware('legacy.once');
     });
 });
 Route::middleware(['legacy.auth', 'legacy.ajax'])->group(function () {
+    // PACK: save.php ไม่ตรวจ getPermission('tracking') (comment ไว้) แต่ตรวจประเภทผู้ใช้ (2 / ลูกของ 2) — ตรวจใน controller
+    Route::post('/_tracking/save', [TrackingController::class, 'save'])->middleware('legacy.once');
     Route::post('/_tracking/grid', [TrackingController::class, 'grid']);
     // เดิมไม่ตรวจสิทธิ์/ล็อกอิน: ต้องล็อกอิน และอ่าน/แก้ได้เฉพาะ tracking ของตัวเอง
     Route::post('/_tracking/load_pricing', [TrackingController::class, 'loadPricing']);
@@ -44,7 +45,6 @@ Route::middleware('legacy.perm:admin_tracking')->group(function () {
     Route::get('/admin/tracking/{id}', [AdminTrackingController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_tracking_detail');
 
     Route::middleware('legacy.ajax')->group(function () {
-        Route::post('/_admin/_tracking/load_paging', [AdminTrackingController::class, 'loadPaging']);
         Route::post('/_admin/_tracking/delete', [AdminTrackingController::class, 'delete']);
         Route::post('/_admin/_tracking/save', [AdminTrackingController::class, 'save'])->middleware('legacy.once');
         // ไฟล์เดิม 3 ตัวนี้ไม่ตรวจสิทธิ์เลย → ใช้สิทธิ์ของหน้าแม่ (admin_tracking)
@@ -55,15 +55,8 @@ Route::middleware('legacy.perm:admin_tracking')->group(function () {
 });
 Route::post('/_admin/_tracking/grid', [AdminTrackingController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 
-// ---------- แอดมิน: รายการรอเช็ค (SR-only: _admin/_check, ตาราง tracking_check) ----------
-// ทั้ง 3 ไฟล์เดิมตรวจ getPermission('admin_tracking')
-Route::middleware('legacy.perm:admin_tracking')->group(function () {
-    Route::get('/admin/check', [CheckController::class, 'index'])->defaults('legacy_page', 'admin_check');
-    Route::middleware('legacy.ajax')->group(function () {
-        Route::post('/_admin/_check/save_clear', [CheckController::class, 'saveClear']);
-        Route::post('/_admin/_check/save_clearall', [CheckController::class, 'saveClearAll']);
-    });
-});
+// SR-only ที่ PACK ไม่มี (dead — ไม่ทำ route, ดู docs/modules/tracking.md): หน้า admin/check + _admin/_check/{save_clear,save_clearall}
+// (ตาราง tracking_check), _admin/_tracking/load_paging (PACK นับหน้าในคำตอบของ grid เอง)
 
 // ---------- แอดมิน: รวมรหัสพัสดุ ----------
 // หน้า index เดิมไม่ตรวจสิทธิ์ (เมนูซ่อนไว้เท่านั้น) → ใช้ admin_combine_track เดียวกับ ajax
