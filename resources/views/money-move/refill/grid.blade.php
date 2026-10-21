@@ -19,9 +19,6 @@
 @endif
                             <th class="text-center" style="width: 93px;">{!! res('working_date') !!}</th>
                             <th class="text-center" style="width: 93px;">{!! res('approved_date') !!}</th>
-@if ($admin)
-                            <th class="text-center" style="width: 93px;">ผู้อนุมัติรายการ</th>
-@endif
                             <th class="text-center"{{ $admin ? ' ' : '' }}>{!! res('amount') !!}</th>
                             <th class="text-center" style="width: 100px;">{!! res('attachment') !!}</th>
                             <th class="text-center" style="width: 92px;">{!! res('status') !!}</th>
@@ -42,9 +39,6 @@
                             <td class="text-center">
                                 {!! Lookups::gridDate($item->approved_date) !!}
                             </td>
-@if ($admin)
-                            <td class="text-center">{{ $item->a_code }}</td>
-@endif
                             
                             <td class="text-right">{!! Format::numberformat($item->amount) !!}</td>
                             <td class="text-center" >

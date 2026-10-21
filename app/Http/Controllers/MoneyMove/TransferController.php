@@ -6,7 +6,6 @@ use App\Domain\MoneyMove\Lookups;
 use App\Domain\Money\Money;
 use App\Domain\MoneyMove\Php74;
 use App\Domain\MoneyMove\TempUpload;
-use App\Domain\MoneyMove\TransferRefund;
 use App\Domain\Payment\PinBox;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\MoneyMove\Concerns\ReadsLegacyInput;
@@ -168,27 +167,12 @@ class TransferController extends Controller
     }
 
     /**
-     * POST /_transfer/cancel — ยกเลิกรายการของตัวเอง + คืนเงิน (บาท usecash → balance, หยวน usecash_cn → balance_cn)
-     * เดิม (ก่อน hotfix 2026-10-18): UPDATE กรอง user แต่ INSERT คืนเงินไม่กรอง และเช็คแค่ status != -1 → ส่ง id ของคนอื่น/รายการที่โอนแล้ว
-     * ได้เงินเข้าบัญชีตัวเองซ้ำได้ไม่จำกัด — hotfix ของ SR: เฉพาะรายการของตัวเองที่ status = 1 คืนครั้งเดียว (= ที่นี่)
-     * jl port: คืนเท่าที่รายการถูกตัดอยู่จริง (ไม่เกินยอดของรายการ) แยกต่อกระเป๋า — ยอด 0 ไม่เขียนแถว (เหมือน SR)
+     * POST /_transfer/cancel — PACK: ไฟล์เดิมถูก comment ทั้งไฟล์ (ไม่มี require/สิทธิ์/SQL) → ตอบว่าง ไม่เขียนอะไร
+     * (ลูกค้ายกเลิกรายการโอนเองไม่ได้ — หน้า /transfer/{id} ของ PACK ก็ไม่มีปุ่มยกเลิก; แอดมินยกเลิกที่ _admin/_transfer/cancel)
+     * SR/jl port เคยยกเลิก + คืนเงินที่นี่ — ตัดออก; route ยังอยู่ใต้ legacy.perm:transfer (เดิมเปิดได้โดยไม่ล็อกอินและตอบว่าง)
      */
-    public function cancel(Request $request): Response
+    public function cancel(): Response
     {
-        $u = Legacy::user();
-        $id = $this->in($request, 'id');
-        DB::transaction(function () use ($u, $id) {
-            $row = DB::table('bill_transfer')->where('id', $id)->where('user', $u->id)->lockForUpdate()->first();
-            if ($row === null || ! Php74::eq($row->status, 1)) {
-                return;
-            }
-            Money::lockUser($u->id);
-            DB::table('bill_transfer')->where('id', $row->id)->where('user', $u->id)->update([
-                'status' => '-1', 'cancel_remark' => 'ยกเลิกโดย '.$u->code, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $u->id,
-            ]);
-            TransferRefund::refund($row, $u->id, $u->id);
-        });
-
-        return response(Alerts::success('window.location.href = "'.Legacy::href('transfer').'";'));
+        return response('');
     }
 }

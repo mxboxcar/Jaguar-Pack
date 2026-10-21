@@ -2,16 +2,17 @@
 
 namespace App\Domain\MoneyMove;
 
-use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
 
 /**
- * getupload() / getuploadmultiple() ของ system_config.php เดิม (HTML + JS ของกล่องแนบไฟล์ dropper → system_upload)
+ * getupload() / getuploadmultiple() ของเว็บเดิม (HTML + JS ของกล่องแนบไฟล์ dropper → system_upload)
  *
- * ตาม CONVENTIONS ข้อ 8 เจ้าของคือกลุ่ม settings (ใช้ร่วม) — ยังไม่มีในฐานร่วม จึงพอร์ตไว้ที่นี่(สำเนาจากกลุ่ม tracking) ให้ refill / transfer / withdrawcash ใช้ก่อน
- * ตอน merge ถ้า settings มีของกลางแล้ว ให้เปลี่ยนมาเรียกของกลาง (HTML ต้องเท่ากัน)
- * $field ถูกฝังเป็นชื่อฟังก์ชัน JS → ต้องเป็นค่าคงที่ในโค้ดเท่านั้น; $filename มาจาก DB → escape
+ * ตาม CONVENTIONS ข้อ 8 เจ้าของคือกลุ่ม settings (ใช้ร่วม) — ยังไม่มีในฐานร่วม จึงพอร์ตไว้ที่นี่ ให้ refill / transfer / withdrawcash ใช้ก่อน
+ * PACK: markup รุ่นเก่าของ PACK (system_config.php getupload / system_status_function.php getuploadmultiple) — ไม่มีการแก้ของ jl/SR
+ *       (upload_is_image, ล้าง input ให้เลือกไฟล์เดิมซ้ำได้, ไฟล์ที่ไม่ใช่รูปแสดงเป็นลิงก์ download): ไฟล์เดิมเป็นรูปเมื่อนามสกุล
+ *       อยู่ใน jpg/png/jpeg/JPG/JPEG/PNG (ตรงตัวพิมพ์), อื่นๆ = ลิงก์ชื่อไฟล์ class fancybox; ไฟล์ที่อัปใหม่ .zip/.rar/.7z แสดงเป็นข้อความ อื่นๆ เป็นรูป
+ * $field ถูกฝังเป็นชื่อฟังก์ชัน JS → ต้องเป็นค่าคงที่ในโค้ดเท่านั้น; $filename มาจาก DB → escape; ไม่มี target="_blank" (นโยบายเจ้าของ)
  */
 final class UploadBox
 {
@@ -35,10 +36,10 @@ final class UploadBox
         $html .= '<div style="float:left" class="text-left upload_'.$rand.'"></div>';
         $html .= '<div style="float:left;clear: both;margin-top: 10px;" class=" upload_'.$rand.'_preview">';
         if ($filename !== '') {
-            if (Format::uploadIsImage($filename)) {
+            if (in_array(pathinfo($filename, PATHINFO_EXTENSION), ['jpg', 'png', 'jpeg', 'JPG', 'JPEG', 'PNG'], true)) {
                 $html .= "<a class='fancybox' style='float:left;' href='".$blob.$f."'><img src='".$blob.$f."' style='max-width: 120px;max-height: 120px;' /></a>";
             } else {
-                $html .= "<a style='float:left;' download='".$f."' href='".$blob.$f."'>".$f.'</a>';
+                $html .= "<a class='fancybox' style='float:left;' href='".$blob.$f."'>".$f.'</a>';
             }
         }
         $html .= '</div>';
@@ -60,16 +61,15 @@ final class UploadBox
         $html .= 'label: "'.Lang::get('click_to_add_attachment').'",';
         $html .= 'maxQueue : '.($multi ? '10' : '1').',';
         $html .= '}).on("start.dropper", '.$rand.'_start).on("fileComplete.dropper", '.$rand.');';
-        $html .= '$(".upload_'.$rand.'").find(".dropper-input").on("change.reselect", function() { var el = this; setTimeout(function() { el.value = ""; }, 0); });';
         $html .= 'function '.$rand.'(e, file, response) {';
         $html .= ' if (response.trim() === "" || response.toLowerCase().indexOf("error") > -1) {';
         $html .= ' ErrorBox(response.toLowerCase(), "CloseLoading()"); $(".upload_'.$rand.'_preview").html("");$("input[name=\'upload_'.$rand.'\']").val("") ';
         $html .= ' } else {';
-        $html .= ' if(/\.(jpg|jpeg|png)$/i.test(response)) { ';
+        $html .= ' if(response.toLowerCase().indexOf(".zip") > -1 || response.toLowerCase().indexOf(".rar") > -1 || response.toLowerCase().indexOf(".7z") > -1) { ';
         if ($multi) {
-            $html .= ' $(".upload_'.$rand.'_preview").append(\'<div class="image_list_items"><a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><input type="hidden" class="" id="upload_'.$rand.'" name="upload_'.$rand.'_mul[]" value="\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a><div onclick="$(this).parent().remove()" style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">'.$del.'</div></div></div>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview ").append(response + \'<div class="upload_'.$rand.'_delete" style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">'.$del.'</div></div>\'); ';
             $html .= ' } else {';
-            $html .= ' $(".upload_'.$rand.'_preview").append(\'<div class="image_list_items"><a style="float:left" download href="'.$href.'upload/temp/\' + response + \'"><input type="hidden" class="" id="upload_'.$rand.'" name="upload_'.$rand.'_mul[]" value="\' + response + \'">\' + response + \'</a><div onclick="$(this).parent().remove()" style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">'.$del.'</div></div></div>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview").append(\'<div class="image_list_items"><a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><input type="hidden" class="" id="upload_'.$rand.'" name="upload_'.$rand.'_mul[]" value="\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a><div onclick="$(this).parent().remove()" style="display:block;float:left;margin-left:10px;margin-top: 10px;"><div onclick="" class="btn btn-danger btn-xs">'.$del.'</div></div></div>\'); ';
             $html .= ' } ';
             $html .= ' $("input[name=\'upload_'.$rand.'\']").val(response);';
             $html .= ' }';
@@ -77,9 +77,9 @@ final class UploadBox
             $html .= 'function '.$rand.'_start(e, file, response) {';
             $html .= '}';
         } else {
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview").html(response); ';
             $html .= ' } else {';
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a style="float:left" download href="'.$href.'upload/temp/\' + response + \'">\' + response + \'</a>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a>\'); ';
             $html .= ' } ';
             $html .= ' $("input[name=\'upload_'.$rand.'\']").val(response);';
             $html .= ' $(".upload_'.$rand.'_delete").css("display", "block");';

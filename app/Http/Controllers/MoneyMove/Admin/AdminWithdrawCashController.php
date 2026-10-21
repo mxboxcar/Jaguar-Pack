@@ -133,6 +133,7 @@ class AdminWithdrawCashController extends Controller
      * เดิมเช็ค $data['status'] != -1 ก่อนอ่าน $data (ตัวแปรว่าง → จริงเสมอ) = กดยกเลิกซ้ำได้เงินคืนซ้ำทุกครั้ง, id ที่ไม่มี = แถว balance ขยะ
      * และยกเลิก+คืนเงินรายการที่จ่ายออกไปแล้ว (status 2) ได้
      * ใหม่ (เจ้าของสั่งแก้): เฉพาะ status 1 (= ปุ่มยกเลิกในหน้า), ล็อกแถวรายการ + user, คืนเท่าที่ถูกตัดไว้จริง (กดซ้ำไม่คืนซ้ำ)
+     * PACK hotfix 2026-10-21 ในไฟล์เดิม: ไม่พบ / status ≠ 1 → getError('', 'รายการนี้ยกเลิกไม่ได้') — ใช้ข้อความเดียวกัน
      */
     public function cancel(Request $request): Response
     {
@@ -140,14 +141,8 @@ class AdminWithdrawCashController extends Controller
         $id = $this->in($request, 'id');
         $error = DB::transaction(function () use ($u, $id, $request) {
             $data = DB::table('balance_withdraw')->where('id', $id)->lockForUpdate()->first();
-            if ($data === null) {
-                return 'ไม่พบรายการ';
-            }
-            if (Money::statusIn($data->status, [Money::DONE])) {
-                return 'รายการนี้จ่ายเงินไปแล้ว ไม่สามารถยกเลิกได้';
-            }
-            if (! Money::statusIn($data->status, [Money::PENDING])) {
-                return 'รายการนี้ถูกยกเลิกไปแล้ว';
+            if ($data === null || ! Money::statusIn($data->status, [Money::PENDING])) {
+                return 'รายการนี้ยกเลิกไม่ได้';
             }
             Money::lockUser($data->user);
             DB::table('balance_withdraw')->where('id', $data->id)->update([
@@ -165,7 +160,7 @@ class AdminWithdrawCashController extends Controller
             return null;
         });
         if ($error !== null) {
-            return response(Money::refuse($error));
+            return response(Alerts::error('', $error));
         }
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/withdrawcash').'";'));
