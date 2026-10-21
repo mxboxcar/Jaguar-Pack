@@ -1,5 +1,88 @@
 # กลุ่ม order — รายงานการพอร์ต
 
+## PACK (2026-10-22)
+
+branch `mod/order` (worktree `/home/admin/laravel/pack-wt/order` ใช้ร่วมกับกลุ่ม shop, port 8803) · เทียบกับ PACK legacy (:8114, `admin_pack_bench`) · ไม่ได้แก้ฐานร่วม (foundation)
+ไฟล์ตาม `docs/pack-diff.md` กลุ่ม order: same 48 / diff 12 / SR-only 11 + pack-only `_admin/_order/load_paging.php` — PACK ใกล้ jl ในหน้าแอดมิน/ฟอร์มลูกค้า จึงใช้โค้ด jl (ก่อน fork เป็น SR, commit `32bf47a^`) เป็นแม่แบบ
+
+### สิ่งที่เปลี่ยนสำหรับ PACK
+
+| ไฟล์เดิม | สถานะ | ที่ทำ |
+|---|---|---|
+| `_admin/_order/grid.php` | diff 50 (jl 2) | กลับเป็นแบบ jl: derived table (ช่องไม่มีเลข/ไม่เข้าโกดังว่าง = `0` ตัวอักษร), ไม่มี paging ใน grid — `<div id="paging">กำลังจัดทำหน้า...` + ajax `load_paging` (เดิมนับ `$rows` แต่ไม่ได้ใช้) |
+| `_admin/_order/load_paging.php` | **pack-only** (= jl) | `POST /_admin/_order/load_paging` (`legacy.perm:admin_order`) — ค้น `user.code`/`id`/`admin_quote` (grid ไม่ค้น admin_quote = จำนวนหน้าอาจไม่ตรง grid แบบเดิม), HAVING แบบ correlated, จำนวนเก็บ cache 10 นาที (`OrderQueries::cachedCount`) แทน `readRedis/writeRedis` (ไม่เขียนค่า `-` ชั่วคราว) |
+| `_admin/_order/load_total_order.php` | diff 17 (jl 0) | cache 10 นาทีแบบ jl (`cachedCount`) — SR นับสด |
+| `_admin/_order/form.php` | diff 160 (jl 39) | view ของ jl: ไม่มีช่องเปลี่ยนรหัสลูกค้า/เรทใหม่/วันที่ 4 ช่อง/`cancelingcashback`/`SaveCartTakeapic`, ปุ่มยกเลิกแสดงเมื่อ status < 2 (รวม -1 แบบ jl), กล่องหมายเหตุ = `order_remark_status_1`, layout `col-xs-12 col-md-6` · **ตัด VAT** (ปุ่ม/JS `vatting`) · คง tag เสีย `<small?php ...` ในหัวข้อ (ไม่แสดงเลขใบ — เหมือน PACK) · ปุ่ม "เปลี่ยนเป็นส่งเรือ/รถ" เฉพาะผู้ใช้ id 84 / 3 + JS `change_sender_type` (เหมือน SR) |
+| `_admin/_order/load_detail.php` | diff 36 (jl 83) | ของ SR ยกเว้น: ไม่มี `<style>` นำหน้า, ไม่มีสวิตช์/สีม่วงบริการถ่ายรูป, ไม่มีรูป `tracking_image`, ช่องเลขออเดอร์ `col-xs-6` / `width: 70%`, ยอดบาทรวมท้ายตาราง = Σ `round(ราคา×จำนวน×เรท, 2)` + Σ `round(ค่าส่งจีน×เรท, 2)` |
+| `_order/form.php` | diff 55 (jl 28) | ของ jl (อ้าง `$data_head` ที่ไม่มี → product_type type '' และแสดงแบบ "ยังไม่จ่าย" เสมอ, แถว tracking แรกแก้ได้ + ปุ่ม +, หมายเหตุ `order_remark_status_1`) + สี `#rrggbb` เป็นแถบสี (เหมือน SR) + ยอดบาทรวมแบบ `round(…, 2)` · **ตัด VAT** ท้ายตาราง |
+| `_admin/_order/save_finish.php` | diff 23 (jl 0) | โค้ดเดิมของ jl อยู่แล้ว (SR เพิ่มแค่ join user + `sendLine()` ว่าง) — ไม่ต้องแก้ |
+| `_admin/_order/save_add_new_track.php` | diff 4 (jl 3) | ไฟล์ PACK (และ jl) INSERT `bill_product_on_tracking` ด้วย `$ins` ที่ไม่มี (พิมพ์ผิด) → tracking ใหม่ไม่ถูกผูกกับรายการ (หายจากใบหลัง reload, ปุ่มลบส่ง ref 0) — **คงการผูกแบบ SR/jl Laravel** (เจตนาของโค้ดเดิม) ดูข้อต่างโดยตั้งใจ |
+| `_admin/_order/email_{approved,cancel,cashback}.php`, `_admin/_taobao/email_{approved,cancel}.php` | diff 24–35 | ปุ่ม "ดูรายละเอียด" สี `#eb4823` (SR `#a3b2f1`); ไฟล์ PACK ไม่มีส่วน LINE/push (SR เป็น no-op อยู่แล้ว); header/footer/ผู้ส่ง = `config('legacy.mail')` (foundation PACK แล้ว) |
+| ไฟล์ `same` 48 ไฟล์ | same | ไม่แก้โค้ด — เทียบผลกับ :8114 แล้ว (ด้านล่าง) รวม `save_change_send_type` (มีใน PACK) |
+
+helper: `Php74::round()` (กลุ่ม order) = `round()` ของ PHP 7.4 (มี pre-rounding — PHP 8.4 ต่างที่หลักสุดท้าย เช่น round(2234.385, 2): 7.4 = 2234.39, 8.4 = 2234.38) ทดสอบ 1.5 ล้านค่าเทียบ php7.4 ตรงกันทั้งหมด (สำเนาเดียวกับ `App\Domain\Reports\Receipt::round` — ไม่ผูกกับกลุ่ม reports ที่อาจตัด receipt ออก)
+`readRedis/writeRedis` (foundation helpers ระบุว่าเป็นของกลุ่ม order) = `Cache` ของ Laravel ใน `OrderQueries::cachedCount` (key = SQL + bind, 10 นาที) — ไม่ต่อ Redis ภายนอก ไม่ใช้ `config('legacy.redis.prefix')`
+
+### ไฟล์ SR-only ที่ตัดออก (PACK ไม่มีไฟล์ → ไม่มี route, 404 → หน้าแรก; `docs/url-map.md` ระบุ dead แล้ว)
+
+`_admin/_order/delete_withcashback`, `load_changeuser`, `save_changeuser`, `save_newrate`, `save_takeapic`, ทั้งโมดูล `_admin/_printorder/*` (หน้า `admin/printorder*`, grid, form, load_detail, print, save_print)
+→ ลบ `AdminPrintorderController`, view `order/printorder/*`, `App\Domain\Order\PrintOrder` (`getstatusprint`), `OrderDetailRenderer::print()` และโหมด `$view`, method `deleteWithCashback/refundOpeningFee/loadChangeuser/saveChangeuser/saveNewrate/saveTakeapic`
+`order/print_header.blade.php` ยังอยู่ (กลุ่ม reports ใช้ `_admin/_export/print`)
+เมนู: `resources/views/legacy/partials/menu.blade.php` ยังตรวจ `perm('admin_printorder')` (ฐานร่วม — สิทธิ์นี้ไม่มีใน role ของ PACK จึงไม่แสดง) — ไม่ได้แตะ
+
+### ต่างจาก PACK เดิมโดยตั้งใจ (เพิ่มจากของ jl/SR ด้านล่าง)
+
+- `save_add_new_track`: ผูก tracking ใหม่กับรายการ (`bill_product_on_tracking`, user = แอดมินที่กดแบบเดิม) — เดิมของ PACK สร้าง tracking ลอย (ข้อมูลขยะ, แอดมินพิมพ์เลขแล้วหายจากใบ) · กดซ้ำเร็วๆ ยังได้ 2 แถว (ตั้งใจ: lock เฉพาะคำขอที่ซ้อนกัน)
+- `load_total_order`: เดิมระหว่างนับครั้งแรกเขียน `-` ลง Redis ก่อน (คำขอพร้อมกัน/ที่นับไม่เสร็จได้ "(-)" ค้าง 10 นาที — เห็นจริงบน :8114 ref=3) → ใหม่นับเสร็จแล้วค่อย cache
+- escape / ไม่มี `target="_blank"` / หน้าไม่มีสิทธิ์-ไม่ใช่เจ้าของ = layout ครบ (เหมือน jl/SR)
+
+### ช่องโหว่/บั๊กเดิมของ PACK ที่เจอ
+
+| ไฟล์ | ปัญหา | ใหม่ |
+|---|---|---|
+| `_admin/_order/save_add_new_track.php` | `$ins` ไม่มี → tracking ไม่ผูกกับรายการ | ผูกให้ (ด้านบน) |
+| `_admin/_order/load_paging.php` | SQL injection (`txtsearch`, `$Page` เป็นส่วนหนึ่งของ key Redis) | bind + LIKE escape |
+| `_admin/_order/load_total_order.php` | ไม่ตรวจสิทธิ์ (ใครล็อกอินก็นับใบทั้งระบบได้) | `admin_order` (เหมือน jl/SR) |
+| อื่นๆ | เหมือนรายการของ jl/SR ด้านล่าง (SQLi ทุกไฟล์, IDOR save_payment, email_* เรียกตรง ฯลฯ) | แก้แล้ว |
+
+### การตรวจ (เทียบ :8114 ด้วย session เดียวกัน, normalize href/ช่องว่าง, ตัด layout ฐานร่วม)
+
+- แอดมิน (11938): `/admin/order`, `/admin/dashboard`, `/admin/order/status/3`, grid 7 แบบ (หน้า 1/2/3, ship, สถานะ 3/5/6/-1, ค้นรหัส), `load_paging` 6 แบบ, `load_total_order` ref 0–6, ฟอร์ม 6 ใบ (status 0/1/-1/3, ใบ 338 รายการ, ใบที่ไม่มี) + `load_detail` 6 ใบ — **ตรงกันทั้งหมด** ยกเว้น `load_total_order` ref 3 ที่ Redis ของ :8114 ค้าง `-` (SQL ตรง = 31 = ใหม่)
+- ลูกค้า (348): `/order`, `/order/status/1`, grid 7 แบบ, `load_total_order` ref 0–6, ฟอร์ม 6 ใบ (status 1/-1/3, 47 รายการ) — **ตรงกัน**; ใบของคนอื่น = layout ครบ + ErrorBox (เดิมตัดครึ่งหน้า)
+- เถาเปาแอดมิน: `/admin/taobao`, `status/1`, `create`, ใบ 2080/2081/1590, grid 4 แบบ, `load_new_line`, `load_calculator` — ตรงกัน ยกเว้นตัวกรอง "ยกเลิก" (-1) ที่ตั้งใจแก้ (เดิมไม่มีแถวผ่าน)
+- ไม่มีสิทธิ์ (user 5 role 6): หน้า = layout + ErrorBox, grid ว่าง, `load_paging`/`load_detail` = ข้อความสิทธิ์เดิม (byte ตรง)
+- URL ที่ตัด (`admin/printorder`, `_admin/_printorder/grid`, `save_newrate`, `load_changeuser`, `delete_withcashback`, `save_takeapic`) → 302 หน้าแรก
+
+### E2E เขียนข้อมูล (ฝั่ง Laravel :8803 เท่านั้น, user 11937/11938 + แถว zz_, ลบตาม id แล้ว)
+
+ตะกร้า → `save_checkout` (ยิงซ้อน 2 = 1 ใบ + "กำลังดำเนินการ") → แอดมิน `load_detail`, `save_price`/`save_amount`/`save_shipping` (ยอดรวม 556.40 = สูตร SQL เดิม), `save_add_new_track` ×2 (ผูกกับรายการ, แสดงใน load_detail), `save_tracking`, `save_remove_track`, `save_change_send_type` (1→0, type 7 ไม่แก้), `save_approved` ×2 (สำเร็จ 1) → ลูกค้า `save_payment` (ไม่มี PIN = กล่อง PIN, PIN ผิด = ErrorBox, ยิงซ้อน 2 = หัก 1 ครั้ง −556.40) → `save_cashback` (+20, ref_id_2), `save_finish` (3) · ใบที่ 2: จ่าย 50 แล้วแอดมิน `delete` ยิงซ้อน 2 = คืน 1 ครั้ง (สุทธิ 0, `cancel_remark` "zz_cancel ,ยกเลิกโดย ZZFDN2") · ลูกค้า `save_quote`, `save_quote_tracking`, `save_remark`, `delete` (ล็อกแล้วยกเลิกไม่ได้ / ยกเลิกใบตัวเอง status 0), แอดมิน `save_lock`, `save_remark`, `save_quote_admin`, `save_craft`, `save_qc`, `save_color`, `save_remark_product`, `save_remark_shop`, `save_product_type`, `save_order_number`, `save_valid_track` ×2 · เถาเปาแอดมิน `save_approved`, `save_cancel` ×2 · origin อื่น = 403
+ลบแล้ว: bill_product 20618/20619/20621, bill_product_detail 127783–127786, tracking 99515–99518/99585, bill_product_on_tracking 28999–29003, balance 65053–65055/65057–65059, taobao 2126 + detail 2439–2440, ips 490 (PIN ผิด) · `user.pin` ของ 11937 คืนเป็น `''`
+
+### bench (`bin/bench`, c=1, n=20 (load_detail n=10), หลัง `artisan optimize`; เครื่องมีโหลดจาก agent อื่น — ตัวเลขเดิมแกว่งมาก)
+
+| หน้า | เดิม mean / p50 ms | ใหม่ mean / p50 ms |
+|---|---|---|
+| `/admin/order` | 1737 / 1635 | 93 / 99 |
+| `_admin/_order/grid` | 2243 / 1879 | 139 / 155 |
+| `_admin/_order/load_paging` (cache) | 4445 / 1224 | 47 / 48 |
+| `/admin/order/15105` | 967 / 824 | 104 / 102 |
+| `_admin/_order/load_detail` ใบ 15105 (338 รายการ) | 6225 / 4173 | 1246 / 1321 |
+| `/order` (ลูกค้า 348) | 4963 / 1813 | 80 / 72 |
+| `_order/grid` (348) | 2561 / 2445 | 50 / 51 |
+| `/order/5266` (47 รายการ) | 2404 / 2170 | 104 / 102 |
+
+### test
+
+`tests/Feature/Order/OrderRoutesTest.php` (route/สิทธิ์ PACK, URL ที่ PACK ไม่มี, `Php74::round`), `tests/Feature/Order/OrderPackDbTest.php` (แทน `OrderSrDbTest`; JL_BENCH_DB_TESTS=1): PIN ตอนจ่าย, send type, ยอดรวม round ใน load_detail/ฟอร์มลูกค้า (ไม่มีถ่ายรูป/VAT, ปุ่ม + แถวแรก), load_paging/load_total_order cache, add_new_track ผูกรายการ
+ผล: `php8.4 vendor/bin/phpunit` ผ่าน (323, skip 107) · `JL_BENCH_DB_TESTS=1` กลุ่ม order/shop ผ่านทั้งหมด — ที่ล้ม 28 ตัวเป็นของกลุ่มอื่น (lot/tracking/payment/reports/warehouse/messaging/money-move: คอลัมน์/ตาราง SR-only `subuser`, `is_takeapic`, `tracking_check`, `running`, `warehouse*`, `refill.approved_user`, `receipt_*`, และ LegacyRisks ค่าเปลี่ยนผู้ส่ง −670 ≠ −650 หลัง foundation ตัด `charge_sender_edit`)
+
+### คำถามถึงเจ้าของ
+
+1. `save_add_new_track`: เว็บเดิม PACK สร้าง tracking ลอยไม่ผูกกับรายการ (บั๊กพิมพ์ผิด) — Laravel ผูกให้ (แบบ SR/jl Laravel) ตกลงไหม
+2. ปุ่ม "เปลี่ยนเป็นส่งเรือ/รถ" ตายตัว user id 84 / 3 (bench: 84 = ลูกค้า PACK3072, ไม่มี id 3) → ไม่มีแอดมินคนไหนเห็นปุ่ม (endpoint ใช้ได้ด้วย admin_order) — ควรผูกกับสิทธิ์แทนหรือไม่
+3. จำนวนหน้า/จำนวนตามสถานะของแอดมิน cache 10 นาทีแบบเดิม (ข้อมูลใหม่ไม่ขึ้นทันที) — คงไว้หรือให้นับสด (แบบ SR; ช้า ~1–4 วินาทีสำหรับสถานะ 3/5/6)
+4. หัวข้อหน้าใบสั่งซื้อแอดมินมี tag เสีย (ไม่แสดงเลขใบ) — คงไว้ตามเดิม ต้องการให้แก้หรือไม่
+
 ## SR (2026-10-20)
 
 branch `mod/order` (worktree `/home/admin/laravel/sr-wt/order`, port 8303) · เทียบกับ SR legacy (:8111, `admin_sr_bench`) · ไม่มีการแก้ฐานร่วม (foundation)

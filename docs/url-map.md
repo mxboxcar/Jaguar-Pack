@@ -73,9 +73,9 @@
 | 61 | 85 | `^cart/product/([^/]+)$` | `?page=checkout_product&url=$1` [QSA] | checkout_product | _cart/product.php | **shop** |
 | 62 | 87 | `^goodsconfirm$` | `?page=goodsconfirm`  | goodsconfirm | _goodsconfirm/index.php | **warehouse** |
 | 63 | 88 | `^goodsconfirm/([0-9]+)$` | `?page=goodsconfirm_detail&id=$1`  | goodsconfirm_detail | _goodsconfirm/form.php | **warehouse** |
-| 64 | 90 | `^findproduct$` | `?page=findproduct`  | findproduct | _findproduct/index.php | **shop** |
-| 65 | 91 | `^findproduct/create$` | `?page=findproduct_detail&id=0`  | findproduct_detail | _findproduct/form.php | **shop** |
-| 66 | 92 | `^findproduct/([0-9]+)$` | `?page=findproduct_detail&id=$1`  | findproduct_detail | _findproduct/form.php | **shop** |
+| 64 | 90 | `^findproduct$` | `?page=findproduct`  | findproduct | _findproduct/index.php | **dead (PACK ไม่มีไฟล์ — ไม่มี route, 404 → หน้าแรก)** |
+| 65 | 91 | `^findproduct/create$` | `?page=findproduct_detail&id=0`  | findproduct_detail | _findproduct/form.php | **dead (PACK ไม่มีไฟล์ — ไม่มี route, 404 → หน้าแรก)** |
+| 66 | 92 | `^findproduct/([0-9]+)$` | `?page=findproduct_detail&id=$1`  | findproduct_detail | _findproduct/form.php | **dead (PACK ไม่มีไฟล์ — ไม่มี route, 404 → หน้าแรก)** |
 | 67 | 103 | `^admin/findproduct$` | `?page=admin_findproduct`  | admin_findproduct | _admin/_findproduct/index.php (**ไม่มีไฟล์นี้ในเว็บเดิม** — หน้าเดิม error/ว่าง) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
 | 68 | 104 | `^admin/findproduct/create$` | `?page=admin_findproduct_detail&id=0`  | admin_findproduct_detail | _admin/_findproduct/form.php (**ไม่มีไฟล์นี้ในเว็บเดิม** — หน้าเดิม error/ว่าง) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
 | 69 | 105 | `^admin/findproduct/([0-9]+)$` | `?page=admin_findproduct_detail&id=$1`  | admin_findproduct_detail | _admin/_findproduct/form.php (**ไม่มีไฟล์นี้ในเว็บเดิม** — หน้าเดิม error/ว่าง) | **dead (หน้าเดิมไม่มี — ไม่พอร์ต)** |
@@ -184,10 +184,10 @@
 | 172 | 240 | `^admin/warehouse/([0-9]+)$` | `?page=admin_warehouse_detail&id=$1`  | admin_warehouse_detail | _admin/_warehouse/form.php | **warehouse** |
 | 173 | 241 | `^admin/warehouse/create$` | `?page=admin_warehouse_detail&id=0`  | admin_warehouse_detail | _admin/_warehouse/form.php | **warehouse** |
 | 174 | 243 | `^admin/log$` | `?page=admin_log`  | admin_log | _admin/_log/index.php | **reports** |
-| 175 | 245 | `^admin/printorder$` | `?page=admin_printorder`  | admin_printorder | _admin/_printorder/index.php | **order** |
-| 176 | 246 | `^admin/printorder/([0-9]+)$` | `?page=admin_printorder_detail&id=$1`  | admin_printorder_detail | _admin/_printorder/form.php | **order** |
-| 177 | 247 | `^admin/printorder/([0-9]+)/(.+)$` | `?page=admin_printorder_detail&id=$1&div=$2`  | admin_printorder_detail | _admin/_printorder/form.php | **order** |
-| 178 | 248 | `^admin/printorder/status/([0-9]+)$` | `?page=admin_printorder&status=$1`  | admin_printorder | _admin/_printorder/index.php | **order** |
+| 175 | 245 | `^admin/printorder$` | `?page=admin_printorder`  | admin_printorder | _admin/_printorder/index.php | **dead (PACK ไม่มีไฟล์ — ไม่มี route, 404 → หน้าแรก)** |
+| 176 | 246 | `^admin/printorder/([0-9]+)$` | `?page=admin_printorder_detail&id=$1`  | admin_printorder_detail | _admin/_printorder/form.php | **dead (PACK ไม่มีไฟล์ — ไม่มี route, 404 → หน้าแรก)** |
+| 177 | 247 | `^admin/printorder/([0-9]+)/(.+)$` | `?page=admin_printorder_detail&id=$1&div=$2`  | admin_printorder_detail | _admin/_printorder/form.php | **dead (PACK ไม่มีไฟล์ — ไม่มี route, 404 → หน้าแรก)** |
+| 178 | 248 | `^admin/printorder/status/([0-9]+)$` | `?page=admin_printorder&status=$1`  | admin_printorder | _admin/_printorder/index.php | **dead (PACK ไม่มีไฟล์ — ไม่มี route, 404 → หน้าแรก)** |
 | 179 | 257 | `^forums/` | `-` [L,NC] |  |  | **foundation (nginx/infra)** |
 | 180 | 259 | `^` | `%1` [R,L] |  |  | **foundation (nginx/infra)** |
 | 181 | 262 | `^(.*?)/?$` | `$1.php` [L] |  |  | **foundation (nginx/infra)** |
@@ -254,13 +254,13 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_api/blockblob_ajax.php` | `/_api/blockblob_ajax` |  |  |
 | `_api/crawl_guard.php` | `/_api/crawl_guard` |  |  |
 | `_api/get_order_number_v2.php` | `/_api/get_order_number_v2` |  |  |
-| `_api/get_order_number_v3.php` | `/_api/get_order_number_v3` |  |  |
+| `_api/get_order_number_v3.php` | `/_api/get_order_number_v3` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
 | `_api/image_shrink.php` | `/_api/image_shrink` |  |  |
 | `_api/load_product.php` | `/_api/load_product` |  |  |
-| `_api/load_product_v2.php` | `/_api/load_product_v2` |  |  |
+| `_api/load_product_v2.php` | `/_api/load_product_v2` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
 | `_api/load_product_v5.php` | `/_api/load_product_v5` |  |  |
-| `_api/load_product_v7.php` | `/_api/load_product_v7` |  |  |
-| `_api/send_sms.php` | `/_api/send_sms` |  |  |
+| `_api/load_product_v7.php` | `/_api/load_product_v7` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
+| `_api/send_sms.php` | `/_api/send_sms` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
 | `_api/submit_order_number_v2.php` | `/_api/submit_order_number_v2` |  |  |
 | `_api/unban.php` | `/_api/unban` |  |  |
 | `_api/useragent.php` | `/_api/useragent` |  |  |
@@ -271,17 +271,18 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_cart/load_choose_product.php` | `/_cart/load_choose_product` |  |  |
 | `_cart/load_full_cart.php` | `/_cart/load_full_cart` |  |  |
 | `_cart/product.php` | `/_cart/product` | checkout_product |  |
+| `_cart/product_bk.php` | `/_cart/product_bk` |  | **PACK เท่านั้น**: สำเนาสำรองของ product.php ไม่มีหน้า/JS ใดลิงก์ → ไม่พอร์ต (dead) |
 | `_cart/save_amount.php` | `/_cart/save_amount` |  |  |
 | `_cart/save_checkout.php` | `/_cart/save_checkout` |  |  |
 | `_cart/save_craft.php` | `/_cart/save_craft` |  |  |
 | `_cart/save_product.php` | `/_cart/save_product` |  |  |
 | `_cart/save_qc.php` | `/_cart/save_qc` |  |  |
-| `_cart/save_takeapic.php` | `/_cart/save_takeapic` |  |  |
-| `_findproduct/delete.php` | `/_findproduct/delete` |  |  |
-| `_findproduct/form.php` | `/_findproduct/form` | findproduct_detail |  |
-| `_findproduct/grid.php` | `/_findproduct/grid` |  |  |
-| `_findproduct/index.php` | `/_findproduct/index` | findproduct |  |
-| `_findproduct/save.php` | `/_findproduct/save` |  |  |
+| `_cart/save_takeapic.php` | `/_cart/save_takeapic` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
+| `_findproduct/delete.php` | `/_findproduct/delete` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
+| `_findproduct/form.php` | `/_findproduct/form` | findproduct_detail | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
+| `_findproduct/grid.php` | `/_findproduct/grid` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
+| `_findproduct/index.php` | `/_findproduct/index` | findproduct | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
+| `_findproduct/save.php` | `/_findproduct/save` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
 | `_taobao/form.php` | `/_taobao/form` | taobao_detail |  |
 | `_taobao/grid.php` | `/_taobao/grid` |  |  |
 | `_taobao/index.php` | `/_taobao/index` | taobao |  |
@@ -295,7 +296,7 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | ไฟล์ | URL เดิม | page | หมายเหตุ |
 |---|---|---|---|
 | `_admin/_order/delete.php` | `/_admin/_order/delete` |  |  |
-| `_admin/_order/delete_withcashback.php` | `/_admin/_order/delete_withcashback` |  |  |
+| `_admin/_order/delete_withcashback.php` | `/_admin/_order/delete_withcashback` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
 | `_admin/_order/email_approved.php` | `/_admin/_order/email_approved` |  |  |
 | `_admin/_order/email_cancel.php` | `/_admin/_order/email_cancel` |  |  |
 | `_admin/_order/email_cashback.php` | `/_admin/_order/email_cashback` |  |  |
@@ -306,9 +307,10 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_order/grid.php` | `/_admin/_order/grid` |  |  |
 | `_admin/_order/index.php` | `/_admin/_order/index` | order_admin |  |
 | `_admin/_order/load_calculate_cashback.php` | `/_admin/_order/load_calculate_cashback` |  |  |
-| `_admin/_order/load_changeuser.php` | `/_admin/_order/load_changeuser` |  |  |
+| `_admin/_order/load_changeuser.php` | `/_admin/_order/load_changeuser` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
 | `_admin/_order/load_color_form.php` | `/_admin/_order/load_color_form` |  |  |
 | `_admin/_order/load_detail.php` | `/_admin/_order/load_detail` |  |  |
+| `_admin/_order/load_paging.php` | `/_admin/_order/load_paging` |  | **PACK เท่านั้น** (= jl): จำนวนหน้าของ grid แอดมิน, Redis 10 นาที → `OrderQueries::cachedCount` (ตาราง `caching` ในโค้ดที่ comment ไว้ไม่ได้ใช้) |
 | `_admin/_order/load_remark_product.php` | `/_admin/_order/load_remark_product` |  |  |
 | `_admin/_order/load_remark_shop.php` | `/_admin/_order/load_remark_shop` |  |  |
 | `_admin/_order/load_total_order.php` | `/_admin/_order/load_total_order` |  |  |
@@ -318,12 +320,12 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_order/save_cashback.php` | `/_admin/_order/save_cashback` |  |  |
 | `_admin/_order/save_cashback_cancel.php` | `/_admin/_order/save_cashback_cancel` |  |  |
 | `_admin/_order/save_change_send_type.php` | `/_admin/_order/save_change_send_type` |  |  |
-| `_admin/_order/save_changeuser.php` | `/_admin/_order/save_changeuser` |  |  |
+| `_admin/_order/save_changeuser.php` | `/_admin/_order/save_changeuser` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
 | `_admin/_order/save_color.php` | `/_admin/_order/save_color` |  |  |
 | `_admin/_order/save_craft.php` | `/_admin/_order/save_craft` |  |  |
 | `_admin/_order/save_finish.php` | `/_admin/_order/save_finish` |  |  |
 | `_admin/_order/save_lock.php` | `/_admin/_order/save_lock` |  |  |
-| `_admin/_order/save_newrate.php` | `/_admin/_order/save_newrate` |  |  |
+| `_admin/_order/save_newrate.php` | `/_admin/_order/save_newrate` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
 | `_admin/_order/save_order_number.php` | `/_admin/_order/save_order_number` |  |  |
 | `_admin/_order/save_price.php` | `/_admin/_order/save_price` |  |  |
 | `_admin/_order/save_product_type.php` | `/_admin/_order/save_product_type` |  |  |
@@ -335,15 +337,15 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_admin/_order/save_remark_shop.php` | `/_admin/_order/save_remark_shop` |  |  |
 | `_admin/_order/save_remove_track.php` | `/_admin/_order/save_remove_track` |  |  |
 | `_admin/_order/save_shipping.php` | `/_admin/_order/save_shipping` |  |  |
-| `_admin/_order/save_takeapic.php` | `/_admin/_order/save_takeapic` |  |  |
+| `_admin/_order/save_takeapic.php` | `/_admin/_order/save_takeapic` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
 | `_admin/_order/save_tracking.php` | `/_admin/_order/save_tracking` |  |  |
 | `_admin/_order/save_valid_track.php` | `/_admin/_order/save_valid_track` |  |  |
-| `_admin/_printorder/form.php` | `/_admin/_printorder/form` | admin_printorder_detail |  |
-| `_admin/_printorder/grid.php` | `/_admin/_printorder/grid` |  |  |
-| `_admin/_printorder/index.php` | `/_admin/_printorder/index` | admin_printorder |  |
-| `_admin/_printorder/load_detail.php` | `/_admin/_printorder/load_detail` |  |  |
-| `_admin/_printorder/print.php` | `/_admin/_printorder/print` |  |  |
-| `_admin/_printorder/save_print.php` | `/_admin/_printorder/save_print` |  |  |
+| `_admin/_printorder/form.php` | `/_admin/_printorder/form` | admin_printorder_detail | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
+| `_admin/_printorder/grid.php` | `/_admin/_printorder/grid` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
+| `_admin/_printorder/index.php` | `/_admin/_printorder/index` | admin_printorder | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
+| `_admin/_printorder/load_detail.php` | `/_admin/_printorder/load_detail` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
+| `_admin/_printorder/print.php` | `/_admin/_printorder/print` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
+| `_admin/_printorder/save_print.php` | `/_admin/_printorder/save_print` |  | PACK ไม่มีไฟล์นี้ → ไม่มี route (dead) |
 | `_admin/_taobao/email_approved.php` | `/_admin/_taobao/email_approved` |  |  |
 | `_admin/_taobao/email_cancel.php` | `/_admin/_taobao/email_cancel` |  |  |
 | `_admin/_taobao/form.php` | `/_admin/_taobao/form` | admin_taobao_detail |  |
