@@ -73,7 +73,7 @@ class WarehouseSrDbTest extends BenchDbTestCase
     {
         $this->actAs($this->zzUser(1));
         $nobody = $this->zzUser();
-        DB::table('user')->where('id', $nobody->id)->update(['code' => 'nobody']);
+        DB::table('user')->where('id', $nobody->id)->update(['code' => config('legacy.nobody')]); // PACK: PACKnocode
         $nocode = $this->zzUser();
         DB::table('user')->where('id', $nocode->id)->update(['code' => 'nocode']);
         $lot = $this->insertRow('lot', ['name' => 'zz_sr_lot', 'type' => 1, 'status' => 1]);

@@ -18,11 +18,11 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
-    // Mailgun (เดิม sendmail() ใน system_config.php ของ SR: Mailgun API domain mg.srshippingsystem.com)
+    // Mailgun (เดิม sendmail() ใน system_config.php ของ PACK: Mailgun API domain mg.pack-cargo.net)
     // secret: MAILGUN_SECRET หรือ MAILGUN_SECRET_FILE (ไฟล์ key นอก repo — อ่านตอนใช้ mailer ครั้งแรก
     // ใน AppServiceProvider จึงไม่ถูกเขียนลง config cache)
     'mailgun' => [
-        'domain' => env('MAILGUN_DOMAIN', 'mg.srshippingsystem.com'),
+        'domain' => env('MAILGUN_DOMAIN', 'mg.pack-cargo.net'),
         'secret' => env('MAILGUN_SECRET'),
         'secret_file' => env('MAILGUN_SECRET_FILE'),
         'endpoint' => env('MAILGUN_ENDPOINT', 'api.mailgun.net'),

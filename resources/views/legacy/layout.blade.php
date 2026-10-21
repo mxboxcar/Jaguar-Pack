@@ -10,7 +10,7 @@
         // }
         ?>
 
-        <link rel="icon" href="{{ legacy_href() }}icons/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="{{ legacy_href() }}icons/favicon-32.png"><link rel="apple-touch-icon" href="{{ legacy_href() }}icons/apple-touch-icon.png"><link rel="manifest" href="{{ legacy_href() }}icons/site.webmanifest"><meta name="theme-color" content="#9b1c20">
+        <link rel="icon" href="{{ legacy_href() }}icons/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="{{ legacy_href() }}icons/favicon-32.png"><link rel="apple-touch-icon" href="{{ legacy_href() }}icons/apple-touch-icon.png"><link rel="manifest" href="{{ legacy_href() }}icons/site.webmanifest"><meta name="theme-color" content="#f37620">
 
         <title>{{ config('legacy.project_name') }}</title>
         <meta name="description" content="{{ trim(config('legacy.project_name')) }} ขนส่งสินค้าจากจีนมาไทย">
@@ -57,7 +57,7 @@
             font-size:13px!important;
         }
         #sidebar-menu ul ul a , #sidebar-menu > ul > li > a {
-            color:#000!important;
+            color:#afafaf!important;
         }
         .editable {
             background: transparent;
@@ -108,12 +108,6 @@
             var rooturl = '{{ legacy_href() }}';
             var rooturl_blob = '{{ legacy_blob() }}';
             var fn_public = '';
-
-
-            {{-- เดิม: $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'http' → JS ส่งไป https (host จาก href ไม่ใช่ Host header) --}}
-            @if (request()->header('X-Forwarded-Proto') === 'http')
-            window.location.href = {!! json_encode('https://'.parse_url(legacy_href(), PHP_URL_HOST).request()->getRequestUri(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES) !!};
-            @endif
 
             jQuery.fn.preventDoubleSubmission = function() {
               $(this).on('submit',function(e){
@@ -287,7 +281,7 @@
 
                 setTimeout(function() {
                     if(document.URL.indexOf('admin') != -1) {
-                        $(".content-page .content").css("background-color", "#FDE498");
+                        $(".content-page .content").css("background-color", "#ffdddd");
                     }
                 }, 500);
 
@@ -692,6 +686,115 @@
 
             function searchlink() {
                 window.location.href = rooturl + '?l=' + encodeURIComponent($("#searchlink").val()) + '&page=checkout_product';
+                // OpenLoading()
+                // $.ajax({
+                //     timeout: 30000,
+                //     error: function(xhr, textStatus, errorThrown){
+                //        ErrorBox("พบข้อผิดพลาด" , true);
+                //        setTimeout(function() { CloseLoading(); }, 3000);
+                //     },
+                //     type: 'POST',
+                //     async: true,
+                //     data : 'url=' + encodeURIComponent($("#searchlink").val()),
+                //     url: rooturl + '_api/load_product',
+                //     success: function(data) {
+                //         CloseLoading();
+                        
+
+                //         $.ajax({
+                //             timeout: 30000,
+                //             error: function(xhr, textStatus, errorThrown){
+                //                ErrorBox("พบข้อผิดพลาด" , true);
+                //                setTimeout(function() { CloseLoading(); }, 3000);
+                //             },
+                //             type: 'POST',
+                //             async: true,
+                //             url: rooturl + '_cart/load_choose_product',
+                //             success: function(page) {
+                //                 $("#searchdetail .panel-body").html(page);
+
+                //                 data = $.parseJSON(data);
+
+                //                 //hiddpath
+                //                 $("input[name='search_main_image']").val(data.main_image);
+                //                 $("input[name='search_price']").val(data.price);
+                //                 $("input[name='search_product_name']").val(data.product_name);
+                //                 $("input[name='search_shop_name']").val(data.shop_name);
+                //                 $("input[name='search_url']").val(data.url);
+
+                //                 $("#search_main_image").attr('src', data.main_image);
+                //                 $("#search_product_name").text(data.product_name);
+                //                 $("#search_main_image_href").attr('href', data.main_image);
+
+                //                 $("#search_external_image_div").html('');
+                //                 $("#search_external_image").html('');
+
+                //                 if(data.external_image != undefined) {
+                //                     for (var i = 0; i < data.external_image.length; i++) {
+                //                         if(data.external_image.indexOf('lazyload.png') == -1) {
+                //                             var html = '<div style="margin-top:3px;" class="col-xs-3"><img src="'+ data.external_image[i] +'" onclick="switchimage($(this))" style="cursor:pointer" class="img-responsive" /></div>';
+                //                             $("#search_external_image_div").append(html);
+                //                             html = '<input type="hidden" value="'+ data.external_image[i] +'" name="search_external_image[]" />'
+                //                             $("#search_external_image").append(html);
+                //                         }
+                //                     }
+                //                 }
+                                
+
+
+                //                 $("#search_price").text('¥' + data.price);
+
+                //                 $("#search_color").html('');
+                                
+                //                 if(data.color.length != 0) {
+                //                     if(data.color_type == 'radio') {
+                //                         for (var i = 0; i < data.color.length; i++) {
+                //                             if(data.color[i].search("//") == -1) {
+                //                                 var html = '<div class="search_color_item " onclick="switchcolor($(this))" >'+ data.color[i] +'</div>';
+                //                                 $("#search_color").append(html);
+                //                             } else {
+                //                                 var html = '<div class="search_color_item col-xs-2" onclick="switchcolorimage($(this))" ><img src="'+ data.color[i] +'" class="img-responsive" /></div>';
+                //                                 $("#search_color").append(html);
+                //                             }
+                //                         }
+                                        
+                //                     } else {
+                //                         //option
+                //                         for (var i = 0; i < data.color.length; i++) {
+                //                             if(data.color[i].search("//") == -1) {
+                //                                 var html = '<div class="search_color_item " onclick="switchcolor($(this))" >'+ data.color[i] +'</div>';
+                //                                 $("#search_color").append(html);
+                //                             } else {
+                //                                 var html = '<div class="search_color_item col-xs-2" onclick="switchcolorimage($(this))" ><img src="'+ data.color[i] +'" class="img-responsive" /></div>';
+                //                                 $("#search_color").append(html);
+                //                             }
+                //                         }
+                //                     }
+                //                 } else {
+                //                     $("#search_color").parent('.form-group').css('display', 'none');
+                //                 }
+                                
+                //                 if(data.size.length != 0) {
+                //                     for (var i = 0; i < data.size.length; i++) {
+                //                         if(data.size[i].search("//") == -1) {
+                //                             var html = '<div class="search_size_item " onclick="switchsize($(this))" >'+ data.size[i] +'</div>';
+                //                             $("#search_size").append(html);
+                //                         } else {
+                //                             var html = '<div class="search_size_item col-xs-2" onclick="switchsizeimage($(this))" ><img src="'+ data.size[i] +'" class="img-responsive" /></div>';
+                //                             $("#search_size").append(html);
+                //                         }
+                                        
+                //                     }
+                //                 } else {
+                //                     $("#search_size").parent('.form-group').css('display', 'none');
+                //                 }
+
+
+                //                 $("#searchdetail .modal").modal('show');
+                //             }
+                //         });
+                //     }
+                // });
             }
 
             function switchimage(element) {
@@ -705,8 +808,6 @@
                 $(".search_color_item").removeClass("select");
                 element.addClass("select");
                 $("input[name='search_color']").val(element.text());
-                $("input[name='search_color_a']").val(element.attr('a'));
-                changesku();
             }
 
             function switchsize(element) {
@@ -714,7 +815,7 @@
                 element.addClass("select");
                 $("input[name='search_size']").val(element.text());
                 $("input[name='search_size_a']").val(element.attr('a'));
-                changesku();
+                if (typeof changesku === 'function') { changesku(); }
             }
 
             function switchcolorimage(element) {
@@ -727,7 +828,7 @@
                 $("input[name='search_color']").val(element.attr('val') || element.find('img').attr('src'));
                 $("input[name='search_main_image']").val(element.find('img').attr('src'));
                 $("input[name='search_color_a']").val(element.attr('a'));
-                changesku();
+                if (typeof changesku === 'function') { changesku(); }
             }
 
             function switchsizeimage(element) {
@@ -740,7 +841,7 @@
                 $("input[name='search_size']").val(element.attr('val') || element.find('img').attr('src'));
                 $("input[name='search_main_image']").val(element.find('img').attr('src'));
                 $("input[name='search_size_a']").val(element.attr('a'));
-                changesku();
+                if (typeof changesku === 'function') { changesku(); }
             }
 
             function switchpricedown() {
@@ -752,15 +853,6 @@
                 }
 
                 $("#search_amount").val(oldval);
-                if (priceRange && priceRange.length > 0) {
-                    var amount = eval($("#search_amount").val());
-                    for(var i in priceRange) {
-                        if (amount >= priceRange[i][0]) {
-                            $("#search_price").val(priceRange[i][1]);
-                        }
-                    }
-                }
-                cal_thaiprice_cart();
             }
 
             function switchpricedown_in(ele, id) {
@@ -788,15 +880,6 @@
                 var oldval = $("#search_amount").val();
                 oldval = eval(oldval) + 1;
                 $("#search_amount").val(oldval);
-                if (priceRange && priceRange.length > 0) {
-                    var amount = eval($("#search_amount").val());
-                    for(var i in priceRange) {
-                        if (amount >= priceRange[i][0]) {
-                            $("#search_price").val(priceRange[i][1]);
-                        }
-                    }
-                }
-                cal_thaiprice_cart();
             }
 
             function switchpriceup_in(ele , id) {
@@ -818,20 +901,16 @@
 
 
             function submittingtocart() {
-                if($("#search_amount").val() != "0") {
-                    if($("input[name='search_color']").val() == "" && $(".search_color_item").length != 0) {
-                        ErrorBox('{!! res('please_select_color') !!}');
-                        return;
-                    }
-                    if($("input[name='search_size']").val() == "" && $(".search_size_item").length != 0) {
-                        ErrorBox('{!! res('please_select_size') !!}');
-                        return;
-                    }
-                    $("#searchdetail").submit();
-                    $("#searchlink").val('');
-                } else {
-                    ErrorBox('กรุณาใส่จำนวนสินค้า');
+                if($("input[name='search_color']").val() == "" && $(".search_color_item").length != 0) {
+                    ErrorBox('{!! res('please_select_color') !!}');
+                    return;
                 }
+                if($("input[name='search_size']").val() == "" && $(".search_size_item").length != 0) {
+                    ErrorBox('{!! res('please_select_size') !!}');
+                    return;
+                }
+                $("#searchdetail").submit();
+                $("#searchlink").val('');
             }
 
             setTimeout(function() {
@@ -1027,9 +1106,9 @@
                     <div class="text-center">
                         <a href="{{ legacy_href() }}" class="logo">
 
-                        <span><img  src="{{ legacy_href() }}assets/images/logo_mini.png?v={{ config('legacy.version') }}" style="width: 135px;" /></span>
+                        <span><img  src="{{ legacy_href() }}assets/images/logo2.png" style="width: 165px;" /></span>
 
-                        <img style="margin-top: 5px;margin-left: 12px;width: 135px;" style="margin-top: 10px;margin-left: 12px;" class="icon-c-logo " src="{{ legacy_href() }}assets/images/logo_mini.png?v={{ config('legacy.version') }}" />
+                        <img style="margin-top: 5px;margin-left: 12px;width: 57px;" style="margin-top: 10px;margin-left: 12px;" class="icon-c-logo " src="{{ legacy_href() }}assets/images/fav.png" />
                         </a>
                     </div>
                 </div>
@@ -1078,7 +1157,7 @@
                 && $page != 'payment_create'
                 && $page != 'admin_payment_create') { ?>
             <div class="left side-menu">
-                <div class="sidebar-inner slimscrollleft">
+                <div class="sidebar-inner slimscrollleft" style="background-color: #35404a;">
                     <!--- Divider -->
                     @include('legacy.partials.menu')
                     <div class="clearfix"></div>
@@ -1096,24 +1175,20 @@
 
                 <!-- Start content -->
                 <div class="content">
-                   
-
                     <div class="container">
 
 
                     <?php
-                        if(\App\Support\Legacy\Lookup::getSetting('today_lot') != '') { echo '<div class="col-xs-12" style="margin-bottom: 15px;font-size: 15px;border: 1px solid #a0a0a0;padding: 10px;border-radius: 5px;background-color: #ff9f9f;"><b>หมายเลขล๊อตสินค้าที่เข้าโกดังไทยคืนนี้ : </b>'.nl2br(\App\Support\Legacy\Lookup::getSetting('today_lot'))."</div>"; }
+                        if(\App\Support\Legacy\Lookup::getSetting('today_lot') != '') { echo '<div class="col-xs-12 noti" style="margin-bottom: 15px;font-size: 15px;border: 1px solid #a0a0a0;padding: 10px;border-radius: 5px;background-color: #ff9f9f;"><b>หมายเลขล๊อตสินค้าที่เข้าโกดังไทยคืนนี้ : </b>'.nl2br(\App\Support\Legacy\Lookup::getSetting('today_lot'))."</div>"; }
                     ?>
 
                     <?php
-                        if(\App\Support\Legacy\Lookup::getSetting('today_lot_yellow') != '') { echo '<div class="col-xs-12" style="margin-bottom: 15px;font-size: 15px;border: 1px solid #a0a0a0;padding: 10px;border-radius: 5px;background-color: #ffbd4a;">'.nl2br(\App\Support\Legacy\Lookup::getSetting('today_lot_yellow'))."</div>"; }
+                        if(\App\Support\Legacy\Lookup::getSetting('today_lot_yellow') != '') { echo '<div class="col-xs-12 noti" style="margin-bottom: 15px;font-size: 15px;border: 1px solid #a0a0a0;padding: 10px;border-radius: 5px;background-color: #ffbd4a;">'.nl2br(\App\Support\Legacy\Lookup::getSetting('today_lot_yellow'))."</div>"; }
                     ?>
 
                     <?php
-                        if(\App\Support\Legacy\Lookup::getSetting('today_lot_green') != '') { echo '<div class="col-xs-12" style="margin-bottom: 15px;font-size: 15px;border: 1px solid #a0a0a0;padding: 10px;border-radius: 5px;background-color: #81c868;">'.nl2br(\App\Support\Legacy\Lookup::getSetting('today_lot_green'))."</div>"; }
+                        if(\App\Support\Legacy\Lookup::getSetting('today_lot_green') != '') { echo '<div class="col-xs-12 noti" style="margin-bottom: 15px;font-size: 15px;border: 1px solid #a0a0a0;padding: 10px;border-radius: 5px;background-color: #81c868;">'.nl2br(\App\Support\Legacy\Lookup::getSetting('today_lot_green'))."</div>"; }
                     ?>
-
-                    
                     <?php if(perm('order')) { ?>
                     <div class="col-xs-10" style="margin-bottom: 15px;">
                             <input style="font-weight: normal;" type="text" id="searchlink" class="form-control" placeholder="วางลิ้งค์สินค้าเพื่อค้นหา" value="">
@@ -1154,7 +1229,7 @@
                 </div> <!-- content -->
 
                 <footer class="footer text-right">
-                    © 2016-{{ date('Y') }} {{ config('legacy.project_name') }} All rights reserved. 
+                    © {{ date('Y') }} {{ config('legacy.project_name') }} All rights reserved. 
                 </footer>
 
             </div>

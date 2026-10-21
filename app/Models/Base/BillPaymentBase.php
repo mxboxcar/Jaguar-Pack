@@ -44,13 +44,14 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $sender_phone varchar(50)
  * @property int|null $sender_type int
  * @property string|null $sender_charge decimal(12,2)
- * @property string|null $receipt_name varchar(225)
- * @property string|null $receipt_address varchar(225)
- * @property string|null $receipt_tax varchar(50)
- * @property string|null $receipt_id varchar(50)
- * @property \Carbon\CarbonImmutable|null $receipt_date datetime
- * @property int|null $receipt_is_vat int default '0'
- * @property string|null $receipt_total decimal(10,2) default '0.00'
+ * @property string|null $discount decimal(12,2) default '0.00'
+ * @property string|null $vat decimal(12,2) default '0.00'
+ * @property string|null $vat_before decimal(12,2) default '0.00'
+ * @property string|null $shipvat decimal(12,2) default '0.00'
+ * @property string|null $shipvat_before decimal(12,2) default '0.00'
+ * @property string|null $is_vat decimal(12,2) default '0.00'
+ * @property string|null $v decimal(12,2) default '0.00'
+ * @property string|null $shipv decimal(12,2) default '0.00'
  */
 abstract class BillPaymentBase extends Model
 {
@@ -67,7 +68,7 @@ abstract class BillPaymentBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'total', 'submit_date', 'submit_remark', 'approved_date', 'status', 'price_shipping', 'price_thai_storage', 'price_thai_shipping', 'user', 'send_name', 'send_address', 'send_phone', 'shipping_type', 'export_tracking', 'export_date', 'export_remark', 'export_price', 'export_attachment', 'cancel_remark', 'ref_id', 'is_print', 'print_date', 'sender_name', 'sender_address', 'sender_phone', 'sender_type', 'sender_charge', 'receipt_name', 'receipt_address', 'receipt_tax', 'receipt_id', 'receipt_date', 'receipt_is_vat', 'receipt_total'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'total', 'submit_date', 'submit_remark', 'approved_date', 'status', 'price_shipping', 'price_thai_storage', 'price_thai_shipping', 'user', 'send_name', 'send_address', 'send_phone', 'shipping_type', 'export_tracking', 'export_date', 'export_remark', 'export_price', 'export_attachment', 'cancel_remark', 'ref_id', 'is_print', 'print_date', 'sender_name', 'sender_address', 'sender_phone', 'sender_type', 'sender_charge', 'discount', 'vat', 'vat_before', 'shipvat', 'shipvat_before', 'is_vat', 'v', 'shipv'];
 
     protected function casts(): array
     {
@@ -78,7 +79,6 @@ abstract class BillPaymentBase extends Model
             'approved_date' => LegacyDateTime::class.':datetime',
             'export_date' => LegacyDateTime::class.':datetime',
             'print_date' => LegacyDateTime::class.':datetime',
-            'receipt_date' => LegacyDateTime::class.':datetime',
         ];
     }
 }

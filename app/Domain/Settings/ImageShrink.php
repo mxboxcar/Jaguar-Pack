@@ -27,7 +27,7 @@ final class ImageShrink
         $done = self::inner($path);
         clearstatcache();
         if ($before) {
-            $line = (new \DateTime('now', new \DateTimeZone('Asia/Bangkok')))->format('Y-m-d H:i:s')."\tsrshippingsystem\t"
+            $line = (new \DateTime('now', new \DateTimeZone('Asia/Bangkok')))->format('Y-m-d H:i:s')."\tpack-cargo\t"
                 .(int) $before."\t".(int) @filesize($path)."\t".($done ? 1 : 0)."\n";
             @file_put_contents(rtrim((string) config('legacy.log_dir'), '/').'/image_shrink.log', $line, FILE_APPEND | LOCK_EX);
         }

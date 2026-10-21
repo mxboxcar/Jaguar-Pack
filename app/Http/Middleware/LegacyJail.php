@@ -13,7 +13,7 @@ class LegacyJail
     public function handle(Request $request, Closure $next): Response
     {
         if (config('legacy.jail.enabled') && Jail::check()) {
-            return response(Jail::FORBIDDEN_BODY, 403);
+            return response(Jail::forbiddenBody(), 403);
         }
 
         return $next($request);
