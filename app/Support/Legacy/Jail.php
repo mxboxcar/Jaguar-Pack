@@ -18,6 +18,12 @@ final class Jail
 {
     public const FORBIDDEN_BODY = "\n\t\t\t\t<h1>Forbidden</h1>\n\t\t\t\t<p>You dont have permission to access on this server</p>";
 
+    /** PACK: หน้า 403 แสดง IP ของผู้ถูกแบนต่อท้าย (<p>get_client_ip()</p>) — escape ไว้ (IP มาจาก header ได้) */
+    public static function forbiddenBody(): string
+    {
+        return self::FORBIDDEN_BODY."\n\t\t\t\t<p>".e(Legacy::clientIp()).'</p>';
+    }
+
     /** true = ต้องตอบ 403 */
     public static function check(): bool
     {
