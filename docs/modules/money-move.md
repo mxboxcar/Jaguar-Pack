@@ -1,5 +1,84 @@
 # money-move — เติมเงิน / โอนเงินไปจีน / ถอนเงิน
 
+## PACK (2026-10-22)
+
+branch `mod/lot` (กลุ่ม lot + money-move ใน worktree เดียว `/home/admin/laravel/pack-wt/lot`) · dev http://127.0.0.1:8808 · เทียบกับ PACK เดิม :8114 (`admin_pack_bench`)
+PACK = SR (กระเป๋าหยวน `bill_transfer.usecash_cn`, PIN ใน `_transfer/save`, สิทธิ์ถอนเงินแบบ SR) ยกเว้นข้างล่าง — หัวข้อ SR ด้านล่างยังใช้ได้ยกเว้นที่ระบุ
+alipay (`_alipay/*`, `_admin/_alipay/*`) เป็นของกลุ่ม payment ตาม `docs/url-map.md` — ไม่ได้แตะในกลุ่มนี้
+
+### สิ่งที่เปลี่ยนสำหรับ PACK (ตาม `docs/pack-diff.md` กลุ่ม money-move)
+
+| ไฟล์เดิม | สถานะ | ที่ทำ |
+|---|---|---|
+| `_admin/_refill/form.php`, `grid.php` | diff 9/5 (jl 0) | ไม่มีช่อง/คอลัมน์ "ผู้อนุมัติรายการ" (`refill.approved_user` เป็นคอลัมน์ SR-only) — view กลับเป็นของ jl, ตัด join |
+| `_admin/_refill/save_approved.php` | diff 2 | แบบ SR (status ≠ 1 → `ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();')`) แต่ไม่เขียน `approved_user` |
+| `_admin/_refill/email_approved.php`, `email_cancel.php`, `_admin/_transfer/email_success.php`, `email_cancel.php` | diff 21–26 | ข้อความเท่า SR; ปุ่ม `#eb4823`; ไม่มีส่วน LINE/push (ไฟล์ PACK ไม่มี) — `Mailer` ไม่อ่าน `line_uid` แล้ว; ผู้ส่ง/หัว/ท้าย = `config('legacy.mail')` ของ PACK (ฐานร่วม) |
+| `_admin/_transfer/cancel.php` | diff 6 | PACK คืนบาท/หยวนเฉพาะยอดที่ไม่เป็น 0 — ตรงกับกติกา net-based ที่พอร์ตไว้แล้ว (ไม่ต้องแก้โค้ด นอกจากคอมเมนต์) |
+| `_admin/_transfer/form.php` | diff 4 | PACK ตรวจ `getPermission('transfer')` (แบบ jl = IDOR) → route ต้องมีทั้ง `transfer` และ `admin_transfer` (กติกา jl port): ไม่มี transfer = ErrorBox "โอนเงินไปจีน" เหมือนเดิม (role 3/5/6), มี transfer แต่ไม่มี admin_transfer = ErrorBox "ผู้ดูแล - โอนเงินไปจีน" (ต่างโดยตั้งใจ — เดิมลูกค้าเปิดรายการของคนอื่นได้) |
+| `_admin/_transfer/save.php` | diff 10 (jl 0) | PACK = jl (ไม่ตรวจ status) → กติกา jl port: ล็อกแถว, 1 → 2, 2 = บันทึกหลักฐานซ้ำได้ (ไม่แตะเงิน), -1/ไม่พบ = ปฏิเสธ (SR ปฏิเสธทุกอย่างที่ไม่ใช่ 1) |
+| `_admin/_withdrawcash/cancel.php` | diff 5 | PACK hotfix 2026-10-21 (อ่านสถานะก่อน, ยกเลิกได้เฉพาะ 1) → ข้อความ `ErrorBox('รายการนี้ยกเลิกไม่ได้');` ของ hotfix สำหรับไม่พบ/จ่ายแล้ว/ยกเลิกแล้ว (เดิมของ port แยก 3 ข้อความ) |
+| `_transfer/cancel.php` | diff 72 | **PACK comment ทั้งไฟล์** (ไม่มี require/สิทธิ์/SQL) → `POST /_transfer/cancel` ตอบว่าง ไม่เขียนอะไร (เดิม SR/jl port ยกเลิก+คืนเงินที่นี่) — route คงไว้ใต้ `legacy.perm:transfer` |
+| `_transfer/form.php` | diff 19 | ไม่มีปุ่ม "ยกเลิกรายการนี้" และฟังก์ชัน `canceling()` |
+| (ฐานร่วมกลุ่ม) `App\Domain\MoneyMove\UploadBox` | — | markup ของ `getupload`/`getuploadmultiple` รุ่นเก่าของ PACK: ไฟล์เดิมเป็นรูปเมื่อนามสกุลอยู่ใน `jpg/png/jpeg/JPG/JPEG/PNG` (ตรงตัวพิมพ์) อื่นๆ เป็นลิงก์ชื่อไฟล์ class fancybox (ไม่มี `download`), ไม่มีตัวล้าง input ให้เลือกไฟล์เดิมซ้ำ, ไฟล์ใหม่ `.zip/.rar/.7z` แสดงชื่อ อื่นๆ แสดงเป็นรูป (ของ jl/SR ที่แก้แล้วไม่มีใน PACK) |
+| ไฟล์ `same` อีก 17 ไฟล์ | same | ไม่ต้องแก้ (รวม `_admin/_transfer/rollback`, `_admin/_refill/cancel`, `_transfer/save`) — เทียบผลแล้ว |
+
+test: `MoneyMoveRoutesTest` (สิทธิ์ admin transfer form 2 ตัว, ปุ่ม #eb4823, ไม่มีแบรนด์ SR), `MoneyMoveDbTest` (ยกเลิกของลูกค้า = no-op, บันทึกซ้ำบน 2 ได้, ไม่มี approved_user, ข้อความ hotfix ถอนเงิน), `Access/RoleDenialTest` (กลับเป็นกติกา jl)
+
+### ต่างจาก PACK เดิมโดยตั้งใจ
+
+- คงทุกข้อของ jl/SR port (transaction + lock แถว user, กันกดซ้ำ, PinThrottle, คืน/หักเงินแบบ net-based, ไม่มี target blank, escape)
+- `/admin/transfer/{id}` ของผู้มี `transfer` แต่ไม่มี `admin_transfer` (ลูกค้า, role 7/9) = ปฏิเสธ (IDOR เดิม)
+- `_admin/_transfer/save` บนรายการที่ยกเลิก/คืนเงินแล้ว = ปฏิเสธ (เดิมบันทึกเป็นโอนสำเร็จได้ = ลูกค้าได้ทั้งเงินคืนและการโอน)
+- `/transfer/{id}` ของคนอื่น: ไม่แสดงแถวเงิน (jl port — PACK แสดงแถว balance ของรายการคนอื่น)
+- `_transfer/cancel` ต้องล็อกอิน + สิทธิ์ transfer (เดิมเปิดได้โดยไม่ล็อกอิน แต่ตอบว่างเหมือนกัน)
+
+### ช่องโหว่เดิมของ PACK ที่เจอ
+
+1. `_admin/_transfer/form.php` ตรวจแค่ `transfer` → ลูกค้าทุกคนเปิด `/admin/transfer/<id>` ดูรายการ/สลิป/บัญชีของคนอื่นได้ (ตรวจบน :8114 ด้วยลูกค้า 348 และ role 7 = หน้าเต็ม)
+2. `_admin/_transfer/save.php` ไม่ตรวจ status (บันทึกรายการที่ยกเลิก+คืนเงินแล้วเป็นสำเร็จได้), `rollback.php` หักเงินโดยไม่ตรวจยอด/ไม่ล็อก (เหมือน SR)
+3. SQL ต่อ string ทุกไฟล์, PIN ผิดถูก log เป็น plaintext (`_transfer/save.php` goLog) — เหมือน SR
+4. hotfix ของ PACK ที่มีแล้ว: `_admin/_withdrawcash/cancel.php` (2026-10-21), `_transfer/cancel.php` ถูกปิดทั้งไฟล์ — port ทำเท่ากันหรือเข้มกว่า
+
+### การตรวจ (2026-10-22, :8114 เดิม vs :8808 ใหม่, session เดียวกัน, normalize host/ช่องว่าง/คอมเมนต์/target blank)
+
+- **ตรง**: `/refill`, `refill/{14344,create}`, `_refill/grid` หน้า 1/2/สถานะ 2 (ลูกค้า 348), `admin/refill` (+status/1), `admin/refill/{14344,14400,create}`, `_admin/_refill/grid` หน้า 1/2/ค้นรหัส/`|1`/`|-1`, `/transfer`, `transfer/{417,create}` (ลูกค้า 137 มีหยวน; ภาษา en), `_transfer/grid` หน้า 1/2/`|2`/ค้น `417|`, `admin/transfer`, `admin/transfer/{417,519,create}`, `_admin/_transfer/grid` หน้า 1/2/`|-1`/ค้น, `admin/withdrawcash` (+status/2), `admin/withdrawcash/359`, `_admin/_withdrawcash/grid` หน้า 1/2/`|1`
+- ปฏิเสธสิทธิ์ (ลูกค้า 348, role 3 user 524, role 4 user 302, role 7 user 923) ของ `admin/refill`, `admin/transfer`, `admin/withdrawcash(/359)`, `admin/lot`: ข้อความ ErrorBox ตรงเดิมทุกกรณี (หน้าปฏิเสธที่เดิม exit กลาง layout = layout เต็มแบบ jl port) ยกเว้น `admin/transfer/417` ของลูกค้า/role 7 (ข้อ 1)
+- ต่างโดยตั้งใจ: `/transfer/519` ของลูกค้าอื่น (ไม่แสดงแถวเงิน)
+
+### E2E เขียน (ฝั่ง Laravel :8808 เท่านั้น; ลูกค้าทดสอบ zz ใหม่ `zz_lotmm_e2e` (id 12601, role 2, PIN ทดสอบ, เงินตั้งต้น zz 1,000 บาท + ¥20), ลูกค้า 11937, แอดมิน 11938)
+
+- refill ลูกค้า ส่งซ้อน 2 (`1,000.50` → 1 แถว 1000.50 + "ส่งซ้ำ") → อนุมัติซ้อน 2 (เติม 1000.50 ครั้งเดียว, prefix 10, ไม่มี approved_user; คำขอที่ 2 = "รายการไม่พร้อม") → ยกเลิกรายการที่อนุมัติแล้ว (`ErrorBox('รายการถูกดำเนินการสำเร็จไปแล้ว', …)`) · refill ที่ 2 → `_admin/_lot/cancel` ×2 (ครั้งที่ 2 "ถูกยกเลิกไปแล้ว") → อนุมัติรายการที่ยกเลิก = "ไม่พร้อม" · แอดมินเติมเงินตรงส่งซ้อน 2 (1 รายการ + เงิน 200 ครั้งเดียว) · อีเมลอนุมัติใน log: ผู้ส่ง `PACK-Cargo <no-reply@pack-cargo.net>` ปุ่ม #eb4823
+- transfer ¥50: ไม่มี PIN = กล่อง PIN, PIN ผิด = ErrorBox (+ แถว ips ของ jail), ส่งซ้อน 2 = 1 รายการ (usecash_cn 20.00 + usecash 154.50 = 30 × 5.15, balance -154.50 / balance_cn -20.00) → ลูกค้ายกเลิก = ตอบว่าง ไม่เปลี่ยน → แอดมิน save (2) → save ซ้ำ (หลักฐานใหม่ ไม่แตะเงิน) → cancel บน 2 = "รายการถูกยืนยันไปแล้ว" → rollback (2 → 1 ไม่แตะเงิน) → cancel ซ้อน 2 (คืน 154.50 + ¥20 ครั้งเดียว) → save บน -1 = ปฏิเสธ → rollback ซ้อน 2 (หักคืน 154.50 + ¥20 ครั้งเดียว)
+- ถอนเงิน: ยื่นผ่าน `_balance/save_withdraw` (กลุ่ม balance, WCASH-403 40 บาท; ครั้งที่ 2 = "1 รายการต่อสัปดาห์") → role 3 ยกเลิก = ปฏิเสธ `admin_withdrawpoint` → ยกเลิกซ้อน 2 (คืน 40 ครั้งเดียว, ครั้งที่ 2 `ErrorBox('รายการนี้ยกเลิกไม่ได้');`) → อนุมัติรายการที่ยกเลิก = ปฏิเสธ · แถว zz 404 (status 1) → อนุมัติ ×2 (บันทึกหลักฐานซ้ำ) → ยกเลิกรายการที่จ่ายแล้ว = "รายการนี้ยกเลิกไม่ได้"
+- ลบแล้วตาม id: refill 14457–14459, balance 65041, 65056 (ของ 11937) และ 65060–65064, 65077 (ของ 12601), balance_cn 2256–2259, bill_transfer 568, balance_withdraw 403–404, ips 491, user 12601 + session — นับหลังลบ = 0
+
+### bench (`bin/bench`, -n 20 -c 1 ×2 รอบ, `artisan optimize`; mean ms รอบ 2)
+
+| หน้า | เดิม mean ms (รอบ 1 / 2) | ใหม่ mean ms (รอบ 1 / 2) |
+|---|---|---|
+| `/transfer/417` (ลูกค้า 137) | 1072 / 529 | 90 / 94 |
+| `_transfer/grid` page 1 (ลูกค้า 137) | 570 / 667 | 61 / 72 |
+| `/admin/refill` | 695 / 676 | 72 / 105 |
+| `_admin/_refill/grid` page 1 | 590 / 314 | 80 / 48 |
+| `/admin/transfer/417` | 712 / 953 | 169 / 105 |
+| `_admin/_transfer/grid` page 1 | 71 / 101 | 42 / 75 |
+| `_admin/_withdrawcash/grid` page 1 | 106 / 85 | 132 / 42 |
+
+(-n 10 -c 1 ×2 รอบ, `artisan optimize`, เครื่องมี agent อื่นรันพร้อมกัน) · grid เล็กของ transfer/withdrawcash รอบ 1 ใกล้เคียงหรือช้ากว่าเดิมเล็กน้อย = overhead คงที่ของ Laravel (~25 ms) + โหลดเครื่องที่แกว่ง; รอบ 2 เร็วกว่าเดิม
+
+### test
+
+- `php8.4 vendor/bin/phpunit` ผ่านทั้งชุด (328 test, ข้าม 111 ที่ต้องใช้ DB)
+- `JL_BENCH_DB_TESTS=1` ชุดของกลุ่ม lot + money-move ผ่านทั้งหมด (`tests/Feature/{Lot,MoneyMove,Access}`, `Unit/Lot`, `Money/{MoneyMoveDbTest,DoubleSubmitDbTest,GridPerfDbTest,MoneyRulesTest}`, `SubmitGuardTest` — 78 test)
+- ทั้งชุด `JL_BENCH_DB_TESTS=1`: 33 ที่ล้มเป็นของกลุ่มอื่นทั้งหมด (ตาราง/คอลัมน์ SR-only ใน test ของ tracking/order/payment/shop/warehouse/reports/messaging, `Money/{BillGridDbTest,CartCheckoutDbTest,AdminWritesDbTest}` shelf, `Money/LegacyRisksDbTest` เปลี่ยนผู้ส่ง −670 ≠ −650 และ combine `date_section`) — ไม่ได้แก้
+
+### คำถามถึงเจ้าของ
+
+1. `_transfer/cancel` ของลูกค้าถูกปิดใน PACK (ลูกค้ายกเลิกเองไม่ได้) — พอร์ตตามนั้น (ตอบว่าง) ยืนยันหรือไม่
+2. `_admin/_transfer/save` ใช้กติกา jl port (บันทึกหลักฐานซ้ำบนรายการที่โอนแล้วได้; ปฏิเสธรายการที่ยกเลิก) — PACK เดิมไม่ตรวจอะไรเลย; SR ปฏิเสธทุกสถานะที่ไม่ใช่ 1 — ใช้แบบไหน
+3. สิทธิ์ถอนเงินแบบ SR (list/อนุมัติ/ยกเลิก = `admin_withdrawpoint` role 1/4, รายการ/grid = `admin_withdrawcash` role 1/3) — role 3 (บัญชี) เปิดรายการได้แต่อนุมัติไม่ได้ และ role 4 อนุมัติได้แต่เปิดหน้ารายการไม่ได้ (ตามเดิม) — ควรรวมเป็นสิทธิ์เดียวหรือไม่
+4. markup กล่องแนบไฟล์ใช้รุ่นเก่าของ PACK (ไม่มีการแก้ของ jl เรื่อง PDF/เลือกไฟล์ซ้ำ) — ต้องการนำการแก้ของ jl มาใช้หรือไม่
+
 ## SR (2026-10-20)
 
 branch `mod/money-move` · worktree `/home/admin/laravel/sr-wt/money-move` · dev `bin/wt-serve money-move` → http://127.0.0.1:8306 · เทียบกับเว็บเดิม SR :8111 (admin_sr_bench)

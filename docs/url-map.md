@@ -472,7 +472,7 @@ URL ajax = ชื่อไฟล์ตัด `.php` (เช่น `_tracking/gri
 | `_refill/grid.php` | `/_refill/grid` |  |  |
 | `_refill/index.php` | `/_refill/index` | refill |  |
 | `_refill/save.php` | `/_refill/save` |  |  |
-| `_transfer/cancel.php` | `/_transfer/cancel` |  |  |
+| `_transfer/cancel.php` | `/_transfer/cancel` |  | PACK: ไฟล์ถูก comment ทั้งไฟล์ → ตอบว่าง ไม่เขียนอะไร (หน้า transfer ไม่มีปุ่มยกเลิก) |
 | `_transfer/form.php` | `/_transfer/form` | transfer_detail |  |
 | `_transfer/grid.php` | `/_transfer/grid` |  |  |
 | `_transfer/index.php` | `/_transfer/index` | transfer |  |
