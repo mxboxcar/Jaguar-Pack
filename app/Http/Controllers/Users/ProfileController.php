@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\DB;
  *   POST /_profile/load_user_type_detail = เรตราคาของกลุ่มตัวเอง (id ที่ส่งมาไม่ถูกใช้ เหมือนเดิม)
  *   POST /_profile/load_role_detail      = รายการสิทธิ์ของ role ตัวเอง
  *   POST /_profile/pin                   = ตั้ง PIN ใหม่ / ยืนยัน PIN (กล่อง getPinBox/getNewPinBox)
- *   POST /_profile/save                  = (ยืนยัน PIN) บันทึกชื่อ/อีเมล/โทร/LINE/WeChat/ที่อยู่/รหัสผ่าน
+ *   POST /_profile/save                  = (ยืนยัน PIN) บันทึกชื่อ/LINE/WeChat/ที่อยู่/รหัสผ่าน (PACK ไม่บันทึกอีเมล/โทร)
  */
 class ProfileController extends Controller
 {
@@ -230,11 +230,16 @@ class ProfileController extends Controller
     }
 
     /**
-     * _profile/save.php ของ SR — ต้องยืนยัน PIN จ่ายเงินก่อน (getNewPinBox / getPinBox(0) / PIN ผิด) ผ่าน PinBox::guard (ตัวนับร่วม PinThrottle)
-     * แล้วบันทึกชื่อ/อีเมล/โทร/LINE/WeChat/ที่อยู่/รหัสผ่าน ของแถวตัวเองเท่านั้น
+     * _profile/save.php ของ PACK — ตรวจรหัสผ่านมี & ก่อน แล้วต้องยืนยัน PIN จ่ายเงิน (getNewPinBox / getPinBox(0) / PIN ผิด)
+     * ผ่าน PinBox::guard (ตัวนับร่วม PinThrottle) แล้วบันทึกชื่อ/LINE/WeChat/ที่อยู่/รหัสผ่าน ของแถวตัวเองเท่านั้น
+     * PACK ต่างจาก SR: ไม่บันทึก email/phone/phone2 (ฟอร์มส่งมาแต่ไม่ใช้) และไม่ห้ามรหัสผ่านซ้ำกับ username
      */
     public function save(Request $request): Response
     {
+        $password = $this->php($request, 'password');
+        if ($password !== '' && str_contains($password, '&')) {
+            return response(Alerts::error('CloseLoading()', 'รหัสผ่านห้ามมีเครื่องหมาย & (ampersand)'));
+        }
         $js = PinBox::guard($request, Legacy::user());
         if ($js !== null) {
             if (str_starts_with($js, 'ErrorBox(') && str_contains($js, 'PIN จ่ายเงินไม่ถูกต้อง')) {
@@ -244,19 +249,8 @@ class ProfileController extends Controller
 
             return response($js);
         }
-        $password = $this->php($request, 'password');
-        if ($password !== '' && str_contains($password, '&')) {
-            return response(Alerts::error('CloseLoading()', 'รหัสผ่านห้ามมีเครื่องหมาย & (ampersand)'));
-        }
-        $user = Legacy::user();
-        if (Php74::eq($password, $user?->getRawOriginal('username'))) {
-            return response(Alerts::error('CloseLoading()', 'ชื่อผู้ใข้และรหัสผ่านต้องไม่ตรงกัน'));
-        }
         $set = [
             'name' => $this->in($request, 'name'),
-            'email' => $this->in($request, 'email'),
-            'phone' => $this->in($request, 'phone'),
-            'phone2' => $this->in($request, 'phone2'),
             'lineid' => $this->in($request, 'lineid'),
             'wechatid' => $this->in($request, 'wechatid'),
             'address' => $this->in($request, 'address'),

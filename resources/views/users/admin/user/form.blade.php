@@ -124,9 +124,9 @@
 			        <div class="form-group">
 			            <label class="col-md-4 control-label"> {!! res('identity') !!}</label>
 			            <div class="col-md-8">
-			                {{-- SR: บัตรประชาชนเสิร์ฟจาก upload/ ของเว็บ (ไม่ใช่ Azure) — ลิงก์ไม่เปิดแท็บใหม่ตามที่เจ้าของสั่ง --}}
+			                {{-- PACK: บัตรประชาชนอยู่บน Azure (getupload เดิม — href_blob) ต่างจาก SR ที่เสิร์ฟจาก upload/ ของเว็บ --}}
 			                @php($idf = (string) ($data->identity ?? ''))
-			                @if ($idf === '')<div class="col-md-7  form-control-static">-</div>@elseif (preg_match('/\.(jpg|jpeg|png|gif)$/i', $idf))<a class='fancybox' href='{{ legacy_href('upload/'.$idf) }}'><img src='{{ legacy_href('upload/'.$idf) }}' style='max-width:200px;max-height:200px;' /></a>@else<a download href='{{ legacy_href('upload/'.$idf) }}'>{{ $idf }}</a>@endif
+			                @if ($idf === '')<div class="col-md-7  form-control-static">-</div>@else{!! \App\Domain\Settings\UploadBox::getupload('file', $idf) !!}@endif
 
 			            </div>
 			        </div>

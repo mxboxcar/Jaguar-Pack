@@ -306,9 +306,8 @@ class AdminUserController extends Controller
             return response(Alerts::success('window.location.href = "'.Legacy::href('admin/user').'";', Lang::get('success_process_no').Lookup::getPrefix('user').$newId));
         }
 
-        // SR: เปลี่ยนรหัสผ่านได้เฉพาะผู้บันทึกที่ role = 1 (checkUser()['role'] == 1)
-        $canSetPassword = Php74::eq(Legacy::user()?->getRawOriginal('role'), 1);
-        DB::transaction(function () use ($f, $password, $uid, $optionPrice, $userType, $id, $request, $canSetPassword) {
+        // PACK: ผู้มีสิทธิ์ admin_user เปลี่ยนรหัสผ่านได้ (SR จำกัดเฉพาะ role = 1)
+        DB::transaction(function () use ($f, $password, $uid, $optionPrice, $userType, $id, $request) {
             // เดิมไม่บันทึก email / phone / phone2 ตอนแก้ไข (คงไว้)
             $set = [
                 'name' => $f('name'), 'role' => $f('role'), 'code' => $f('code'), 'lineid' => $f('lineid'), 'wechatid' => $f('wechatid'),
@@ -316,7 +315,7 @@ class AdminUserController extends Controller
                 'option_price' => $optionPrice, 'address' => $f('address'), 'diff' => $f('diff'),
                 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
             ];
-            if ($canSetPassword && $password !== '') {
+            if ($password !== '') {
                 $set['password'] = LegacyCrypt::encrypt($password);
             }
             DB::table('user')->where('id', $id)->update($set);
