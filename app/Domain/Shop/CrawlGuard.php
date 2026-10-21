@@ -98,7 +98,28 @@ final class CrawlGuard
             'paid_orders' => $paid, 'ok' => $ok, 'reason' => $reason,
         ]);
 
-        return $ok ? null : json_encode(['product_name' => '', 'error' => 'true', 'message' => self::MSG], JSON_UNESCAPED_UNICODE);
+        return $ok ? null : json_encode(['product_name' => '', 'error' => 'true', 'message' => self::message($reason, $uid)], JSON_UNESCAPED_UNICODE);
+    }
+
+    /** ข้อความแจ้งลูกค้าเมื่อโควตาหมด ตามเหตุผลที่ปฏิเสธ */
+    public static function message(string $reason, int $uid = 0): string
+    {
+        if ($reason === 'user_hour') {
+            // นาทีจนครั้งที่เก่าสุดในชั่วโมงนี้หลุดออก
+            $m = (int) DB::table('crawl_guard_log')->where('user', $uid)->where('ok', 1)
+                ->whereRaw('`ts` >= CURDATE()')->whereRaw('`ts` >= NOW() - INTERVAL 1 HOUR')
+                ->value(DB::raw('60 - TIMESTAMPDIFF(MINUTE, MIN(`ts`), NOW())'));
+
+            return 'โควตาดึงสินค้าต่อชั่วโมงหมดแล้ว กรุณาลองใหม่ในอีก '.max(1, min(60, $m)).' นาที';
+        }
+        if (str_starts_with($reason, 'user_day_')) {
+            return 'โควตาดึงสินค้าของวันนี้หมดแล้ว ('.substr($reason, 9).' ครั้ง/วัน) ใช้ได้อีกครั้งหลังเที่ยงคืน';
+        }
+        if ($reason === 'ip_day' || $reason === 'net_day') {
+            return 'โควตาดึงสินค้าของเครือข่ายนี้วันนี้หมดแล้ว ใช้ได้อีกครั้งหลังเที่ยงคืน';
+        }
+
+        return self::MSG;
     }
 
     private static function digits(mixed $s): string

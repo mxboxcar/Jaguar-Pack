@@ -31,7 +31,8 @@ class ApiController extends ShopController
         $uid = $this->uid();
         $blocked = CrawlGuard::check($uid);
         if ($blocked !== null) {
-            return response($blocked)->header('Content-Type', 'application/json; charset=utf-8');
+            // text/html เหมือนตอนดึงได้ — หน้าเว็บเรียก $.parseJSON เอง ถ้าส่ง application/json jQuery จะแปลงให้ก่อนแล้ว parse ซ้ำพัง โหลดค้าง
+            return $this->out($blocked);
         }
 
         $url = $this->post($request, 'url');

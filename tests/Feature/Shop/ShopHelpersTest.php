@@ -53,6 +53,9 @@ class ShopHelpersTest extends TestCase
         $this->assertSame(45, CrawlGuard::userHourMax(50));
         $this->assertSame(90, CrawlGuard::userHourMax(150));
         $this->assertSame(90, CrawlGuard::userHourMax(300));
+        $this->assertSame('โควตาดึงสินค้าของวันนี้หมดแล้ว (150 ครั้ง/วัน) ใช้ได้อีกครั้งหลังเที่ยงคืน', CrawlGuard::message('user_day_150'));
+        $this->assertStringContainsString('เครือข่ายนี้', CrawlGuard::message('net_day'));
+        $this->assertSame(CrawlGuard::MSG, CrawlGuard::message('other'));
     }
 
     public function test_product_crawler_never_calls_out_when_external_disabled(): void
