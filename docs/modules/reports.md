@@ -1,5 +1,95 @@
 # กลุ่ม reports
 
+## PACK (2026-10-22)
+
+พอร์ตกลุ่ม reports ให้ตรงกับเว็บเดิมของ PACK (portal.pack-cargo.net) บน branch `mod/reports` — ตั้งต้นจากโค้ด SR ที่ fork มา
+PACK เป็นลูกผสม: บิลส่งสินค้าเป็นแบบ SR (ผู้ส่ง, ตัวกรองรับเอง/ส่งขนส่ง) แต่มี VAT/ส่วนลด/คูปองแบบ jl และ `_admin/_report/*` เหมือน jl ทุกตัวอักษร (diff 0) → ใช้โค้ด Laravel ของ jl
+คงทุกการแก้ช่องโหว่/การตัดสินใจของเจ้าของจาก jl/SR (escape, lock, double-submit guard, สถานะที่ยกเลิก/บันทึกได้, ไม่มี target="_blank", 404 → หน้าแรก)
+
+### ไฟล์เดิม → สถานะ (docs/pack-diff.md)
+
+| ไฟล์ | สถานะ |
+|---|---|
+| `_admin/_report/index.php`, `form.php`, `grid.php`, `else.php`, `else_preorder_working.php` (diff กับ SR, jl 0) | **ทำแล้ว** — คืนโค้ด jl: ไม่มีรายงานภาษีขาย type 97, ลิงก์ยอดเคลื่อนไหว 12 เดือนของปีนี้, ไฟล์ `export.xls` |
+| `_admin/_report/cashmove`, `current_cash`, `current_cash_cn`, `file`, `refill_5/6/7`, `shipping` | ไม่เปลี่ยน (same) — เทียบแล้ว (ต่างแค่เวลา generated; refill/shipping เดิม 500 PHPExcel ใหม่ = xlsx ตามการตัดสินใจของ jl) |
+| `_admin/_export/form.php` (diff 88) | **ทำแล้ว** — ปุ่มพิมพ์ปุ่มเดียว, ไม่มีรหัสย่อย, แถวคูปองส่วนลดท้ายบิล + VAT, ราคากิโล/คิว + แถวยอดรวมทั้งหมด + กล่อง "รายละเอียดการชำระ" (มีรหัสคูปอง) เฉพาะสิทธิ์ `admin_viewprice_on_payment`; ไม่มีสิทธิ์นี้ = รายการเงินเฉพาะ prefix export |
+| `_admin/_export/grid.php` (diff 23) | **ทำแล้ว** — ยอด `total - discount` เฉพาะสิทธิ์ `admin_viewprice_on_payment`, ป้าย VAT, ไม่มีลิงก์ใบเสร็จ, คอลัมน์จัดการ 60px (ตัวกรองรับเอง/ส่งขนส่งแบบ SR คงไว้) |
+| `_admin/_export/print.php` (same) + `print_2.php` (diff 41) | **ทำแล้ว** — โลโก้ `logo1.png` + เบอร์ PACK (ฝังในไฟล์เดิม), ไม่มีรหัสย่อย/ชั้นวาง, ท้ายตาราง 2 กิ่งเหมือนกัน, ช่องเซ็น "ผู้รับสินค้า/ผู้ออกสินค้า" |
+| `_admin/_export/email_success.php`, `email_cancel.php` (diff 33/24) | **ทำแล้ว** — ปุ่มสี `#eb4823`, ไม่มี LINE/push (ไฟล์ PACK ไม่มี); เปิดตรง = 403 (PACK มี hotfix บรรทัดแรกเหมือน SR) |
+| `_admin/_export/index.php`, `save_approved.php`, `save_delete.php` | ไม่เปลี่ยน (same) — E2E แล้ว |
+| `_export/form.php` (diff 64) | **ทำแล้ว** — ไม่มีรหัสย่อย, แถว "Discount" (`bill_payment.discount`) ทุกบิล, คูปองท้ายบิล, VAT, รหัสคูปองในกล่องการชำระ (ส่วนผู้ส่งแบบ SR คงไว้) |
+| `_export/grid.php` (diff 11) | **ทำแล้ว** — ยอด `total - discount` (ลบแบบ PHP 7.4), ป้าย VAT |
+| `_export/index.php`, `save_approved.php`, `save_delete.php` | ไม่เปลี่ยน (same) — E2E แล้ว |
+| `_dashboard/index.php` (diff 77) | **ทำแล้ว** — สี `#eb4823`, ตารางชั้นวาง (สิทธิ์ `admin_warehouse`) แสดงแค่หัวตาราง (PACK ไม่มีตาราง `warehouse_section*` → เดิม query ล้มเงียบ ไม่มีแถว; ไม่มี role ไหนถือสิทธิ์นี้), ข้อความตีลังไม้/ที่อยู่โกดังจีน/เบอร์จีน/ติดต่อโกดังไทยฝังตามไฟล์เดิม (SR อ่านจาก setting), ตารางราคาแสดงทุกคน (ไม่มีเงื่อนไข id 891 ของ SR) |
+| `download_file.php` (diff 11) | **ทำแล้ว** — ตาม hotfix ของ PACK: พนักงานที่ล็อกอิน (role ไม่ใช่ 0/2/8) แทนสิทธิ์ admin_lot/admin_lot_view ของ SR; ลูกค้า = 403 "forbidden"; ที่เหลือเหมือน SR (400 bad request / 404 not found / dev redirect) |
+| `_admin/_nobilling/index.php` (diff 13) | **dead / ลบแล้ว** — `content.php` ของ PACK ไม่มี case `admin_nobilling` (RewriteRule `admin/nobilling` ได้หน้า layout ว่าง) และไม่มีไฟล์ไหนลิงก์ → ลบ route/controller/view/test |
+| `_admin/_dashboard/index.php` (diff 6) | dead (ไม่มีใคร include — เหมือน jl/SR) |
+| `_admin/_log/*`, `print_header.php`, `print_footer.php` | ไม่เปลี่ยน (same) — เทียบแล้ว |
+| SR-only 9 ไฟล์: `_admin/_export/{calvat,print_3,print_receipt,printprice,receipt,receipt_1,receipt_2,save_receipt}.php`, `_admin/_report/printtax.php` | **ลบแล้ว** — PACK ไม่มีไฟล์และ `bill_payment` ไม่มีคอลัมน์ `receipt_*`: ลบ route `admin/export/receipt/{id}` + ajax ทั้งหมด, `AdminReceiptController`, `App\Domain\Reports\{Receipt,Running}`, view `reports/receipt/*`, `ReceiptCalcTest`, test ใบเสร็จ/เลขรันใน `ReportsSrDbTest`; ทำเครื่องหมาย dead ใน docs/url-map.md |
+
+ไม่มีไฟล์ pack-only ในกลุ่มนี้ (ฟีเจอร์ VAT/คูปองของ PACK อยู่ในไฟล์ข้างบน)
+
+### helper ในกลุ่ม
+- `ExportBill::coupon($id)` = `SELECT * FROM coupon WHERE payment_id = ? AND is_delete = '0'` แถวแรก (ไม่มีบิล = null)
+- `ExportBill::trackingRows($details, $admin, $prices)` / `balanceBox($id, $admin, $exportOnly)` รองรับสิทธิ์ `admin_viewprice_on_payment` (ตรวจใน controller ด้วย `perm()` — ยังไม่มีในฐานร่วม)
+- `UploadBox::single()` = `getupload()` ของ PACK (รุ่นแบบ jl: รูป = jpg/png/jpeg ตัวเล็ก/ใหญ่ทั้งคำ, ไฟล์อื่นเป็นลิงก์ class fancybox, อัปเสร็จ zip/rar/7z แสดงข้อความ ไม่มี hotfix เลือกไฟล์ซ้ำของ SR) — ตัด `multiple()` ที่ไม่มีใครใช้
+
+### ต่างจากเดิมโดยตั้งใจ (PACK)
+- ค่าจาก DB escape (เช่น `submit_remark` ที่มี HTML แสดงเป็นข้อความ) · ไม่มี `target="_blank"` (ในกล่องอัปโหลดด้วย)
+- `/export/0`: ไม่มีคูปอง/รายการเงิน (เดิม query คูปองด้วย `payment_id = ''` = ได้รหัสคูปองที่ยังไม่ถูกใช้ของใครก็ได้ — ดูช่องโหว่)
+- หน้าไม่มีสิทธิ์ (admin/export ของ role 4, export/{id} ของคนอื่น): หน้าแจ้งไม่มีสิทธิ์ของ Laravel (เดิมแสดงหัวหน้าแล้ว exit กลาง layout)
+- download_file ไม่ได้ล็อกอิน = ไปหน้า login (hotfix เดิม 403 "forbidden"); dev redirect ไป blob แทนการดึงไฟล์
+- `admin/nobilling` = 404 → หน้าแรก (เดิมได้ layout ว่าง เพราะ content.php ไม่มี page นี้)
+
+### ช่องโหว่/บั๊กเดิมของ PACK ที่เจอ
+- `_export/form.php` ที่ id ไม่มีอยู่จริง (`/export/0`): `SELECT * FROM coupon WHERE payment_id = ''` → MySQL แปลง '' เป็น 0 → ลูกค้าคนไหนก็เห็นชื่อ/มูลค่าคูปองที่ยังไม่ถูกใช้ (bench: เห็นรหัสจริง 50 บาท) — ใหม่ไม่ query
+- `_admin/_nobilling/index.php` ไม่มีสิทธิ์ = ErrorBox แต่ไม่ exit (แสดงข้อมูลต่อทั้งหน้า) — ไม่มีผลเพราะหน้าเปิดไม่ได้ใน PACK
+- `print.php` เขียน DB (`is_print`, `print_date`) ตอน GET — คงด่านกัน GET ข้ามเว็บของ jl/SR
+
+### เทียบ 1:1 กับ :8114 (session เดียวกัน, `diff -w` หลังแทน HREF)
+- ลูกค้า: dashboard (348, 11938), export, export/{id} (VAT 12635, คูปอง 8378 (ผู้ใช้ 37), ส่วนลด 465 (ผู้ใช้ 91), ผู้ส่งแบบกำหนดเอง 12391 (ผู้ใช้ 470), บิลคนอื่น, /export/0), `_export/grid` (ทุกสถานะ, ค้นหา, หน้า 2)
+- แอดมิน: admin/export, status/3, admin/export/{id} (role 1 และ role 7 ที่ไม่มีสิทธิ์ดูราคา, role 4), `_admin/_export/grid` (role 1/3/7 × ทุกตัวกรองรวม 4/5/-2, ค้นหา pack / pay-1263, หน้า 2–3; role 4 = ว่าง)
+- print: เรนเดอร์ไฟล์เดิมด้วย php7.4 แบบตัด UPDATE ออก (ไม่ยิง :8114 เพราะไฟล์เดิมเขียน DB) เทียบกับ Laravel 4 บิล = ตรงกัน (Laravel เขียน is_print ของบิลจริง 3 ใบ แล้วคืนค่า NULL เดิม)
+- รายงาน: admin/report (role 1, 3), admin/report/{1–13,20,98,99} + `_admin/_report/grid` ทุก type × มี/ไม่มีวันที่ × หน้า 1–2, file/else/else_preorder_working, cashmove, current_cash(_cn), refill_5/6/7, shipping; role 7 = grid ว่าง
+- admin/log + grid (หน้า 1–2, ค้นหา), download_file (ลูกค้า/role 4/แอดมิน × path ผิด/ถูก)
+- หลัง merge ฐานร่วม (0a4673f, d1d40c3): หน้าเต็ม (layout + เนื้อหา) ต่างกันแค่ `</script>` 1 บรรทัดของ layout
+- ผลตรงกันหมด ยกเว้นข้อที่ตั้งใจต่างข้างบน
+
+### E2E (ฝั่ง Laravel เท่านั้น, ผู้ใช้ 11937/11938, แถว zz_ บน admin_pack_bench)
+สร้างบิล zz_e2e 6 ใบ (12717–12720, 12723–12724) + คูปอง zz_COUPON + tracking 4 + เติมเงิน 100 แล้วส่ง POST ซ้อน 2 ครั้งพร้อมกัน:
+- `_export/save_approved` (สถานะ 0): สถานะ 1 + approved_date, balance -10.00 "ชำระเงิน PAY-…" type 3 prefix payment 1 แถว; อีก request ถูก `legacy.once` ปฏิเสธ
+- `_export/save_delete` (สถานะ 0): สถานะ -1, cancel_remark "zz_cancel ,ยกเลิกโดย ZZFDN1", balance_point -2.00 (300/150) 1 แถว, ไม่มีเงินคืน; request ที่ 2 = ErrorBox สถานะ
+- `_admin/_export/save_delete` (สถานะ 2): ปลด tracking, balance_point -2.00, คืนเงิน 450 1 แถว, อีเมลยกเลิก (log) ผู้ส่ง PACK-Cargo + ปุ่ม #eb4823; request ที่ 2 = "รายการถูกยืนยันไปแล้ว"
+- `_admin/_export/save_approved` (สถานะ 2 → 3): export_* ถูกต้อง, export_date = NOW(), tracking.date_finish, แถวค่าส่งในไทย type 4 ที่ใช้งาน 1 แถว (บันทึกซ้ำแทนแถวเดิมแบบไฟล์เดิม), อีเมลสำเร็จ
+- `_admin/_export/print`: is_print/print_date ของบิล zz, role 4 = "ERROR : access denied"
+- (รอบแรก 500 หลัง commit เพราะ laravel.log เป็นของ root จาก phpunit — ปัญหาสิทธิ์ไฟล์ของ dev ไม่ใช่โค้ด; แก้ด้วย bin/fix-perms แล้วทดสอบใหม่ด้วยบิลใหม่)
+- ลบแล้วตาม id: bill_payment 12717–12720, 12723–12724, coupon 10, tracking 99176/99177/99241/99242, balance 64802/64831/64833/64835/64836/64838–64840, balance_point 12448/12449/12451 — เหลือ 0 แถว
+
+### bench (`bin/bench`, n=20 c=1 รอบเดียว, artisan optimize; mean ms) — เครื่องโหลดสูง (load avg 8–11 จาก agent อื่น) ตัวเลขสูงกว่าปกติทั้งสองฝั่ง
+
+| หน้า | เดิม (7.4) | ใหม่ (Laravel) |
+|---|---|---|
+| dashboard (ลูกค้า 348) | 2590 | 258 |
+| `_export/grid` (ลูกค้า 348) | 1387 | 191 |
+| admin/export | 4172 | 169 |
+| `_admin/_export/grid` | 1596 | 268 |
+| admin/export/12635 | 3554 | 192 |
+| admin/report | 2652 | 101 |
+| `_admin/_report/grid` type 3 | 504 | 169 |
+
+### test
+- `php8.4 vendor/bin/phpunit` ผ่าน (320 tests, skipped 111 = DB tests)
+- `JL_BENCH_DB_TESTS=1 php8.4 vendor/bin/phpunit tests/Feature/Reports` ผ่าน (15 tests) · ทั้งชุด: ล้ม 2 + error 33 ในกลุ่มอื่นทั้งหมด (คอลัมน์/ตาราง SR-only: subuser, is_takeapic, tracking_check, warehouse*, refill.approved_user, bill_product.is_print/run_id, receipt_id; `BillGridDbTest::test_bill_detail_rows_follow_legacy_order_not_tracking_id` = PaymentController กับบิลที่ไม่มีแถว; `LegacyRisksDbTest` sender change -670 vs -650)
+- test ใหม่: `tests/Feature/Reports/ReportsPackDbTest.php` (คูปอง/VAT/Discount ในตาราง, สิทธิ์ดูราคา, กล่องรายการเงิน, grid total - discount + ป้าย VAT); `ReportsRoutesTest` ตรวจว่า route ใบเสร็จ SR และ admin/nobilling ไม่มีแล้ว, download_file = legacy.auth
+- ลบ: `ReceiptCalcTest`, `NobillingPagingTest`, test ใบเสร็จ/เลขรันใน `ReportsSrDbTest` (คง test หักแต้มตอนยกเลิก)
+
+### คำถามถึงเจ้าของ (PACK)
+1. download_file: ทำตาม hotfix ของ PACK (พนักงานทุก role ยกเว้น 0/2/8) ซึ่งกว้างกว่า SR (เฉพาะ admin_lot/admin_lot_view) — ใช้แบบ PACK ต่อหรือไม่
+2. หน้าแรกของลูกค้า: ข้อความตีลังไม้/ที่อยู่โกดังจีน/เบอร์ ฝังในไฟล์เดิมและต่างจาก setting ของ PACK (setting: "คิว*1,300", เบอร์ไทย 064-…; ไฟล์: "คิว*1,500", 063-…/062-…) — ตอนนี้ตามไฟล์เดิม ควรย้ายไปอ่าน setting แบบ SR หรือไม่
+3. `_export/save_approved` (ลูกค้ายืนยันชำระจากหน้า export) ตัดเงินเต็ม `total` แต่ grid แสดง `total - discount` (บิลเก่า 465: ชำระ -454 แต่คืน 4999) — คงตามไฟล์เดิม; ควรตัด/คืน `total - discount` หรือไม่ (ยกเลิกใน Laravel คืนเท่าที่ถูกตัดจริงอยู่แล้ว)
+4. admin/nobilling: PACK ไม่มีหน้า (content.php) แต่ NotificationController (กลุ่ม messaging) ยังมีลิงก์ "พัสดุค้างไม่ออกบิล" ของ SR — ให้กลุ่ม messaging ตรวจกับ notification.php ของ PACK
+5. สิทธิ์ `admin_warehouse` ไม่มี role ไหนถือใน PACK และไม่มีตาราง warehouse_section → ตารางชั้นวางในหน้าแรกไม่เคยแสดง (คงไว้แค่หัวตารางตามไฟล์เดิม)
+
 ## SR (2026-10-20)
 
 พอร์ตกลุ่ม reports ให้ตรงกับเว็บเดิมของ SR (portal.srshippingsystem.com) บน branch `mod/reports` — โค้ดตั้งต้นคือที่ jl พอร์ตไว้ (jl ไม่มีรายงานกลุ่มนี้ใน docs/modules; การตัดสินใจเดิมอยู่ใน commit ของ jl `bc30d08`, `05cf276`, `0da8e44`, `dc50fe2` และ docs/modules/payment.md ข้อ 15) — คงทุกการแก้ช่องโหว่/การตัดสินใจของเจ้าของจาก jl

@@ -19,6 +19,13 @@ class PointsLogicTest extends TestCase
         return json_decode(file_get_contents(__DIR__.'/../../fixtures/points-php74-cases.json'), true);
     }
 
+    public function test_withdraw_check_matches_php74(): void
+    {
+        foreach ($this->cases()['withdraw'] as [$want, $current, $invalid]) {
+            $this->assertSame($invalid, Rules::withdrawInvalid($want, $current), json_encode([$want, $current]));
+        }
+    }
+
     public function test_cashback_credit_check_matches_php74(): void
     {
         foreach ($this->cases()['credit'] as [$price, $credit]) {
@@ -68,8 +75,7 @@ class PointsLogicTest extends TestCase
             'POST _shop_cashback/save', 'POST _shop_cashback/save_remark',
             'POST _admin/_shop_cashback/grid', 'POST _admin/_shop_cashback/save', 'POST _admin/_shop_cashback/save_approved',
             'POST _admin/_shop_cashback/save_cancel', 'POST _admin/_shop_cashback/save_remark',
-            'GET _admin/_shop_cashback/email_approved', 'POST _admin/_shop_cashback/email_approved',
-            'GET _admin/_shop_cashback/email_cancel', 'POST _admin/_shop_cashback/email_cancel',
+            'POST _admin/_shop_cashback/email_approved', 'POST _admin/_shop_cashback/email_cancel',
         ];
         $have = [];
         foreach (Route::getRoutes() as $r) {

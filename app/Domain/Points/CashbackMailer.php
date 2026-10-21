@@ -10,9 +10,9 @@ use Illuminate\Support\Facades\Mail;
  * _admin/_shop_cashback/email_approved.php / email_cancel.php เดิม (include จาก save_approved / save_cancel)
  *
  * - อีเมล: เดิม sendmail() → Mailgun; ที่นี่ใช้ Mail ของ Laravel (dev: MAIL_MAILER=log = ไม่ส่งจริง) ห่อ try/catch เหมือนเดิม
- * - LINE / push: sendLine() และ push_notification() เดิมเป็นฟังก์ชันว่าง (โค้ดถูก comment) → ไม่ส่งอะไร
- * - แม่แบบ email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → SR: config('legacy.mail') (header/center/footer + ผู้ส่ง)
- * - SR: ปุ่ม "ดูรายละเอียด" width:100% สี #a3b2f1 padding 10px 0px (ของ jl สีแดง #991b1e); ลิงก์ไม่เปิดแท็บใหม่ (ไม่มี target="_blank" ตามนโยบาย)
+ * - PACK: ไม่มี sendLine() / push_notification() ในไฟล์ (SR/jl มี แต่เป็นฟังก์ชันว่าง) → ไม่ส่งอะไรนอกจากอีเมล
+ * - แม่แบบ email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → config('legacy.mail') (header/center/footer + ผู้ส่ง)
+ * - PACK: ปุ่ม "ดูรายละเอียด" width:100% สี #eb4823 padding 10px 0px (SR #a3b2f1, jl #991b1e); ลิงก์ไม่เปิดแท็บใหม่ (ไม่มี target="_blank" ตามนโยบาย)
  * - ค่าจาก DB (เลขคำสั่งซื้อ, เหตุผลยกเลิก) escape ก่อนใส่ HTML (เดิมต่อดิบ)
  */
 final class CashbackMailer
@@ -48,7 +48,7 @@ final class CashbackMailer
     {
         $head = DB::table('shop_cashback')->leftJoin('user', 'shop_cashback.user', '=', 'user.id')
             ->where('shop_cashback.id', (string) $cashbackId)
-            ->first(['shop_cashback.*', 'user.email', 'user.line_uid', 'user.id as userid']);
+            ->first(['shop_cashback.*', 'user.email']);
         $detail = DB::table('shop_cashback_detail')->where('id', (string) $detailId)->first();
 
         return [$head, $detail];
@@ -57,15 +57,13 @@ final class CashbackMailer
     private static function button(string $link): string
     {
         return "<div style=\"height:20px\"></div>\r\n"
-            ."<p style=\"width:100%;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 0px;\" >\r\n"
+            ."<p style=\"width:100%;text-align:center;font-size:15px;background-color:#eb4823;padding:10px 0px;\" >\r\n"
             .'<a style="color:#ffffff;text-decoration:none" href="'.$link."\" >ดูรายละเอียด</a></p>\r\n";
     }
 
     private static function send(string $kind, mixed $id, string $subject, string $body, string $to): void
     {
         $html = config('legacy.mail.header').'<strong>'.$subject.'</strong>'.config('legacy.mail.center').$body.config('legacy.mail.footer');
-        // sendLine()/push_notification() เดิมไม่ทำอะไร — ไม่ยิง LINE จริง
-        Log::info('points notify (LINE disabled like legacy sendLine no-op)', ['kind' => $kind, 'id' => $id]);
         try {
             if ($to === '') {
                 throw new \RuntimeException('no recipient');

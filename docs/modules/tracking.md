@@ -1,5 +1,100 @@
 # กลุ่ม tracking — รายงานการพอร์ต
 
+## PACK (2026-10-22)
+
+branch `mod/tracking` (ทำกลุ่ม warehouse ใน worktree เดียวกัน — ดู docs/modules/warehouse.md) · worktree `/home/admin/laravel/pack-wt/tracking` · dev http://127.0.0.1:8801 · เทียบกับ PACK เดิม :8114 (`admin_pack_bench`)
+merge main (ฐานร่วม PACK: 0a4673f, d1d40c3) แล้ว — หัวข้อ SR ด้านล่างยังใช้ได้กับ PACK ยกเว้นที่ระบุในหัวข้อนี้
+
+### สิ่งที่เปลี่ยนสำหรับ PACK (ตาม `docs/pack-diff.md` กลุ่ม tracking: 14 diff + 4 SR-only)
+
+| ไฟล์เดิม | สถานะ | ที่ทำ |
+|---|---|---|
+| `_tracking/index.php` | diff 2 | ปุ่ม "เพิ่มรายการใหม่" แสดงเฉพาะผู้ใช้ประเภท 2 (นำเข้าสินค้า) หรือประเภทที่ `user_type.child = 2` (`TrackingController::canAdd()`) |
+| `_tracking/save.php` | diff 59 | ไม่ตรวจสิทธิ์ `tracking` (comment ไว้ในไฟล์เดิม) แต่ตรวจประเภทผู้ใช้แบบเดียวกับปุ่ม → ไม่ผ่าน = `getPermissionAlert('tracking')` เดิม (route = `legacy.auth` + ตรวจใน controller); แก้ไข = **เปลี่ยนเลขพัสดุตามที่ส่งมาได้** (แบบ jl) และข้อความท้ายแสดงเลขว่าง (เดิม `$data` ถูกแทนด้วยแถว bill_product_on_tracking); ไม่มี `is_takeapic` / `tracking_check` |
+| `_tracking/form.php` | diff 54 | ไม่มีช่อง "ถ่ายรูป", select ไม้/QC ไม่มี `onchange="openmodals()"`, ไม่มี modal "มีค่าใช้จ่าย…" — การ์ดรูป (`tracking_image`) ยังอยู่ |
+| `_tracking/grid.php` | diff 16 | ไม่มีคอลัมน์ "รหัสลูกค้า" (subuser) และแถว "ถ่ายรูป" — คอลัมน์ไฟล์แนบ (`tracking_image`) ยังอยู่ |
+| `_admin/_tracking/grid.php` | diff 72 | จำนวนหน้าอยู่ท้ายตารางในคำตอบเลย (`MakePaging($rows)` + `getpaging()`; ไม่มี `load_paging` ของ SR), ค้นเลขแทรค/ออเดอร์แบบขึ้นต้น (`LIKE 'x%'`), ไม่มีคอลัมน์ "จัดการชั้นวาง" (warehouse_section), ลิงก์ล็อตใช้ `tracking.lot_id` + ชื่อจาก LEFT JOIN, รหัสลูกค้าไม่มี subuser, ไม่มีแถว "ถ่ายรูป" |
+| `_admin/_tracking/form.php` | diff 17 | ไม่มีช่อง "รหัสย่อย" (subuser) / "ถ่ายรูป"; เพิ่ม `setTimeout(... removeClass('validate[requiredattachment]'), 1000)` ของ PACK |
+| `_admin/_tracking/save.php` | diff 7 | ไม่บันทึก `subuser` / `is_takeapic` (PACK ไม่มีคอลัมน์) — รูป `tracking_image` เหมือน SR; `nobody` = `config('legacy.nobody')` = `PACKnocode` (ฐานร่วม) |
+| `_admin/_combine_track/save_combine.php` + `CombineTrack()` | diff 15 | 40 คอลัมน์ของตาราง PACK (ไม่มี date_section/subuser/is_takeapic); INSERT VALUES เดิมของ PACK ครบคอลัมน์ (ไม่มีปัญหาสลับคอลัมน์/ข้อมูลหายแบบ SR/jl) — ผลเท่ากับ INSERT ตามชื่อคอลัมน์; ย้ายรูปที่ยังไม่ลบเหมือนเดิม |
+| `_admin/_lost_package/form.php` | diff 14 | JOIN `bill_product.exchange_rate` + ช่อง "฿" `cashback_th` (ค่าเริ่มต้น = cashback × อัตรา คูณแบบ PHP 7.4) และ JS ส่ง `cashback_th` |
+| `_admin/_lost_package/save_approved.php` | diff 15 | **คืนเงินตามยอดบาท** `cashback_th` ที่กรอก: `balance.amount = cashback_th`, `lost_package.cashback = round(cashback_th / อัตรา, 2)` (round แบบ PHP 7.4 — `Php74::round()`), detail `¥<float แบบ 7.4> * <อัตรา>฿` (เช่น `¥77` ไม่ใช่ `¥77.00`); ค่า `cashback` (¥) ที่ส่งมาไม่ถูกใช้ |
+| `_admin/_lost_package/grid.php` | diff 10 | ค้นด้วยเลขรายการ หรือ รหัสลูกค้า (ไม่มีเลขออเดอร์แบบ SR), ไม่มี `white-space`/`word-break` |
+| `_admin/_lost_package/email_approved.php`, `email_cancel.php` | diff 21/24 | ปุ่มสี `#eb4823`, แม่แบบ header/center/footer + ผู้ส่งจาก `config('legacy.mail')` (ฐานร่วม: PACK-Cargo `<no-reply@pack-cargo.net>`), ไม่มีส่วน LINE/push |
+| `_lost_package/upload.php` | diff 20 | ต่างแค่เครื่องหมายคำพูดของ hotfix — ไม่ต้องแก้ |
+| `getupload()` / `getuploadmultiple()` (ของกลาง) | — | PACK เป็นรุ่นเก่า: ไฟล์ไม่ใช่รูป = ลิงก์ fancybox, ไม่มี `change.reselect`, อัป zip/rar/7z = ใส่ข้อความตอบกลับ, ปุ่มลบรูปใหม่ `$(this).parent().remove()` → `App\Domain\Tracking\UploadBox` และสำเนา `App\Domain\Warehouse\UploadBox` (ต้องเหมือนกัน — test) |
+| ไฟล์ `same` อีก 23 ไฟล์ | same | ไม่ต้องแก้ — เทียบผลกับ :8114 แล้วตรงกัน |
+
+### SR-only ที่ลบ (dead ใน PACK)
+
+- `_admin/_check/index.php`, `save_clear.php`, `save_clearall.php` (หน้า `admin/check`, ตาราง `tracking_check`) — PACK ไม่มีไฟล์ ไม่มี RewriteRule ไม่มี page ใน content.php ไม่มีตาราง → ลบ route/`CheckController`/`TrackingChecks`/view/test
+- `_admin/_tracking/load_paging.php` — PACK นับหน้าใน grid เอง → ลบ route/`loadPaging()`
+- คอลัมน์ `tracking.is_takeapic` / `subuser` / `date_section` และชื่อชั้นวาง (`TrackingLookups::sectionNames`, ตาราง warehouse_section*) — ลบออกจาก controller/view/CombineTrack
+- URL เหล่านี้บน Laravel = 404 → หน้าแรก (เหมือนเว็บเดิมที่ไม่มีหน้า) · `docs/url-map.md` ทำเครื่องหมาย dead แล้ว
+
+### pack-only
+
+- `track_external.php` (หน้าค้นเลขพัสดุสาธารณะ ไม่ต้องล็อกอิน, ฟอร์ม POST ไป `track_external`): **ไม่พอร์ต** ตามที่ผู้ประสานงาน/ฐานร่วมตัดสิน — ไม่มีหน้าใดลิงก์ถึง, SQL injection (`$_POST['search']` ต่อ SQL), reflected XSS (`value="<?php echo $_POST['search'] ?>"`), ไม่กรอง `is_delete`, เปิดเผยรหัสลูกค้า/ล็อต/เลขบิล/รูปหลักฐานส่งของ (`export_tracking`) ให้ทุกคนที่รู้เลขพัสดุ → รอเจ้าของ (คำถามข้อ 1) · Laravel `/track_external` = 404 → หน้าแรก
+- `tracking_image`: ใช้ใน `_tracking/form|grid`, `_admin/_tracking/form|grid|save`, `save_combine`/`CombineTrack()` (ของกลุ่มนี้ — พอร์ตแล้วจาก SR) และ `_admin/_lot/*`, `_payment/load_create.php` (กลุ่ม lot/payment)
+
+### ต่างจาก PACK เดิมโดยตั้งใจ (เพิ่มจาก SR/jl)
+
+- **RollBack ของ lost_package หาแถวคืนเงินไม่เจอ (เงิน)**: `rollback.php` หาแถวด้วย `detail = '... ¥'.lost_package.cashback` (ค่าจาก DB เช่น `77.00`) แต่ `save_approved.php` ของ PACK เขียน `¥77` (float) → ยอดที่ไม่มีเศษสตางค์ 2 หลักหาไม่เจอ = RollBack **ไม่หักเงินคืน** แต่ตั้งสถานะกลับเป็นรอ → อนุมัติใหม่ = **คืนเงินซ้ำ** (เจอในข้อมูลจริง: LOS-1519 ลูกค้า 60 คืน ¥48 → rollback ไม่หัก → คืน ¥88 = ได้เกิน 244.80 บาท; LOS-1484 เกิน 1.00) → ใหม่ยอมรับ detail ทั้งสองรูปแบบ
+- `save_approved`: ออเดอร์ไม่มีอัตราแลกเปลี่ยน (0/ไม่พบ) = ErrorBox ไม่ทำอะไร (เดิมหารศูนย์ → cashback = 0 แต่ยังคืนเงินเต็มยอดบาท) · ยอดบาทติดลบ = ปฏิเสธ (การแก้เงินเดิม ย้ายมาตรวจ `cashback_th`)
+- `_admin/_tracking/grid`: นับด้วย `COUNT` (เดิมดึงทุกแถว + JOIN มานับด้วย `mysqli_num_rows` — ค้นว่าง = 73K แถวทุกครั้ง ~2 วินาที)
+- หน้า dead (`admin/check`, หน้า warehouse ทั้งหมด): 404 → หน้าแรก (เว็บเดิม: admin/check = 404, admin/warehouse* = layout เปล่า)
+
+### พฤติกรรมเดิมที่คงไว้
+
+- `_tracking/save` ใช้แค่ประเภทผู้ใช้: ลูกค้า type 3 / ลูก type 3 (769 จาก 1,012 คนใน bench รวม 348 และ zz_fdn_cust) เปิดหน้า `tracking/create` ได้ (สิทธิ์ `tracking`) แต่บันทึกไม่ได้ (ErrorBox สิทธิ์); บัญชีพนักงานที่ไม่มีสิทธิ์ `tracking` แต่เป็น type 2 บันทึกได้
+- กล่องอัปโหลดรุ่นเก่า: ไฟล์ pdf เดิมแสดงเป็นลิงก์ fancybox (เปิดในกล่องรูปไม่ได้ — jl/SR แก้แล้วแต่ PACK ยังไม่แก้)
+
+### ตรวจเทียบกับ :8114 (cookie เดียวกัน, เทียบเฉพาะส่วนเนื้อหา, แทน href + ตัด target=_blank + class noti ของ layout)
+
+ตรงกันทุกตัวอักษร: `/tracking` (ลูกค้า 9 = type 2 มีปุ่ม, ลูกค้า 348 = ไม่มีปุ่ม), `/tracking/create`, `/tracking/{id}` (ไม่มีล็อต / มีล็อต+บิล), `_tracking/grid` (หน้า 1/2, สถานะ 0/2/3, ค้นหา, ภาษา cn), `load_pricing`, `load_product_type` (ลูกค้า+แอดมิน),
+`/admin/tracking`, `/admin/tracking/{create,99022 (มีรูป),91150,33}`, `_admin/_tracking/grid` (หน้า 1/2/5000, ค้นเลขแทรคขึ้นต้น, ship 0/1, รหัสลูกค้า, ออเดอร์, ภาษา en; แอดมิน + role 7), `/admin/combine_track`, `load_tracking` (มีผล/ไม่มีผล),
+`/admin/lost_package`, `/admin/lost_package/{create,1758 (รอ — ช่อง ฿ 762.84),1747 (อนุมัติ),1757 (ยกเลิก)}` (+cn), `_admin/_lost_package/grid` (หน้า 1/2, ค้นรหัสลูกค้า/เลขรายการ/เลขออเดอร์ = ไม่พบ, สถานะ), `/lost_package` (+create/id/status), `_lost_package/grid`, `load_upload`, `load_order_number`
+ต่างตามที่ตั้งใจ: JS หน้า combine (eval ErrorBox), หน้าไม่มีสิทธิ์ (ลูกค้าเปิดหน้าแอดมิน: เดิมพิมพ์หัวหน้าก่อน alert), dead URL ด้านบน · ajax แอดมินที่ไม่มีสิทธิ์ (ลูกค้า, role 6) ตอบว่าง/ErrorBox เหมือนเดิม
+
+### E2E งานเขียน (ฝั่ง Laravel :8801 เท่านั้น, แถว `ZZE2E*`/`zz_e2e*`, ผู้ใช้ 11937/11938 — ลบตาม id แล้ว ตรวจไม่เหลือแถว)
+
+- ลูกค้า (11938 type 2) สร้าง tracking ยิงซ้อน 2 คำขอ → 1 แถว (คำขอที่สอง "ส่งซ้ำ"), คอลัมน์ตรงกับ INSERT เดิม; แก้ไข → เลขพัสดุเปลี่ยน + ข้อความเลขว่าง; 11937 (type 3) สร้าง/แก้ = ErrorBox สิทธิ์ ไม่มีอะไรเปลี่ยน; ลูกค้าลบ
+- แอดมินบันทึก (รูป `zz_e2e_a.jpg` + `../../x.php` → เก็บรูปเดียว, ไม่มี subuser/is_takeapic), สร้างใหม่ยิงซ้อน → 1 แถว, รวม 2 แถว (ยิงซ้อน) → แถวใหม่ 1 แถว + รูป 2 รูปย้าย, save_lock (-3), ลบ
+- lost_package: ลูกค้าแจ้ง (ยิงซ้อน → 1 แถว) → อนุมัติ ฿65.00 (ยิงซ้อน → balance 1 แถว `¥12.5 * 5.200฿`, cashback 12.50) → RollBack (-65.00) → อนุมัติ ฿52 (`¥10 * 5.200฿`, cashback 10.00) → RollBack หักได้ (เดิมหาไม่เจอ) → ยอดติดลบถูกปฏิเสธ → save_remark → ลูกค้ายกเลิก → แอดมินยกเลิกซ้ำถูกปฏิเสธ; อีเมลลง log (From `PACK-Cargo <no-reply@pack-cargo.net>`, ปุ่ม #eb4823)
+- goodsconfirm (กลุ่ม warehouse): ดูใน docs/modules/warehouse.md
+- ลบแล้ว: tracking 99374/99380/99394–99403, tracking_image 47229/47230, bill_product 20605/20606, lost_package 1786/1787, balance 64881–64888, goodsconfirm 60–63, goodsconfirm_detail 51/52
+
+### Bench (`bin/bench -n 15 -c 1`, `artisan optimize`; เครื่องโหลดสูง load 7–14 จาก agent อื่น — ตัวเลขเดิมผันผวนมาก)
+
+| หน้า | เดิม mean ms | ใหม่ mean ms |
+|---|---|---|
+| `/admin/tracking` (แอดมิน) | 1140–2795 | 117–170 |
+| `_admin/_tracking/grid` หน้า 1 (ค้นว่าง, 73K แถว) | 2257–2650 | 128–130 |
+| `/tracking` (ลูกค้า 9) | 583 | 75 |
+| `_tracking/grid` หน้า 1 (ลูกค้า 9) | 164 | 78 |
+| `_admin/_lost_package/grid` | 207 | 72 |
+
+`_admin/_tracking/grid` เดิมช้าเพราะดึงทุกแถวมานับ (ดูหัวข้อต่างโดยตั้งใจ); ab นับขนาดคำตอบเดิมที่ต่างกันเป็น failed 5 ครั้ง (ไม่ใช่ error)
+
+### Test
+
+- `tests/Feature/Tracking/TrackingRoutesTest.php`: สิทธิ์ route ของ PACK (`_tracking/save` = `legacy.auth`), URL SR-only + `track_external` ไม่มี route, markup กล่องอัปโหลด PACK (และสำเนา warehouse เท่ากัน), `Php74::round()` แบบ 7.4, CombineTrack 40 คอลัมน์
+- `tests/Feature/Tracking/TrackingPackDbTest.php` (แทน TrackingSrDbTest; JL_BENCH_DB_TESTS=1, rollback): กติกาประเภทผู้ใช้ (type 2 / child 2 / type 3), แก้เลขพัสดุ, IDOR, แอดมินบันทึก+รูป, grid แอดมินนับหน้าในคำตอบ + ค้นขึ้นต้น, combine, save_remark
+- `tests/Feature/Money/LostPackageDbTest.php`: ปรับเป็น `cashback_th` + test ใหม่ (round 7.4, detail float, RollBack หาแถว `¥77` เจอ, อัตรา 0 = ปฏิเสธ)
+
+### คำถามถึงเจ้าของ
+
+1. `track_external.php` (หน้าค้นเลขพัสดุสาธารณะ) — ไม่พอร์ตตามที่ตกลง ถ้าต้องการ ต้องตัดสินใจ: เปิดสาธารณะต่อไหม, แสดงอะไรบ้าง (รหัสลูกค้า/เลขบิล/รูปหลักฐาน), กรองรายการที่ลบไหม, จำกัดความถี่
+2. lost_package RollBack ที่หาแถวคืนเงินไม่เจอในเว็บเดิม (คืนเงินซ้ำ) — Laravel แก้แล้ว; ข้อมูลเดิมที่ได้เงินเกินใน bench (= clone ของจริง): LOS-1519 (ลูกค้า 60) เกิน 244.80, LOS-1484 (ลูกค้า 55) เกิน 1.00 — จะให้ปรับยอดไหม (ไม่ได้แตะข้อมูล)
+3. ยืนยันการปฏิเสธอนุมัติเมื่อออเดอร์ไม่มีอัตราแลกเปลี่ยน (ใน bench ไม่มีกรณีนี้)
+4. `_tracking/save` ของ PACK ไม่ตรวจสิทธิ์ `tracking` แต่ใช้ประเภทผู้ใช้ — คงไว้ตามเดิม (ลูกค้าประเภท 3 เปิดหน้าเพิ่มได้แต่บันทึกไม่ได้)
+
+### ฝากกลุ่มอื่น
+
+- reports/dashboard: `_dashboard/index.php` เดิมคิดพื้นที่ชั้นวางจาก `warehouse_section(_detail)` ซึ่ง PACK ไม่มี (เดิม SQL error → ว่าง)
+- messaging: แจ้งเตือน "รายการรอเช็ค" (`tracking_check`) — PACK ไม่มีตาราง
+- lot / payment / order / shop / reports: ยังมีโค้ดอ้าง `is_takeapic` / `subuser` / `date_section` / `warehouse_section*` (`app/Domain/Lot/LotPrint.php`, `AdminLotSaveController`, `Payment*Controller` + view, `OrderDetailRenderer`, `CartHtml`, `ExportBill`, `NotificationController`) — ณ เวลาที่ตรวจ
+
 ## SR (2026-10-20)
 
 branch `mod/tracking` ของ repo sr · worktree `/home/admin/laravel/sr-wt/tracking` · dev http://127.0.0.1:8301 · เทียบกับ SR เดิม :8111 (`admin_sr_bench`)

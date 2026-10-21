@@ -11,9 +11,9 @@ use Illuminate\Support\Facades\Mail;
  * _admin/_export/email_success.php, email_cancel.php เดิม (include จาก save_approved.php / save_delete.php ด้วย $email_id)
  *
  * - อีเมล: เดิม sendmail() → Mailgun; ที่นี่ใช้ Mail ของ Laravel (dev: MAIL_MAILER=log = ไม่ส่งจริง) ห่อ try/catch เหมือนเดิม
- * - LINE / push: sendLine(), sendLineImage(), push_notification() เดิมเป็นฟังก์ชันว่าง (โค้ดถูก comment) → ไม่ส่งอะไร
- * - แม่แบบ email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → SR: config('legacy.mail') (header/center/footer + ผู้ส่ง ร่วมกับกลุ่มอื่น)
- * - SR: ปุ่ม "ดูรายละเอียด" สี #a3b2f1, padding 10px 25px 10px 0px
+ * - PACK: ไฟล์เดิมไม่มี LINE / push_notification (SR มี) → ส่งอีเมลอย่างเดียว
+ * - แม่แบบ email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → config('legacy.mail') (header/center/footer + ผู้ส่ง ร่วมกับกลุ่มอื่น)
+ * - PACK: ปุ่ม "ดูรายละเอียด" สี #eb4823, padding 10px 25px 10px 0px
  * - ค่าจาก DB (หมายเหตุ/เหตุผลยกเลิก, ชื่อไฟล์แนบ) escape ก่อนใส่ HTML (เดิมต่อดิบ)
  */
 final class ExportMailer
@@ -50,21 +50,19 @@ final class ExportMailer
     private static function payment(int|string $id): ?object
     {
         return DB::table('bill_payment')->leftJoin('user', 'bill_payment.user', '=', 'user.id')
-            ->where('bill_payment.id', $id)->first(['bill_payment.*', 'user.email', 'user.line_uid', 'user.id as userid']);
+            ->where('bill_payment.id', $id)->first(['bill_payment.*', 'user.email']);
     }
 
     private static function button(string $link): string
     {
         return "<div style=\"height:20px\"></div>\n"
-            ."<p style=\"width:200px;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 25px 10px 0px;\" >\n"
+            ."<p style=\"width:200px;text-align:center;font-size:15px;background-color:#eb4823;padding:10px 25px 10px 0px;\" >\n"
             .'<a style="color:#ffffff;text-decoration:none" href="'.$link."\" >ดูรายละเอียด</a></p>\n";
     }
 
     private static function send(string $kind, int|string $id, string $subject, string $body, string $to): void
     {
         $html = config('legacy.mail.header').'<strong>'.$subject.'</strong>'.config('legacy.mail.center').$body.config('legacy.mail.footer');
-        // sendLine()/sendLineImage()/push_notification() เดิมไม่ทำอะไร — ไม่ยิง LINE จริง
-        Log::info('export notify (LINE disabled like legacy sendLine no-op)', ['kind' => $kind, 'id' => $id]);
         try {
             if ($to === '') {
                 throw new \RuntimeException('no recipient');

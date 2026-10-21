@@ -10,15 +10,15 @@ use Tests\Concerns\FakeLegacyUser;
 use Tests\TestCase;
 
 /**
- * กลุ่ม balance ของ SR (2026-10-20) — ไม่แตะ DB จริง
- * - _balance/save_withdraw.php ของ SR: ถาม PIN จ่ายเงินก่อน (กล่องต่อท้าย .cashback_form, callback withdrawcashing())
+ * กลุ่ม balance ของ PACK (2026-10-22; PIN / รายสัปดาห์ = SR 2026-10-20) — ไม่แตะ DB จริง
+ * - _balance/save_withdraw.php ของ PACK: บัญชีดำก่อน แล้วถาม PIN จ่ายเงิน (กล่องต่อท้าย .cashback_form, callback withdrawcashing())
  * - ถอนได้ 1 รายการต่อสัปดาห์ (จันทร์–อาทิตย์ ตาม strtotime("last monday") ของเดิม)
  */
-class BalanceSrTest extends TestCase
+class BalancePackTest extends TestCase
 {
     use FakeLegacyUser;
 
-    /** ค่าจาก php7.4 ด้วยนิพจน์เดิมของ SR (Asia/Bangkok) */
+    /** ค่าจาก php7.4 ด้วยนิพจน์เดิมของ SR/PACK (Asia/Bangkok) */
     public function test_week_range_matches_php74(): void
     {
         $cases = [
@@ -60,5 +60,28 @@ class BalanceSrTest extends TestCase
         }
         // ยอด "1,00" ผิดรูปแบบ แต่ PIN ผิดตอบก่อน (ลำดับเดิม)
         $this->assertSame("ErrorBox('PIN จ่ายเงินไม่ถูกต้อง', 'CloseLoading()');", $this->withdraw(['paymentpin' => '000000']));
+    }
+
+    /** PACK: บัญชีดำตรวจก่อน PIN (ยังไม่มี PIN / ยังไม่กรอก / PIN ผิด ก็ได้ข้อความบัญชีดำ) — SR ตรวจหลังรายสัปดาห์ */
+    public function test_withdraw_checks_the_blocklist_before_the_pin(): void
+    {
+        $this->setUpLegacyWorld();
+        DB::shouldReceive('table')->never();
+        $file = tempnam(sys_get_temp_dir(), 'zzbl');
+        file_put_contents($file, "<?php
+\$BLOCKED_PERSONS = ['zzมิจฉาชีพทดสอบ' => ['name' => 'zz มิจฉาชีพ ทดสอบ', 'reason' => 'zz']];
+");
+        config(['legacy.blocklist_file' => $file, 'legacy.blocklist_hit_log' => '']);
+        $list = new \ReflectionProperty(\App\Support\Legacy\Blocklist::class, 'list');
+        $list->setValue(null, null);
+        try {
+            $blocked = "ErrorBox('ไม่สามารถบันทึกข้อมูลบัญชีนี้ได้ กรุณาติดต่อเจ้าหน้าที่', 'CloseLoading()');";
+            foreach ([[[], ''], [['paymentpin' => ''], '123456'], [['paymentpin' => '000000'], '123456']] as [$post, $pin]) {
+                $this->assertSame($blocked, $this->withdraw($post + ['branch_name' => 'นาย zz มิจฉาชีพ ทดสอบ'], $pin));
+            }
+        } finally {
+            $list->setValue(null, null);
+            @unlink($file);
+        }
     }
 }
