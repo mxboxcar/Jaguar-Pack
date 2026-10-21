@@ -41,7 +41,7 @@ class SettingsRoutesTest extends TestCase
         'POST _admin/_shipping_type/save_new_price_by_cubic' => ['legacy.ajax', 'legacy.perm:admin_shipping_type'],
         'POST load_quick_search' => ['legacy.ajax', 'legacy.auth'],
         'POST get_price' => ['legacy.ajax', 'legacy.perm:view_bol'],
-        'POST system_upload' => ['legacy.ajax', 'legacy.auth'],
+        'POST system_upload' => ['legacy.ajax', 'legacy.auth_or_signup'],
         'POST system_upload_2' => ['legacy.ajax', 'legacy.auth'],
         'POST system_ckupload' => ['legacy', 'legacy.auth'], // SR: CKEditor ส่ง form เข้า iframe (ไม่ใช่ XHR)
         'GET index_close' => ['legacy'],

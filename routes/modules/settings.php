@@ -73,10 +73,9 @@ Route::post('/load_quick_search', QuickSearchController::class)->middleware(['le
 Route::post('/get_price', PriceController::class)->middleware(['legacy.ajax', 'legacy.perm:view_bol']);
 
 // ---------- อัปโหลดไฟล์ชั่วคราว (getupload*/dropper) — เดิมไม่ตรวจล็อกอิน ----------
-Route::middleware(['legacy.ajax', 'legacy.auth'])->group(function () {
-    Route::post('/system_upload', [UploadController::class, 'upload']);
-    Route::post('/system_upload_2', [UploadController::class, 'upload2']);
-});
+// system_upload: หน้าสมัคร (ยังไม่ล็อกอิน) แนบสำเนาบัตรได้ — legacy.auth_or_signup (2026-10-21)
+Route::post('/system_upload', [UploadController::class, 'upload'])->middleware(['legacy.ajax', 'legacy.auth_or_signup']);
+Route::post('/system_upload_2', [UploadController::class, 'upload2'])->middleware(['legacy.ajax', 'legacy.auth']);
 // SR: system_ckupload.php — ปุ่มอัปโหลดรูปของ CKEditor (form ส่งเข้า iframe ไม่ใช่ XHR → ไม่ใช้ legacy.ajax; CSRF = Origin/Referer)
 // เดิม: ผู้ถือ admin_notice/admin_mall หรือใครก็ได้ที่ล็อกอิน = ผู้ที่ล็อกอินทุกคน
 Route::post('/system_ckupload', [UploadController::class, 'ckupload'])->middleware('legacy.auth');

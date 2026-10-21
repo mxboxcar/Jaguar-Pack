@@ -56,6 +56,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'legacy.auth' => LegacyAuthenticate::class,
+            'legacy.auth_or_signup' => \App\Http\Middleware\LegacyAuthOrSignupUpload::class,
             'legacy.perm' => LegacyPermission::class,
             'legacy.ajax' => LegacyAjaxOnly::class,
             'legacy.own' => LegacyOwnUserOrPermission::class,
