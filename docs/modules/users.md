@@ -1,5 +1,84 @@
 # กลุ่ม users — รายงานการพอร์ต
 
+## PACK (2026-10-22)
+
+branch `mod/users` (รวมกลุ่ม settings ใน worktree เดียวกัน) · worktree `/home/admin/laravel/pack-wt/users` · port 8810 · เทียบกับ PACK เดิม :8114 (`/home/admin/bench/pack-old`, DB `admin_pack_bench`) ด้วย session เดียวกัน:
+แอดมิน 11938 (role 1), role 4 = 302, role 7 = 923, role 3 = 524, role 6 = 5, ลูกค้า role 2 = 348 / 11937, ผู้สมัครที่ยังไม่มี role (role 0) = 1066
+
+### ไฟล์ตาม docs/pack-diff.md
+
+| ไฟล์ | ผล |
+|---|---|
+| `_admin/_role/*`, `_admin/_user_type/*`, `_admin/_user/{index,grid,cancel,delete,save_approved,load_*,rate_history*,btn_*,email_cancel}`, `_profile/{load_*,pin}`, `_register/lost_password`, `system_check_username` (same) | ไม่ต้องแก้ — เทียบผลกับ :8114 แล้วตรง (ต่างแค่ target="_blank" / favicon ของเจ้าของ) |
+| `_admin/_user/form.php` (diff 8) | **ทำแล้ว** — สำเนาบัตรประชาชนแสดงด้วย `getupload("file", identity)` (Azure `href_blob`) แทนลิงก์ `upload/` ในเครื่องของ SR |
+| `_admin/_user/save.php` (diff 2) | **ทำแล้ว** — ผู้มีสิทธิ์ `admin_user` ทุก role เปลี่ยนรหัสผ่านได้ (SR จำกัด role 1) |
+| `_admin/_user/email.php`, `email_approved.php`, `_register/email_lost_password.php` (diff 2) | **ทำแล้ว** (UsersMailer) — สีปุ่ม `#eb4823` |
+| `_profile/index.php` (diff 13) | **ทำแล้ว** — มีแถวสำเนาบัตรประชาชน (`-` เมื่อว่าง / `getupload`) |
+| `_profile/save.php` (diff 29) | **ทำแล้ว** — ตรวจรหัสผ่านมี `&` ก่อนกล่อง PIN; บันทึกเฉพาะชื่อ/LINE/WeChat/ที่อยู่/รหัสผ่าน (ไม่บันทึกอีเมล/โทร/โทร 2); ไม่ห้ามรหัสผ่านซ้ำกับ username |
+| `_register/email.php` (diff 12) | **ทำแล้ว** — หัวเรื่อง/ข้อความ PACK-Cargo + บรรทัดติดต่อ (เบอร์/LINE @packcargo/อีเมล) ไทยและจีน |
+| `_register/save.php` (diff 22) | **ทำแล้ว** — รหัสลูกค้า `PACK####`, ไม่เทียบรหัสสุ่มกับ username, บัตรประชาชนขึ้นที่เก็บถาวรผ่าน `BlobStore::uploadFromTemp()` (= `UploadAzure` เดิม), hotfix 2026-10-21 ของ PACK: ชื่อไฟล์ที่ไม่ตรง `^[A-Za-z0-9._-]{1,100}$` หรือมี `..` → บันทึก `identity = ''` |
+| `lost_password.php` (diff 105) | **ทำแล้ว** — หน้าแบบ `login.css` ของ PACK (`#login-area`, ปุ่ม GET NEW PASSWORD / Back to login, `$site['data']['stitle']` เดิมว่าง) แทนหน้า card ของ SR · favicon = ชุดไอคอนของเจ้าของ |
+| `register.php` (diff 17) | โลโก้/ข้อตกลง/ช่อง validate → **foundation ทำแล้ว** (merge แล้ว); กล่องแนบบัตร = `getupload()` รุ่น PACK (ดูกลุ่ม settings: UploadBox) |
+| `password.php` (SR-only) | **ลบ route** `GET /password` + method + test (PACK ไม่มีไฟล์ → 404 → หน้าแรก), url-map ทำเครื่องหมาย dead |
+
+ไฟล์ pack-only ของกลุ่ม: ไม่มี
+- `system_lang_guard.php` (pack-only, auto_prepend ของ pool: cookie ภาษาที่ไม่ใช่ th/en/cn → th) — ไม่ต้องพอร์ต: `Legacy::lang()` รับเฉพาะ th/en/cn อยู่แล้ว (foundation ยืนยัน)
+- `system_check_login.php` = SR ทุกบรรทัด → `LegacyLoginController` ของ foundation (ไม่ใช่งานกลุ่มนี้)
+- ตาราง `user_setting` (มีเฉพาะ PACK): **ไม่มีไฟล์ใดในเว็บเดิมใช้** (grep ทั้ง webroot รวม js) และ bench มี 0 แถว → ไม่ต้องพอร์ตอะไร
+
+### role / สิทธิ์ (ดู docs/role-matrix.md)
+- สร้างใหม่สำหรับ PACK ด้วย `tools/role-matrix.php` (แก้ให้ใช้ DB ตาม .env ของ repo): `getPermission()` เดิม vs `Permissions::build()` **ตรงกันทุกช่อง** (9 role × 66 ชื่อสิทธิ์)
+- role 2 "สิทธิ์ลูกค้า" = ลูกค้า (1,011 คน); ผู้สมัครใหม่ได้ role 0 (ไม่มีสิทธิ์ใดจนแอดมินตั้ง)
+- `admin_user_view` ไม่มี role ใดถือใน PACK → หน้า/endpoint ผู้ใช้ใช้ได้เฉพาะ role 1 (admin_user)
+- fallback ว่างเหมือน SR — **สิทธิ์กำพร้าของ PACK: `admin_warehouse` (ทั้งโมดูลโกดังเข้าไม่ได้แม้แอดมิน), `admin_user_view`, `admin_mall`** → คำถามถึงเจ้าของ
+
+### ต่างจาก PACK เดิมโดยตั้งใจ
+- ทุกข้อของ SR/jl ด้านล่างยังอยู่ (bind SQL, escape, CSRF, PinThrottle, legacy.once, transaction/lock, ไม่มี target="_blank", favicon)
+- **สมัครซ้อน (ดับเบิลคลิก)**: E2E พบว่าส่งพร้อมกัน 2 ครั้งได้ผู้ใช้ username เดียวกัน 2 แถว (เดิมก็เป็น — ตรวจซ้ำก่อน INSERT ไม่มีล็อก) → ตรวจ username/อีเมลซ้ำอีกครั้งหลังล็อกแถว `user_count` (คำขอที่สองได้ "ผู้ใช้งานนี้มีในระบบแล้ว")
+- `_profile/save`: PIN ผิด log เป็น `***`, นับ PinThrottle
+- บัตรประชาชนตอนสมัคร: dev = `legacy.upload.local_dir`, production = Azure (BlobStore) — ต่างจาก SR ที่ copy ลง upload/ ในเครื่อง
+- ข้อความ blocklist ตอนสมัครยังเป็นภาษาไทยที่อ่านได้ (PACK เดิมเป็น UTF-8 ซ้อนเหมือน jl/SR)
+- `_admin/_user/grid` ค้นด้วย `_`/`%` = ตัวอักษร (เดิมเป็น wildcard) — เช่น `a_b` ได้ผลต่างจากเดิม
+- หน้าแอดมิน/โปรไฟล์ที่ไม่มีสิทธิ์ = หน้า `legacy.no-permission` (เดิมพิมพ์หัวหน้า + ErrorBox แล้วตัดกลาง)
+
+### ช่องโหว่เดิมที่พบใน PACK (อ่านโค้ด — ไม่ได้ยิงเว็บเดิม)
+1. ช่องโหว่ข้อ 1–14 ของ jl และข้อ 2–5 ของ SR (ด้านล่าง) PACK มีเหมือนกัน (ไฟล์ same) — ยกเว้น `password.php` (PACK ไม่มีไฟล์นี้)
+2. `_register/save.php` ของ PACK ปิด path traversal ด้วย hotfix 2026-10-21 แล้ว (regex ชื่อไฟล์) — Laravel ทำแบบเดียวกัน + รับเฉพาะชื่อไฟล์ใน temp_dir
+3. สมัครพร้อมกันได้ username ซ้ำ (ข้างบน — แก้แล้ว)
+4. `_admin/_user/save.php` ของ PACK: ทุกคนที่มี admin_user เปลี่ยนรหัสผ่านลูกค้าได้ (ตามที่ PACK ตั้งใจ — ใน bench มีแค่ role 1)
+
+### ผลเทียบ (:8114 vs :8810 หลัง merge foundation; normalize href + ช่องว่าง)
+- หน้า (แอดมิน): admin/user (+status/0, 1), create, /348, /1, /302, /1066, /11937, /82 (ยกเลิกแล้ว), /999999, user_type (+create, /3, /283 ราคาตั้งเอง), role (+create, /1, /4), profile — ต่างแค่ favicon, morris.css/jquery.dashboard.js (layout ของ foundation), target="_blank"
+- staff/ลูกค้า (302, 923, 524, 5, 348, 11937, 1066): หน้า index ที่ตรวจสิทธิ์ใน view ตรงกัน; หน้าฟอร์มที่ไม่มีสิทธิ์ = no-permission (ตั้งใจ); profile ของ role 3/6/0 (524, 5, 1066 — ไม่มี `profile`) = no-permission
+- สาธารณะ th/en/cn: register (ต่างแค่ favicon + target), lostpassword (ต่างแค่ favicon) 
+- ajax: _admin/_user/grid 7 แบบ (หน้า 1/2, ค้นหา+role+type+สถานะ, 99, role 0, `a_b` = LIKE escape, ไม่ส่ง txtsearch), load_user_type_detail ×5, load_role_detail ×4, rate_history ×2, _profile/load_* ×2, user_type grid ×3, role grid ×2 — ต่างแค่ target="_blank"; ลูกค้า/staff ที่ไม่มีสิทธิ์ = ว่างเหมือนเดิม; system_check_username (XHR) byte ตรง
+
+### E2E (Laravel เท่านั้น, แถว zz_ แล้วลบตาม id)
+- สมัคร (Referer /register): แนบบัตรผ่าน system_upload → สมัคร → user `PACK4046` role 0 type 3 identity = ชื่อไฟล์ + ไฟล์ลง local_dir + crawl_guard_signup 1 แถว + user_count +1; **ส่งซ้อน 2 ครั้ง: รอบแรกได้ 2 แถว (bug เดิม) → แก้แล้วรอบสองได้แถวเดียว + "ผู้ใช้งานนี้มีในระบบแล้ว"**; อีเมลซ้ำ, user_type 283 (ราคาตั้งเองของคนอื่น) = invalid; อีเมลสมัคร/ลืมรหัส/อนุมัติ/แก้ไข/ยกเลิก ใน log (ข้อความ PACK, ปุ่ม #eb4823)
+- ลืมรหัสผ่าน (X-Real-IP 10.250.88.7 เพื่อไม่ลบแถว ips ของผู้อื่น): รหัสเปลี่ยน, username ไม่มี = "ไม่พบผู้ใช้นี้"
+- แอดมิน: อนุมัติ (type 3 → อีเมล), แก้ไขเป็นราคาตั้งเอง (user_type ลูก + user_type_detail 8 + user_rate_history 1 + รหัสผ่านเปลี่ยน), ส่งซ้ำ = "ส่งซ้ำ", role 4 บันทึก = ปฏิเสธ, ยกเลิก (cancel_remark + "ยกเลิกโดย"), ลบ, ลบด้วย `1) OR (1=1` = ไม่มีผล; btn_* ของแอดมินที่ไม่อยู่ใน read_password_pin = ว่าง
+- โปรไฟล์ 11937: `&` → ErrorBox ก่อน PIN, ไม่มี PIN → กล่องตั้ง PIN, ตั้ง PIN, ไม่ส่ง PIN → กล่อง verified, PIN ผิด (แถว ips), ถูก ×2 พร้อมกัน, อีเมล/โทรไม่เปลี่ยน, รหัสผ่าน = username ได้ → คืนค่าทุกคอลัมน์ (รวม pin/password/mod_date) ตรง snapshot
+- user_type สร้าง (ส่งซ้อน = แถวเดียว + "ส่งซ้ำ"), แก้, ลบ; role สร้าง, ลบ (500 แบบเดิม)
+- ลบแล้ว: user 12360, 12361, 12384; user_type 351, 352 + user_type_detail; user_rate_history 5; crawl_guard_signup 70–72; role 18 + role_on_detail 3062–3063; ips 486; user_count คืนเป็น 4045; ไฟล์ทดสอบใน storage/app/legacy-upload
+
+### bench (`bin/bench -n 30 -c 1`, `artisan optimize`, 2 รอบ — :8114 มีงานของ agent อื่นพร้อมกัน (load ~9) ตัวเลขเดิมสูงกว่าปกติ)
+
+| หน้า | เดิม mean ms | ใหม่ mean ms |
+|---|---|---|
+| /profile (ลูกค้า 348) | 905 / 1846 | 375 (รอบแรกอุ่นเครื่อง) / 83 |
+| /admin/user/348 (แอดมิน) | 6120 / 1225 | 117 / 108 |
+| _admin/_user/grid page 1 | 2261 / 1811 | 56 / 60 |
+
+### test
+- `tests/Feature/Users/UsersPackDbTest.php` (แทน UsersSrDbTest): PACK####, hotfix ชื่อไฟล์, ลำดับ/คอลัมน์ของ profile save, ผู้ถือ admin_user ทุก role เปลี่ยนรหัส (ให้ role 4 ชั่วคราวใน transaction ที่ rollback)
+- `php8.4 vendor/bin/phpunit`: ผ่านทั้งหมด (329 tests, 110 skipped)
+- `JL_BENCH_DB_TESTS=1`: users/settings ผ่านทั้งหมด; ล้มของกลุ่มอื่น (คอลัมน์ SR ที่ PACK ไม่มี เช่น tracking.subuser, bill_payment.receipt_*): Lot, Messaging, Money ×8, Order ×7, Payment ×5, Reports ×2, Shop ×2, Tracking ×6, Warehouse ×2
+
+### คำถามถึงเจ้าของ
+1. สิทธิ์กำพร้าใน PACK: `admin_warehouse` ไม่มี role ใดถือ → `/admin/warehouse` และ `_admin/_warehouse/*` เข้าไม่ได้แม้แอดมิน (เหมือนเว็บเดิม) — ต้องการ fallback หรือติ๊กให้ role ใดหรือไม่ (`admin_user_view`, `admin_mall` ไม่มีผลจริง)
+2. production: ตั้ง `LEGACY_UPLOAD_DRIVER=azure` + container ของ PACK สำหรับบัตรประชาชน (PACK เดิม UploadAzure)
+3. type 4 ตอนอนุมัติยังเป็น 500 แบบเดิม (bench PACK ไม่มี user_type 4) — เหมือนคำถาม SR ข้อ 3
+
 ## SR (2026-10-20)
 
 branch `mod/users` · worktree `/home/admin/laravel/sr-wt/users` · port 8310 · เทียบกับ SR เดิม :8111 (session เดียวกัน, ผู้ใช้ 11938 แอดมิน / 6 role 12 / 11 role 7 ไม่มีสิทธิ์ / 24, 22, 11937 ลูกค้า)
