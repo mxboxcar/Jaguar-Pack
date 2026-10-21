@@ -117,4 +117,19 @@ class PointsPackTest extends TestCase
         $this->assertStringContainsString("data : 'wantcash=' + \$(\"#wantcash\").val() + '&paymentpin=' + \$(\"input[name='paymentpin']\").val() ,", $blade);
         $this->assertStringContainsString("ErrorBox('กรุณากรอกจำนวน');", $blade);
     }
+
+    /** PACK: getupload_inline() รุ่นเก่า (ไม่มีตัวล้าง input, .zip/.rar/.7z แสดงชื่อไฟล์ นอกนั้นแสดงรูปย่อ, ไฟล์เดิมที่ไม่ใช่รูป = fancybox ไม่มี download) */
+    public function test_upload_inline_is_packs_older_version(): void
+    {
+        $this->setUpLegacyWorld();
+        $js = \App\Domain\Points\UploadInline::render('file_1', '', true);
+        $this->assertStringNotContainsString('change.reselect', $js);
+        $this->assertStringContainsString('if(response.toLowerCase().indexOf(".zip") > -1 || response.toLowerCase().indexOf(".rar") > -1 || response.toLowerCase().indexOf(".7z") > -1) {  $(".upload_file_1_preview").text(response); ', $js);
+        $this->assertStringNotContainsString('_blank', $js);
+        $pdf = \App\Domain\Points\UploadInline::render('file_2', 'A.pdf');
+        $this->assertStringContainsString("<a class='fancybox' style='float:left;' href='", $pdf);
+        $this->assertStringNotContainsString('download', $pdf);
+        $this->assertStringContainsString('<img', \App\Domain\Points\UploadInline::render('file_3', 'A.JPG'));
+        $this->assertStringNotContainsString('<img', \App\Domain\Points\UploadInline::render('file_4', 'A.Jpg'), 'เดิมเทียบนามสกุลตรงตัว');
+    }
 }
