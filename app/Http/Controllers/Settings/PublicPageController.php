@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Support\Legacy\Lang;
+use App\Support\Legacy\Legacy;
 use Illuminate\Http\Response;
 
 /**
@@ -17,20 +18,25 @@ class PublicPageController extends Controller
         return response(view('settings.public.index_close')->render())->header('Cache-Control', 'private');
     }
 
-    /** GET /get_resource — get_resource.php: SR require resource/cn.php ตรงๆ = ข้อความภาษาจีนเสมอ (jl: ภาษาตาม cookie) ต่อด้วย <br /> */
+    /** GET /get_resource — get_resource.php ของ PACK: require system_config.php → ข้อความทุกตัวของภาษาตาม cookie ต่อด้วย <br /> (แบบ jl; SR = จีนเสมอ) */
     public function resource(): Response
     {
-        return response(self::listing('cn'));
+        $out = '';
+        foreach (Lang::all(Legacy::lang()) as $item) {
+            $out .= (is_array($item) ? 'Array' : (string) $item).'<br />';
+        }
+
+        return response($out);
     }
 
-    /** GET /resource — resource.php (SR เท่านั้น): ข้อความภาษาไทยทุกตัว ต่อด้วย <br /> */
+    /** GET /resource — resource.php (PACK = SR): require resource/th.php ตรงๆ → ข้อความภาษาไทยทุกตัว ต่อด้วย <br /> */
     public function resourceTh(): Response
     {
         return response(self::listing('th'));
     }
 
     /**
-     * ไฟล์เดิมของ SR require แค่ resource/<lang>.php (ไม่โหลด system_config.php) → ค่าคงที่ admin_email ใน unapproved_user
+     * resource.php เดิม require แค่ resource/th.php (ไม่โหลด system_config.php) → ค่าคงที่ admin_email ใน unapproved_user
      * ไม่ได้ define = PHP 7.4 พิมพ์ชื่อค่าคงที่ "admin_email" แทนอีเมล — เลียนแบบผลเดิม
      */
     private static function listing(string $lang): string

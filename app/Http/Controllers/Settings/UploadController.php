@@ -32,24 +32,43 @@ class UploadController extends Controller
     /** system_upload_2.php: นามสกุลที่ยอม (ตรงตัวพิมพ์แบบเดิม — .Jpg ไม่ผ่าน) */
     private const EXT_2 = ['jpg', 'png', 'jpeg', 'JPG', 'pdf', 'PDF', 'JPEG', 'PNG', 'xls', 'xlsx', 'XLS', 'XLSX'];
 
-    /** POST /system_upload — รูปภาพ/PDF เท่านั้น, ตรวจชนิดจากเนื้อไฟล์, ย่อรูป, ตอบชื่อไฟล์ใหม่ */
+    /**
+     * system_upload.php ของ PACK: นามสกุลที่ยอม (ตรงตัวพิมพ์แบบเดิม — .Jpg ไม่ผ่าน) — รูป/PDF + zip/rar/7z/doc/docx/xls/xlsx
+     * (SR/jl เดิมรับเฉพาะรูป/PDF หลัง hotfix; PACK ยังรับไฟล์บีบอัด/เอกสาร และ getupload() เดิมแสดง .zip/.rar/.7z เป็นชื่อไฟล์)
+     */
+    private const EXT_1 = ['jpg', 'png', 'jpeg', 'JPG', 'JPEG', 'PNG', 'pdf', 'PDF', 'zip', 'rar', '7z', 'doc', 'docx', 'DOC', 'DOCX', 'xls', 'xlsx', 'XLS', 'XLSX'];
+
+    /**
+     * POST /system_upload — PACK: ตรวจนามสกุลตามรายการเดิม, ชื่อใหม่ = randd().'.'.<นามสกุลเดิม>, ย่อรูป, ตอบชื่อไฟล์ใหม่
+     * ข้อความ error ตามไฟล์เดิมของ PACK ("เกิดข้อผิพลาด" สะกดตามเดิม)
+     * คงการแก้ด้านความปลอดภัยของ jl/SR: นามสกุลรูป/PDF ต้องเป็นรูป JPEG/PNG หรือ PDF จริง (finfo) — ชนิดจริงไม่ตรงนามสกุลใช้นามสกุลตามชนิดจริง;
+     * zip/rar/7z/doc/docx/xls/xlsx ไม่ตรวจเนื้อไฟล์ (แบบเดิม — finfo ของไฟล์ office ไม่แน่นอน) · ต้องล็อกอิน (หรืออยู่หน้าสมัคร)
+     */
     public function upload(Request $request): Response
     {
         $file = $request->file('file');
-        if (! $file instanceof UploadedFile || $file->getError() !== UPLOAD_ERR_OK) {
-            return $this->text('error: อัพโหลดไฟล์ไม่สำเร็จ ไฟล์อาจใหญ่เกินกำหนด');
+        $orig = $file instanceof UploadedFile ? $file->getClientOriginalName() : '';
+        $ext = pathinfo($orig, PATHINFO_EXTENSION);
+        if (! in_array($ext, self::EXT_1, true)) {
+            return $this->text('error : รองรับ .png, .jpg, .jpeg, .pdf, .zip, .rar, .7z เท่านั้น');
         }
-        $ext = strtolower(pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
-        if (! in_array($ext, Format::uploadAllowedExtensions(), true)) {
-            return $this->text('error : รองรับ .jpg, .jpeg, .png, .pdf เท่านั้น');
+        if ($file->getError() !== UPLOAD_ERR_OK) {
+            return $this->text('error: เกิดข้อผิพลาดในการอัพโหลดไฟล์');
         }
-        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($file->getPathname());
-        if (! is_string($mime) || ! isset(self::MIME_TO_EXT[$mime])) {
-            return $this->text('error : ไฟล์นี้ไม่ใช่รูปภาพหรือ PDF รองรับ .jpg, .jpeg, .png, .pdf เท่านั้น');
+        if (in_array(strtolower($ext), ['jpg', 'jpeg', 'png', 'pdf'], true)) {
+            // ตั้งใจต่างจาก PACK เดิม (ไม่ตรวจเนื้อไฟล์ → ไฟล์ HTML/PHP ชื่อ .jpg ผ่าน): ต้องเป็นรูป/PDF จริง
+            $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($file->getPathname());
+            if (! is_string($mime) || ! isset(self::MIME_TO_EXT[$mime])) {
+                return $this->text('error : รองรับ .png, .jpg, .jpeg, .pdf, .zip, .rar, .7z เท่านั้น');
+            }
+            $real = self::MIME_TO_EXT[$mime];
+            if ($real !== strtolower($ext) && ! ($real === 'jpg' && strtolower($ext) === 'jpeg')) {
+                $ext = $real;
+            }
         }
-        $name = $this->store($file, self::MIME_TO_EXT[$mime]);
+        $name = $this->store($file, $ext);
         if ($name === null) {
-            return $this->text('error: เกิดข้อผิดพลาดในการอัพโหลดไฟล์');
+            return $this->text('error: เกิดข้อผิพลาดในการอัพโหลดไฟล์');
         }
         ImageShrink::shrink($this->tempDir().'/'.$name);
 
@@ -91,9 +110,9 @@ class UploadController extends Controller
     private const CK_TYPES = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_GIF => 'gif'];
 
     /**
-     * POST /system_ckupload — SR: ปุ่ม "อัปโหลด" รูปใน CKEditor (config.filebrowserUploadUrl, ไฟล์ช่อง upload, GET CKEditorFuncNum)
+     * POST /system_ckupload — ปุ่ม "อัปโหลด" รูปใน CKEditor (config.filebrowserUploadUrl, ไฟล์ช่อง upload, GET CKEditorFuncNum)
      *
-     * ตรวจแบบเดิม: jpg/jpeg/png/gif ตามนามสกุล, 1 byte – 10 MB, เนื้อไฟล์ต้องเป็นรูป JPEG/PNG/GIF (getimagesize),
+     * ตรวจแบบเดิม (PACK): ผู้ใช้ต้องมีสิทธิ์ admin_notice หรือ admin_mall (ไม่มี = "No permission."), jpg/jpeg/png/gif ตามนามสกุล, 1 byte – 10 MB, เนื้อไฟล์ต้องเป็นรูป JPEG/PNG/GIF (getimagesize),
      * ชื่อใหม่ = <time>_<สุ่ม 16 ตัว>.<นามสกุลตามชนิดจริง> · ตอบ <script> ให้ CKEditor (URL / ข้อความ error เดิม)
      *
      * ต่างจากเดิม (ตั้งใจ): เดิม move ลง webroot upload/ แล้วเสิร์ฟที่ portal/upload/<ชื่อ>
@@ -105,7 +124,10 @@ class UploadController extends Controller
         $url = '';
         $message = '';
         $file = $request->file('upload');
-        if (! $file instanceof UploadedFile || $file->getClientOriginalName() === '' || $file->getError() !== UPLOAD_ERR_OK) {
+        if (! perm('admin_notice', 'admin_mall')) {
+            // PACK: ต้องมีสิทธิ์ admin_notice หรือ admin_mall (SR ยอมทุกคนที่ล็อกอิน)
+            $message = 'No permission.';
+        } elseif (! $file instanceof UploadedFile || $file->getClientOriginalName() === '' || $file->getError() !== UPLOAD_ERR_OK) {
             $message = 'No file.';
         } elseif ($file->getSize() <= 0 || $file->getSize() > 10485760) {
             $message = 'Bad size.';
