@@ -176,7 +176,7 @@ class MessagingRoutesTest extends TestCase
         [$subject, $body] = NoticeMail::template((object) ['create_date' => '2026-10-20 10:00:00', 'text' => '&lt;p&gt;x&lt;/p&gt;']);
         $this->assertSame(config('legacy.mail.header').'<strong>'.$subject.'</strong>'.config('legacy.mail.center')."\n<p>x</p>".config('legacy.mail.footer'), $body);
         $this->assertStringStartsWith('<div style="font-family: arial,sans-serif;font-size:13px;max-width: 560px"><strong>แจ้งข่าวประกาศ วันที่ ', $body);
-        $this->assertStringEndsWith("SRShippingSystem\r\n</div>", $body);
+        $this->assertStringEndsWith("PACK-Cargo\r\n</div>", $body);
         $this->assertStringNotContainsString('<?php', $body);
         $this->assertStringContainsString("\r\n<p>x</p>", NoticeMail::template((object) ['text' => '&lt;p&gt;x&lt;/p&gt;'], "\r\n")[1]);
         foreach (['app/Domain/Messaging/NoticeMail.php', 'app/Console/Commands/MessagingNoticeMail.php', 'app/Http/Controllers/Messaging/MessageController.php'] as $f) {

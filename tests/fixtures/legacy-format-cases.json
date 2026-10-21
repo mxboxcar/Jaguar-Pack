@@ -900,7 +900,7 @@
         [
             "srs"
         ],
-        true
+        false
     ],
     [
         "normalizeText",
@@ -914,7 +914,7 @@
         [
             "srshipping"
         ],
-        true
+        false
     ],
     [
         "normalizeText",
@@ -928,7 +928,7 @@
         [
             "s-r-s"
         ],
-        true
+        false
     ],
     [
         "normalizeText",
@@ -936,6 +936,62 @@
             "s-r-s"
         ],
         "srs"
+    ],
+    [
+        "isBlockedName",
+        [
+            "pack"
+        ],
+        true
+    ],
+    [
+        "normalizeText",
+        [
+            "pack"
+        ],
+        "pack"
+    ],
+    [
+        "isBlockedName",
+        [
+            "packcargo"
+        ],
+        true
+    ],
+    [
+        "normalizeText",
+        [
+            "packcargo"
+        ],
+        "packcargo"
+    ],
+    [
+        "isBlockedName",
+        [
+            "p-a-c-k"
+        ],
+        true
+    ],
+    [
+        "normalizeText",
+        [
+            "p-a-c-k"
+        ],
+        "pack"
+    ],
+    [
+        "isBlockedName",
+        [
+            "backpack"
+        ],
+        false
+    ],
+    [
+        "normalizeText",
+        [
+            "backpack"
+        ],
+        "backpack"
     ],
     [
         "isBlockedName",

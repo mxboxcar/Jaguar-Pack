@@ -300,8 +300,8 @@ class AdminTrackingController extends Controller
             if ($auto) {
                 Pricing::calPriceAutoDiff($id);
             }
-            // เดิม: code = nobody (ค่าคงที่ที่ไม่เคย define → string 'nobody')
-            $nobody = DB::table('user')->where('code', 'nobody')->value('id');
+            // เดิม: code = nobody (PACK define('nobody', 'PACKnocode') → config legacy.nobody)
+            $nobody = DB::table('user')->where('code', config('legacy.nobody'))->value('id');
             if (Php74::neq($member, $nobody)) {
                 DB::table('goodsconfirm')->where('tracking_id', $id)->update(['status' => 2]);
             }

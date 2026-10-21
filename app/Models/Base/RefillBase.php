@@ -26,7 +26,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $approved_remark varchar(225)
  * @property \Carbon\CarbonImmutable|null $approved_date datetime
  * @property string|null $cancel_remark varchar(225)
- * @property int|null $approved_user int default '0'
  */
 abstract class RefillBase extends Model
 {
@@ -43,7 +42,7 @@ abstract class RefillBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'status', 'user', 'amount', 'date', 'attachment', 'remark', 'approved_remark', 'approved_date', 'cancel_remark', 'approved_user'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'status', 'user', 'amount', 'date', 'attachment', 'remark', 'approved_remark', 'approved_date', 'cancel_remark'];
 
     protected function casts(): array
     {

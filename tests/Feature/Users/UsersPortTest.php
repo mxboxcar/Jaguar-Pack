@@ -108,11 +108,11 @@ class UsersPortTest extends TestCase
     /** SR: แม่แบบอีเมล + ผู้ส่ง = email_header/center/footer.php และ sendmail() ของ SR (ไม่มีข้อความ jl เหลือ) */
     public function test_mail_template_and_sender_are_sr(): void
     {
-        $this->assertSame('no-reply@srshippingsystem.com', config('legacy.mail.from_address'));
-        $this->assertSame('SRShippingSystem', config('legacy.mail.from_name'));
+        $this->assertSame('no-reply@pack-cargo.net', config('legacy.mail.from_address'));
+        $this->assertSame('PACK-Cargo', config('legacy.mail.from_name'));
         $html = \App\Domain\Users\UsersMailer::wrap('S', '<p>B</p>');
         $this->assertSame('<div style="font-family: arial,sans-serif;font-size:13px;max-width: 560px"><strong>S</strong><div style="text-indent: 30px;"><p>B</p>'
-            ."</div>\r\nขอแสดงความนับถือ<br />\r\nSRShippingSystem\r\n</div>", $html);
+            ."</div>\r\nขอแสดงความนับถือ<br />\r\nPACK-Cargo\r\n</div>", $html);
         $src = (string) file_get_contents(app_path('Domain/Users/UsersMailer.php'));
         foreach (['JLcargo', 'jlcargoth', '991b1e', 'target='] as $jl) {
             $this->assertStringNotContainsString($jl, $src, $jl);

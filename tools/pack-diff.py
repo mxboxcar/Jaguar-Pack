@@ -61,4 +61,13 @@ for k in sorted(set(S) | set(P)):
     a, b = S.get(k), P.get(k)
     if a != b: out.append(f'| `{k[0]}` | `{k[1]}` | {a or "**ไม่มี**"} | {b or "**ไม่มี**"} |')
 out.append('')
+# ส่วนเขียนมือ (เช่น "## foundation helpers") อยู่หลัง MARK — คงไว้ตอนสร้างใหม่
+# (ถ้า redirect ทับไฟล์เดิม ไฟล์ถูกล้างก่อนอ่าน → ใช้ของ git HEAD แทน)
+MARK = '<!-- เขียนมือ: tools/pack-diff.py คงส่วนนี้ไว้ตอนสร้างใหม่ -->'
+doc = os.path.join(here, '..', 'docs', 'pack-diff.md')
+old = open(doc, encoding='utf-8').read() if os.path.exists(doc) else ''
+if MARK not in old:
+    old = subprocess.run(['git', '-C', os.path.join(here, '..'), 'show', 'HEAD:docs/pack-diff.md'], capture_output=True, text=True).stdout
+if MARK in old:
+    out.append(old[old.index(MARK):].rstrip('\n'))
 print('\n'.join(out))
