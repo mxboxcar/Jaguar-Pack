@@ -11,11 +11,12 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Money\BenchDbTestCase;
 
 /**
- * SR: ส่วนของกลุ่ม messaging ที่ต่างจาก jl (JL_BENCH_DB_TESTS=1 — แถว zz_ ใน transaction ที่ rollback ทั้งหมด)
- * แถบแจ้งเตือน (goodsconfirm, send/sendself แยก 43/53, พัสดุรอตรวจ tracking_check, tracking ที่เข้าล็อตแล้ว, กระดิ่งประกาศ),
- * admin/send vs admin/sendself, JSON ของ _admin/_message/load แบบ htmlentities
+ * PACK: ส่วนของกลุ่ม messaging ที่ต่างจาก SR (JL_BENCH_DB_TESTS=1 — แถว zz_ ใน transaction ที่ rollback ทั้งหมด)
+ * แถบแจ้งเตือน (goodsconfirm ด้วยสิทธิ์ admin_withdrawpoint, send/sendself แยก 43/53, ไม่มีช่อง admin/check / nobilling,
+ * tracking ที่เข้าล็อตแล้ว, กระดิ่งประกาศ), admin/send vs admin/sendself,
+ * JSON ของ _message/load และ _admin/_message/load แบบ urldecode(json_encode()) ไม่มี htmlentities
  */
-class MessagingSrDbTest extends BenchDbTestCase
+class MessagingPackDbTest extends BenchDbTestCase
 {
     private const ADMIN = 11938;
 
@@ -42,15 +43,25 @@ class MessagingSrDbTest extends BenchDbTestCase
             'send_name' => 'zz_'.$tag, 'total' => 1]);
     }
 
-    public function test_notification_bar_sr_blocks(): void
+    /** role ใหม่ที่ถือเฉพาะสิทธิ์ที่ระบุ (rollback ตอนจบ) */
+    private function roleWith(array $perms): int
+    {
+        $role = $this->insertRow('role', ['role_name' => 'zz_msg_role']);
+        foreach ($perms as $p) {
+            $detail = DB::table('role_detail')->where('role_detail_name', $p)->value('id');
+            $this->assertNotNull($detail, $p);
+            $this->insertRow('role_on_detail', ['role_id' => $role, 'role_detail_id' => $detail, 'permission' => 1]);
+        }
+
+        return $role;
+    }
+
+    public function test_notification_bar_pack_blocks(): void
     {
         $self = $this->bill(53, 'self53');
         $this->bill(43, 'self43');
         $this->bill(63, 'send63');
-        $track = $this->insertRow('tracking', ['tracking' => 'ZZMSG'.bin2hex(random_bytes(4)), 'user' => self::CUSTOMER, 'lot_id' => 0, 'payment_id' => 0]);
-        $this->insertRow('tracking_check', ['tracking_id' => $track, 'is_checked' => 0]);
-        $this->insertRow('tracking_check', ['tracking_id' => 0, 'is_checked' => 0]); // ไม่มี tracking → ไม่นับ
-        $this->insertRow('goodsconfirm', ['status' => 1]);
+        $this->insertRow('goodsconfirm', ['status' => 1, 'submit_remark' => 'zz_msg']);
         $this->insertRow('notice', ['text' => 'zz_bell &lt;b&gt;ล่าสุด&lt;/b&gt;', 'is_show' => 1, 'create_date' => '2099-01-01 00:00:00']);
 
         $this->as(self::ADMIN);
@@ -61,19 +72,36 @@ class MessagingSrDbTest extends BenchDbTestCase
         $this->assertSame($bp(false), $this->badge($html, 'admin/send'));
         $this->assertSame($bp(true), $this->badge($html, 'admin/sendself'));
         $this->assertStringContainsString('<i class="text-danger fa fa-send"></i> รับเอง<span', $html);
-        $checks = DB::table('tracking_check')->leftJoin('tracking', 'tracking.id', '=', 'tracking_check.tracking_id')
-            ->where('tracking_check.is_checked', 0)->whereNotNull('tracking.tracking')->count();
-        $this->assertSame($checks, $this->badge($html, 'admin/check'));
         $this->assertSame(DB::table('goodsconfirm')->where('is_delete', 0)->where('status', 1)->count(), $this->badge($html, 'admin/goodsconfirm/status/1'));
+        // PACK ไม่มีช่อง admin/check (ไม่มีตาราง tracking_check) และ admin/nobilling
+        $this->assertStringNotContainsString('admin/check', $html);
+        $this->assertStringNotContainsString('admin/nobilling', $html);
         // กระดิ่ง: ประกาศล่าสุด 1 แถว (strip_tags แล้ว)
         $this->assertStringContainsString('<i class="icon-bell"></i>', $html);
         $this->assertStringContainsString('&nbsp;&nbsp;&nbsp;&nbsp;zz_bell ล่าสุด...', $html);
         $this->assertGreaterThan(0, $self);
     }
 
+    public function test_goodsconfirm_badge_follows_admin_withdrawpoint(): void
+    {
+        $this->insertRow('goodsconfirm', ['status' => 1, 'submit_remark' => 'zz_msg']);
+        $n = DB::table('goodsconfirm')->where('is_delete', 0)->where('status', 1)->count();
+
+        $u = $this->zzUser($this->roleWith(['admin_withdrawpoint']));
+        $this->actAs($u);
+        $this->assertSame($n, $this->badge($this->act(NotificationController::class, 'bar', ['x' => 1]), 'admin/goodsconfirm/status/1'));
+
+        // admin_goodsconfirm (สิทธิ์ของ SR) อย่างเดียว = ไม่เห็นช่องนี้ใน PACK
+        $u = $this->zzUser($this->roleWith(['admin_goodsconfirm', 'admin_export']));
+        $this->actAs($u);
+        $html = $this->act(NotificationController::class, 'bar', ['x' => 1]);
+        $this->assertStringNotContainsString('admin/goodsconfirm', $html);
+        $this->assertStringNotContainsString('admin/check', $html);
+    }
+
     public function test_customer_bill_create_badge_counts_only_tracking_in_a_lot(): void
     {
-        $u = $this->zzUser(8);
+        $u = $this->zzUser(2);
         $this->insertRow('tracking', ['tracking' => 'ZZMSGA', 'user' => $u->id, 'lot_id' => 0, 'payment_id' => 0, 'date_thai' => '2026-01-01 00:00:00']);
         $this->actAs($u);
         $this->assertNull($this->badge($this->act(NotificationController::class, 'bar', ['x' => 1]), 'payment/create'));
@@ -81,7 +109,6 @@ class MessagingSrDbTest extends BenchDbTestCase
         $html = $this->act(NotificationController::class, 'bar', ['x' => 1]);
         $this->assertSame(1, $this->badge($html, 'payment/create'));
         // ลูกค้าไม่เห็นช่องของแอดมิน
-        $this->assertNull($this->badge($html, 'admin/check'));
         $this->assertStringNotContainsString('admin/goodsconfirm', $html);
     }
 
@@ -101,24 +128,35 @@ class MessagingSrDbTest extends BenchDbTestCase
         $this->assertGreaterThan(0, $self + $send);
     }
 
-    public function test_admin_chat_load_returns_htmlentities_without_urldecode(): void
+    public function test_chat_load_json_is_pack_style(): void
     {
         $dept = (int) DB::table('chat_dept')->insertGetId(['name' => 'zz_dept', 'icon' => 'fa fa-user']);
-        DB::table('chat')->insert(['text' => 'zz_a+b %41 <i>x</i>', 'date_read' => '', 'is_read' => 0, 'is_read_admin' => 0,
+        DB::table('chat')->insert(['text' => 'zz_a+b %41 "q" <i>x</i>', 'date_read' => '', 'is_read' => 0, 'is_read_admin' => 0,
             'dept' => $dept, 'from' => self::CUSTOMER, 'to' => 0, 'create_by' => self::CUSTOMER, 'create_date' => DB::raw('NOW()')]);
+
         $this->as(self::ADMIN);
-        $j = json_decode($this->act(AdminMessageController::class, 'load', ['id' => $dept, 'user' => self::CUSTOMER, 'page' => 1]), true);
-        $this->assertStringStartsWith('&lt;div id=&quot;page&quot;&gt;', $j['html']);
-        $html = html_entity_decode($j['html'], ENT_COMPAT | ENT_HTML401, 'UTF-8'); // = decodeHtml() ใน JS
-        $this->assertStringContainsString('zz_a+b %41 &lt;i&gt;x&lt;/i&gt;', $html); // ไม่ urldecode, ข้อความยัง escape
+        $raw = $this->act(AdminMessageController::class, 'load', ['id' => $dept, 'user' => self::CUSTOMER, 'page' => 1]);
+        $j = json_decode($raw, true);
+        $this->assertSame(['html', 'title', 'page'], array_keys($j), 'PACK: ไม่มี sql');
+        // ไม่ htmlentities, " ทุกตัวเป็น ', urldecode (+ → ช่องว่าง, %41 → A), ข้อความยัง escape
+        $this->assertStringStartsWith("<div id='page'><li class='clearfix odd text-center load_more_btn'>", $j['html']);
+        $this->assertStringNotContainsString('"', $j['html']);
+        $this->assertStringContainsString("zz_a b A 'q' &lt;i&gt;x&lt;/i&gt;", $j['html']);
         $this->assertSame(DB::table('user')->where('id', self::CUSTOMER)->value('code'), $j['title']);
-        $this->assertStringContainsString("`dept` = '$dept'", $j['sql']);
+        $this->assertNull($j['page']);
 
         DB::table('chat')->insert(['text' => 'zz_reply', 'date_read' => '', 'is_read' => 0, 'dept' => $dept, 'from' => 0,
             'to' => self::CUSTOMER, 'create_by' => self::ADMIN, 'create_date' => DB::raw('NOW()')]);
         $this->as(self::CUSTOMER);
+        // ลูกค้าเรียก load ของแอดมิน = ว่าง (PACK hotfix 2026-10-21: exit เมื่อไม่มีสิทธิ์ admin_message)
+        $this->assertSame('', $this->act(AdminMessageController::class, 'load', ['id' => $dept, 'user' => self::CUSTOMER, 'page' => 1]));
+
         $j = json_decode($this->act(MessageController::class, 'load', ['id' => $dept, 'page' => 1]), true);
-        $this->assertStringContainsString('zz_a+b %41', $j['html']);
-        $this->assertStringContainsString('&lt;i&gt;PACK-Cargo Support Team&lt;/i&gt;', $j['html']);
+        $this->assertSame(['html', 'title', 'page', 'sql'], array_keys($j));
+        $this->assertStringStartsWith('<div id="page"><li class="clearfix odd text-center load_more_btn">', $j['html']);
+        $this->assertStringContainsString('zz_a b A &quot;q&quot; &lt;i&gt;x&lt;/i&gt;', $j['html']);
+        $this->assertStringContainsString('<i>PACK-Cargo Support Team</i>', $j['html']);
+        $this->assertSame('zz_dept', $j['title']);
+        $this->assertSame('0 , 10', $j['sql']);
     }
 }
