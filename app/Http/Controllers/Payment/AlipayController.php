@@ -188,34 +188,12 @@ class AlipayController extends Controller
         });
     }
 
-    /** POST /_alipay/cancel — ลูกค้ายกเลิก + คืนเงิน */
-    public function cancel(Request $request): Response
+    /**
+     * POST /_alipay/cancel — PACK: ไฟล์เดิมถูก comment ทั้งไฟล์ (ไม่ตรวจล็อกอิน/สิทธิ์ ไม่ยกเลิก ไม่คืนเงิน) → ตอบว่าง
+     * (หน้า alipay/{id} ของ PACK ไม่มีปุ่มยกเลิก — ลูกค้ายกเลิกเองไม่ได้ ต้องให้แอดมินยกเลิกที่ _admin/_alipay/cancel)
+     */
+    public function cancel(): Response
     {
-        $uid = Legacy::userId();
-        $id = $this->in($request, 'id');
-        DB::transaction(function () use ($uid, $id) {
-            // เดิม: อ่านบิลโดยไม่กรองเจ้าของ แล้วคืนเงิน usecash ของบิลนั้นให้ "ผู้ที่กด" (บิลของคนอื่นก็ได้ กดซ้ำได้เรื่อยๆ)
-            // และยอมทุกสถานะที่ไม่ใช่ -1 (รวม 2 = เติมให้แล้ว) — ที่นี่เฉพาะบิลของตัวเอง สถานะ 1 (= ปุ่มยกเลิกในหน้าเดิม)
-            $data = DB::table('bill_alipay')->where('id', $id)->where('user', $uid)->lockForUpdate()->first();
-            if ($data === null || (string) $data->status !== '1') {
-                return;
-            }
-            DB::table('bill_alipay')->where('id', $data->id)->where('user', $uid)->update([
-                'status' => '-1', 'cancel_remark' => 'ยกเลิกโดย '.(Legacy::user()->code ?? ''), 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
-            ]);
-            // SR: คืนเฉพาะส่วนที่ไม่เป็น 0 — บาท (usecash) และหยวน (usecash_cn)
-            foreach (['balance' => $data->usecash, 'balance_cn' => $data->usecash_cn ?? null] as $table => $amount) {
-                if (Php74::num($amount) == 0) {
-                    continue;
-                }
-                DB::table($table)->insert([
-                    'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
-                    'user' => (string) $uid, 'amount' => (string) $amount, 'detail' => 'ยกเลิกรายการ '.P::prefix('alipay').$data->id,
-                    'type' => 6, 'prefix' => (string) Lookup::getPrefixID('alipay'), 'prefix_ref_id' => (string) $data->id,
-                ]);
-            }
-        });
-
-        return response(Alerts::success('window.location.href = "'.Legacy::href('alipay').'";'));
+        return response('');
     }
 }

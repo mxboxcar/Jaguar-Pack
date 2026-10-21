@@ -71,11 +71,11 @@ class AdminAlipayController extends Controller
     {
         $id = $this->in($request, 'id');
         $upload = $this->in($request, 'upload_file');
-        // jl เดิม UPDATE ทุกสถานะ (ยืนยันบิลที่ยกเลิกแล้ว + rollback = คืนเงินซ้ำ) — SR แก้ในไฟล์เดิมแล้ว: เฉพาะสถานะ 1
-        // อื่นๆ (รวมไม่พบบิล) = ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้') — ล็อกแถวกันชนกับ cancel/rollback
+        // PACK (= jl) เดิม UPDATE ทุกสถานะ (ปุ่มบันทึกแสดงทุกสถานะ): ยืนยันบิลที่ยกเลิก/คืนเงินแล้วเป็นสถานะ 2 ได้ แล้ว rollback (2 → 1 ไม่ตัดเงิน)
+        // + ยกเลิกอีกครั้ง = คืนเงินซ้ำ → ไม่ยอมบิลที่ยกเลิกแล้ว (-1) / ไม่มีอยู่ (แบบ jl port), และล็อกแถวกันชนกับ cancel/rollback
         $billId = DB::transaction(function () use ($request, $id, $upload) {
             $data = DB::table('bill_alipay')->where('id', $id)->lockForUpdate()->first();
-            if ($data === null || ! Php74::eq((string) $data->status, 1)) {
+            if ($data === null || Php74::eq((string) $data->status, -1)) {
                 return null;
             }
             DB::table('bill_alipay')->where('id', $data->id)->update([
@@ -86,7 +86,7 @@ class AdminAlipayController extends Controller
             return (string) $data->id;
         });
         if ($billId === null) {
-            return response("ErrorBox('รายการไม่พร้อมที่จะดำเนินการนี้', 'window.location.reload();'); ");
+            return response(Alerts::error('CloseLoading()', 'รายการนี้ถูกยกเลิกไปแล้ว'));
         }
         $js = $upload !== '' ? TempUpload::jsIfExists($upload, "         \t\t") : '';
         if (! config('legacy.debug_mail')) {
@@ -111,8 +111,11 @@ class AdminAlipayController extends Controller
                 'status' => '-1', 'cancel_remark' => $remark.' ,ยกเลิกโดย '.(Legacy::user()->code ?? ''),
                 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
             ]);
-            // SR: คืนทั้งบาท (usecash) และหยวน (usecash_cn) ให้เจ้าของบิล — เดิมเขียนทั้งสองแถวเสมอ (ยอด 0 ก็เขียน)
+            // PACK: คืนบาท (usecash) และหยวน (usecash_cn) ให้เจ้าของบิล เฉพาะส่วนที่ไม่เป็น 0 (SR เขียนทั้งสองแถวเสมอ)
             foreach (['balance' => $data->usecash, 'balance_cn' => $data->usecash_cn ?? null] as $table => $amount) {
+                if (Php74::num($amount) == 0) {
+                    continue;
+                }
                 DB::table($table)->insert([
                     'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid, 'is_delete' => 0,
                     'user' => (string) $data->user, 'amount' => (string) $amount, 'detail' => 'ยกเลิกรายการ '.P::prefix('alipay').$data->id,

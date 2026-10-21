@@ -188,7 +188,7 @@
 	</div>
 
 </form>
-@include('payment.partials.balance_list', ['colClass' => 'col-xs-12 col-md-12', 'w1' => 190, 'w2' => 140, 'br' => '<br />'])
+@include('payment.partials.balance_list', ['colClass' => 'col-xs-12 col-md-12', 'w1' => 190, 'w2' => 140, 'br' => '<br />', 'cnAsBaht' => true])
 
 <div id="panel-modal" class="cancel_remark_form modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="display: none;">
     <div class="modal-dialog modal-xs">
@@ -229,10 +229,6 @@
 		}
 	}
 
-	function canceling() {
-		$(".cancel_remark_form").modal('show');
-	}
-
 	function rollback() {
 		ConfirmBox(function () {
 			$.ajax({
@@ -247,6 +243,9 @@
 		});
 	}
 
+	function canceling() {
+		$(".cancel_remark_form").modal('show');
+	}
 	function canceling2() {
 		ConfirmBox(function () {
 			$.ajax({
