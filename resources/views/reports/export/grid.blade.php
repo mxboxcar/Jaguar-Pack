@@ -61,8 +61,12 @@
                             <td class="text-center">{{ $item->ship_name }}</td>
                             <td class="text-center">{!! Status::getsender($item->sender_type) !!}</td>
                             <td class="text-center">{!! Rows::fancy($item->export_attachment) !!}</td>
-                            <td class="text-right">{!! Format::numberformat($item->total) !!}<div class="text-danger">{!! Format::numberformat($item->export_price) !!}</div></td>
-                            <td class="text-center">{!! Status::getstatus($item->status) !!}</td>
+                            {{-- PACK: ยอด = total - discount (ลบแบบ PHP 7.4), ป้าย VAT --}}
+                            <td class="text-right">{!! Format::numberformat(Php74::num($item->total) - Php74::num($item->discount)) !!}<div class="text-danger">{!! Format::numberformat($item->export_price) !!}</div></td>
+                            <td class="text-center">
+                                {!! Status::getstatus($item->status) !!}
+                                @if (Php74::eq($item->is_vat, 1))<br/><span class='label label-danger'>VAT</span>@endif
+                            </td>
                             <td class="text-center">
                             	<a href="{{ legacy_href() }}export/{{ $item->id }}" class="table-action-btn"><i class="md  md-mode-edit text-primary"></i></a>
                             </td>

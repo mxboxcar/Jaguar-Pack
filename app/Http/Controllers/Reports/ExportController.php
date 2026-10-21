@@ -97,6 +97,8 @@ class ExportController extends Controller
             'totals' => ExportBill::totals($details),
             'rows' => ExportBill::trackingRows($details, false),
             'balance' => ExportBill::balanceBox($owned ? $id : null, false),
+            // PACK: คูปองส่วนลดท้ายบิล (ไม่มีบิล = ไม่มีคูปอง; เดิม /export/0 ได้คูปองที่ยังไม่ถูกใช้ของใครก็ได้)
+            'coupon' => $owned ? ExportBill::coupon($id) : null,
             'prefix' => Rows::prefix('payment'),
         ]);
     }
