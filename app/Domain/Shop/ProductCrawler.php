@@ -45,7 +45,7 @@ final class ProductCrawler
                 'Accept-Language' => 'en-us,en;q=0.5',
                 'Accept-Encoding' => 'gzip,deflate',
             ])->withUserAgent(UserAgent::random())
-                ->connectTimeout(120)->timeout(120) // SR: CURLOPT_CONNECTTIMEOUT/TIMEOUT 120 (jl 10/25)
+                ->connectTimeout(10)->timeout(25) // PACK = jl: CURLOPT_CONNECTTIMEOUT 10 / TIMEOUT 25 (SR 120/120)
                 ->withoutVerifying()
                 ->withOptions(['allow_redirects' => ['max' => 10, 'referer' => true]])
                 ->send('POST', $full);

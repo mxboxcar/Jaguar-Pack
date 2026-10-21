@@ -1,5 +1,84 @@
 # กลุ่ม shop — รายงานการพอร์ต
 
+## PACK (2026-10-22)
+
+branch `mod/order` (กลุ่ม shop ทำใน worktree เดียวกับ order: `/home/admin/laravel/pack-wt/order`, port 8803) · เทียบกับ PACK legacy (:8114, `admin_pack_bench`) · ไม่ได้แก้ฐานร่วม
+ไฟล์ตาม `docs/pack-diff.md` กลุ่ม shop: same 21 / diff 12 / SR-only 10 + pack-only `_cart/product_bk.php` (สำรอง ไม่มีอะไรลิงก์ → dead ไม่พอร์ต)
+
+### สิ่งที่เปลี่ยนสำหรับ PACK
+
+| ไฟล์เดิม | สถานะ | ที่ทำ |
+|---|---|---|
+| `_cart/product.php` | diff 68 (jl 2) | view ของ jl (ก่อน fork เป็น SR) + รายการสีแบบรูปของ PACK: `col-xs-5`, ไม่มี `?r=`, ชื่อสีต่อท้ายรูป (ไม่มี `<span>`) — คง `_h()` escape ค่าจาก crawler |
+| `_cart/checkout.php` | diff 36 (jl 12) | view ของ jl: กล่องหมายเหตุ `text-center` ว่าง, ไม่มี JS `SaveCartTakeapic`, ข้อความ modal "ไลน์ @packcargo" |
+| `_cart/load_full_cart.php` | diff 15 | ของ SR ไม่มีคอลัมน์/สวิตช์ "ถ่ายรูป" และไม่มีแถบสี `#rrggbb` (สีแสดงเป็นข้อความ) |
+| `_cart/load_choose_product.php` | diff 16 (jl 20) | ไฟล์รุ่นเก่าของ PACK (2020): ไม่มี hidden `search_color_a/size_a`, ไม่มี `onkeyup="changesku()"`, ไม่มีแถว "สินค้าคงเหลือ", ปุ่มไม่มี `id="submitbtn"` · getupload() = รุ่นเก่าของ PACK (ดูด้านล่าง) |
+| `_cart/load_cart.php` | diff 1 | ต่างแค่ `$cart = array()` — ไม่มีผล |
+| `_cart/save_checkout.php` | diff 19 (jl 2) | ไม่มี `is_takeapic` ลง `bill_product_detail`/`tracking`; รายการที่ `url` ว่างไม่ลง detail (แต่นับในยอด) เหมือน SR |
+| `_taobao/save.php` | diff 4 | ต้องยืนยัน PIN เหมือน SR แต่ **ไม่มี** การตรวจ "กรุณาใส่ราคา" (ราคา 0 ผ่านได้แบบ PACK) — ยังปฏิเสธราคาติดลบ (แก้จากรีวิวเดิม) |
+| `_api/get_order_number_v2.php` | diff 6 | PACK = แบบ v3 ของ SR: `<order>[xx]<url>` เฉพาะ tracking 60 วันล่าสุด (ไม่มีบรรทัด `[xx]tmall`) |
+| `_api/load_product.php` | diff 13 (jl 2) | timeout crawler 10/25 วินาที (jl; SR 120/120) ใน `ProductCrawler` |
+| `_api/unban.php` | diff 10 (jl 4) | รับ token จาก POST หรือ GET (แบบ jl; SR GET อย่างเดียว) — token อยู่ใน `.env` `LEGACY_SHOP_UNBAN_TOKEN` (POST จาก cron ต้องผ่าน LegacyCsrf อยู่ดี → ใช้ GET) |
+| `_api/blockblob_ajax.php` | diff 24 (jl 9) | ไม่ echo URL ไฟล์ต่อท้ายแบบ SR (ผล `temp empty`/`exists`/`` ตรงเดิม); ยังต้องล็อกอิน (เดิม PACK ไม่ตรวจ = ช่องโหว่); account Azure อยู่ใน `.env` (BlobStore) |
+| `_api/blockblob.php` | diff 4 | ต่างแค่ account/key — ไม่มีผลกับ route |
+| ไฟล์ `same` 21 ไฟล์ (`_admin/_mallstock/*`, `_cart/save_*`, `_taobao/*`, `_api/*`) | same | ไม่แก้โค้ด — เทียบผลกับ :8114 แล้ว |
+
+**getupload() ของ PACK** (`App\Domain\Shop\Upload::getupload`, ใช้ใน `load_choose_product`): ตาม `docs/pack-diff.md` "foundation helpers" — รุ่นเก่า (jl ก่อนแก้ PDF): รูปดูจากนามสกุล jpg/png/jpeg, ไฟล์อื่นเป็นลิงก์ `class='fancybox'` (ไม่มี `download`), ไม่มี handler `change.reselect`, preview: response มี .zip/.rar/.7z แสดง response ไม่งั้นเป็น `<img>` (response = ชื่อไฟล์สุ่มที่ `system_upload` สร้าง ไม่ใช่ค่าจากผู้ใช้) — ตรงกับ :8114 byte ต่อ byte
+
+### ไฟล์ SR-only ที่ตัดออก (ไม่มี route, 404 → หน้าแรก; `docs/url-map.md` ระบุ dead แล้ว)
+
+`_cart/save_takeapic`, `_findproduct/*` (หน้า `findproduct`, `findproduct/create`, `findproduct/{id}` + grid/save/delete — ไม่มีใน content.php ของ PACK ด้วย), `_api/load_product_v2`, `_api/load_product_v7`, `_api/send_sms`, `_api/get_order_number_v3`
+→ ลบ `FindProductController`, view `shop/findproduct/*`, `ApiController::{loadProductV2,parseV2,loadProductV7,sendSms,getOrderNumberV3}`, `CartController::saveTakeapic`; `RouteSecurityTest::PUBLIC` ตัด `_api/get_order_number_v3`
+
+### ต่างจาก PACK เดิมโดยตั้งใจ
+
+- escape ค่าจาก DB/crawler (เช่น ชื่อร้าน `JoJo''s` ใน `load_cart` แสดงเป็น entity — เดิม JS `selectallscart('JoJo''s …')` พังอยู่แล้ว), ไม่มี `target="_blank"`, หน้าไม่มีสิทธิ์/ไม่ใช่เจ้าของ = layout ครบ
+- `_api/blockblob_ajax` ต้องล็อกอิน (PACK เดิมไม่ตรวจ — ใครก็สั่งอัปไฟล์ temp ขึ้น Azure ได้)
+- ราคาในตะกร้าลูกค้ากำหนดเองไม่ได้ (ของ jl/SR — `CrawlPrices`); `admin_mall` ไม่มี role ใดถือใน PACK เช่นกัน
+- `_taobao/load_calculator` ส่ง `price[]` เป็น array: เดิม 500 (fatal), ใหม่คำนวณเป็น 0 (JS เดิมส่งค่าเดียวเสมอ)
+
+### ช่องโหว่/ความลับในโค้ดเดิมของ PACK ที่เจอ
+
+| ไฟล์ | ปัญหา | ใหม่ |
+|---|---|---|
+| `_api/unban.php`, `_api/get_order_number_v2.php` (และ submit_order_number_v2) | token cron/crawler ฝังในโค้ด PHP (ไม่ได้คัดลอกมาที่นี่) | `.env` `LEGACY_SHOP_UNBAN_TOKEN`, `LEGACY_SHOP_ORDER_API_TOKEN` — **ต้องตั้งค่าใหม่ใน production และแจ้ง cron/crawler** |
+| `_api/blockblob_ajax.php` | ไม่ตรวจล็อกอิน + `display_errors=1` | ต้องล็อกอิน, ไม่แสดง error |
+| อื่นๆ | เหมือนรายการของ jl/SR ด้านล่าง (SQLi `base64_decode($ids)`, IDOR cart, ราคาติดลบ ฯลฯ) | แก้แล้ว |
+
+### การตรวจ (เทียบ :8114 ด้วย session เดียวกัน, normalize href/ช่องว่าง, ตัด layout ฐานร่วม)
+
+- ลูกค้า 1003 (ตะกร้า 925 รายการ): `_cart/load_cart` (ต่างเฉพาะ escape ชื่อร้านที่มี `'`), `_cart/load_full_cart` (8 รายการ: รูปสี/ขนาด, ids ว่าง), `_cart/load_choose_product`, `cart/checkout`, `cart/checkout/{ids}`, `cart/product` (ว่าง / `?l=` / `/{url}` — ต่างเฉพาะ `_h()` escape: เทียบหลังตัด `_h()` = ตรง), `_api/blockblob_ajax` (temp empty) — **ตรงกัน**
+- ลูกค้า 50 (taobao 1,025 ใบ): `taobao`, `taobao/1590`, `_taobao/grid` หน้า 1/3 + ค้น `TAO-1590`, `_taobao/load_calculator`, `_taobao/load_new_line`, `taobao/create` — **ตรงกัน**; ใบของคนอื่น (1003 เปิด 1590) = layout ครบ + ข้อความเดิม
+- แอดมิน 11938: `_admin/_mallstock/grid` 4 แบบ, `load_amount` (มี/ไม่มีแถว) — ตรงกัน; role 6 (user 5): grid ว่าง, load_amount ErrorBox — ตรง
+- ไม่มีสิทธิ์ order (user 5): `load_cart`/`load_full_cart` ErrorBox, `load_choose_product` script แจ้งสิทธิ์, `_taobao/grid` ว่าง — ตรง
+- URL ที่ตัด (`_cart/save_takeapic`, `findproduct`, `_findproduct/grid`, `_api/load_product_v2|v7`, `send_sms`, `get_order_number_v3`) → 302 หน้าแรก
+
+### E2E เขียนข้อมูล (ฝั่ง Laravel :8803 เท่านั้น, user 11937 + แถว zz_, ลบตาม id แล้ว)
+
+`_api/load_product` (STUB + crawl_guard_log) → `_cart/save_product` ×3 (`it's` → `it''s` แบบเดิม) → `save_amount` (3; ติดลบไม่แก้), `save_craft`, `save_qc` → `load_full_cart` (ไม่มีถ่ายรูป, สี hex เป็นข้อความ) → `save_checkout` ยิงซ้อน 2: 1 ใบ total 364.00 = Σ ราคา×จำนวน×5.2, detail 3, tracking 2 (ร้านละ 1: craft/qc/ship/quote ของแถวแรกของร้าน), ตะกร้าถูกตัดรายการ · `delete_cart`, `delete_carts` (แถวของคนอื่นไม่ถูกลบ) · `_taobao/save` ยิงซ้อน 2 (PIN ถูก, ราคา ¥10 + ¥0): 1 ใบ 2 รายการ, `price` 265.23 = usecash 51.50 × 5.15 (สูตรเดิม), balance −51.50 `TAO-2126` · origin อื่น = 403
+ลบแล้ว: cart 716/718, cart_detail 168816–168818/168822–168824, crawl_guard_log 1984, taobao 2126 + detail 2439–2440, balance 65059 (+ แถวของกลุ่ม order ด้านบน)
+
+### bench (`bin/bench`, c=1, n=20, หลัง `artisan optimize`; เครื่องมีโหลดจาก agent อื่น)
+
+| หน้า | เดิม mean / p50 ms | ใหม่ mean / p50 ms |
+|---|---|---|
+| `cart/checkout` (1003) | 1768 / 1661 | 78 / 79 |
+| `_cart/load_full_cart` (8 รายการ) | 457 / 477 | 73 / 61 |
+| `cart/product` | 690 / 686 | 85 / 73 |
+| `taobao` (50) | 983 / 918 | 66 / 63 |
+| `_taobao/grid` (50) | 257 / 124 | 42 / 41 |
+
+### test
+
+`tests/Feature/Shop/ShopRoutesTest.php` (route PACK, URL ที่ PACK ไม่มี, unban POST), `ShopHelpersTest.php` (getupload รุ่นเก่า; ตัด test parser v2), `ShopPackDbTest.php` (แทน `ShopSrDbTest`; checkout ไม่มีถ่ายรูป/รายการไม่มีลิงก์, taobao PIN + ราคา 0 ผ่าน/ติดลบไม่ผ่าน, mallstock grid, get_order_number_v2 60 วัน), `tests/Feature/Money/CartCheckoutDbTest.php` ผ่าน (เดิมล้มเพราะ `is_takeapic`)
+
+### คำถามถึงเจ้าของ
+
+1. ตั้ง `LEGACY_SHOP_UNBAN_TOKEN` / `LEGACY_SHOP_ORDER_API_TOKEN` ใหม่ใน `.env` production ของ PACK แล้วแจ้ง cron/crawler (ค่าเดิมฝังในโค้ด PHP ของเว็บเดิม)
+2. `_taobao/save` ราคา 0 ผ่านได้แบบ PACK เดิม (SR ห้าม) — ต้องการให้ห้ามแบบ SR หรือไม่
+3. `_admin/_mallstock/*` (สำเนา `_admin/_balance`, ไม่มีหน้าใช้) — คงไว้หรือปิด (เหมือนคำถาม SR)
+4. getupload() รุ่นเก่าของ PACK (เลือกไฟล์เดิมซ้ำไม่ได้, PDF แสดงเป็นรูปเสีย) — ทำตามเดิม (ตาม foundation) หรือใช้รุ่นแก้แล้วของ jl/SR ทุกกลุ่ม
+
 ## SR (2026-10-20)
 
 branch `mod/shop` ของ repo sr · worktree `/home/admin/laravel/sr-wt/shop` · dev http://127.0.0.1:8302 · เทียบกับ SR เดิม :8111 (`admin_sr_bench`)

@@ -147,7 +147,7 @@ class TaobaoController extends ShopController
         $remark = $this->post($request, 'remark');
         $prefix = (string) Lookup::getPrefix('taobao');
 
-        // SR: ต้องยืนยัน PIN จ่ายเงินก่อน (ทั้งสร้างและแก้หมายเหตุ) — getNewPinBox() / getPinBox(0) / PIN ผิด
+        // PACK/SR: ต้องยืนยัน PIN จ่ายเงินก่อน (ทั้งสร้างและแก้หมายเหตุ) — getNewPinBox() / getPinBox(0) / PIN ผิด
         // ผ่าน PinBox::guard (ตัวนับเดาร่วม PinThrottle; ไม่ log PIN ที่พิมพ์ผิดแบบเดิม)
         if (($pin = PinBox::guard($request, Legacy::user())) !== null) {
             return $this->out($pin);
@@ -175,10 +175,7 @@ class TaobaoController extends ShopController
         // เดิมรับราคาติดลบได้: ใส่ [1000, -1000] = ยอดรวม 0 → จ่ายแค่ค่าบริการ แต่ taobao_detail มีออเดอร์ ¥1000 ให้แอดมินจ่ายแทน
         // → ราคาทุกช่องต้องไม่ติดลบ (ค่าว่าง/ไม่ใช่ตัวเลข = 0 แบบเดิม)
         foreach ($priceArr as $p) {
-            // SR: if ($price[$i] == 0 || == "0.00" || == "0") — PHP 7.4 string == 0 คือค่าตัวเลขนำหน้าเป็น 0 (ว่าง/ไม่ใช่ตัวเลขด้วย)
-            if ($n($p) == 0) {
-                return $this->out(Alerts::error('CloseLoading()', 'กรุณาใส่ราคา'));
-            }
+            // PACK ไม่มีการตรวจ "กรุณาใส่ราคา" ของ SR (ราคา 0 ผ่านได้แบบเดิม)
             if ($n($p) < 0) {
                 return $this->out(Alerts::error('CloseLoading()', 'ราคาไม่ถูกต้อง (ติดลบ)'));
             }

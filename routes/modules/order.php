@@ -2,14 +2,14 @@
 
 use App\Http\Controllers\Order\Admin\AdminOrderController;
 use App\Http\Controllers\Order\Admin\AdminOrderDetailController;
-use App\Http\Controllers\Order\Admin\AdminPrintorderController;
 use App\Http\Controllers\Order\Admin\AdminTaobaoController;
 use App\Http\Controllers\Order\OrderController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| กลุ่ม: order — _order, _admin/_order, _admin/_taobao, _admin/_printorder (SR เท่านั้น)
-| SR ไม่มี _order/load_paging, _order/print, _admin/_order/load_paging, _admin/_order/save_vat ของ jl (ไม่มี route — ตกไป 404 → หน้าแรก)
+| กลุ่ม: order — _order, _admin/_order, _admin/_taobao
+| PACK: _admin/_order/grid + load_paging + load_total_order แบบ jl (cache 10 นาที); ไม่มี _order/load_paging, _order/print, _admin/_order/save_vat ของ jl
+|       และไม่มีไฟล์เฉพาะ SR (_admin/_printorder/*, delete_withcashback, load_changeuser, save_changeuser, save_newrate, save_takeapic) → 404 → หน้าแรก
 | ดูรายการ URL/ไฟล์เดิมใน docs/url-map.md และรายงานใน docs/modules/order.md
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 |
@@ -53,12 +53,9 @@ Route::middleware('legacy.perm:admin_order')->group(function () {
         Route::post('/_admin/_order/save_lock', [AdminOrderController::class, 'saveLock']);
         Route::post('/_admin/_order/save_remark', [AdminOrderController::class, 'saveRemark']);
         Route::post('/_admin/_order/save_quote_admin', [AdminOrderController::class, 'saveQuoteAdmin']);
-        // SR เท่านั้น
-        Route::post('/_admin/_order/delete_withcashback', [AdminOrderController::class, 'deleteWithCashback'])->middleware('legacy.once');
-        Route::post('/_admin/_order/load_changeuser', [AdminOrderController::class, 'loadChangeuser']);
-        Route::post('/_admin/_order/save_changeuser', [AdminOrderController::class, 'saveChangeuser']);
+        Route::post('/_admin/_order/load_paging', [AdminOrderController::class, 'loadPaging']);
+        // ปุ่ม "เปลี่ยนเป็นส่งเรือ/รถ" (ผู้ใช้ id 84 / 3 ตายตัวในฟอร์มเดิม) — ไฟล์เดิมตรวจแค่ admin_order
         Route::post('/_admin/_order/save_change_send_type', [AdminOrderController::class, 'saveChangeSendType']);
-        Route::post('/_admin/_order/save_newrate', [AdminOrderController::class, 'saveNewrate']);
 
         Route::post('/_admin/_order/load_detail', [AdminOrderDetailController::class, 'loadDetail']);
         Route::post('/_admin/_order/load_calculate_cashback', [AdminOrderDetailController::class, 'loadCalculateCashback']);
@@ -74,7 +71,6 @@ Route::middleware('legacy.perm:admin_order')->group(function () {
         Route::post('/_admin/_order/save_color', [AdminOrderDetailController::class, 'saveColor']);
         Route::post('/_admin/_order/save_craft', [AdminOrderDetailController::class, 'saveCraft']);
         Route::post('/_admin/_order/save_qc', [AdminOrderDetailController::class, 'saveQc']);
-        Route::post('/_admin/_order/save_takeapic', [AdminOrderDetailController::class, 'saveTakeapic']);
         Route::post('/_admin/_order/save_remark_product', [AdminOrderDetailController::class, 'saveRemarkProduct']);
         Route::post('/_admin/_order/save_remark_shop', [AdminOrderDetailController::class, 'saveRemarkShop']);
         Route::post('/_admin/_order/save_product_type', [AdminOrderDetailController::class, 'saveProductType']);
@@ -119,20 +115,3 @@ Route::middleware(['legacy.perm:taobao', 'legacy.ajax'])->group(function () {
     Route::post('/_admin/_taobao/load_new_line', [AdminTaobaoController::class, 'loadNewLine']);
 });
 Route::post('/_admin/_taobao/rollback', [AdminTaobaoController::class, 'rollback'])->middleware(['legacy.perm:admin_alipay', 'legacy.ajax']);
-
-// ---------- แอดมิน: พิมพ์รายการสั่งซื้อ (SR เท่านั้น — _admin/_printorder) ----------
-// สิทธิ์ตามไฟล์เดิม: index = admin_printorder (เมนูเดียวกัน), form / load_detail / print = admin_order, save_print = admin_receipt
-Route::middleware('legacy.perm:admin_printorder')->group(function () {
-    Route::get('/admin/printorder', [AdminPrintorderController::class, 'index'])->defaults('legacy_page', 'admin_printorder');
-    Route::get('/admin/printorder/status/{status}', [AdminPrintorderController::class, 'index'])->whereNumber('status')->defaults('legacy_page', 'admin_printorder');
-});
-Route::middleware('legacy.perm:admin_order')->group(function () {
-    Route::get('/admin/printorder/{id}', [AdminPrintorderController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_printorder_detail');
-    Route::get('/admin/printorder/{id}/{div}', [AdminPrintorderController::class, 'form'])->whereNumber('id')->where('div', '.+')->defaults('legacy_page', 'admin_printorder_detail');
-    Route::post('/_admin/_printorder/load_detail', [AdminPrintorderController::class, 'loadDetail'])->middleware('legacy.ajax');
-});
-// grid เดิม exit() เงียบเมื่อไม่มีสิทธิ์ → ตรวจใน controller
-Route::post('/_admin/_printorder/grid', [AdminPrintorderController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
-// หน้าพิมพ์ (เปิดตรงจาก browser, ปุ่มเดิมลิงก์ "print/?id=") — ไม่มีสิทธิ์ = print_header + แจ้งเตือนแบบเดิม
-Route::get('/_admin/_printorder/print', [AdminPrintorderController::class, 'print'])->middleware('legacy.auth');
-Route::post('/_admin/_printorder/save_print', [AdminPrintorderController::class, 'savePrint'])->middleware(['legacy.perm:admin_receipt', 'legacy.ajax']);

@@ -3,13 +3,15 @@
 namespace App\Domain\Shop;
 
 use App\Support\Legacy\Alerts;
-use App\Support\Legacy\Format;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
 
 /**
  * ส่วนอัปโหลดไฟล์ที่กลุ่ม shop ใช้
  *   getupload()  = getupload() ของ system_config.php เดิม (HTML + JS dropper) — ผล HTML เหมือนเดิมทุกตัวอักษร
+ *                  PACK = รุ่นเก่า (jl ก่อนแก้ PDF): รูปดูจากนามสกุล jpg/png/jpeg, ไฟล์อื่นเป็นลิงก์ class fancybox (ไม่มี download),
+ *                  ไม่มี handler change.reselect, preview: response มี .zip/.rar/.7z = แสดง response ไม่งั้นเป็น <img>
+ *                  (ชื่อไฟล์ที่ system_upload ตอบเป็นชื่อสุ่มของระบบ — ไม่ใช่ค่าจากผู้ใช้)
  *                  (CONVENTIONS ข้อ 8: เจ้าของจริงคือกลุ่ม settings — ถ้า settings พอร์ตแล้วให้เปลี่ยนมาใช้ของ settings)
  *   blobJs()     = JS ที่ save*.php เดิม echo ออกไปให้หน้าเว็บยิง _api/blockblob_ajax ต่อ (เมื่อมีไฟล์ใน upload/temp)
  */
@@ -57,10 +59,10 @@ final class Upload
         $html .= '<div style="float:left;clear: both;margin-top: 10px;" class=" upload_'.$rand.'_preview">';
         if ($filename !== '') {
             $blob = $e(Legacy::hrefBlob($filename));
-            if (Format::uploadIsImage($filename)) {
+            if (in_array(pathinfo($filename, PATHINFO_EXTENSION), ['jpg', 'png', 'jpeg', 'JPG', 'JPEG', 'PNG'], true)) {
                 $html .= "<a class='fancybox' style='float:left;' href='".$blob."'><img src='".$blob."' style='max-width: 120px;max-height: 120px;' /></a>";
             } else {
-                $html .= "<a style='float:left;' download='".$e($filename)."' href='".$blob."'>".$e($filename).'</a>';
+                $html .= "<a class='fancybox' style='float:left;' href='".$blob."'>".$e($filename).'</a>';
             }
         }
         $html .= '</div>';
@@ -79,15 +81,14 @@ final class Upload
             $html .= 'label: "'.Lang::get('click_to_add_attachment').'",';
             $html .= 'maxQueue : 1,';
             $html .= '}).on("start.dropper", '.$rand.'_start).on("fileComplete.dropper", '.$rand.');';
-            $html .= '$(".upload_'.$rand.'").find(".dropper-input").on("change.reselect", function() { var el = this; setTimeout(function() { el.value = ""; }, 0); });';
             $html .= 'function '.$rand.'(e, file, response) {';
             $html .= ' if (response.trim() === "" || response.toLowerCase().indexOf("error") > -1) {';
             $html .= ' ErrorBox(response.toLowerCase(), "CloseLoading()"); $(".upload_'.$rand.'_preview").html("");$("input[name=\'upload_'.$rand.'\']").val("") ';
             $html .= ' } else {';
-            $html .= ' if(/\.(jpg|jpeg|png)$/i.test(response)) { ';
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a>\'); ';
+            $html .= ' if(response.toLowerCase().indexOf(".zip") > -1 || response.toLowerCase().indexOf(".rar") > -1 || response.toLowerCase().indexOf(".7z") > -1) { ';
+            $html .= ' $(".upload_'.$rand.'_preview").html(response); ';
             $html .= ' } else {';
-            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a style="float:left" download href="'.$href.'upload/temp/\' + response + \'">\' + response + \'</a>\'); ';
+            $html .= ' $(".upload_'.$rand.'_preview").html(\'<a class="fancybox" style="float:left" href="'.$href.'upload/temp/\' + response + \'"><img src="'.$href.'upload/temp/\' + response + \'" style="max-width: 120px;max-height: 120px;" /></a>\'); ';
             $html .= ' } ';
             $html .= ' $("input[name=\'upload_'.$rand.'\']").val(response);';
             $html .= ' $(".upload_'.$rand.'_delete").css("display", "block");';

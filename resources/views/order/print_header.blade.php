@@ -1,4 +1,4 @@
-{{-- print_header.php ของ SR (include จาก _admin/_printorder/print.php) — ไม่มี <html>/<head> ครอบ เหมือนไฟล์เดิม --}}
+{{-- print_header.php (ใช้ร่วม: reports — _admin/_export/print) — ไม่มี <html>/<head> ครอบ เหมือนไฟล์เดิม --}}
 <meta charset="utf-8">
 
 <link href="{{ legacy_href() }}assets/css/bootstrap.min.css" rel="stylesheet" type="text/css" />

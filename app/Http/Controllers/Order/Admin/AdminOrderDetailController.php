@@ -190,16 +190,6 @@ class AdminOrderDetailController extends Controller
         return response(Alerts::success('LoadDetail();'));
     }
 
-    /**
-     * POST /_admin/_order/save_takeapic — SR: สลับบริการถ่ายรูป (bill_product_detail.is_takeapic) + tracking ที่ผูกกับรายการ (แบบเดียวกับ save_craft/save_qc)
-     */
-    public function saveTakeapic(Request $request): Response
-    {
-        $this->toggle($request, 'is_takeapic');
-
-        return response('');
-    }
-
     /** POST /_admin/_order/save_craft — สลับตีลังไม้ (รายการ + tracking ที่ผูกอยู่) */
     public function saveCraft(Request $request): Response
     {
@@ -316,6 +306,8 @@ class AdminOrderDetailController extends Controller
     /**
      * POST /_admin/_order/save_add_new_track — เพิ่ม tracking ว่างให้รายการ แล้วตอบแถว HTML ใหม่
      * (เดิมไม่พบรายการก็ INSERT tracking ขยะ → ไม่เขียนอะไร)
+     * PACK (และ jl) เดิม: INSERT bill_product_on_tracking ด้วยตัวแปร $ins ที่ไม่มี (พิมพ์ผิดจาก $sql) → ไม่ได้ผูก tracking ใหม่กับรายการ
+     *   (tracking ลอย ไม่แสดงในใบหลัง reload, ปุ่มลบได้ ref 0) — ใหม่ผูกให้แบบ SR (เจตนาของโค้ดเดิม; jl Laravel ก็ผูก)
      */
     public function saveAddNewTrack(Request $request): Response
     {
