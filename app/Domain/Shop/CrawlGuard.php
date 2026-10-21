@@ -22,13 +22,18 @@ final class CrawlGuard
 
     public const MSG = 'ค้นหาสินค้าเกินจำนวนที่กำหนด กรุณาลองใหม่ภายหลัง';
 
-    public static function userDayMax(int $paid): int
+    /**
+     * โควตาต่อบัญชีต่อวัน ตามสัญญาณว่าเป็นลูกค้าจริง (2026-10-21 คุณ MAX ขยายกติกา):
+     * $paid = บิลสั่งซื้อสำเร็จ (status 3) · $billed = บิลที่พนักงานอนุมัติ/แจ้งชำระแล้ว (status 1, 2)
+     * $arrived = แทร็กกิ้งที่เข้าโกดังแล้ว (ลูกค้าส่งของเองก็นับ) · บิลรอตรวจสอบ (0) และแทร็กที่แค่แจ้งไว้ไม่นับ (บอทสร้างเองได้)
+     */
+    public static function userDayMax(int $paid, int $billed = 0, int $arrived = 0): int
     {
-        if ($paid >= 5) {
+        if ($paid >= 5 || $arrived >= 10) {
             return 300;
         }
 
-        return $paid >= 1 ? 150 : 50;
+        return ($paid >= 1 || $billed >= 1 || $arrived >= 1) ? 150 : 50;
     }
 
     public static function ip(): string
@@ -62,8 +67,12 @@ final class CrawlGuard
         $net = self::net($ip);
         $ua = substr(md5(Legacy::userAgent()), 0, 12);
         $reason = '';
-        $paid = (int) DB::table('bill_product')->where('user', $uid)->where('status', 3)->where('is_delete', 0)->count();
-        $dmax = self::userDayMax($paid);
+        $b = DB::table('bill_product')->where('user', $uid)->where('is_delete', 0)
+            ->selectRaw('COALESCE(SUM(`status` = 3), 0) AS paid, COALESCE(SUM(`status` IN (1, 2)), 0) AS billed')->first();
+        $paid = (int) ($b->paid ?? 0);
+        $arrived = (int) DB::table('tracking')->where('user', $uid)->where('is_delete', 0)
+            ->where('date_warehouse', '<>', '0000-00-00 00:00:00')->count();
+        $dmax = self::userDayMax($paid, (int) ($b->billed ?? 0), $arrived);
         $u = DB::table('crawl_guard_log')->where('user', $uid)->where('ok', 1)->whereRaw('`ts` >= CURDATE()')
             ->selectRaw('COUNT(*) AS d, COALESCE(SUM(`ts` >= NOW() - INTERVAL 1 HOUR), 0) AS h')->first();
         if ($u && (int) $u->h >= self::USER_HOUR) {
