@@ -41,13 +41,13 @@ PACK = SR ส่วนใหญ่ แต่หน้า detail ของล็�
 
 ### การตรวจ (2026-10-22, :8114 เดิม vs :8808 ใหม่, session เดียวกัน, normalize host/รูป blob/ช่องว่าง/คอมเมนต์ HTML/target blank)
 
-- แอดมิน 11938 (role 1): `/admin/lot` (ต่างเฉพาะ class `noti` ของ layout ฐานร่วม), grid หน้า 1/2/3 + ค้นหา `5294` + รถ `|0` + เรือ `|1` = **ตรง**, `/admin/lot/5294`, `/admin/lot/5305`, `/admin/lot/create` (ต่างเฉพาะ `#lot_unpayment` + `parseFloat` + markup ลบรูปของ UploadBox ฝั่ง tracking ข้างล่าง), `load_lot_detail` 5305/5294/ค้นรหัสลูกค้า/ล็อตไม่มี/`search=undefined` (ต่างเฉพาะรูปเล็กที่มาพร้อมแถว), `load_image`/`load_quickfile` (รูปของ 98864/98865), `load_unpaid`, `load_lot_memo` (ต่าง `.php` ใน URL autocomplete แบบ jl), `load_ref_print` ×2, `load_user_rate`, `load_lastest_lot`, autocomplete ×2, `print_receive` = ตรง
+- แอดมิน 11938 (role 1): `/admin/lot` (ตรง), grid หน้า 1/2/3 + ค้นหา `5294` + รถ `|0` + เรือ `|1` = **ตรง**, `/admin/lot/5294`, `/admin/lot/5305`, `/admin/lot/create` (ต่างเฉพาะ `#lot_unpayment` + `parseFloat`), `load_lot_detail` 5305/5294/ค้นรหัสลูกค้า/ล็อตไม่มี/`search=undefined` (ต่างเฉพาะรูปเล็กที่มาพร้อมแถว), `load_image`/`load_quickfile` (รูปของ 98864/98865), `load_unpaid`, `load_lot_memo` (ต่าง `.php` ใน URL autocomplete แบบ jl), `load_ref_print` ×2, `load_user_rate`, `load_lastest_lot`, autocomplete ×2, `print_receive` = ตรง
 - user 5 (PACKMAN role 6 — ผู้แก้ล็อตได้ + ถือ admin_lot_view): `/admin/lot` (มีปุ่มสร้าง) = ตรง, `/admin/lot/{5294,5305,create}` (ฟอร์มเต็ม, ภาษา en ด้วย) ต่างเฉพาะข้อตั้งใจข้างบน, `load_lot_detail` (ช่องเลือก/แก้/ลบ, ไม่มีคอลัมน์ราคา; ภาษา cn) = ตรง
 - role 7 (923): `/admin/lot`, `/admin/lot/5305` = ตรง (อ่านอย่างเดียว); ลูกค้า/role 3/role 4: ปฏิเสธ — ข้อความ ErrorBox ตรงกับเดิม
 - ลูกค้า 348: `/lot`, `/lot/5305`, `_lot/load_lot_detail` 5305/5294 = ตรง; `_lot/grid` เทียบสดไม่ได้ (ข้อ 3 — ไฟล์ same กับ SR ที่เทียบครบแล้ว)
 - ไม่ได้เทียบสด (ไฟล์เดิมเขียน DB): `load_tracking`, `print`, `email_lot`, ทุก `save*` — ตรวจด้วยการอ่านโค้ด + แถวที่เขียน
 - `load_toptable` → 404 (route ลบแล้ว)
-- ต่างที่ไม่ใช่ของกลุ่มนี้: `App\Domain\Tracking\UploadBox::multiple` (กลุ่ม tracking) ใส่ `$(this).parent().remove(); ` ตาม SR — PACK `getuploadmultiple` เป็น `remove()` (ไม่มี `; `) ผลเท่ากัน
+- หลัง merge main (UploadBox ของกลุ่ม tracking เป็น markup ของ PACK แล้ว, layout ฐานร่วม): `/admin/lot`, `/admin/lot/{5294,create}` (แอดมินและ user 5), `load_quickfile`, grid = ต่างเฉพาะข้อตั้งใจ
 
 ### E2E เขียน (ฝั่ง Laravel :8808 เท่านั้น, แอดมิน 11938, ลูกค้า ZZFDN1 11937, แถว zz แล้วลบตาม id)
 

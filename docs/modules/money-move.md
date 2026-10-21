@@ -68,8 +68,8 @@ test: `MoneyMoveRoutesTest` (สิทธิ์ admin transfer form 2 ตัว,
 
 ### test
 
-- `php8.4 vendor/bin/phpunit` ผ่านทั้งชุด (328 test, ข้าม 111 ที่ต้องใช้ DB)
-- `JL_BENCH_DB_TESTS=1` ชุดของกลุ่ม lot + money-move ผ่านทั้งหมด (`tests/Feature/{Lot,MoneyMove,Access}`, `Unit/Lot`, `Money/{MoneyMoveDbTest,DoubleSubmitDbTest,GridPerfDbTest,MoneyRulesTest}`, `SubmitGuardTest` — 78 test)
+- `php8.4 vendor/bin/phpunit` ผ่านทั้งชุด (หลัง merge main ล่าสุด: 326 test, ข้าม 112 ที่ต้องใช้ DB)
+- `JL_BENCH_DB_TESTS=1` ชุดของกลุ่ม lot + money-move ผ่านทั้งหมด (`tests/Feature/{Lot,MoneyMove,Access}`, `Unit/Lot`, `Money/{MoneyMoveDbTest,DoubleSubmitDbTest,GridPerfDbTest,MoneyRulesTest}`, `SubmitGuardTest`, `RouteSecurityTest`, `RouteModulesTest` — 81 test)
 - ทั้งชุด `JL_BENCH_DB_TESTS=1`: 33 ที่ล้มเป็นของกลุ่มอื่นทั้งหมด (ตาราง/คอลัมน์ SR-only ใน test ของ tracking/order/payment/shop/warehouse/reports/messaging, `Money/{BillGridDbTest,CartCheckoutDbTest,AdminWritesDbTest}` shelf, `Money/LegacyRisksDbTest` เปลี่ยนผู้ส่ง −670 ≠ −650 และ combine `date_section`) — ไม่ได้แก้
 
 ### คำถามถึงเจ้าของ
