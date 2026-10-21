@@ -251,7 +251,8 @@ class PaymentController extends Controller
      */
     public function loadDiscoutcode(Request $request): Response
     {
-        $code = $this->in($request, 'code');
+        // เดิม nStr($_POST['code']) — ' ถูกแปลงซ้ำเป็น '' (คูปองที่ชื่อมี ' เก็บเป็น '' ตอนบันทึกด้วย nStr เหมือนกัน)
+        $code = str_replace("'", "''", $this->in($request, 'code'));
         if ($code === '') {
             return response("\n");
         }

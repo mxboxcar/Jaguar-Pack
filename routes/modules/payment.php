@@ -1,15 +1,15 @@
 <?php
 
 use App\Http\Controllers\Payment\Admin\AdminAlipayController;
+use App\Http\Controllers\Payment\Admin\AdminCouponController;
 use App\Http\Controllers\Payment\Admin\AdminPaymentController;
 use App\Http\Controllers\Payment\Admin\AdminPaymentCreateController;
-use App\Http\Controllers\Payment\Admin\AdminReceiptController;
 use App\Http\Controllers\Payment\AlipayController;
 use App\Http\Controllers\Payment\PaymentController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| กลุ่ม: payment — _payment, _admin/_payment, _alipay, _admin/_alipay, _admin/_receipt (SR) (+ กล่อง PIN: App\Domain\Payment\PinBox)
+| กลุ่ม: payment — _payment, _admin/_payment, _alipay, _admin/_alipay, _admin/_coupon (PACK) (+ กล่อง PIN: App\Domain\Payment\PinBox)
 | ดูรายการ URL/ไฟล์เดิมใน docs/url-map.md และรายงานใน docs/modules/payment.md
 | ไฟล์นี้ถูกโหลดอัตโนมัติใต้ middleware group "legacy" (session เว็บเดิม + jail + CSRF แบบ Origin)
 |
@@ -34,15 +34,17 @@ Route::middleware('legacy.perm:payment')->group(function () {
         Route::post('/_payment/save_delete', [PaymentController::class, 'saveDelete']);
         // เดิมไม่ตรวจสิทธิ์/ล็อกอิน → payment
         Route::post('/_payment/load_shipping_price', [PaymentController::class, 'loadShippingPrice']);
-        // SR ไม่มี _payment/load_vat, load_receipt_address, save_create_receiptaddress, save_deleteaddress,
-        // save_deletereceiptaddress (ระบบ VAT/ที่อยู่ใบกำกับของ jl) → ไม่มี route (404 → หน้าแรก)
+        // PACK: ราคาส่วนลดของคูปอง (ไม่มีใน SR/jl)
+        Route::post('/_payment/load_discoutcode', [PaymentController::class, 'loadDiscoutcode']);
+        // PACK ไม่มี _payment/load_vat, load_receipt_address, save_create_receiptaddress, save_deleteaddress,
+        // save_deletereceiptaddress (ที่อยู่ใบกำกับของ jl) → ไม่มี route (404 → หน้าแรก)
     });
 });
 Route::middleware(['legacy.auth', 'legacy.ajax'])->group(function () {
     Route::post('/_payment/grid', [PaymentController::class, 'grid']);
 });
-// _payment/save.php เดิม = สำเนาของ _refill/save.php (ตรวจสิทธิ์ refill)
-Route::post('/_payment/save', [PaymentController::class, 'save'])->middleware(['legacy.perm:refill', 'legacy.ajax', 'legacy.once']);
+// _payment/save.php เดิม = สำเนาของ _refill/save.php — PACK ตรวจสิทธิ์ payment ก่อน แล้วจึง refill (ต้องมีทั้งสอง)
+Route::post('/_payment/save', [PaymentController::class, 'save'])->middleware(['legacy.perm:payment', 'legacy.perm:refill', 'legacy.ajax', 'legacy.once']);
 // iframe ตัวอย่างใบปะหน้า: JS เดิม POST ก่อนแล้วเปิดด้วย GET; ไม่มีสิทธิ์ = "ERROR : access denied" (ตรวจใน controller)
 Route::match(['GET', 'POST'], '/_payment/view_example', [PaymentController::class, 'viewExample'])->middleware('legacy.auth');
 
@@ -56,7 +58,8 @@ Route::middleware('legacy.perm:admin_payment')->group(function () {
         Route::post('/_admin/_payment/save_approved', [AdminPaymentController::class, 'saveApproved']);
         Route::post('/_admin/_payment/save_delete', [AdminPaymentController::class, 'saveDelete']);
         Route::post('/_admin/_payment/save_deletenopush', [AdminPaymentController::class, 'saveDeleteNoPush']);
-        // SR ไม่มี _admin/_payment/save_vat (VAT ของ jl)
+        // PACK: เปิด/ปิด VAT ของบิล (สูตร VAT แบบ PACK — ไม่มีหัก ณ ที่จ่าย 3% แบบ jl)
+        Route::post('/_admin/_payment/save_vat', [AdminPaymentController::class, 'saveVat']);
         Route::post('/_admin/_payment/load_shipping_price', [AdminPaymentController::class, 'loadShippingPrice']);
     });
     // ไฟล์ include ของ save_approved/save_delete ที่เดิมเปิดตรงได้ (ไม่ต้องล็อกอิน) — ที่นี่ต้องมีสิทธิ์ และไม่ส่งอะไร
@@ -94,9 +97,10 @@ Route::middleware('legacy.perm:alipay')->group(function () {
 
     Route::middleware('legacy.ajax')->group(function () {
         Route::post('/_alipay/save', [AlipayController::class, 'save'])->middleware('legacy.once');
-        Route::post('/_alipay/cancel', [AlipayController::class, 'cancel']);
     });
 });
+// PACK: _alipay/cancel.php เดิมถูก comment ทั้งไฟล์ (ลูกค้ายกเลิกเองไม่ได้ — หน้า alipay/{id} ไม่มีปุ่ม) → ตอบว่าง ไม่ทำอะไร
+Route::post('/_alipay/cancel', [AlipayController::class, 'cancel'])->middleware('legacy.auth');
 Route::post('/_alipay/grid', [AlipayController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 
 // ---------- แอดมิน: เติมอลีเพล ----------
@@ -117,11 +121,20 @@ Route::middleware('legacy.perm:admin_alipay')->group(function () {
 });
 Route::post('/_admin/_alipay/grid', [AdminAlipayController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
 
-// ---------- แอดมิน: รายการใบเสร็จ (SR เท่านั้น — _admin/_receipt) ----------
-// admin/receipt/{id}, admin/receipt/create → _admin/_receipt/form.php ไม่มีในเว็บเดิม (dead) → ไม่มี route
-Route::middleware('legacy.perm:admin_receipt')->group(function () {
-    Route::get('/admin/receipt', [AdminReceiptController::class, 'index'])->defaults('legacy_page', 'admin_receipt');
-    Route::get('/admin/receipt/status/{status}', [AdminReceiptController::class, 'index'])->whereNumber('status')->defaults('legacy_page', 'admin_receipt');
+// ---------- แอดมิน: คูปองส่วนลด (PACK เท่านั้น — _admin/_coupon) ----------
+// SR: _admin/_receipt (admin/receipt) ไม่มีใน PACK → ไม่มี route (404 → หน้าแรก)
+Route::middleware('legacy.perm:admin_coupon')->group(function () {
+    Route::get('/admin/coupon', [AdminCouponController::class, 'index'])->defaults('legacy_page', 'admin_coupon');
+    // RewriteRule เดิมมี admin/coupon/status/N (ส่ง status ให้ index.php ที่ไม่ได้ใช้)
+    Route::get('/admin/coupon/status/{status}', [AdminCouponController::class, 'index'])->whereNumber('status')->defaults('legacy_page', 'admin_coupon');
+    Route::get('/admin/coupon/create', [AdminCouponController::class, 'form'])->defaults('legacy_page', 'admin_coupon_detail');
+    Route::get('/admin/coupon/{id}', [AdminCouponController::class, 'form'])->whereNumber('id')->defaults('legacy_page', 'admin_coupon_detail');
+
+    Route::middleware('legacy.ajax')->group(function () {
+        Route::post('/_admin/_coupon/save', [AdminCouponController::class, 'save'])->middleware('legacy.once');
+    });
 });
 // เดิมไม่มีสิทธิ์ = exit (ตอบว่าง) → ตรวจใน controller
-Route::post('/_admin/_receipt/grid', [AdminReceiptController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
+Route::post('/_admin/_coupon/grid', [AdminCouponController::class, 'grid'])->middleware(['legacy.auth', 'legacy.ajax']);
+// delete.php เดิม = สำเนาของ _admin/_product_type/delete.php (ตรวจสิทธิ์ admin_product_type, ลบ product_type แทนคูปอง) → ตอบสำเร็จโดยไม่ลบอะไร
+Route::post('/_admin/_coupon/delete', [AdminCouponController::class, 'delete'])->middleware(['legacy.perm:admin_product_type', 'legacy.ajax']);

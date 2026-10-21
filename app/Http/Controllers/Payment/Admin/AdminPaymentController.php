@@ -110,13 +110,9 @@ class AdminPaymentController extends Controller
             }
             // เดิมไม่ได้ตั้ง mod_date
             DB::table('bill_payment')->where('id', $data->id)->update(['status' => '2', 'approved_date' => DB::raw('NOW()'), 'mod_by' => Legacy::userId()]);
-            // SR: calPoint() ทำงานจริง (jl ว่าง) — แต้มจากค่าขนส่ง ใน transaction เดียวกับการเปลี่ยนสถานะ (แถวบิลล็อกอยู่)
+            // PACK (= SR): calPoint() ทำงานจริง (jl ว่าง) — แต้มจากค่าขนส่ง ใน transaction เดียวกับการเปลี่ยนสถานะ (แถวบิลล็อกอยู่)
+            // (PACK ไม่มีตาราง warehouse_section_detail → ไม่มีขั้นเอาพัสดุออกจากชั้นวางแบบ SR)
             PointCalc::calPoint($data->id, '', 'คำนวณจากรายการชำระเงินค่าสินค้า');
-            // SR: พัสดุในบิลออกจากชั้นวางในโกดัง (warehouse_section_detail.tracking_id = bill_payment_detail.id = tracking.id)
-            $trackingIds = DB::table('bill_payment_detail')->where('payment_id', (string) $data->id)->pluck('id')->all();
-            if ($trackingIds !== []) {
-                DB::table('warehouse_section_detail')->whereIn('tracking_id', $trackingIds)->update(['is_delete' => 1]);
-            }
 
             return (string) $data->id;
         });
@@ -127,41 +123,27 @@ class AdminPaymentController extends Controller
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/payment').'";', Lang::get('success_process_no').P::prefix('payment').Alerts::js(e($id))));
     }
 
-    /**
-     * POST /_admin/_payment/save_delete — ยกเลิก คืนพัสดุ (สถานะ 1: + คืนเงิน + อีเมล)
-     * SR: สถานะ 0 (แอดมินสร้างบิลแบบยังไม่จ่าย) ยกเลิก + คืนพัสดุได้ด้วย (ไม่มีเงินคืน ไม่มีอีเมล)
-     */
+    /** POST /_admin/_payment/save_delete — ยกเลิก (เฉพาะสถานะ 1) คืนพัสดุ + คืนเงิน + อีเมล (PACK = jl: ไม่มีกิ่งสถานะ 0 แบบ SR) */
     public function saveDelete(Request $request): Response
     {
         $id = $this->in($request, 'id');
         $remark = $this->in($request, 'cancel_remark');
         $done = DB::transaction(function () use ($id, $remark) {
             $data = DB::table('bill_payment')->where('id', $id)->lockForUpdate()->first();
-            if ($data === null) {
-                // เดิม: ไม่พบบิล → null == 0 → เข้ากิ่งสถานะ 0 (UPDATE ที่ไม่โดนแถวใด) + ข้อความสำเร็จ
-                return ['nopay', null];
-            }
-            $billId = (string) $data->id;
-            if (Php74::eq((string) $data->status, 0)) {
-                DB::table('tracking')->where('payment_id', $billId)->update(['payment_id' => '0']);
-                $this->cancelBill($billId, $remark);
-
-                return ['nopay', $billId];
-            }
-            if (! Php74::eq((string) $data->status, 1)) {
+            if ($data === null || ! Php74::eq((string) $data->status, 1)) {
                 return null;
             }
+            $billId = (string) $data->id;
             DB::table('tracking')->where('payment_id', $billId)->update(['payment_id' => '0']);
             $this->cancelBill($billId, $remark);
             $this->refund($billId);
 
-            return ['refund', $billId];
+            return $billId;
         });
         if ($done === null) {
             return response(Alerts::success('window.location.reload();', 'รายการถูกยืนยันไปแล้ว'));
         }
-        [$kind, $done] = $done;
-        if ($kind === 'refund' && ! config('legacy.debug_mail')) {
+        if (! config('legacy.debug_mail')) {
             PaymentMailer::paymentCancelled($done);
         }
 
@@ -203,6 +185,59 @@ class AdminPaymentController extends Controller
         }
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/payment').'";', Lang::get('success_process_no').P::prefix('payment').Alerts::js(e($id))));
+    }
+
+    /**
+     * POST /_admin/_payment/save_vat — เปิด/ปิด VAT แล้วคำนวณยอดใหม่ + แก้แถว balance ที่ตัดเงิน (ตอบว่าง: JS เดิม reload หน้า)
+     * PACK (ต่างจาก jl): ไม่มีหัก ณ ที่จ่าย — เปิด: total = shipvat = ยอด (ค่าฝาก + ค่าส่งตามน้ำหนัก + ค่าส่งเพิ่ม; ไม่รวมค่าส่งในไทย)
+     * + vat_before, vat/shipvat_before = '' (0), shipv = 3; ปิด: total = ยอดรวมค่าส่งในไทย, คอลัมน์ VAT = 0
+     * (ส่วนลดคูปองไม่ถูกนำมาคิดแบบเดิม — ดูรายงาน)
+     */
+    public function saveVat(Request $request): Response
+    {
+        $id = $this->in($request, 'id');
+        $value = $this->in($request, 'value');
+        DB::transaction(function () use ($id, $value) {
+            $data = P::str(DB::table('bill_payment')->where('id', $id)->lockForUpdate()->first());
+            // เดิมเปลี่ยน VAT ได้ทุกสถานะ: บิลที่ยกเลิกแล้ว (คืนเงินไปแล้วตามยอดเดิม) ถูกแก้แถวตัดเงินตามยอดใหม่
+            // = ยอดเงินลูกค้าเพิ่ม/ลดโดยไม่มีที่มา → บิลสถานะ -1 / ไม่พบบิล ไม่ทำอะไร (แบบเดียวกับ jl port)
+            if ($data === null || Php74::eq($data->status, -1)) {
+                return;
+            }
+            $stp = Pricing::getShippingTypePriceEditSender($data->shipping_type ?? null, $data->id ?? null, $data->sender_type ?? null);
+            $priceShipping = 0;
+            foreach (P::strAll(DB::table('bill_payment_detail')->where('payment_id', $id)->where('is_delete', 0)->get()) as $item) {
+                $priceShipping = $priceShipping + P::add($item, ['price_kg', 'price_cubic', 'price_amount', 'price_qc', 'price_express', 'price_else', 'price_repack', 'price_craft']);
+            }
+            // เดิม: $price_thai_storage ฯลฯ ไม่ได้กำหนด (null == 0) → ใช้ค่าจาก getShippingTypePrice_EditSender เสมอ
+            $storage = $stp['price_thai_storage'] ?? null;
+            $shipping = $stp['price_thai_shipping'] ?? null;
+            $extened = $stp['price_extened'] ?? null;
+            $balanceId = DB::table('balance')->where('user', (string) ($data->user ?? ''))->where('type', '3')->where('prefix', '18')
+                ->where('prefix_ref_id', (string) ($data->id ?? ''))->orderBy('id')->value('id');
+            if (Php74::eq($value, '1')) {
+                $v = Lookup::getSetting('vat');
+                $t = PaymentTotals::vat(PaymentTotals::plain($storage, $priceShipping, $extened, 0), $v);
+                DB::table('bill_payment')->where('id', $id)->update([
+                    'is_vat' => 1, 'vat' => '0', 'vat_before' => $t['vat_before'], 'shipvat' => $t['shipvat'],
+                    'shipvat_before' => '0', 'v' => (string) $v, 'shipv' => '3', 'total' => $t['shipvat'],
+                ]);
+                if ($balanceId !== null) {
+                    DB::table('balance')->where('id', $balanceId)->update(['amount' => '-'.$t['shipvat']]);
+                }
+            } else {
+                $total = PaymentTotals::plain($storage, $priceShipping, $extened, $shipping);
+                DB::table('bill_payment')->where('id', $id)->update([
+                    'is_vat' => 0, 'vat' => '0', 'vat_before' => '0', 'shipvat' => '0', 'shipvat_before' => '0', 'v' => '0', 'shipv' => '0',
+                    'total' => P::s($total),
+                ]);
+                if ($balanceId !== null) {
+                    DB::table('balance')->where('id', $balanceId)->update(['amount' => '-'.P::s($total)]);
+                }
+            }
+        });
+
+        return response('');
     }
 
     /** POST /_admin/_payment/load_shipping_price — getShippingTypePrice_EditSender (JSON) */
