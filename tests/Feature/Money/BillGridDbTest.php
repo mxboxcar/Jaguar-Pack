@@ -107,7 +107,9 @@ class BillGridDbTest extends BenchDbTestCase
     {
         // เดิม SELECT … WHERE payment_id = ? ไม่มี ORDER BY → อ่านผ่าน index payment_id = เรียงตาม PK tracking_id
         $bill = DB::selectOne('SELECT payment_id FROM (SELECT payment_id, ROW_NUMBER() OVER (PARTITION BY payment_id ORDER BY tracking_id) a,'
-            .' ROW_NUMBER() OVER (PARTITION BY payment_id ORDER BY id) b FROM bill_payment_detail) x WHERE a <> b ORDER BY payment_id DESC LIMIT 1');
+            .' ROW_NUMBER() OVER (PARTITION BY payment_id ORDER BY id) b FROM bill_payment_detail) x WHERE a <> b'
+            // PACK bench มีแถว detail ที่ไม่มีบิลแม่ — เลือกเฉพาะบิลที่มีอยู่
+            .' AND payment_id IN (SELECT id FROM bill_payment WHERE is_delete = 0) ORDER BY payment_id DESC LIMIT 1');
         if ($bill === null) {
             $this->markTestSkipped('bench ไม่มีบิลที่ลำดับ tracking_id ต่างจาก id');
         }
