@@ -1,13 +1,13 @@
 <?php
 // ใช้: php8.4 tools/role-matrix.php <ไฟล์รายชื่อสิทธิ์ที่โค้ดเดิมตรวจ>  (สร้างรายชื่อ: ดู docs/role-matrix.md ข้อ 3)
-// SR role matrix: legacy getPermission() (SQL เดิม ทีละสิทธิ์) เทียบ Permissions::build() ของ Laravel — อ่าน DB อย่างเดียว
-chdir('/home/admin/laravel/sr'); require 'vendor/autoload.php'; $app = require 'bootstrap/app.php'; $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+// role matrix: legacy getPermission() (SQL เดิม ทีละสิทธิ์) เทียบ Permissions::build() ของ Laravel — อ่าน DB อย่างเดียว (DB ตาม .env ของ repo นี้)
+chdir(dirname(__DIR__)); require 'vendor/autoload.php'; $app = require 'bootstrap/app.php'; $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use Illuminate\Support\Facades\DB;
 $names = array_filter(array_map('trim', file($argv[1])));
 foreach (DB::table('role_detail')->pluck('role_detail_name') as $n) $names[] = $n;
 $names = array_values(array_unique($names)); sort($names);
 $roles = DB::table('role')->orderBy('id')->get(['id', 'role_name']);
-$users = DB::table('user')->where('is_delete', 0)->where('id', '<', 11900)->selectRaw('role, count(*) c')->groupBy('role')->pluck('c', 'role');
+$users = DB::table('user')->where('is_delete', 0)->where('username', 'not like', 'zz\\_%')->selectRaw('role, count(*) c')->groupBy('role')->pluck('c', 'role');
 $codeNames = array_filter(array_map('trim', file($argv[1])));
 echo "| id | ชื่อ | ผู้ใช้ (is_delete=0, ไม่นับ zz) |\n|---|---|---|\n";
 foreach ($roles as $r) echo "| {$r->id} | {$r->role_name} | ".($users[$r->id] ?? 0)." |\n";
