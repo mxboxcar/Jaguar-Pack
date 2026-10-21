@@ -141,11 +141,11 @@ function Load(page, isnewload = false) {
 
                 $("#title").html(data.title);
                 if(isnewload) {
-                    $("#message").html(decodeHtml(data.html));
+                    $("#message").html(data.html);
                     $("#message").scrollTop($('#message').prop("scrollHeight"));
                 } else {
                     $(".load_more_btn").remove();
-                    $("#message").prepend(decodeHtml(data.html));
+                    $("#message").prepend(data.html);
                     $("#message").scrollTop($("#message>div").eq(1).prop("scrollHeight"));
                 }
             }
@@ -153,11 +153,6 @@ function Load(page, isnewload = false) {
     }
 }
 
-function decodeHtml(html) {
-    var txt = document.createElement("textarea");
-    txt.innerHTML = html;
-    return txt.value;
-}
 
 function on_uploadcomplate(lot, value)
 {

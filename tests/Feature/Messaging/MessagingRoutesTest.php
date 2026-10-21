@@ -25,7 +25,7 @@ class MessagingRoutesTest extends TestCase
         'POST _message/send_endconversation' => ['legacy.auth', true],
         'POST _message/save_file' => ['legacy.perm:message', true],
         'GET admin/message' => ['legacy.perm:admin_message', false],
-        'POST _admin/_message/load' => ['legacy.perm:admin_message', false],
+        'POST _admin/_message/load' => ['legacy.auth', false], // PACK hotfix: ไม่มีสิทธิ์ = ว่าง (ตรวจใน controller)
         'POST _admin/_message/load_dept' => ['legacy.perm:admin_message', true],
         'POST _admin/_message/load_user' => ['legacy.perm:admin_message', true],
         'POST _admin/_message/send' => ['legacy.perm:admin_message', true],
@@ -194,23 +194,19 @@ class MessagingRoutesTest extends TestCase
         $this->assertSame('', $r->getContent());
     }
 
-    /** notify_message ของ SR: dev (legacy.external.enabled = false) ไม่ยิงออก */
-    public function test_notify_message_is_gated_by_external_flag(): void
-    {
-        \Illuminate\Support\Facades\Http::fake();
-        config(['legacy.external.enabled' => false]);
-        \App\Domain\Messaging\NotifyMessage::send(['imageFullsize' => 'https://example.invalid/a.jpg'], 'zz_token');
-        \Illuminate\Support\Facades\Http::assertNothingSent();
-        $this->assertSame(['message' => "\n\t\t", 'imageFullsize' => 'u', 'imageThumbnail' => 'u'], \App\Domain\Messaging\NotifyMessage::payload(['imageFullsize' => 'u']));
-    }
-
-    /** LINE Notify ไม่มีใน SR — ไม่มี route/controller/view เหลือ */
+    /** LINE Notify ไม่มีใน SR/PACK (และ PACK ไม่มี notify_message()) — ไม่มี route/controller/view/helper เหลือ */
     public function test_no_line_notify_leftovers(): void
     {
         foreach (Route::getRoutes() as $r) {
             $this->assertStringNotContainsString('linenotify', $r->uri());
         }
         $this->assertDirectoryDoesNotExist(resource_path('views/messaging/linenotify'));
+        $this->assertFileDoesNotExist(app_path('Domain/Messaging/NotifyMessage.php'));
+        foreach (['app/Domain/Messaging', 'app/Http/Controllers/Messaging'] as $dir) {
+            foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(base_path($dir), \FilesystemIterator::SKIP_DOTS)) as $f) {
+                $this->assertStringNotContainsString('notify-api.line.me', (string) file_get_contents($f->getPathname()), $f->getPathname());
+            }
+        }
     }
 
     public function test_notice_save_has_double_submit_guard(): void

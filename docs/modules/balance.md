@@ -1,5 +1,55 @@
 # กลุ่ม balance — รายงานการพอร์ต
 
+## PACK (2026-10-22)
+
+พอร์ตใน worktree เดียวกับ messaging/points: branch `mod/messaging` (`/home/admin/laravel/pack-wt/messaging`, port 8811) — เทียบกับ PACK เดิม `:8114` (`/home/admin/bench/pack-old`, DB `admin_pack_bench`)
+คงทุกการแก้ของ jl/SR (ถอนเงินล็อกแถว user แล้วตรวจยอดภายใน, grid แบบ set-based, `Money::adminAmount()`, `legacy.once`, escape)
+
+### ไฟล์เดิม → สถานะ (docs/pack-diff.md)
+
+| ไฟล์ | สถานะ |
+|---|---|
+| `_balance/save_withdraw.php` (diff 33) | **ทำแล้ว** — ลำดับของ PACK: สิทธิ์ `balance` → **บัญชีดำมิจฉาชีพ** (`blocklist_guard`) → PIN จ่ายเงิน (`PinBox::guard`, `.cashback_form`, `withdrawcashing()`) → 1 รายการ/สัปดาห์ (`bypass_withdraw`) → ตรวจยอด → INSERT — SR ตรวจบัญชีดำหลังจำกัดรายสัปดาห์ (ชื่อในบัญชีดำจึงได้ข้อความบัญชีดำก่อนกล่อง PIN) |
+| `_admin/_balance_company/grid.php` (diff 2) | **ทำแล้ว** — JS `load_amount`: `if(data == null) { data = false; }` (เหมือน grid บาท/หยวน) |
+| ที่เหลือ 18 ไฟล์ (`same`) รวม `_balance_cn/*` | ไม่เปลี่ยน — เทียบกับ :8114 แล้วตรง (ด้านล่าง) |
+
+`_balance_cn/save_withdraw.php` ของ PACK = SR (ไม่ถาม PIN, ไม่จำกัดรายสัปดาห์)
+
+### สิทธิ์ของ PACK (admin_pack_bench)
+
+`balance`, `balance_cn` = role 1, 2 (ลูกค้า), 4, 7, 8, 9 · `admin_balance` = 1 · `admin_balance_cn` = 1, 4, 5 · `admin_balance_cn_add` = 1 · `admin_balance_company` = 1, 5 · `admin_balance_company_add` / `_delete` = 1 — ไม่มีสิทธิ์กำพร้า
+(role 4 บันทึก `_admin/_balance_cn/save_amount` แบบเพิ่มใหม่ได้ "สำเร็จ" แต่ไม่ INSERT — เหมือนเดิม เพราะไม่มี admin_balance_cn_add)
+
+### ผลเทียบกับ :8114 (session เดียวกัน, ตัดช่องว่าง + แทน href)
+
+ตรงกันทั้งหมด (ไม่นับ escape ของ `detail` ที่มี `&`):
+`/balance` (ลูกค้า 348), `_balance/grid` (348: 6,210 แถว) หน้า 1/2 + `|12`, `BLA-1`, ภาษา en; `/balance_cn`, `_balance_cn/grid` (ผู้ใช้ 50) หน้า 1/2 + `|5`; `load_withdraw` บาท/หยวน;
+`/admin/balance`, `/admin/balance_cn`, `/admin/balance_company`, grid แอดมินทั้ง 3 หน้า 1/2 + ค้นหารหัสลูกค้า / `zz_company`; `load_amount` ทั้ง 3 (byte, id 0 = `null`);
+แถว zz ของผู้ใช้ทดสอบใน grid ลูกค้า/แอดมินตรงกัน
+ปฏิเสธ: role 6 `_balance/grid` = ว่าง, ลูกค้า grid แอดมิน = ว่าง, role 7 `load_amount` = ErrorBox สิทธิ์ (byte), role 3 grid บริษัท = ว่าง; หน้าแอดมินของลูกค้า/role 7 = layout + ErrorBox (ข้อ jl)
+
+### E2E (เขียนเฉพาะฝั่ง Laravel — ผู้ใช้ทดสอบ zz_msg_cust (12286) + แอดมิน 11938, ลบตาม id แล้ว)
+
+- `_balance/save_withdraw`: ชื่อบัญชีในบัญชีดำ ขณะยังไม่มี PIN และขณะ PIN ผิด → `ไม่สามารถบันทึกข้อมูลบัญชีนี้ได้ …` (ก่อน PIN) · ชื่อปกติ: กล่องตั้ง PIN / กล่อง PIN `withdrawcashing()` / PIN ผิด / `1,00` / เกินยอด / 0 → ErrorBox · 12.50 + 3.00 พร้อมกัน → สำเร็จ 1 (`balance_withdraw` status 1 + `balance` -3.00 type 12 prefix 33 `โอนเงินออกจากระบบ WCASH-384`) อีกคำขอ = จำกัดรายสัปดาห์ · คำขอถัดไป = จำกัดรายสัปดาห์
+- `_balance_cn/save_withdraw`: 60 และ `-10.25` (ซ้ำ = "ส่งซ้ำ") → `balance_withdraw_cn` (branch ว่าง) + `balance_cn` type 13 prefix 39 `แลกเงินหยวนเป็นเงินบาท EX-n`
+- แอดมิน `save_amount` บาท (เพิ่ม 20.50, ส่งซ้ำ = "ส่งซ้ำ", `1,00` = ErrorBox), หยวน (role 1 เพิ่มได้), บริษัทยอดติดลบ
+- ลบแล้ว: balance 64841–64843, balance_cn 2209–2212, balance_withdraw 384, balance_withdraw_cn 22–23, balance_company 1387 (+ แถวของกลุ่ม points — ดู points.md), ผู้ใช้ 12286
+
+### bench (`bin/bench`, -n 20 -c 1, artisan optimize; เครื่อง load ~8–10)
+
+| หน้า | เดิม mean ms | ใหม่ mean ms |
+|---|---|---|
+| `/balance` (ลูกค้า 348, หน้าเต็ม) | 458 | 59 |
+| `/_balance/grid` (ลูกค้า 348, 6,210 แถว) | 675 | 82 |
+| `/_admin/_balance/grid` | 1,101 | 106 |
+| `/_admin/_balance_company/grid` (1,365 แถว) | 922 | 278 |
+
+### ให้เจ้าของตัดสินใจ
+
+- เหมือน SR: รายการถอนที่ถูกยกเลิกนับในโควตา 1 รายการ/สัปดาห์ (คงไว้), `bypass_withdraw` ใน bench ว่าง
+
+---
+
 ## SR (2026-10-20)
 
 พอร์ตกลุ่ม balance ให้ตรงกับเว็บเดิมของ SR บน branch `mod/balance` (worktree `/home/admin/laravel/sr-wt/balance`, port 8305) — โค้ดตั้งต้นคือที่ jl พอร์ตไว้ (รายงานเดิมด้านล่าง) คงทุกการแก้ของ jl:
