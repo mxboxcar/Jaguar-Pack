@@ -75,9 +75,17 @@ class AdminLostPackageController extends LostPackageController
                 ]);
             }
             if (Php74::eq($data->status, 2)) {
+                // เดิมหาแถวคืนเงินด้วย detail = '... ¥'.cashback (ค่าจาก DB เช่น 77.00) แต่ save_approved ของ PACK เขียน ¥ แบบ float (77)
+                // → ยอดที่ไม่มีเศษสตางค์ครบ 2 หลักหาไม่เจอ = RollBack ไม่หักเงินคืนแต่ตั้งสถานะกลับเป็นรอ (อนุมัติใหม่ = คืนเงินซ้ำ)
+                // → ที่นี่ยอมรับทั้งสองรูปแบบ (ต่างจากเดิมโดยตั้งใจ — docs/modules/tracking.md)
+                $head = 'คืนเงิน '.$prefix.$id.' ยอดจำนวน ¥';
+                $tail = ' * '.$data->exchange_rate.'฿';
                 $bal = DB::table('balance')->where('type', 8)->where('prefix', 26)->where('prefix_ref_id', $data->id)
                     ->where('is_delete', '0')
-                    ->where('detail', 'คืนเงิน '.$prefix.$id.' ยอดจำนวน ¥'.$data->cashback.' * '.$data->exchange_rate.'฿')
+                    ->whereIn('detail', array_values(array_unique([
+                        $head.$data->cashback.$tail,
+                        $head.Php74::str(Php74::num($data->cashback)).$tail,
+                    ])))
                     ->orderByDesc('create_date')->first();
                 if ($bal !== null) {
                     DB::table('balance')->insert([
@@ -94,17 +102,25 @@ class AdminLostPackageController extends LostPackageController
         return response(Alerts::success('window.location.reload(); '));
     }
 
-    /** POST /_admin/_lost_package/save_approved — อนุมัติ: บันทึกยอดคืน (¥ × อัตราแลกเปลี่ยนของออเดอร์) เข้า balance + แจ้งอีเมล */
+    /**
+     * POST /_admin/_lost_package/save_approved — อนุมัติ: คืนเงินเข้า balance + แจ้งอีเมล
+     * PACK: ยอดที่คืน = cashback_th (บาท ที่แอดมินกรอก ค่าเริ่มต้น = cashback × อัตราของออเดอร์) ไม่ใช่ cashback (¥) ที่ส่งมา
+     *  - lost_package.cashback = round(cashback_th / exchange_rate, 2) (¥ ย้อนกลับจากบาท)
+     *  - balance.amount = cashback_th ตามที่ส่งมา, detail = 'คืนเงิน LOS-x ยอดจำนวน ¥<newcashback> * <rate>฿' (float แบบ PHP 7.4 เช่น ¥77 ไม่ใช่ ¥77.00)
+     * ต่างจากเดิม (เงิน): อนุมัติได้เฉพาะรายการที่รอ (1) ใน transaction + lock; ยอดบาทติดลบ = ปฏิเสธ;
+     * ออเดอร์ไม่มีอัตราแลกเปลี่ยน (0/ไม่พบ) = ปฏิเสธ (เดิมหารศูนย์ → cashback เป็น 0 แต่ยังคืนเงินเต็ม)
+     */
     public function saveApproved(Request $request): Response
     {
         $id = $this->in($request, 'id');
         $uid = Legacy::userId();
         $prefix = TrackingLookups::prefix('lost_package');
+        $th = $this->in($request, 'cashback_th');
         // ยอดคืนติดลบ = หักเงินลูกค้า (เดิมรับได้) → ไม่ยอม
-        if (Php74::num($this->php($request, 'cashback')) < 0) {
+        if (Php74::num($this->php($request, 'cashback_th')) < 0) {
             return response(Money::refuse('ยอดคืนเงินไม่ถูกต้อง (ห้ามติดลบ)'));
         }
-        $approved = DB::transaction(function () use ($id, $uid, $request, $prefix) {
+        $approved = DB::transaction(function () use ($id, $uid, $request, $prefix, $th) {
             $cur = DB::table('lost_package')->where('id', $id)->lockForUpdate()->first();
             // เดิม: ไม่พบรายการ (null != 2) ก็ยัง INSERT balance ขยะ user = '' → ที่นี่ข้าม
             if ($cur === null || Php74::eq($cur->status, 2)) {
@@ -115,18 +131,22 @@ class AdminLostPackageController extends LostPackageController
             if (! Money::statusIn($cur->status, [Money::PENDING])) {
                 return 'not_pending';
             }
-            DB::table('lost_package')->where('id', $id)->update([
-                'status' => '2', 'approved_remark' => $this->in($request, 'approved_remark'),
-                'cashback' => $this->in($request, 'cashback'), 'approved_date' => DB::raw('NOW()'),
-            ]);
             $data = DB::table('lost_package')->leftJoin('bill_product', 'lost_package.order_id', '=', 'bill_product.id')
                 ->where('lost_package.id', $id)->first(['lost_package.*', 'bill_product.exchange_rate']);
-            // เดิมคูณใน PHP แล้วต่อเป็น string (precision 14)
-            $amount = Php74::str(Php74::num($data->cashback) * Php74::num($data->exchange_rate));
+            $rate = Php74::num($data->exchange_rate);
+            if ($rate == 0) {
+                return 'no_rate';
+            }
+            // เดิม round($cashback_th / $data['exchange_rate'], 2) แล้วต่อเป็น string (precision 14: 77.0 → "77")
+            $newCashback = Php74::str(Php74::round(Php74::num($this->php($request, 'cashback_th')) / $rate, 2));
+            DB::table('lost_package')->where('id', $id)->update([
+                'status' => '2', 'approved_remark' => $this->in($request, 'approved_remark'),
+                'cashback' => $newCashback, 'approved_date' => DB::raw('NOW()'),
+            ]);
             DB::table('balance')->insert([
                 'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
-                'is_delete' => 0, 'user' => $data->user, 'amount' => $amount,
-                'detail' => 'คืนเงิน '.$prefix.$id.' ยอดจำนวน ¥'.$data->cashback.' * '.$data->exchange_rate.'฿',
+                'is_delete' => 0, 'user' => $data->user, 'amount' => $th,
+                'detail' => 'คืนเงิน '.$prefix.$id.' ยอดจำนวน ¥'.$newCashback.' * '.$data->exchange_rate.'฿',
                 'type' => 8, 'prefix' => (string) (TrackingLookups::prefixId('lost_package') ?? ''), 'prefix_ref_id' => $id,
             ]);
 
@@ -134,6 +154,9 @@ class AdminLostPackageController extends LostPackageController
         });
         if ($approved === 'not_pending') {
             return response(Money::refuse('รายการนี้ถูกยกเลิกแล้ว อนุมัติไม่ได้ (ต้อง RollBack ก่อน)'));
+        }
+        if ($approved === 'no_rate') {
+            return response(Money::refuse('ออเดอร์ของรายการนี้ไม่มีอัตราแลกเปลี่ยน อนุมัติไม่ได้'));
         }
         if ($approved === true) {
             LostPackageMailer::approved($id);

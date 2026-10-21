@@ -1,4 +1,4 @@
-{{-- _tracking/index.php เดิม (สิทธิ์ tracking ตรวจที่ middleware legacy.perm) --}}
+{{-- _tracking/index.php เดิม (สิทธิ์ tracking ตรวจที่ middleware legacy.perm; PACK: ปุ่มเพิ่มเฉพาะ $canAdd = ผู้ใช้ประเภท 2/ลูกของ 2) --}}
 @extends('legacy.layout')
 
 @section('content')
@@ -22,11 +22,12 @@
 		    <span class="btn-label"><i class="fa fa-times"></i></span>
 		    {!! res('delete_at_select') !!}
 	    </button> -->
-
+@if ($canAdd)
 	    <a type="button" href="{{ legacy_href() }}tracking/create" class="pull-right btn btn-info waves-effect waves-light">
 		    <span class="btn-label"><i class="fa fa-plus"></i></span>
 		    {!! res('add_new_list') !!}
 	    </a>
+@endif
 	</div>
 </div>
 

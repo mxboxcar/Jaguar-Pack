@@ -64,7 +64,10 @@ class LostPackageController extends Controller
         $admin = $this->admin;
         $q = DB::table('lost_package')->where('lost_package.id', $id ?? '')->where('lost_package.is_delete', 0);
         if ($admin) {
-            $row = $q->leftJoin('user', 'lost_package.user', '=', 'user.id')->first(['lost_package.*', 'user.code', 'user.id as user_id']);
+            // PACK: + bill_product.exchange_rate (ช่องยอดคืนเป็นบาท cashback_th = cashback × อัตราของออเดอร์)
+            $row = $q->leftJoin('bill_product', 'lost_package.order_id', '=', 'bill_product.id')
+                ->leftJoin('user', 'lost_package.user', '=', 'user.id')
+                ->first(['lost_package.*', 'user.code', 'user.id as user_id', 'bill_product.exchange_rate']);
         } else {
             $row = $q->where('user', Legacy::userId())->first(['lost_package.*']);
             // เดิม: ไม่พบ (หรือของคนอื่น) และ id != "" → getPermissionAlert_Page
@@ -105,10 +108,9 @@ class LostPackageController extends Controller
         $like = '%'.addcslashes($s[0], '%_\\').'%';
         $q = DB::table('lost_package')->where('lost_package.is_delete', 0);
         if ($admin) {
-            // SR: แอดมินค้นได้ทั้งเลขรายการ เลขออเดอร์ และรหัสลูกค้า (ต้อง join user ตั้งแต่ตอนนับ)
+            // PACK: แอดมินค้นได้ทั้งเลขรายการ และรหัสลูกค้า (ไม่มีเลขออเดอร์แบบ SR — ต้อง join user ตั้งแต่ตอนนับ)
             $q->leftJoin('user', 'user.id', '=', 'lost_package.user')
                 ->where(fn ($w) => $w->where('lost_package.id', 'like', $like)
-                    ->orWhere('lost_package.order_id', 'like', $like)
                     ->orWhere('user.code', 'like', $like));
         } else {
             $q->where('lost_package.id', 'like', $like)->where('lost_package.user', Legacy::userId());

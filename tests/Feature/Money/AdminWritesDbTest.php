@@ -3,7 +3,6 @@
 namespace Tests\Feature\Money;
 
 use App\Domain\Money\Money;
-use App\Domain\Warehouse\ShelfAllocator;
 use App\Http\Controllers\Balance\Admin\AdminBalanceCnController;
 use App\Http\Controllers\Balance\Admin\AdminBalanceCompanyController;
 use App\Http\Controllers\Balance\Admin\AdminBalanceController;
@@ -85,35 +84,6 @@ class AdminWritesDbTest extends BenchDbTestCase
         $deduct = DB::table('balance')->where('user', $cust->id)->where('type', 3)->where('prefix_ref_id', $billId)->value('amount');
         $this->assertSame(-1 * (float) $bill->total, (float) $deduct, 'แถวตัดเงิน = ยอดบิลใหม่');
         $this->assertStringContainsString('ไม่พบข้อมูล', $this->act(AdminPaymentController::class, 'saveNewSender', $this->senderPost(2147483000)));
-    }
-
-    public function test_shelf_allocation_repeat_does_not_duplicate_rows(): void
-    {
-        $this->admin();
-        $cust = $this->zzUser();
-        $lot = $this->insertRow('lot', ['name' => 'zz_lot', 'type' => 1, 'status' => 1]);
-        $tracks = [];
-        foreach ([1, 2] as $n) {
-            $tracks[] = $this->insertRow('tracking', ['tracking' => 'ZZ-SHELF-'.$n.'-'.$lot, 'lot_id' => $lot, 'user' => $cust->id,
-                'weight' => 30, 'width' => 50, 'height' => 40, 'long' => 30, 'amount' => 1, 'header' => 0]);
-        }
-        $wh = $this->insertRow('warehouse', ['remark' => '']);
-        $count = fn (string $t) => DB::table($t)->where('warehouse_id', $wh)->where('is_delete', 0)->count();
-
-        (new ShelfAllocator($wh, (string) $lot))->run();
-        $this->assertSame(2, $count('warehouse_section_detail'));
-        $this->assertSame(1, $count('warehouse_detail'));
-
-        // กดคำนวณซ้ำ (เดิม: 4 แถวชั้นวาง + 2 แถวล็อต)
-        (new ShelfAllocator($wh, (string) $lot))->run();
-        $this->assertSame(2, $count('warehouse_section_detail'));
-        $this->assertSame(1, $count('warehouse_detail'));
-        $this->assertSame(2, DB::table('warehouse_section_detail')->whereIn('tracking_id', $tracks)->where('is_delete', 0)->distinct()->count('tracking_id'));
-
-        // ยกเลิกการคำนวณแล้วคำนวณใหม่ได้
-        DB::table('warehouse_section_detail')->where('warehouse_id', $wh)->update(['is_delete' => 1]);
-        (new ShelfAllocator($wh, (string) $lot))->run();
-        $this->assertSame(2, $count('warehouse_section_detail'));
     }
 
     public function test_admin_balance_amount_rejects_odd_input(): void

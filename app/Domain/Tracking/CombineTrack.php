@@ -14,8 +14,8 @@ use Illuminate\Support\Facades\DB;
  * การเทียบใช้ == / != / > แบบ PHP 7.4 และค่าที่ได้ถูกส่งเป็น string ('' แทน NULL) เหมือน INSERT ... VALUES('...') เดิม
  *
  * ต่างจากเดิมโดยตั้งใจ (ดู docs/modules/tracking.md):
- *  - jl: save_combine เดิม INSERT 42 ค่าเข้าตาราง 43 คอลัมน์ → INSERT ล้มแต่ยัง DELETE ทั้ง 2 แถว = ข้อมูลหาย
- *    (SR เดิมส่งครบ 43 ค่าแต่สลับ subuser/is_takeapic — ดู insertMerged) → ที่นี่ INSERT ตามชื่อคอลัมน์ และทำทั้งหมดใน transaction
+ *  - PACK: INSERT INTO tracking VALUES(...) 40 ค่า = 40 คอลัมน์ของตาราง PACK (ไม่มี date_section/subuser/is_takeapic ของ SR)
+ *    → ผลเท่ากับ INSERT ตามชื่อคอลัมน์ที่นี่; ลบ/ย้าย/คิดราคา ทำทั้งหมดใน transaction (เดิมไม่มี)
  *  - CombineTrack เดิมมี loop เช็ค `lot` (คอลัมน์ไม่มีจริง → SQL error → ไม่ทำอะไร) → ตัดทิ้ง ผลเท่าเดิม
  */
 final class CombineTrack
@@ -25,7 +25,7 @@ final class CombineTrack
         'price_kg', 'price_cubic', 'price_shipping', 'price_amount', 'rate_kg', 'rate_cubic', 'product_type_id', 'lot_id', 'user',
         'weight', 'width', 'height', 'long', 'amount', 'ship', 'payment_id', 'is_craft', 'is_qc', 'quote', 'price_qc', 'price_repack',
         'price_express', 'price_else', 'price_craft', 'date_warehouse', 'date_outofchina', 'date_thai', 'date_finish', 'remark',
-        'remark_shop', 'header', 'date_section', 'subuser', 'is_takeapic'];
+        'remark_shop', 'header'];
 
     private const ZERO = '0000-00-00 00:00:00';
 
@@ -33,16 +33,14 @@ final class CombineTrack
     private const EMPTY = [
         'create_date' => self::ZERO, 'mod_date' => self::ZERO, 'tracking' => '', 'order' => '', 'remark' => '', 'remark_shop' => '',
         'header' => '', 'date_warehouse' => self::ZERO, 'date_outofchina' => self::ZERO, 'date_thai' => self::ZERO,
-        'date_finish' => self::ZERO, 'date_section' => self::ZERO,
-        // SR: เทียบกับ '' (ค่า 0 ก็ถือว่ามีค่า → เอาของแถวแรก)
-        'subuser' => '', 'is_takeapic' => '',
+        'date_finish' => self::ZERO,
     ];
 
     /** คอลัมน์ที่ไม่เคยถูกตั้งค่าในโค้ดเดิม (คงเป็น '') */
     private const NEVER = ['create_by', 'mod_by', 'is_delete', 'id'];
 
     /**
-     * save_combine.php และ CombineTrack() ของ SR ใช้กติกาเดียวกันทุกคอลัมน์
+     * save_combine.php และ CombineTrack() ของ PACK ใช้กติกาเดียวกันทุกคอลัมน์
      *
      * @param  iterable<object>  $rows
      * @return array<string, string>
@@ -78,9 +76,6 @@ final class CombineTrack
 
     /**
      * แถวที่รวมแล้ว → INSERT ตามชื่อคอลัมน์ (ไม่ส่ง id: '' ใน AUTO_INCREMENT = ได้ id ใหม่เหมือนเดิม)
-     * SR เดิม INSERT INTO tracking VALUES(...) ตามลำดับ ..., date_section, subuser, is_takeapic แต่ตารางเรียง date_section, is_takeapic, subuser
-     * → ค่า subuser ไปลง is_takeapic และกลับกัน (เช่น รหัสย่อย "1269263" กลายเป็น is_takeapic = 1269263 = "ถ่ายรูป: เปิด", subuser = "0")
-     * ที่นี่ใส่ตามชื่อคอลัมน์ (ต่างจากเดิมโดยตั้งใจ — docs/modules/tracking.md)
      */
     private static function insertMerged(array $last): int
     {
@@ -94,7 +89,7 @@ final class CombineTrack
     {
         DB::table('tracking')->whereIn('id', $oldIds)->delete();
         DB::table('bill_product_on_tracking')->whereIn('tracking_id', $oldIds)->update(['tracking_id' => $newId]);
-        // SR: ย้ายรูปพัสดุที่ยังไม่ลบไปแถวใหม่
+        // ย้ายรูปพัสดุที่ยังไม่ลบไปแถวใหม่ (PACK เดิมก็ย้าย)
         DB::table('tracking_image')->whereIn('tracking_id', $oldIds)->where('is_delete', 0)->update(['tracking_id' => $newId]);
         Pricing::calPriceAutoDiff($newId);
     }

@@ -1,5 +1,46 @@
 # กลุ่ม warehouse — รายงานการพอร์ต
 
+## PACK (2026-10-22)
+
+ทำใน worktree เดียวกับกลุ่ม tracking: branch `mod/tracking` · `/home/admin/laravel/pack-wt/tracking` · dev http://127.0.0.1:8801 · เทียบกับ PACK เดิม :8114 (`admin_pack_bench`)
+
+### สรุป: ระบบรับเข้าโกดัง/ชั้นวางของ SR = dead ใน PACK — เหลือเฉพาะ goodsconfirm
+
+ตรวจแล้ว 4 ทาง (ทุกข้อชี้ไปทางเดียวกัน):
+1. `content.php` ของ PACK (เท่ากับ production) **ไม่มี** page `admin_warehouse`, `admin_warehouse_detail`, `admin_warehouse_section`, `admin_warehouse_section_detail`, `admin_warehouse_section_move` (SR มี)
+   → URL `admin/warehouse`, `admin/warehouse/{id|create}`, `admin/warehouse_section(/{id|create})`, `admin/warehouse_section_move` บน :8114 (แอดมิน) ได้ **layout เปล่า** — ทั้ง 5 หน้าได้ HTML เดียวกันทุกไบต์ (md5 เท่ากัน) ไม่มีเนื้อหา
+2. ตาราง `warehouse`, `warehouse_detail`, `warehouse_section`, `warehouse_section_detail` ไม่มีใน DB ของ PACK
+3. สิทธิ์ `admin_warehouse` (role_detail 58) ไม่มี role ใดถือ → ajax `_admin/_warehouse/*` เดิมตอบ `ErrorBox('คุณไม่มีสิทธิ์...ผู้ดูแล - จัดการโกดัง')` กับทุกคนแม้แอดมิน (เทียบแล้ว: load_lot_detail, load_tracking); `admin_warehouse_move` ก็ไม่มีใครถือ
+4. เมนู (menu.php / menu_mobile.php) ไม่มีลิงก์ไปหน้าเหล่านี้ และไม่มีหน้าใดเรียก `_admin/_warehouse*` (grid ที่ตรวจ `admin_lot`/`admin_warehouse_section` เปิดตรงได้แต่ได้ตารางว่างเพราะไม่มีตาราง)
+
+→ ลบ route/controller/view/test ทั้งหมดของ `_admin/_warehouse`, `_admin/_warehouse_section`, `_admin/_warehouse_section_move` (`WarehouseController`, `WarehouseSectionController`, `ShelfAllocator` = การจัดชั้นวางของ SR/jl ใน save_lot_detail, `LotDetailRenderer`, views `warehouse/admin/{warehouse,section,section_move}`); URL เหล่านี้บน Laravel = 404 → หน้าแรก (เหมือนแนวทาง `admin/mall_stock` ของ SR) · `docs/url-map.md` ทำเครื่องหมาย dead แล้ว
+ไฟล์ diff ของ pack-diff (ไม่ได้พอร์ตเพราะ dead): `_admin/_warehouse/form.php` (188), `grid.php` (27), `load_lot_detail.php` (31), `load_lot_detail_thai.php` (28), `load_tracking.php` (39), `load_tracking_edit.php` (276), `save_lot_detail.php` (577 — PACK เป็นแบบ jl: ชั้นวางตามพื้นที่ ไม่มีลูกค้าชั้นตายตัวของ SR), `save_push_track.php` (2), `save_track_weight.php` (21), `_admin/_warehouse_section/delete.php` (2) · SR-only: `load_editshelf.php`, `save_editshelf.php`
+ถ้าวันหน้าเจ้าของต้องการระบบนี้ใน PACK ต้องสร้างตาราง + เพิ่ม page ใน content.php ก่อน (= งานใหม่ ไม่ใช่การพอร์ต) — โค้ด SR อยู่ในประวัติ git (ก่อน commit "warehouse: drop the shelf module PACK does not have")
+
+### goodsconfirm (ทุกไฟล์ `same` กับ SR)
+
+- ไม่ต้องแก้ logic — `nobody` = `config('legacy.nobody')` = `PACKnocode` (ฐานร่วม; bench มีผู้ใช้ 394 รหัสนี้)
+- กล่องอัปโหลด: `App\Domain\Warehouse\UploadBox` เปลี่ยนเป็น markup รุ่นเก่าของ PACK (สำเนาเดียวกับของกลุ่ม tracking — ดู docs/modules/tracking.md)
+- เทียบกับ :8114 ตรงกันทุกตัวอักษร: `/goodsconfirm`, `/goodsconfirm/46`, `_goodsconfirm/grid` (หน้า 1/2/สถานะ), `load_tracking_by_id` (ลูกค้า 348); `/admin/goodsconfirm` (+status/0), `/admin/goodsconfirm/{create,46,33,42}`, `_admin/_goodsconfirm/grid` (หน้า 1/2, สถานะ 0/2, ค้นหา), `load_tracking_by_id`, `load_upload`, `load_tracking` (autocomplete); role 6 → grid ว่างเหมือนเดิม
+- ต่างตามที่ตั้งใจ (เดิมจาก SR/jl): `/goodsconfirm/33` (รายการ status 2 ของคนอื่น) เดิมแสดงฟอร์ม → ใหม่ไม่มีสิทธิ์; `load_tracking_by_id` ของ tracking ที่ลูกค้าไม่เกี่ยว = ไม่แสดงข้อมูล; หน้าไม่มีสิทธิ์แสดง layout + alert
+- E2E (Laravel เท่านั้น, tracking `ZZE2E*G` ของผู้ใช้ PACKnocode): แอดมินสร้าง (ยิงซ้อน → 1 แถว + goodsconfirm_detail 1 แถว) → ลูกค้า 11937 ยืนยัน (status 1, ไฟล์แนบ) → ไม่อนุมัติ (0) → ยืนยันใหม่ → อนุมัติ (2, tracking.user = 11937) · รายการที่ 2 → แอดมินยกเลิก (-1, `ยกเลิกโดย ZZFDN2`) — ลบแล้ว (goodsconfirm 60–63, detail 51/52, tracking ที่สร้าง)
+
+### Bench (`bin/bench -n 15 -c 1`, `artisan optimize`, load 7–9)
+
+| หน้า | เดิม mean ms | ใหม่ mean ms |
+|---|---|---|
+| `_admin/_goodsconfirm/grid` | 146 | 47 |
+
+### Test
+
+- `tests/Feature/Warehouse/WarehouseRoutesTest.php`: route goodsconfirm + URL dead ของ PACK ไม่มี route, ไม่มี model `Warehouse`
+- `tests/Feature/Warehouse/WarehousePackDbTest.php` (แทน WarehouseSrDbTest): goodsconfirm save ใช้ `PACKnocode`, grid ลูกค้าแสดงเฉพาะ status 0 — ลบ test จัดชั้นวาง (ShelfAllocator) ใน `WarehouseSrDbTest` และ `Money/AdminWritesDbTest`, ลบ route warehouse ออกจาก `SubmitGuardTest`
+
+### คำถามถึงเจ้าของ
+
+1. ยืนยันว่าระบบรับเข้าโกดัง/ชั้นวาง (admin/warehouse*) ไม่ใช้ใน PACK (หน้าเดิมเปิดได้แค่ layout เปล่า) — ถ้าจะใช้ ต้องสร้างตารางและเปิดหน้าใหม่
+2. `_dashboard/index.php` (กลุ่ม reports/dashboard) ยังคิดพื้นที่ชั้นวางจาก `warehouse_section` ที่ไม่มีใน PACK
+
 ## SR (2026-10-20)
 
 branch `mod/warehouse` · worktree `/home/admin/laravel/sr-wt/warehouse` · dev port 8309 · เทียบกับ :8111 (`/home/admin/bench/sr-old`, DB `admin_sr_bench`)

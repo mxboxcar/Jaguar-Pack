@@ -21,7 +21,8 @@ class TrackingRoutesTest extends TestCase
         'GET tracking/{id}' => 'legacy.perm:tracking',
         'POST _tracking/grid' => 'legacy.auth',
         'POST _tracking/delete' => 'legacy.perm:tracking',
-        'POST _tracking/save' => 'legacy.perm:tracking',
+        // PACK: save ตรวจประเภทผู้ใช้ใน controller (ไม่ใช่สิทธิ์ tracking)
+        'POST _tracking/save' => 'legacy.auth',
         'POST _tracking/load_pricing' => 'legacy.auth',
         'POST _tracking/load_product_type' => 'legacy.auth',
         'POST _tracking/save_quick_quote' => 'legacy.auth',
@@ -30,7 +31,6 @@ class TrackingRoutesTest extends TestCase
         'GET admin/tracking/status/{status}' => 'legacy.perm:admin_tracking',
         'GET admin/tracking/{id}' => 'legacy.perm:admin_tracking',
         'POST _admin/_tracking/grid' => 'legacy.auth',
-        'POST _admin/_tracking/load_paging' => 'legacy.perm:admin_tracking',
         'POST _admin/_tracking/delete' => 'legacy.perm:admin_tracking',
         'POST _admin/_tracking/save' => 'legacy.perm:admin_tracking',
         'POST _admin/_tracking/save_lock' => 'legacy.perm:admin_tracking',
@@ -60,12 +60,27 @@ class TrackingRoutesTest extends TestCase
         'POST _admin/_lost_package/save_approved' => 'legacy.perm:admin_lost_package',
         'GET _admin/_lost_package/email_approved' => 'legacy.perm:admin_lost_package',
         'GET _admin/_lost_package/email_cancel' => 'legacy.perm:admin_lost_package',
-        // SR-only
         'POST _admin/_lost_package/save_remark' => 'legacy.perm:admin_lost_package',
-        'GET admin/check' => 'legacy.perm:admin_tracking',
-        'POST _admin/_check/save_clear' => 'legacy.perm:admin_tracking',
-        'POST _admin/_check/save_clearall' => 'legacy.perm:admin_tracking',
     ];
+
+    /** SR-only ที่ PACK ไม่มี (dead) + track_external.php (ไม่พอร์ต — รอเจ้าของ) */
+    private const DEAD = [
+        'GET admin/check', 'POST _admin/_check/save_clear', 'POST _admin/_check/save_clearall',
+        'POST _admin/_tracking/load_paging', 'GET track_external', 'POST track_external',
+    ];
+
+    public function test_sr_only_and_unported_urls_have_no_route(): void
+    {
+        $found = [];
+        foreach (Route::getRoutes() as $r) {
+            foreach ($r->methods() as $m) {
+                $found[$m.' '.$r->uri()] = true;
+            }
+        }
+        foreach (self::DEAD as $key) {
+            $this->assertArrayNotHasKey($key, $found, "$key ไม่มีใน PACK");
+        }
+    }
 
     public function test_every_legacy_url_has_a_route_with_the_legacy_permission(): void
     {
@@ -89,7 +104,7 @@ class TrackingRoutesTest extends TestCase
         $pages = [
             'tracking' => 'tracking', 'tracking/{id}' => 'tracking_detail', 'admin/tracking/{id}' => 'admin_tracking_detail',
             'admin/combine_track' => 'admin_combine_track', 'lost_package/status/{status}' => 'lost_package_detail',
-            'admin/lost_package/status/{status}' => 'admin_lost_package', 'admin/check' => 'admin_check',
+            'admin/lost_package/status/{status}' => 'admin_lost_package',
         ];
         foreach (Route::getRoutes() as $r) {
             if (isset($pages[$r->uri()]) && in_array('GET', $r->methods(), true)) {
@@ -98,12 +113,33 @@ class TrackingRoutesTest extends TestCase
         }
     }
 
-    public function test_sr_views_have_no_target_blank(): void
+    public function test_views_have_no_target_blank(): void
     {
         foreach (glob(resource_path('views/tracking/*/*.blade.php')) as $f) {
             $this->assertStringNotContainsString('_blank', (string) file_get_contents($f), $f);
         }
         $this->assertStringNotContainsString('_blank', \App\Domain\Tracking\UploadBox::multiple('upload_track', 'a.jpg', true));
+        $this->assertStringNotContainsString('_blank', \App\Domain\Tracking\UploadBox::single('file', 'a.pdf', true));
+    }
+
+    /** PACK: getupload()/getuploadmultiple() รุ่นเก่า — ไม่ใช่รูป = ลิงก์ fancybox, ไม่มี change.reselect, zip/rar/7z = ใส่ข้อความตอบกลับ */
+    public function test_upload_box_uses_pack_markup(): void
+    {
+        $one = \App\Domain\Tracking\UploadBox::single('file', 'a.pdf', true);
+        $this->assertStringContainsString("<a class='fancybox' style='float:left;' href='", $one);
+        $this->assertStringNotContainsString('change.reselect', $one);
+        $this->assertStringContainsString('_preview").html(response);', $one);
+        $this->assertStringContainsString('<div onclick="$(this).parent().remove()" style=', \App\Domain\Tracking\UploadBox::multiple('upload_track', '', true));
+        $this->assertSame($one, \App\Domain\Warehouse\UploadBox::single('file', 'a.pdf', true));
+    }
+
+    public function test_php74_round_has_pre_rounding(): void
+    {
+        // PHP 7.4 round(): 1.69 / 5.2 = 0.32499999999999996 → 0.33 (8.4 = 0.32)
+        $this->assertSame('0.33', Php74::str(Php74::round(1.69 / 5.2, 2)));
+        $this->assertSame('1.01', Php74::str(Php74::round(1.005, 2)));
+        $this->assertSame('77', Php74::str(Php74::round(400.4 / 5.2, 2)));
+        $this->assertSame('-1.01', Php74::str(Php74::round(-1.005, 2)));
     }
 
     public function test_php74_loose_comparison(): void
@@ -145,10 +181,10 @@ class TrackingRoutesTest extends TestCase
     {
         $a = (object) ['create_date' => '2026-01-01 00:00:00', 'mod_date' => '0000-00-00 00:00:00', 'no' => 0, 'tracking' => '',
             'order' => 'O1', 'price_kg' => '0.00', 'amount' => 2, 'ship' => 0, 'is_craft' => 1, 'quote' => '', 'rate_kg' => null,
-            'subuser' => '', 'is_takeapic' => 0, 'date_section' => '0000-00-00 00:00:00', 'remark' => null, 'id' => 5, 'create_by' => 9];
+            'remark' => null, 'id' => 5, 'create_by' => 9];
         $b = (object) ['create_date' => '2026-02-01 00:00:00', 'mod_date' => '2026-02-02 00:00:00', 'no' => 7, 'tracking' => 'T2',
             'order' => 'O2', 'price_kg' => '12.50', 'amount' => 5, 'ship' => 1, 'is_craft' => 0, 'quote' => 'Q', 'rate_kg' => null,
-            'subuser' => 'S2', 'is_takeapic' => 1, 'date_section' => '2026-03-01 00:00:00', 'remark' => 'R', 'id' => 6, 'create_by' => 9];
+            'remark' => 'R', 'id' => 6, 'create_by' => 9];
         $m = CombineTrack::merge([$a, $b]);
         $this->assertSame('2026-01-01 00:00:00', $m['create_date']);
         $this->assertSame('2026-02-02 00:00:00', $m['mod_date']);
@@ -162,11 +198,11 @@ class TrackingRoutesTest extends TestCase
         // quote '' != '0' → เดิมเอาค่าว่างของแถวแรก แล้วแถวถัดไปเติมได้เพราะยัง == ''
         $this->assertSame('Q', $m['quote']);
         $this->assertSame('', $m['rate_kg']);
-        // SR: subuser / is_takeapic เทียบกับ '' → '' ของแถวแรกถูกข้าม, 0 ของแถวแรกถูกเลือก
-        $this->assertSame('S2', $m['subuser']);
-        $this->assertSame('0', $m['is_takeapic']);
-        $this->assertSame('2026-03-01 00:00:00', $m['date_section']);
-        $this->assertArrayNotHasKey('is_checked', $m);
+        // PACK: 40 คอลัมน์ (ไม่มีคอลัมน์ของ SR/jl)
+        $this->assertCount(40, $m);
+        foreach (['subuser', 'is_takeapic', 'date_section', 'is_checked', 'checked_by'] as $c) {
+            $this->assertArrayNotHasKey($c, $m);
+        }
         $this->assertSame('', $m['id']);
         $this->assertSame('', $m['create_by']);
     }
