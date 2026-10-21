@@ -137,8 +137,8 @@ class AdminLotSaveController extends Controller
                 }
             }
 
-            // goodsconfirm: ถ้าไม่ใช่ผู้ใช้ nobody (ค่าคงที่ nobody เดิมไม่ได้ define → ใช้ข้อความ 'nobody')
-            $nobody = DB::table('user')->where('code', 'nobody')->value('id');
+            // goodsconfirm: ถ้าไม่ใช่ผู้ใช้ nobody (PACK define('nobody', 'PACKnocode') → config legacy.nobody)
+            $nobody = DB::table('user')->where('code', config('legacy.nobody'))->value('id');
             if (Php74::neq($member->id, $nobody)) {
                 DB::table('goodsconfirm')->where('tracking_id', $id)->update(['status' => 2]);
             }

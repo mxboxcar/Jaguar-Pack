@@ -1,40 +1,21 @@
 {{-- สร้างจาก login.php ของเว็บเดิมด้วย tools/port-layout.php — แก้ได้ แต่ให้เทียบหน้าตากับเดิมทุกครั้ง --}}
-<!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="author" content="Coderthemes">
-
-        <link rel="icon" href="{{ legacy_href() }}icons/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="{{ legacy_href() }}icons/favicon-32.png"><link rel="apple-touch-icon" href="{{ legacy_href() }}icons/apple-touch-icon.png"><link rel="manifest" href="{{ legacy_href() }}icons/site.webmanifest"><meta name="theme-color" content="#9b1c20">
-
-        <title>{{ config('legacy.project_name') }}</title>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<link rel="icon" href="{{ legacy_href() }}icons/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="{{ legacy_href() }}icons/favicon-32.png"><link rel="apple-touch-icon" href="{{ legacy_href() }}icons/apple-touch-icon.png"><link rel="manifest" href="{{ legacy_href() }}icons/site.webmanifest"><meta name="theme-color" content="#f37620">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title> | Backend Management System</title>
         <meta name="description" content="{{ trim(config('legacy.project_name')) }} ขนส่งสินค้าจากจีนมาไทย">
         <meta property="og:type" content="website">
         <meta property="og:title" content="{{ trim(config('legacy.project_name')) }}">
         <meta property="og:description" content="{{ trim(config('legacy.project_name')) }} ขนส่งสินค้าจากจีนมาไทย">
         <meta property="og:image" content="{{ legacy_href() }}assets/images/fav.png">
 
-        <link href="{{ legacy_href() }}assets/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
-        <link href="{{ legacy_href() }}assets/css/core.css" rel="stylesheet" type="text/css" />
-        <link href="{{ legacy_href() }}assets/css/components.css" rel="stylesheet" type="text/css" />
-        <link href="{{ legacy_href() }}assets/css/icons.css" rel="stylesheet" type="text/css" />
-        <link href="{{ legacy_href() }}assets/css/pages.css" rel="stylesheet" type="text/css" />
-        <link href="{{ legacy_href() }}assets/css/responsive.css" rel="stylesheet" type="text/css" />
+<link href="{{ legacy_href() }}assets/fonts/default.css" rel="stylesheet" type="text/css" />
+<link href="{{ legacy_href() }}assets/css/login.css" rel="stylesheet" type="text/css" />
+<link href="{{ legacy_href() }}assets/plugins/sweetalert/dist/sweetalert.css" rel="stylesheet" type="text/css">
 
-        <link href="{{ legacy_href() }}assets/plugins/ladda-buttons/css/ladda-themeless.min.css" rel="stylesheet" type="text/css" />
-        <link href="{{ legacy_href() }}assets/plugins/sweetalert/dist/sweetalert.css" rel="stylesheet" type="text/css">
-        <!-- HTML5 Shiv and Respond.js IE8 support of HTML5 elements and media queries -->
-        <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
-        <!--[if lt IE 9]>
-        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
-        <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
-        <![endif]-->
-
-        <script src="assets/js/modernizr.min.js"></script>
-        
-
-        <script>
+<script>
             /* login ready-guard (mobile fix 2026-08-30):
                receive taps that arrive before the bottom scripts finish loading,
                then fire login automatically once ready (fixes dead-tap on mobile) */
@@ -59,107 +40,51 @@
             }
         </style>
 
-
-        <script>window.FastClick=window.FastClick||{attach:function(){}};/* no-op shim (2026-08-30): fastclick.js ถูกถอด กัน jquery.app.js เรียก FastClick แล้ว throw */</script>
     </head>
-    <body>
 
-        <div class="account-pages"></div>
-        <div class="clearfix"></div>
-        <div class="wrapper-page">
-            <div class=" card-box">
-            <div class="panel-heading text-center"> 
-                <img style="width: 330px;" src="{{ legacy_href() }}assets/images/logo_orange.png?s=s" />
-            </div> 
-
-
-            <div class="panel-body">
-            <div class="form-horizontal m-t-20">
-            <!-- <form class="form-horizontal m-t-20" action="index.html"> -->
-                
-                <div class="form-group ">
-                    <div class="col-xs-12">
-                        <input class="form-control" id="username" type="text" required="" placeholder="{!! res('username') !!}">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <div class="col-xs-12">
-                        <input class="form-control" id="password" type="password" required="" placeholder="{!! res('password') !!}">
-                    </div>
-                </div>
-
-                <div class="form-group text-center m-t-40">
-                    <div class="col-xs-12">
-                        <button class="ladda-button btn btn-primary"  onclick="doCheckLogin();"><span class="ladda-label">
-                        {!! res('login') !!}
-                        </span></button>
-                    </div>
-                </div>
-
-                <div class="form-group m-t-30 m-b-0">
-                    <div class="col-sm-6">
-                        <a href="{{ legacy_href() }}lostpassword" class="text-dark"><i class="fa fa-lock m-r-5"></i> {!! res('lost_password') !!}</a>
-                    </div>
-                    <div class="col-sm-6 text-right">
-                        <a href="{{ legacy_href() }}register" class="text-dark"><i class="fa fa-user-plus m-r-5"></i> {!! res('register') !!}</a>
-                    </div>
-                </div>
-            <!-- </form>  -->
-            </div> 
-
-            </div> 
-
-            </div>                              
-                <div class="row">
-                <div class="col-sm-12 text-center">
-                    © 2026-{{ date('Y') }} {{ config('legacy.project_name') }} All rights reserved. &nbsp;&nbsp;&nbsp;
-                    <a href="#" onclick="Language('th');return false;">ภาษาไทย</a>, <a href="#" onclick="Language('cn');return false;">中国</a>
-                </div>
-            </div>
-            
-        </div>
+<body>
+<div id="login-area">
+    <h1 class="clearhide"></h1>
+    <h2 class="clearhide">Backend Management System</h2>
+    <div id="login">
         
-        
+        <p class="clearhide">Username :</p>
+        <p><input name="user" id="username" type="text" class="box" value="" title="Username :" placeholder="ผู้ใช้งาน" /></p>
+        <p class="clearhide">Password :</p>
+        <p><input name="pws" id="password" type="password" class="box" value="" title="Password :"   placeholder="รหัสผ่าน" /></td>
+        <p class="but-area">
+            <input type="button" name="button" value="Login" onclick="doCheckLogin();" class="but but-login" />
+            <br />
+            <input type="button" name="Reset" style="margin-left:0px;margin-top: 20px;" onclick="window.location.href = '{{ legacy_href() }}register'" value="Register" class="but but-reset"  />
+            <input type="button" name="Reset" onclick="window.location.href = '{{ legacy_href() }}lostpassword'" value="Lost Password" class="but but-reset"  />
+        </p>    
+    </div>
+</div>
 
-        <!-- jQuery  -->
-        <script src="{{ legacy_href() }}assets/js/jquery.min.js"></script>
-        <script src="{{ legacy_href() }}assets/js/bootstrap.min.js"></script>
-        <script src="{{ legacy_href() }}assets/js/detect.js"></script>
-        <script src="{{ legacy_href() }}assets/js/jquery.slimscroll.js"></script>
-        <script src="{{ legacy_href() }}assets/js/jquery.blockUI.js"></script>
-        <script src="{{ legacy_href() }}assets/js/waves.js"></script>
-        <script src="{{ legacy_href() }}assets/js/wow.min.js"></script>
-        <script src="{{ legacy_href() }}assets/js/jquery.nicescroll.js"></script>
-        <script src="{{ legacy_href() }}assets/js/jquery.scrollTo.min.js"></script>
+<p id="copyright">
+    &copy; 2019 . All Rights Reserved.
+</p>
 
 
-        <script src="{{ legacy_href() }}assets/js/jquery.core.js"></script>
-        <script src="{{ legacy_href() }}assets/js/jquery.app.js"></script>
 
+<script src="{{ legacy_href() }}assets/js/jquery.min.js"></script>
+<script src="{{ legacy_href() }}assets/js/bootstrap.min.js"></script>
+<script src="{{ legacy_href() }}assets/validate/jquery.validationEngine.js"></script>
+<script src="{{ legacy_href() }}assets/js/jquery.form.min.js"></script>
+@include('legacy.partials.validationengine')
 
-        <script src="{{ legacy_href() }}assets/validate/jquery.validationEngine.js"></script>
-        <script src="{{ legacy_href() }}assets/js/jquery.form.min.js"></script>
-        @include('legacy.partials.validationengine')
+<script src="{{ legacy_href() }}assets/plugins/ladda-buttons/js/spin.min.js"></script>
+<script src="{{ legacy_href() }}assets/plugins/ladda-buttons/js/ladda.min.js"></script>
+<script src="{{ legacy_href() }}assets/plugins/ladda-buttons/js/ladda.jquery.min.js"></script>
 
-        <script src="{{ legacy_href() }}assets/plugins/ladda-buttons/js/spin.min.js"></script>
-        <script src="{{ legacy_href() }}assets/plugins/ladda-buttons/js/ladda.min.js"></script>
-        <script src="{{ legacy_href() }}assets/plugins/ladda-buttons/js/ladda.jquery.min.js"></script>
+<script src="{{ legacy_href() }}assets/plugins/sweetalert/dist/sweetalert.min.js"></script>
+<script src="{{ legacy_href() }}assets/pages/jquery.sweet-alert.init.js"></script>
 
-        <script src="{{ legacy_href() }}assets/plugins/sweetalert/dist/sweetalert.min.js"></script>
-        <script src="{{ legacy_href() }}assets/pages/jquery.sweet-alert.init.js"></script>
-
-        <script>
+<script>
             var resizefunc = [];
             var rooturl = '{{ legacy_href() }}';
             var rooturl_blob = '{{ legacy_blob() }}';
             var fn_public = '';
-
-
-            {{-- เดิม: $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'http' → JS ส่งไป https (host จาก href ไม่ใช่ Host header) --}}
-            @if (request()->header('X-Forwarded-Proto') === 'http')
-            window.location.href = {!! json_encode('https://'.parse_url(legacy_href(), PHP_URL_HOST).request()->getRequestUri(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES) !!};
-            @endif
 
             $.fn.enterKey = function (fnc) {
                 return this.each(function () {
@@ -172,17 +97,10 @@
                 })
             }
 
-            function Language(lang) {
-                $.ajax({
-                    type: 'POST',
-                    async: true,
-                    data: 'lang=' + lang,
-                    url: rooturl + "system_change_language",
-                    success: function(data) {
-                        location.reload(true);
-                    }
-                });
-            }
+            {{-- เดิม: $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'http' → JS ส่งไป https (host จาก href ไม่ใช่ Host header) --}}
+            @if (request()->header('X-Forwarded-Proto') === 'http')
+            window.location.href = {!! json_encode('https://'.parse_url(legacy_href(), PHP_URL_HOST).request()->getRequestUri(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES) !!};
+            @endif
 
             $("#username, #password").enterKey(function () {
                 doCheckLogin();
@@ -219,10 +137,6 @@
                 var _b = document.querySelector('.ladda-button');
                 if (_b) { _b.disabled = false; _b.style.opacity = ''; }
                 if (window._loginPending) { window._loginPending = false; doCheckLoginReal(); }
-
-                $(".dropper-input").css({"margin-top": "-34px",
-                    "height": "34px",
-                    "width": "125px"});
             });
 
             function OpenLoading() {
@@ -314,6 +228,3 @@
                 });
             }
         </script>
-    
-    </body>
-</html>

@@ -24,7 +24,7 @@ final class LostPackageMailer
 
     private const CENTER = '<div style="text-indent: 30px;">';
 
-    private const FOOTER = "</div>\r\nขอแสดงความนับถือ<br />\r\nSRShippingSystem\r\n</div>";
+    private const FOOTER = "</div>\r\nขอแสดงความนับถือ<br />\r\nPACK-Cargo\r\n</div>";
 
     public static function approved(int|string $id): void
     {

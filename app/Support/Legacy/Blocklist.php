@@ -10,7 +10,7 @@ use Normalizer;
  */
 final class Blocklist
 {
-    private const BLOCKED_WORDS = ['admin', 'administrator', 'root', 'moderator', 'superuser', 'srshipping', 'srs'];
+    private const BLOCKED_WORDS = ['admin', 'administrator', 'root', 'moderator', 'superuser', 'packcargo', 'pack'];
 
     /** @var array<string, array{name:string, reason:string}>|null */
     private static ?array $list = null;

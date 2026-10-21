@@ -51,9 +51,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $remark text
  * @property string|null $remark_shop text
  * @property int|null $header int
- * @property \Carbon\CarbonImmutable|null $date_section datetime default '0000-00-00 00:00:00'
- * @property int|null $is_takeapic int default '0'
- * @property string|null $subuser varchar(225)
  */
 abstract class TrackingBase extends Model
 {
@@ -70,7 +67,7 @@ abstract class TrackingBase extends Model
     protected $guarded = ['id'];
 
     /** คอลัมน์ทั้งหมดตามลำดับในตาราง (ใช้ตรวจ parity ตอนเขียน DB) */
-    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'no', 'tracking', 'order', 'price_kg', 'price_cubic', 'price_shipping', 'price_amount', 'rate_kg', 'rate_cubic', 'product_type_id', 'lot_id', 'user', 'weight', 'width', 'height', 'long', 'amount', 'ship', 'payment_id', 'is_craft', 'is_qc', 'quote', 'price_qc', 'price_repack', 'price_express', 'price_else', 'price_craft', 'date_warehouse', 'date_outofchina', 'date_thai', 'date_finish', 'remark', 'remark_shop', 'header', 'date_section', 'is_takeapic', 'subuser'];
+    public const COLUMNS = ['create_date', 'create_by', 'mod_date', 'mod_by', 'is_delete', 'id', 'no', 'tracking', 'order', 'price_kg', 'price_cubic', 'price_shipping', 'price_amount', 'rate_kg', 'rate_cubic', 'product_type_id', 'lot_id', 'user', 'weight', 'width', 'height', 'long', 'amount', 'ship', 'payment_id', 'is_craft', 'is_qc', 'quote', 'price_qc', 'price_repack', 'price_express', 'price_else', 'price_craft', 'date_warehouse', 'date_outofchina', 'date_thai', 'date_finish', 'remark', 'remark_shop', 'header'];
 
     protected function casts(): array
     {
@@ -81,7 +78,6 @@ abstract class TrackingBase extends Model
             'date_outofchina' => LegacyDateTime::class.':datetime,zero',
             'date_thai' => LegacyDateTime::class.':datetime,zero',
             'date_finish' => LegacyDateTime::class.':datetime,zero',
-            'date_section' => LegacyDateTime::class.':datetime,zero',
         ];
     }
 }
