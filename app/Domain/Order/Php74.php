@@ -98,6 +98,37 @@ final class Php74
         return (float) $t;
     }
 
+    /**
+     * round($v, $places) ของ PHP 7.4 (_php_math_round แบบมี "pre-rounding", PHP_ROUND_HALF_UP)
+     * — PHP 8.4 เลิก pre-rounding: round(2234.385, 2) = 2234.39 (7.4) แต่ 2234.38 (8.4)
+     * (สำเนาเดียวกับ App\Domain\Reports\Receipt::round — กลุ่ม order ใช้เองเพื่อไม่ผูกกับกลุ่ม reports)
+     */
+    public static function round(mixed $v, int $places = 0): float
+    {
+        $value = (float) self::num($v);
+        if (! is_finite($value) || $value == 0.0) {
+            return $value;
+        }
+        $pow = fn (int $p): float => $p < 0 || $p > 22 ? 10.0 ** $p : (float) (10 ** $p);
+        $helper = fn (float $x): float => $x >= 0.0 ? floor($x + 0.5) : ceil($x - 0.5);
+        $precisionPlaces = 14 - (int) floor(log10(abs($value)));
+        $f1 = $pow(abs($places));
+        if ($precisionPlaces > $places && $precisionPlaces - 15 < $places) {
+            $use = max($precisionPlaces, -60);
+            $tmp = $helper($use >= 0 ? $value * $pow(abs($use)) : $value / $pow(abs($use)));
+            $use = max(-60, $places - $use);
+            $tmp = $tmp / $pow(abs($use));
+        } else {
+            $tmp = $places >= 0 ? $value * $f1 : $value / $f1;
+            if (abs($tmp) >= 1e15) {
+                return $value;
+            }
+        }
+        $tmp = $helper($tmp);
+
+        return $places > 0 ? $tmp / $f1 : $tmp * $f1;
+    }
+
     /** echo ของตัวเลขแบบ 7.4 (precision=14) */
     public static function str(int|float $v): string
     {

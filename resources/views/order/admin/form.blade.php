@@ -1,4 +1,4 @@
-{{-- _admin/_order/form.php เดิม (ไม่พบใบ = หน้าเปล่าแบบเดิม; สิทธิ์ admin_order ที่ middleware) --}}
+{{-- _admin/_order/form.php เดิม — PACK = แบบ jl ไม่มี VAT + ปุ่มเปลี่ยนประเภทส่งของ SR (ไม่พบใบ = หน้าเปล่าแบบเดิม; สิทธิ์ admin_order ที่ middleware) --}}
 @extends('legacy.layout')
 @php
     use App\Domain\Order\Html;
@@ -11,7 +11,7 @@
 @section('content')
 
 <div class="col-sm-7">
-    {{-- SR: tag เสีย "<small?php ..." ในไฟล์เดิม (หัวข้อไม่แสดงเลขใบ) — คงไว้ตามเดิม --}}
+    {{-- tag เสีย "<small?php ..." ในไฟล์เดิมของ PACK (หัวข้อไม่แสดงเลขใบ) — คงไว้ตามเดิม --}}
     <h4 class="page-title">{!! res('order') !!}<small?php echo getPrefix('order').$data['id']; ?></small></h4>
     <ol class="breadcrumb">
         <li>
@@ -46,15 +46,14 @@
             </button>
         @endif
 
-        @if (Php74::num($st) < 2 && Php74::neq($st, '-1'))
+        @if (Php74::num($st) < 2)
             <button onclick="canceling()" type="button" class="pull-right btn btn-danger waves-effect waves-light">
                 <span class="btn-label"><i class="fa fa-save"></i></span>
                 {!! res('cancel_this') !!}
             </button>
-
         @endif
 
-        {{-- SR: ปุ่มเปลี่ยนประเภทส่ง แสดงเฉพาะผู้ใช้ id 84 และ 3 (ตายตัวในไฟล์เดิม) --}}
+        {{-- ปุ่มเปลี่ยนประเภทส่ง แสดงเฉพาะผู้ใช้ id 84 และ 3 (ตายตัวในไฟล์เดิม) --}}
         @if (in_array((int) ($user->id ?? 0), [84, 3], true))
             <button onclick="change_sender_type('{{ Php74::eq($data['ship'] ?? null, '0') ? '1' : '0' }}')" type="button" class="pull-right btn btn-danger waves-effect waves-light">
                 <span class="btn-label"><i class="fa fa-save"></i></span>
@@ -91,14 +90,8 @@
             </div>
             <div class="form-group">
                 <label class="col-md-4 control-label"> {!! res('customer_code') !!}</label>
-                <div class="col-md-5 form-control-static">
-
-
-                    <input type="text" class="form-control autocomplete" id="changecode" value="{!! Html::h($data['code'] ?? '') !!}" />
-
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-default waves-effect" onclick="savechangeuser()">Save</button>
+                <div class="col-md-7 form-control-static">
+                    <a href="{{ legacy_href() }}admin/user/{{ $data['user'] ?? '' }}">{!! Html::h($data['code'] ?? '') !!}</a>
                 </div>
             </div>
             <div class="form-group">
@@ -118,11 +111,6 @@
                 <div class="col-md-4 form-control-static">
                     {!! res('cn_currency') !!}1 <i class='fa fa-arrows-h'></i> {!! Format::numberformat($data['exchange_rate'] ?? null) !!}
                 </div>
-
-
-                <input type="text" id="changerate" value="{!! Html::h($data['exchange_rate'] ?? '') !!}" />
-                <button class="btn btn-primary btn-xs" type="button" onclick="save_newrate()">บันทึกเรทใหม่</button>
-
             </div>
             <div class="form-group">
                 <label class="col-md-4 control-label"> {!! res('remark_for_this_order') !!}</label>
@@ -175,7 +163,6 @@
                     <h3 class="panel-title">{!! res('cancel_this') !!}</h3>
                 </div>
                 <div class="panel-body">
-                    <input type="hidden" id="cancel_remark_type" />
                     <textarea class="form-control" id="cancel_remark"></textarea>
 
 
@@ -445,66 +432,23 @@
     LoadDetail();
     var freagment = '{!! Html::js($div) !!}';
 
-
-
-    $('#changecode').typeahead({
-        source: function(query, process) {
-            $.ajax({
-                url: rooturl + '_admin/_order/load_changeuser',
-                type: 'POST',
-                dataType: 'JSON',
-                data: 'query=' + query,
-                success: function(data) {
-                    process(data.code);
-                    cache_search = data.user;
-                }
-            })
-        },
-        updater: function(item) {
-            return item;
-        }
-    });
-
-
     function canceling() {
-        $("#cancel_remark_type").val(0);
-        $(".cancel_remark_form").modal('show');
-    }
-
-    function cancelingcashback() {
-        $("#cancel_remark_type").val(1);
         $(".cancel_remark_form").modal('show');
     }
 
     function canceling2() {
         ConfirmBox(function() {
             OpenLoading();
-            var types = $("#cancel_remark_type").val();
-
-            if (types == 0) {
-                $.ajax({
-                    type: 'POST',
-                    async: true,
-                    data: 'id={{ $id }}&cancel_remark=' +
-                        $("#cancel_remark").val(),
-                    url: rooturl + '_admin/_order/delete',
-                    success: function(data) {
-                        eval(data);
-                    }
-                });
-            } else {
-                $.ajax({
-                    type: 'POST',
-                    async: true,
-                    data: 'id={{ $id }}&cancel_remark=' +
-                        $("#cancel_remark").val(),
-                    url: rooturl + '_admin/_order/delete_withcashback',
-                    success: function(data) {
-                        eval(data);
-                    }
-                });
-            }
-
+            $.ajax({
+                type: 'POST',
+                async: true,
+                data: 'id={{ $id }}&cancel_remark=' +
+                    $("#cancel_remark").val(),
+                url: rooturl + '_admin/_order/delete',
+                success: function(data) {
+                    eval(data);
+                }
+            });
         })
     }
 
@@ -526,18 +470,6 @@
             async: true,
             data: 'id=' + id + '&value=' + ele.val(),
             url: rooturl + '_admin/_order/save_qc',
-            success: function(data) {
-                LoadDetail();
-            }
-        });
-    }
-
-    function SaveCartTakeapic(ele, id) {
-        $.ajax({
-            type: 'POST',
-            async: true,
-            data: 'id=' + id + '&value=' + ele.val(),
-            url: rooturl + '_admin/_order/save_takeapic',
             success: function(data) {
                 LoadDetail();
             }
@@ -936,38 +868,6 @@
                     '&type=' + t,
                 success: function(data) {
                     window.location.reload();
-                }
-            });
-        });
-    }
-
-    function save_newrate() {
-        ConfirmBox(function() {
-            OpenLoading();
-            $.ajax({
-                type: 'POST',
-                async: true,
-                url: rooturl + '_admin/_order/save_newrate',
-                data: 'id={{ $did }}&rate=' + $("#changerate").val(),
-                success: function(data) {
-                    window.location.reload();
-                }
-            });
-        });
-    }
-
-
-    function savechangeuser() {
-        ConfirmBox(function() {
-            OpenLoading();
-            $.ajax({
-                type: 'POST',
-                async: true,
-                url: rooturl + '_admin/_order/save_changeuser',
-                data: 'id={{ $did }}' +
-                    '&code=' + $("#changecode").val(),
-                success: function(data) {
-                    eval(data);
                 }
             });
         });

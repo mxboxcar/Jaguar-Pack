@@ -15,15 +15,15 @@ use Illuminate\Support\Facades\Mail;
  *
  * - อีเมล: เดิม sendmail() ผ่าน Mailgun → ที่นี่ Mail ของ Laravel; ถ้า config legacy.external.enabled = false (dev)
  *   บังคับใช้ mailer "log" เสมอ = ไม่ส่งจริงแน่นอน แม้ MAIL_MAILER จะถูกตั้งผิด
- * - LINE: sendLine() เดิมเป็นฟังก์ชันว่าง (โค้ดถูก comment) และ push_notification() ว่าง → ไม่ส่ง (log ขนาดข้อความไว้เท่านั้น)
- * - email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → SR: config('legacy.mail') (header/center/footer + ผู้ส่ง SRShippingSystem)
+ * - LINE: ไฟล์ email_*.php ของ PACK ไม่มี sendLine()/push_notification() (SR มีแต่เป็นฟังก์ชันว่าง) → ไม่ส่ง
+ * - email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → config('legacy.mail') (header/center/footer + ผู้ส่ง — ฐานร่วม)
  */
 final class OrderMailer
 {
-    /** ปุ่ม "ดูรายละเอียด" ของ SR: order = กว้าง 200px, taobao = 100% (target="_blank" ตัดออกตามที่เจ้าของสั่ง) */
-    private const BUTTON = "<div style=\"height:20px\"></div>\n<p style=\"width:200px;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 25px 10px 0px;\" >\n<a style=\"color:#ffffff;text-decoration:none\" href=\"%s\" >ดูรายละเอียด</a></p>\n";
+    /** ปุ่ม "ดูรายละเอียด" ของ PACK (สี #eb4823; SR #a3b2f1): order = กว้าง 200px, taobao = 100% (target="_blank" ตัดออกตามที่เจ้าของสั่ง) */
+    private const BUTTON = "<div style=\"height:20px\"></div>\n<p style=\"width:200px;text-align:center;font-size:15px;background-color:#eb4823;padding:10px 25px 10px 0px;\" >\n<a style=\"color:#ffffff;text-decoration:none\" href=\"%s\" >ดูรายละเอียด</a></p>\n";
 
-    private const BUTTON_TAOBAO = "<div style=\"height:20px\"></div>\n<p style=\"width:100%%;text-align:center;font-size:15px;background-color:#a3b2f1;padding:10px 0px;\" >\n<a style=\"color:#ffffff;text-decoration:none\" href=\"%s\" >ดูรายละเอียด</a></p>\n";
+    private const BUTTON_TAOBAO = "<div style=\"height:20px\"></div>\n<p style=\"width:100%%;text-align:center;font-size:15px;background-color:#eb4823;padding:10px 0px;\" >\n<a style=\"color:#ffffff;text-decoration:none\" href=\"%s\" >ดูรายละเอียด</a></p>\n";
 
     /** email_approved.php (order) */
     public static function orderApproved(int $id): void
@@ -117,11 +117,9 @@ final class OrderMailer
 
     private static function send(string $kind, int $ref, string $subject, string $body, string $to): void
     {
-        // ไฟล์ email_*.php ของ SR เป็น CRLF → ขึ้นบรรทัดในเนื้อหาเป็น \r\n แบบเดิม; header/center/footer + ผู้ส่ง = config('legacy.mail') (SR)
+        // ไฟล์ email_*.php ของ PACK (เหมือน SR) เป็น CRLF → ขึ้นบรรทัดในเนื้อหาเป็น \r\n แบบเดิม; header/center/footer + ผู้ส่ง = config('legacy.mail')
         $body = (string) preg_replace('/(?<!\r)\n/', "\r\n", $body);
         $html = config('legacy.mail.header').'<strong>'.$subject.'</strong>'.config('legacy.mail.center').$body.config('legacy.mail.footer');
-        // sendLine()/push_notification() เดิมไม่ทำอะไร
-        Log::info('order notify: LINE skipped (legacy sendLine is a no-op)', ['kind' => $kind, 'ref' => $ref]);
         try {
             if ($to === '') {
                 throw new \RuntimeException('no recipient');

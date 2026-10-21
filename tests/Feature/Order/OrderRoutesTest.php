@@ -6,7 +6,6 @@ use App\Domain\Order\Html;
 use App\Domain\Order\OrderLookups;
 use App\Domain\Order\OrderQueries;
 use App\Domain\Order\Php74;
-use App\Domain\Order\PrintOrder;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -64,21 +63,10 @@ class OrderRoutesTest extends TestCase
         'POST _admin/_order/save_valid_track' => 'legacy.perm:admin_order',
         'POST _admin/_order/save_add_new_track' => 'legacy.perm:admin_order',
         'POST _admin/_order/save_remove_track' => 'legacy.perm:admin_order',
-        // SR เท่านั้น
-        'POST _admin/_order/delete_withcashback' => 'legacy.perm:admin_order',
-        'POST _admin/_order/load_changeuser' => 'legacy.perm:admin_order',
-        'POST _admin/_order/save_changeuser' => 'legacy.perm:admin_order',
+        // PACK = jl: จำนวนหน้าโหลดแยก (cache 10 นาที)
+        'POST _admin/_order/load_paging' => 'legacy.perm:admin_order',
+        // ปุ่มเปลี่ยนประเภทส่ง (ผู้ใช้ 84/3)
         'POST _admin/_order/save_change_send_type' => 'legacy.perm:admin_order',
-        'POST _admin/_order/save_newrate' => 'legacy.perm:admin_order',
-        'POST _admin/_order/save_takeapic' => 'legacy.perm:admin_order',
-        'GET admin/printorder' => 'legacy.perm:admin_printorder',
-        'GET admin/printorder/status/{status}' => 'legacy.perm:admin_printorder',
-        'GET admin/printorder/{id}' => 'legacy.perm:admin_order',
-        'GET admin/printorder/{id}/{div}' => 'legacy.perm:admin_order',
-        'POST _admin/_printorder/grid' => 'legacy.auth',
-        'POST _admin/_printorder/load_detail' => 'legacy.perm:admin_order',
-        'GET _admin/_printorder/print' => 'legacy.auth',
-        'POST _admin/_printorder/save_print' => 'legacy.perm:admin_receipt',
         'GET _admin/_order/email_approved' => 'legacy.perm:admin_order',
         'GET _admin/_order/email_cancel' => 'legacy.perm:admin_order',
         'GET _admin/_order/email_cashback' => 'legacy.perm:admin_order',
@@ -115,29 +103,31 @@ class OrderRoutesTest extends TestCase
         }
     }
 
-    /** ไฟล์ของ jl ที่ SR ไม่มี (docs/sr-diff.md: JL-only) → ไม่มี route (404 → หน้าแรก) */
-    public function test_jl_only_endpoints_have_no_route(): void
+    /** ไฟล์ที่ PACK ไม่มี (jl-only ที่ PACK ไม่มี + SR-only ตาม docs/pack-diff.md) → ไม่มี route (404 → หน้าแรก) */
+    public function test_endpoints_missing_in_pack_have_no_route(): void
     {
         $found = [];
         foreach (Route::getRoutes() as $r) {
             $found[$r->uri()] = true;
         }
-        foreach (['_order/load_paging', '_order/print', '_admin/_order/load_paging', '_admin/_order/save_vat'] as $uri) {
-            $this->assertArrayNotHasKey($uri, $found, "$uri เป็นไฟล์ของ jl เท่านั้น");
+        foreach (['_order/load_paging', '_order/print', '_admin/_order/save_vat',
+            '_admin/_order/delete_withcashback', '_admin/_order/load_changeuser', '_admin/_order/save_changeuser',
+            '_admin/_order/save_newrate', '_admin/_order/save_takeapic',
+            'admin/printorder', 'admin/printorder/status/{status}', 'admin/printorder/{id}', 'admin/printorder/{id}/{div}',
+            '_admin/_printorder/grid', '_admin/_printorder/load_detail', '_admin/_printorder/print', '_admin/_printorder/save_print'] as $uri) {
+            $this->assertArrayNotHasKey($uri, $found, "$uri ไม่มีใน PACK");
         }
     }
 
-    public function test_getstatusprint_like_sr_helper(): void
+    /** round() ของ PHP 7.4 (ยอดบาทรวมท้ายตารางของ PACK) — 8.4 ไม่มี pre-rounding */
+    public function test_round_like_php74(): void
     {
-        $this->assertStringContainsString("label-danger", PrintOrder::getstatusprint('0'));
-        $this->assertStringContainsString("label-success", PrintOrder::getstatusprint(1));
-        $this->assertSame('N/A', PrintOrder::getstatusprint(null));
-        $this->assertSame('N/A', PrintOrder::getstatusprint('2'));
-        // ($run_id == '0' ? 'ORD-'.$id : $run_id) — "" == "0" เป็นเท็จใน 7.4
-        $this->assertSame('ORD-5', PrintOrder::runNo('0', 5));
-        $this->assertSame('', PrintOrder::runNo('', 5));
-        $this->assertSame('', PrintOrder::runNo(null, 5));
-        $this->assertSame('6710200001', PrintOrder::runNo('6710200001', 5));
+        $this->assertSame(2234.39, Php74::round(2234.3849999999998, 2));
+        $this->assertSame(56244.05, Php74::round(56244.04499999999, 2));
+        $this->assertSame(1.01, Php74::round(1.005, 2));
+        $this->assertSame(-2.5, Php74::round(-2.45, 1));
+        $this->assertSame(0.0, Php74::round('', 2));
+        $this->assertSame(12.35, Php74::round('12.345abc', 2));
     }
 
     public function test_status_routes_only_accept_numbers(): void

@@ -13,6 +13,7 @@ use App\Http\Controllers\Order\Concerns\ReadsLegacyInput;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
+use App\Support\Legacy\Paging;
 use App\Support\Legacy\Pricing;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -20,8 +21,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
- * รายการสั่งซื้อฝั่งแอดมิน: _admin/_order/{index,form,grid,load_total_order,delete,save_*}.php (สิทธิ์ admin_order)
- * SR เพิ่ม: delete_withcashback, load_changeuser, save_changeuser, save_change_send_type, save_newrate
+ * รายการสั่งซื้อฝั่งแอดมิน: _admin/_order/{index,form,grid,load_paging,load_total_order,delete,save_*}.php (สิทธิ์ admin_order)
+ * PACK = แบบ jl (grid + load_paging แยก, cache จำนวน 10 นาที) + save_change_send_type ของ SR; ไม่มี VAT ของใบสั่งซื้อ
  * ส่วนรายการสินค้า/tracking ในใบ (load_detail และ save_* ของรายการ) อยู่ที่ AdminOrderDetailController
  */
 class AdminOrderController extends Controller
@@ -79,8 +80,7 @@ class AdminOrderController extends Controller
         $page = $this->php($request, 'page');
         $offset = OrderLookups::offset($page);
         $items = $offset === null ? [] : OrderQueries::page($q, $having, $offset);
-        // SR: นับจำนวนแถวใน grid เอง (MakePaging + getpaging ท้ายตาราง) แทน load_paging แยกของ jl
-        $rows = OrderQueries::count($q, $having);
+        // PACK: จำนวนหน้าโหลดแยกจาก load_paging (แบบ jl) — grid เดิมนับ $rows แต่ไม่ได้ใช้
 
         // เดิม query รหัสผู้ล็อกต่อแถว (status 0 + is_lock 1) → อ่านครั้งเดียว
         $lockIds = [];
@@ -93,7 +93,6 @@ class AdminOrderController extends Controller
 
         return response(view('order.admin.grid', [
             'ajaxpage' => self::AJAX,
-            'rows' => $rows,
             'items' => $items,
             'lockers' => $lockers,
             'prefix' => OrderLookups::prefix('order'),
@@ -105,14 +104,28 @@ class AdminOrderController extends Controller
         ])->render());
     }
 
-    /** POST /_admin/_order/load_total_order — จำนวนใบทั้งระบบตามปุ่มสถานะ */
+    /** POST /_admin/_order/load_paging — ค้นหาเพิ่ม admin_quote (ต่างจาก grid เหมือนเดิม) */
+    public function loadPaging(Request $request): Response
+    {
+        $p = explode('|', $this->in($request, 'txtsearch'));
+        $term = $p[0];
+        $like = OrderQueries::like($term);
+        $q = OrderQueries::base()->where(fn ($w) => $w->where('user.code', 'like', $like)
+            ->orWhere('bill_product.id', 'like', OrderQueries::like(str_replace(OrderLookups::prefix('order'), '', $term)))
+            ->orWhere('bill_product.admin_quote', 'like', $like));
+        $having = OrderQueries::applyShipStatus($q, $p[1] ?? null, $p[2] ?? null);
+        $rows = OrderQueries::cachedCount('a-paging', $q, $having);
+
+        return response(Paging::getpaging($this->php($request, 'page'), $rows, 10, self::AJAX));
+    }
+
+    /** POST /_admin/_order/load_total_order — จำนวนใบทั้งระบบตามปุ่มสถานะ (PACK: readRedis/writeRedis 10 นาทีแบบ jl) */
     public function loadTotalOrder(Request $request): Response
     {
         $q = OrderQueries::base();
         $having = OrderQueries::applyRef($q, $this->has($request, 'ref') ? $this->in($request, 'ref') : null);
 
-        // SR: นับสดทุกครั้ง (เดิมของ SR ไม่มี readRedis/writeRedis — jl cache 10 นาที)
-        return response((string) OrderQueries::count($q, $having));
+        return response((string) OrderQueries::cachedCount('a-total', $q, $having));
     }
 
     /**
@@ -121,36 +134,13 @@ class AdminOrderController extends Controller
      */
     public function delete(Request $request): Response
     {
-        return $this->cancelOrder($request, false);
-    }
-
-    /**
-     * POST /_admin/_order/delete_withcashback — SR: ยกเลิกใบ + คืนเงิน (เหมือน delete) + "คืนธรรมเนียมการเปิดใบสั่งซื้อสินค้า" 50 บาท
-     * (ฟังก์ชัน JS cancelingcashback() มีในหน้า แต่ไม่มีปุ่มเรียก — เรียกได้ด้วย POST ตรง)
-     * เดิม: เครดิต 50 บาทให้ **แอดมินที่กด** (user = getUserID()) ทุกครั้ง ทั้งที่ค่าธรรมเนียม -50 ตอนเปิดใบถูก comment ไว้ใน _cart/save_checkout
-     *       = สร้างเงินให้แอดมินจากอากาศ, ไม่มี transaction/ล็อก
-     * ใหม่: คืนค่าธรรมเนียมให้ **เจ้าของใบ** เฉพาะเมื่อมีแถวหักค่าธรรมเนียมของใบนี้จริงและยังไม่เคยคืน (ตอนนี้ไม่มีแถวแบบนี้ = ไม่คืน)
-     *       ส่วนคืนค่าสินค้า = ยอดสุทธิที่ใบนี้ยังถูกตัดอยู่ แบบเดียวกับ delete (เจ้าของอนุมัติ 2026-10-18)
-     */
-    public function deleteWithCashback(Request $request): Response
-    {
-        return $this->cancelOrder($request, true);
-    }
-
-    /** ยกเลิกใบ (+ คืนเงินถ้าจ่ายแล้ว) — ใช้ร่วม delete / delete_withcashback; สถานะตรวจภายใต้ล็อกแถว */
-    private function cancelOrder(Request $request, bool $withFee): Response
-    {
         $idRaw = $this->in($request, 'id');
         $remark = $this->in($request, 'cancel_remark');
         $uid = Legacy::userId();
         $code = (string) (Legacy::user()->code ?? '');
-        $cancelled = DB::transaction(function () use ($idRaw, $remark, $uid, $code, $withFee) {
+        $cancelled = DB::transaction(function () use ($idRaw, $remark, $uid, $code) {
             $data = DB::table('bill_product')->where('id', $idRaw)->lockForUpdate()->first();
             if ($data !== null && Php74::eq($data->status, -1)) {
-                return null;
-            }
-            if ($withFee && $data === null) {
-                // delete_withcashback เดิม: ไม่พบใบ = status null != -1 → UPDATE 0 แถว + เครดิต 50 ให้แอดมิน → ใหม่ไม่ทำอะไร
                 return null;
             }
             DB::table('bill_product')->where('id', $idRaw)->update([
@@ -170,9 +160,6 @@ class AdminOrderController extends Controller
                     ]);
                 }
             }
-            if ($withFee) {
-                $this->refundOpeningFee($data, $uid);
-            }
 
             return $data;
         });
@@ -182,25 +169,6 @@ class AdminOrderController extends Controller
 
         return response(Alerts::success('window.location.href = "'.Legacy::href('admin/order').'";',
             Lang::get('success_process_no').OrderLookups::prefix('order').Alerts::js(e($idRaw))));
-    }
-
-    /** คืนค่าธรรมเนียมเปิดใบ 50 บาท ให้เจ้าของใบ เฉพาะเมื่อเคยถูกหักจริง (แถว -50 ของ _cart/save_checkout เดิม) และยังไม่เคยคืน */
-    private function refundOpeningFee(object $data, ?int $uid): void
-    {
-        $no = OrderLookups::prefix('order').$data->id;
-        Money::lockUser($data->user);
-        $base = fn () => DB::table('balance')->where('user', $data->user)->where('is_delete', 0)->where('type', 2);
-        $charged = (float) $base()->where('detail', 'ธรรมเนียมการเปิดใบสั่งซื้อสินค้า '.$no)->sum('amount');
-        $refunded = (float) $base()->where('detail', 'คืนธรรมเนียมการเปิดใบสั่งซื้อสินค้า '.$no)->sum('amount');
-        $fee = Money::refundable(50.0, round($charged + $refunded, 2));
-        if ($fee <= 0) {
-            return;
-        }
-        DB::table('balance')->insert([
-            'create_date' => DB::raw('NOW()'), 'create_by' => $uid, 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
-            'is_delete' => 0, 'user' => $data->user, 'amount' => Money::fmt($fee),
-            'detail' => 'คืนธรรมเนียมการเปิดใบสั่งซื้อสินค้า '.$no, 'type' => 2, 'prefix' => '', 'prefix_ref_id' => '',
-        ]);
     }
 
     /**
@@ -287,63 +255,7 @@ class AdminOrderController extends Controller
     }
 
     /**
-     * POST /_admin/_order/load_changeuser — SR: typeahead รหัสลูกค้า (user ที่เปิดใช้งานและไม่ถูกลบ) → {"code":[...]} (ไม่พบ = {"code":null})
-     */
-    public function loadChangeuser(Request $request): Response
-    {
-        $codes = DB::table('user')->where('code', 'like', OrderQueries::like($this->in($request, 'query')))
-            ->where('is_enable', '1')->where('is_delete', 0)->orderBy('id')->pluck('code')->all();
-
-        return response(json_encode(['code' => $codes === [] ? null : array_map(fn ($c) => $c === null ? null : (string) $c, $codes)]));
-    }
-
-    /**
-     * POST /_admin/_order/save_changeuser — SR: ย้ายใบสั่งซื้อ (และรายการ/tracking ของใบ) ไปเป็นของลูกค้ารหัสอื่น
-     * เดิม: ทำได้ทุกสถานะ ไม่มี transaction — ใบที่ชำระแล้ว (status >= 2) แถวเงินยังเป็นของคนเดิม แต่ยกเลิกใบภายหลังจะคืนเงินให้ "เจ้าของใหม่"
-     *       (= ย้ายเงินข้ามบัญชีได้) → ใหม่: เปลี่ยนได้เฉพาะใบที่ยังไม่ชำระ (status < 2) ทำใน transaction + ล็อกแถวใบ
-     */
-    public function saveChangeuser(Request $request): Response
-    {
-        $idRaw = $this->in($request, 'id');
-        $code = trim($this->in($request, 'code'));
-        $target = DB::table('user')->where('code', $code)->orderBy('id')->value('id');
-        if ($target === null) {
-            return response(Alerts::error('CloseLoading()', Lang::get('no_user')).' ');
-        }
-        $result = DB::transaction(function () use ($idRaw, $target) {
-            $bill = DB::table('bill_product')->where('id', $idRaw)->lockForUpdate()->first(['id', 'status']);
-            if ($bill === null) {
-                // เดิม: ไม่พบใบ = UPDATE ... WHERE id = '' (0 แถว) แล้ว reload
-                return 'ok';
-            }
-            if (Php74::num($bill->status) >= 2) {
-                return 'paid';
-            }
-            $detailIds = DB::table('bill_product_detail')->where('bill_product_id', $bill->id)->pluck('id')->all();
-            $onRows = $detailIds === [] ? collect() : DB::table('bill_product_on_tracking')->whereIn('bill_product_detail_id', $detailIds)->get(['id', 'tracking_id']);
-            $trackIds = $onRows->pluck('tracking_id')->filter(fn ($v) => $v !== null)->unique()->values()->all();
-            DB::table('bill_product')->where('id', $bill->id)->update(['user' => $target]);
-            if ($detailIds !== []) {
-                DB::table('bill_product_detail')->whereIn('id', $detailIds)->update(['user' => $target]);
-            }
-            if ($onRows->isNotEmpty()) {
-                DB::table('bill_product_on_tracking')->whereIn('id', $onRows->pluck('id')->all())->update(['user' => $target]);
-            }
-            if ($trackIds !== []) {
-                DB::table('tracking')->whereIn('id', $trackIds)->update(['user' => $target]);
-            }
-
-            return 'ok';
-        });
-        if ($result === 'paid') {
-            return response(Money::refuse('ใบสั่งซื้อนี้ชำระเงินแล้ว ไม่สามารถเปลี่ยนลูกค้าได้'));
-        }
-
-        return response('window.location.reload();');
-    }
-
-    /**
-     * POST /_admin/_order/save_change_send_type — SR: เปลี่ยนประเภทการส่ง (รถ/เรือ) ของใบ + tracking ของใบ แล้วคำนวณราคา tracking ใหม่ (CalPriceAutoDiff)
+     * POST /_admin/_order/save_change_send_type — (ไฟล์เดียวกับ SR) เปลี่ยนประเภทการส่ง (รถ/เรือ) ของใบ + tracking ของใบ แล้วคำนวณราคา tracking ใหม่ (CalPriceAutoDiff)
      * (ปุ่มในหน้าแสดงเฉพาะผู้ใช้ id 84 / 3 แต่ไฟล์เดิมตรวจแค่ admin_order — คงไว้)
      * เดิม: เขียนค่า type อะไรก็ได้, echo SQL กลับ (JS ไม่ใช้ → reload), ไม่มี transaction
      * ใหม่: รับเฉพาะ 0/1, ใบที่ยกเลิกแล้ว (-1) ไม่แก้, ทำใน transaction + ล็อกแถวใบ, ตอบว่าง
@@ -379,34 +291,6 @@ class AdminOrderController extends Controller
         });
 
         return response('');
-    }
-
-    /**
-     * POST /_admin/_order/save_newrate — SR: เปลี่ยนเรทของใบ + ทุกรายการ แล้วคำนวณยอดรวมใหม่ (สูตรเดียวกับ save_price)
-     * เดิม: ทำได้ทุกสถานะ — ใบที่ลูกค้าจ่ายแล้ว (usecash ถูกหักไปแล้ว) ยอดรวมจะไม่ตรงกับที่จ่าย, ไม่มี transaction
-     * ใหม่: เฉพาะใบที่ยังไม่ชำระ (status 0/1 — เหมือนช่องแก้จำนวน/ราคาที่แสดงเฉพาะ status < 2) ทำใน transaction + ล็อกแถวใบ
-     *       (JS เดิม reload หน้าเสมอ ไม่ได้อ่านคำตอบ)
-     */
-    public function saveNewrate(Request $request): Response
-    {
-        $idRaw = $this->in($request, 'id');
-        $rate = $this->in($request, 'rate');
-        if ($idRaw === '') {
-            return response('');
-        }
-        $ok = DB::transaction(function () use ($idRaw, $rate) {
-            $bill = DB::table('bill_product')->where('id', $idRaw)->lockForUpdate()->first(['id', 'status']);
-            if ($bill === null || ! Money::statusIn($bill->status, [0, 1])) {
-                return false;
-            }
-            DB::table('bill_product')->where('id', $bill->id)->update(['exchange_rate' => $rate]);
-            DB::table('bill_product_detail')->where('bill_product_id', $bill->id)->update(['exchange_rate' => $rate]);
-            OrderTotals::saveTotal($bill->id);
-
-            return true;
-        });
-
-        return response($ok ? '' : Money::refuse('เปลี่ยนเรทได้เฉพาะใบสั่งซื้อที่ยังไม่ชำระเงิน'));
     }
 
     /** GET|POST /_admin/_order/email_* — เรียกตรงแบบเดิมไม่มี id (ไม่ได้ส่งอะไรที่ใช้ได้) → ไม่ทำอะไร */
