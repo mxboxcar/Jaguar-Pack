@@ -21,12 +21,9 @@ if(perm('admin_order') ||
     perm('admin_balance_company') ||
     perm('admin_point') ||
     perm('admin_withdrawpoint') ||
-    perm('admin_withdrawcash') ||
-    perm('admin_warehouse') ||
-    perm('admin_warehouse_section') ||
     perm('admin_goodsconfirm') ||
-    perm('admin_exchange') ||
     perm('admin_report') ||
+    perm('admin_coupon') ||
     perm('admin_lot_view')) { 
     $is_admin = true;
 }
@@ -43,8 +40,6 @@ if(perm('admin_order') ||
                 <li class="<?php if($page == 'admin_user' || $page == 'admin_user_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/user"><i class="md  md-location-history"></i> <span>{!! res('user') !!}</span></a></li>
                 <?php } if(perm('admin_payment_create')) { ?>
                 <li class="<?php if($page == 'admin_payment_create') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/payment/create"><i class="md  md-location-history"></i> <span>{!! res('export_creating') !!}</span></a></li>
-                <?php } if(perm('admin_printorder')) { ?>
-                <li class="<?php if($page == 'admin_printorder') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/printorder"><i class="md  md-location-history"></i> <span>{!! res('printorder') !!}</span></a></li>
                 <?php } if(perm('admin_user_type')) { ?>
                 <li class="<?php if($page == 'admin_user_type' || $page == 'admin_user_type_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/user_type"><i class="md  md-local-library"></i> <span>{!! res('user_type') !!}</span></a></li>
                 <?php } if(perm('admin_role')) { ?>
@@ -63,10 +58,6 @@ if(perm('admin_order') ||
                 <li class="<?php if($page == 'admin_balance_company' || $page == 'admin_balance_company_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/balance_company"><i class="fa md-account-balance-wallet"></i> <span>{!! res('balance_company') !!}</span></a></li>
                 <?php } if(perm('admin_lot')  || perm('admin_lot_view')) { ?>
                 <li class="<?php if($page == 'admin_lot' || $page == 'admin_lot_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/lot"><i class="md  md-local-shipping"></i> <span>{!! res('lot') !!}</span></a></li>
-                <?php } if(perm('admin_warehouse')) { ?>
-                <li class="<?php if($page == 'admin_warehouse' || $page == 'admin_lot_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/warehouse"><i class="fa fa-home"></i> <span>{!! res('warehouse') !!}</span></a></li>
-                <?php } if(perm('admin_warehouse_section')) { ?>
-                <li class="<?php if($page == 'admin_warehouse_section' || $page == 'admin_warehouse_section_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/warehouse_section"><i class="fa fa-home"></i> <span>{!! res('warehouse_section') !!}</span></a></li>
                 <?php } if(perm('admin_tracking')) { ?>
                 <li class="<?php if($page == 'admin_tracking' || $page == 'admin_tracking_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/tracking"><i class="fa fa-barcode"></i> <span>{!! res('tracking') !!}</span></a></li>
                 <?php } if(perm('admin_combine_track')) { ?>
@@ -93,7 +84,10 @@ if(perm('admin_order') ||
                 <li class="<?php if($page == 'admin_goodsconfirm' || $page == 'admin_goodsconfirm_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/goodsconfirm"><i class="fa fa-close"></i> <span>{!! res('goodsconfirm') !!}</span></a></li>
                 <?php } if(perm('admin_report')) { ?>
                 <li class="<?php if($page == 'admin_report' || $page == 'admin_report_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/report"><i class="fa fa-bar-chart-o"></i> <span>{!! res('report') !!}</span></a></li>
-                <?php }  ?>
+                <?php } if(perm('admin_coupon')) { ?>
+                <li class="<?php if($page == 'admin_coupon' || $page == 'admin_coupon_detail') { echo "active"; } ?>"><a  href="{{ legacy_href() }}admin/coupon"><i class="fa fa-cube"></i> <span>{!! res('coupon') !!}</a></li>
+                
+                <?php } ?>
       </ul>
     </li>
     <?php } ?>
@@ -106,14 +100,6 @@ if(perm('admin_order') ||
     <ul class="dropdown-menu">
       <li class=""><a class="<?php if($page == 'dashboard' ) { echo "active"; } ?>" href="{{ legacy_href() }}dashboard"><i class="fa fa-bar-chart-o"></i> <span>{!! res('dashboard') !!}</a></li>
         <?php if(perm('profile')) { ?>
-
-
-          <?php 
-                $count = \App\Support\Legacy\LayoutData::noticeCount();
-            ?>
-          <li class=""><a class="<?php if($page == 'notice' ) { echo "active"; } ?>" href="{{ legacy_href() }}notice"><div class="badge badge-xs badge-danger " style="position: relative;top:0px;" ><?php echo $count; ?></div><i class="fa fa-hand-paper-o "></i> <span>{!! res('notice') !!}</a></li>
-             
-        <?php } if(perm('profile')) { ?>
         <li class=""><a class="<?php if($page == 'profile') { echo "active"; } ?>" href="{{ legacy_href() }}profile"><i class="fa fa-sliders"></i> <span>{!! res('profile') !!}</span></a></li>
         <?php }
             $data = ['c' => \App\Support\Legacy\LayoutData::chatUnreadAdmin()];
@@ -124,7 +110,7 @@ if(perm('admin_order') ||
             }
         ?>
         <?php if(perm('admin_message')) { ?>
-        <li class=""><a class="<?php if($page == 'admin_message') { echo "active"; } ?>" href="{{ legacy_href() }}admin/message"><div class="badge badge-xs badge-danger" style="position: relative;top:0px;" ><?php echo $count; ?></div><i class="md  md-message"></i> <span>{!! res('admin_message') !!}</span></a></li>
+        <li class=""><a class="<?php if($page == 'admin_message') { echo "active"; } ?>" href="{{ legacy_href() }}admin/message"><div class="badge badge-xs badge-danger" style="position: absolute;margin: -5px 20px;" ><?php echo $count; ?></div><i class="md  md-message"></i> <span>{!! res('admin_message') !!}</span></a></li>
         <?php } if(perm('message')) {
             $data = ['c' => \App\Support\Legacy\LayoutData::chatUnreadUser()];
 

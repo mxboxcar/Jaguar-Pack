@@ -116,12 +116,12 @@ class AdminGoodsconfirmController extends Controller
         ]);
     }
 
-    /** POST /_admin/_goodsconfirm/load_tracking — autocomplete (เดิม user.code = nobody: SR define('nobody', 'nobody')) */
+    /** POST /_admin/_goodsconfirm/load_tracking — autocomplete (เดิม user.code = nobody: PACK define('nobody', 'PACKnocode') → config legacy.nobody) */
     public function loadTracking(Request $request): Response
     {
         $like = '%'.addcslashes($this->in($request, 'query'), '%_\\').'%';
         $list = DB::table('tracking')->leftJoin('user', 'user.id', '=', 'tracking.user')
-            ->where('tracking.tracking', 'like', $like)->where('tracking.is_delete', 0)->where('user.code', 'nobody')
+            ->where('tracking.tracking', 'like', $like)->where('tracking.is_delete', 0)->where('user.code', config('legacy.nobody'))
             ->pluck('tracking.tracking')->all();
 
         return response(json_encode(['code' => $list === [] ? null : $list]));
@@ -164,7 +164,7 @@ class AdminGoodsconfirmController extends Controller
     {
         $trackingId = DB::table('tracking')->leftJoin('user', 'user.id', '=', 'tracking.user')
             ->where('tracking.tracking', $this->in($request, 'tracking'))
-            ->where('tracking.is_delete', 0)->where('user.code', 'nobody') // SR: define('nobody', 'nobody') (jl: ค่าคงที่ nocode ที่ไม่ได้ define)
+            ->where('tracking.is_delete', 0)->where('user.code', config('legacy.nobody')) // PACK: define('nobody', 'PACKnocode') (SR 'nobody', jl 'nocode')
             ->value('tracking.id');
         if ($trackingId === null) {
             return response("ErrorBox('".Lang::get('no_tracking')."', 'CloseLoading()'); ");
