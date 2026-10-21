@@ -12,19 +12,10 @@ use Illuminate\Support\Facades\Mail;
  *
  * - อีเมล: เดิม sendmail() ผ่าน Mailgun → ที่นี่ใช้ Mail ของ Laravel (dev: MAIL_MAILER=log = ไม่ส่งจริง) ห่อ try/catch เหมือนเดิม
  * - PACK: ไม่มีส่วน LINE / push_notification (SR มี) — ส่งอีเมลอย่างเดียว
- * - แม่แบบ email_header/center/footer.php เดิมถูกอ่านด้วย file_get_contents (ไม่ execute) → คัดข้อความคงที่มาไว้ที่นี่
- * - PACK: ปุ่ม "ดูรายละเอียด" สี #eb4823, ท้ายอีเมล "PACK-Cargo"; ผู้ส่ง = config('legacy.mail') (sendmail() ของ PACK — ฐานร่วม)
+ * - PACK: ปุ่ม "ดูรายละเอียด" สี #eb4823; แม่แบบ header/center/footer และผู้ส่ง = config('legacy.mail') (ฐานร่วม — ท้ายอีเมล "PACK-Cargo")
  */
 final class LostPackageMailer
 {
-    // email_header/center/footer.php ของ PACK (หลัง hotfix 2026-10-18 ไฟล์มีบรรทัดโค้ด PHP กันเปิดตรง
-    // ซึ่ง file_get_contents เดิมจะติดไปในอีเมลด้วย: ไม่เลียนแบบ)
-    private const HEADER = '<div style="font-family: arial,sans-serif;font-size:13px;max-width: 560px">';
-
-    private const CENTER = '<div style="text-indent: 30px;">';
-
-    private const FOOTER = "</div>\r\nขอแสดงความนับถือ<br />\r\nPACK-Cargo\r\n</div>";
-
     public static function approved(int|string $id): void
     {
         self::send($id, false);
@@ -49,7 +40,8 @@ final class LostPackageMailer
         $body .= "<div style=\"height:20px\"></div>\n";
         $body .= "<p style=\"width:200px;text-align:center;font-size:15px;background-color:#eb4823;padding:10px 25px 10px 0px;\" >\n"
             ."<a style=\"color:#ffffff;text-decoration:none\" href=\"".$link."\" >ดูรายละเอียด</a></p>\n";
-        $html = self::HEADER.'<strong>'.$subject.'</strong>'.self::CENTER.$body.self::FOOTER;
+        $mail = config('legacy.mail');
+        $html = $mail['header'].'<strong>'.$subject.'</strong>'.$mail['center'].$body.$mail['footer'];
 
         $to = (string) ($data->email ?? '');
         try {
