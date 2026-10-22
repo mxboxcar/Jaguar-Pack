@@ -238,6 +238,13 @@
                 var NOTI_POLL_SLOW = 300000;
                 var notiTimer = null;
                 var notiLastV = null;
+                // สัญญาณ push ไปถึงทุก browser พร้อมกัน → สุ่มหน่วง 0–3 วิ และรวมหลายสัญญาณที่มาติดกันเป็นครั้งเดียว
+                // (ทุกหน้าที่เปิดค้างยิง /notifications ในวินาทีเดียว = pool php เต็ม, 2026-10-22)
+                var notiPending = null;
+                function notiSoon() {
+                    if (notiPending) { return; }
+                    notiPending = setTimeout(function () { notiPending = null; notifications(); }, Math.floor(Math.random() * 3000));
+                }
                 function setNotiPoll(ms) {
                     if (notiTimer) { clearInterval(notiTimer); }
                     notiTimer = setInterval(function () { notifications(); }, ms);
@@ -256,10 +263,10 @@
                         });
                         sock.on("connect", function () { setNotiPoll(NOTI_POLL_SLOW); });
                         sock.on("hello", function (d) {
-                            if (notiLastV !== null && d.v !== notiLastV) { notifications(); }
+                            if (notiLastV !== null && d.v !== notiLastV) { notiSoon(); }
                             notiLastV = d.v;
                         });
-                        sock.on("changed", function (d) { notiLastV = d.v; notifications(); });
+                        sock.on("changed", function (d) { notiLastV = d.v; notiSoon(); });
                         sock.on("disconnect", function () { setNotiPoll(NOTI_POLL_FAST); });
                         sock.on("connect_error", function () { setNotiPoll(NOTI_POLL_FAST); });
                     } catch (e) { setNotiPoll(NOTI_POLL_FAST); }
