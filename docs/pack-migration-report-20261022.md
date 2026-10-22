@@ -1,6 +1,15 @@
 # รายงานการย้าย portal.pack-cargo.net (pack) ไป Laravel
 
-วันที่ 2026-10-22 · repo `/home/admin/laravel/pack` → GitHub `mxboxcar/Jaguar-Pack` (main `5e88111`, push แล้ว) · แม่แบบ: งาน ship2u (`/root/ship2u-migration-report-20261021.md`)
+วันที่ 2026-10-22 · repo `/home/admin/laravel/pack` → GitHub `mxboxcar/Jaguar-Pack` (main `3330e00`, push แล้ว) · แม่แบบ: งาน ship2u (`/root/ship2u-migration-report-20261021.md`)
+
+## 0. สลับเว็บจริงแล้ว (2026-10-22 09:06 — เจ้าของสั่ง "สลับทั้ง portal และ www เลย")
+
+- **www** (`switch-www.sh`): `pack-cargo.net` เสิร์ฟจาก Laravel · หน้าเว็บ 14 หน้าตรงกับ snapshot ทุกไบต์ · `/wp-login.php`, `/xmlrpc.php` → 404 · ปิด pool PHP 7.4 ของ WordPress แล้ว · ถอยกลับ: `/root/pack-new-subfolder/rollback-switch-www.sh`
+- **portal** (`switch.sh`): `portal.pack-cargo.net` ทั้งเว็บเป็น Laravel (`pack-live` `3330e00`) · `.env` URL หลัก + ส่งเมลจริง (mailgun) · cron เมล lot/notice ย้ายเป็น `artisan` ใน `/etc/cron.d/pack-live` (ของเดิม comment ไว้) · ถอยกลับ: `/root/pack-new-subfolder/rollback-switch.sh`
+- **unban ไม่เปลี่ยนเป็น GET** (ต่างจาก brief): บทเรียนจาก ship2u/jl หลังสลับ — GET ทำให้ token ไปอยู่ใน access log ของ nginx · แก้ให้ Laravel รับ POST ที่ `_api/unban` โดยยกเว้นการตรวจ Origin เฉพาะ route นี้ (`3330e00`, ยังต้องมี token) · cron เดิมยิง POST ได้ 200 แล้ว
+- ตรวจหลังสลับ: login 200, หน้าที่ต้องล็อกอิน → login, asset 200, socket.io 200, URL `.php` เดิม → Laravel, `/new/...` → 301 URL หลัก, POST ไม่มี Origin 403 · ผ่าน Cloudflare ทั้งสองโดเมน 200 · ลูกค้าจริงบันทึกการชำระเงิน/ใบเสนอราคาผ่าน Laravel ได้แล้ว · ไม่มี 5xx · cron เมลรันแล้วไม่มี error
+- autodeploy ใช้ URL หลักแล้ว (24 หน้า) · เพิ่มทั้งสองโดเมนในระบบเฝ้า 24 ชม. (`/root/leopard-watch/php8-watch.py`, backup `.bak-pack-20261022`)
+- ยังเปิดอยู่: pool PHP 7.4 ของ portal เดิม (ไม่มีงานเข้าแล้ว) — ปิดได้แบบเว็บอื่นถ้าเจ้าของต้องการ
 
 ## 1. สรุป
 
@@ -123,4 +132,4 @@
   - รูป/CSS/JS ใน `wp-content`, `wp-includes` nginx เสิร์ฟจากโฟลเดอร์เดิม · **ไม่รัน PHP ของ WordPress อีก** (`.php` ทุกไฟล์ 404) · ตอนสลับปิด pool PHP 7.4 ของ WordPress
 - **ต่างจากเดิม (ตั้งใจ)**: `/wp-admin/`, `/login` (เดิมพาไปหน้า login ของ WordPress) → 404 · หน้า archive ตามวันที่ (`/2020/` ฯลฯ) และ `/page/2/` ที่ไม่มีลิงก์ไหนชี้ → 404 · WordPress เดา redirect ให้ URL ผิด (เช่น `/new/` → `/news/`) → 404 · `?page_id=abc` (WordPress พาไปบทความล่าสุด) → 404
 - **ผลต่อเจ้าของ**: แก้เนื้อหาผ่าน wp-admin ไม่ได้แล้ว — ถ้าจะแก้ ให้แก้ไฟล์ใน `resources/www/` (หรือเปิด WordPress กลับชั่วคราว แก้ แล้วรัน `tools/www-snapshot.py` ใหม่) · ไฟล์และ DB ของ WordPress ยังอยู่ครบ
-- **คำถาม**: 18. สลับ www เลยไหม (แยกจาก portal ได้ — www เสี่ยงกว่าเพราะ WordPress เก่ามากและเคยโดนเจาะ) · 19. หลังสลับ ลบ WordPress (ไฟล์ 291 MB + `public_html.infected-20261014` + DB `admin_packwp2`) เลยไหม หรือเก็บไว้ก่อน
+- **คำถาม**: 18. ~~สลับ www เลยไหม~~ สลับแล้ว · 19. หลังสลับ ลบ WordPress (ไฟล์ 291 MB + `public_html.infected-20261014` + DB `admin_packwp2`) เลยไหม หรือเก็บไว้ก่อน
