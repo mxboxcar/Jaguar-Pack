@@ -12,3 +12,6 @@ CHANGELOG.md export-ignore
 
 # เว็บหน้าแรก (คัดจากไฟล์เดิมตรงตัว) — คง CRLF ไว้ให้ HTML ตรงกับเว็บเดิมทุกไบต์
 resources/views/www/*.php -text
+
+# snapshot ของ WordPress เดิม (pack-cargo.net) ต้องตรงทุกไบต์ — มี CRLF ปนอยู่ ห้ามแปลงบรรทัด
+resources/www/** -text
