@@ -9,7 +9,7 @@
 - **unban ไม่เปลี่ยนเป็น GET** (ต่างจาก brief): บทเรียนจาก ship2u/jl หลังสลับ — GET ทำให้ token ไปอยู่ใน access log ของ nginx · แก้ให้ Laravel รับ POST ที่ `_api/unban` โดยยกเว้นการตรวจ Origin เฉพาะ route นี้ (`3330e00`, ยังต้องมี token) · cron เดิมยิง POST ได้ 200 แล้ว
 - ตรวจหลังสลับ: login 200, หน้าที่ต้องล็อกอิน → login, asset 200, socket.io 200, URL `.php` เดิม → Laravel, `/new/...` → 301 URL หลัก, POST ไม่มี Origin 403 · ผ่าน Cloudflare ทั้งสองโดเมน 200 · ลูกค้าจริงบันทึกการชำระเงิน/ใบเสนอราคาผ่าน Laravel ได้แล้ว · ไม่มี 5xx · cron เมลรันแล้วไม่มี error
 - autodeploy ใช้ URL หลักแล้ว (24 หน้า) · เพิ่มทั้งสองโดเมนในระบบเฝ้า 24 ชม. (`/root/leopard-watch/php8-watch.py`, backup `.bak-pack-20261022`)
-- ยังเปิดอยู่: pool PHP 7.4 ของ portal เดิม (ไม่มีงานเข้าแล้ว) — ปิดได้แบบเว็บอื่นถ้าเจ้าของต้องการ
+- **ปิด PHP 7.4 แล้ว** (09:20, เจ้าของสั่ง "ปิดเลย"): pool ของ portal เดิมย้ายไป `/root/legacy-pools-disabled-20261022/` · เป็น pool สุดท้าย จึงหยุดและ disable `php7.4-fpm` ด้วย · `reenable.sh` แก้ให้ start service ได้ (ใช้ได้กับ rollback ของ jl/SR/ship2u/sang ด้วย) · ตรวจแล้วทุกเว็บบนเครื่องยังตอบปกติ
 
 ## 1. สรุป
 
