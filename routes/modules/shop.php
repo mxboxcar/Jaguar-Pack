@@ -89,4 +89,5 @@ Route::middleware('legacy.auth')->group(function () {
 // token API ของ crawler/cron (สาธารณะเหมือนเดิม ตรวจ token จาก .env — อยู่ใน PUBLIC ของ RouteSecurityTest)
 Route::get('/_api/get_order_number_v2', [ApiController::class, 'getOrderNumberV2']);
 Route::get('/_api/submit_order_number_v2', [ApiController::class, 'submitOrderNumberV2']);
-Route::match(['get', 'post'], '/_api/unban', [ApiController::class, 'unban']);
+// cron ส่ง token ใน body (POST) ไม่ให้ token ไปอยู่ใน access log — ไม่ใช่ฟอร์มจากเบราว์เซอร์ จึงยกเว้น LegacyCsrf (ตรวจ token แทน)
+Route::match(['get', 'post'], '/_api/unban', [ApiController::class, 'unban'])->withoutMiddleware(\App\Http\Middleware\LegacyCsrf::class);
