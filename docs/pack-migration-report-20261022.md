@@ -10,6 +10,7 @@
 - ตรวจหลังสลับ: login 200, หน้าที่ต้องล็อกอิน → login, asset 200, socket.io 200, URL `.php` เดิม → Laravel, `/new/...` → 301 URL หลัก, POST ไม่มี Origin 403 · ผ่าน Cloudflare ทั้งสองโดเมน 200 · ลูกค้าจริงบันทึกการชำระเงิน/ใบเสนอราคาผ่าน Laravel ได้แล้ว · ไม่มี 5xx · cron เมลรันแล้วไม่มี error
 - autodeploy ใช้ URL หลักแล้ว (24 หน้า) · เพิ่มทั้งสองโดเมนในระบบเฝ้า 24 ชม. (`/root/leopard-watch/php8-watch.py`, backup `.bak-pack-20261022`)
 - **ปิด PHP 7.4 แล้ว** (09:20, เจ้าของสั่ง "ปิดเลย"): pool ของ portal เดิมย้ายไป `/root/legacy-pools-disabled-20261022/` · เป็น pool สุดท้าย จึงหยุดและ disable `php7.4-fpm` ด้วย · `reenable.sh` แก้ให้ start service ได้ (ใช้ได้กับ rollback ของ jl/SR/ship2u/sang ด้วย) · ตรวจแล้วทุกเว็บบนเครื่องยังตอบปกติ
+- **เก็บกวาด WordPress แล้ว** (10:42, เจ้าของสั่ง): export DB `admin_packwp2` เก็บไว้ แล้วลบ MySQL user `packwp2` · ลบไฟล์ 4,073 ไฟล์ (.php ทั้งหมด, `wp-admin/`, ไฟล์ตั้งค่า/แปลภาษา) เหลือรูป/CSS/JS/ฟอนต์ 2,480 ไฟล์ — asset 98 ไฟล์ที่หน้า www อ้างถึงยัง 200 ครบ · ลบสำเนาที่โดนเจาะ `public_html.infected-20261014` (310 MB) · archive ของที่ลบ (ยกเว้นสำเนาที่โดนเจาะ): `/root/pack-wp-archive-20261022/` (root 600) · `rollback-switch-www.sh` กู้ให้เอง · ยังเหลือ: DB `admin_packwp2` (ไม่มี user เข้าได้นอกจาก root), user Linux `site_packwp` + โฟลเดอร์ `tmp`
 
 ## 1. สรุป
 
@@ -132,4 +133,4 @@
   - รูป/CSS/JS ใน `wp-content`, `wp-includes` nginx เสิร์ฟจากโฟลเดอร์เดิม · **ไม่รัน PHP ของ WordPress อีก** (`.php` ทุกไฟล์ 404) · ตอนสลับปิด pool PHP 7.4 ของ WordPress
 - **ต่างจากเดิม (ตั้งใจ)**: `/wp-admin/`, `/login` (เดิมพาไปหน้า login ของ WordPress) → 404 · หน้า archive ตามวันที่ (`/2020/` ฯลฯ) และ `/page/2/` ที่ไม่มีลิงก์ไหนชี้ → 404 · WordPress เดา redirect ให้ URL ผิด (เช่น `/new/` → `/news/`) → 404 · `?page_id=abc` (WordPress พาไปบทความล่าสุด) → 404
 - **ผลต่อเจ้าของ**: แก้เนื้อหาผ่าน wp-admin ไม่ได้แล้ว — ถ้าจะแก้ ให้แก้ไฟล์ใน `resources/www/` (หรือเปิด WordPress กลับชั่วคราว แก้ แล้วรัน `tools/www-snapshot.py` ใหม่) · ไฟล์และ DB ของ WordPress ยังอยู่ครบ
-- **คำถาม**: 18. ~~สลับ www เลยไหม~~ สลับแล้ว · 19. หลังสลับ ลบ WordPress (ไฟล์ 291 MB + `public_html.infected-20261014` + DB `admin_packwp2`) เลยไหม หรือเก็บไว้ก่อน
+- **คำถาม**: 18. ~~สลับ www เลยไหม~~ สลับแล้ว · 19. ~~ลบ WordPress~~ เก็บกวาดแล้ว (หัวข้อ 0)
