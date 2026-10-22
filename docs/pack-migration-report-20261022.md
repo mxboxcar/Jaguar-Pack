@@ -1,6 +1,6 @@
 # รายงานการย้าย portal.pack-cargo.net (pack) ไป Laravel
 
-วันที่ 2026-10-22 · repo `/home/admin/laravel/pack` → GitHub `mxboxcar/Jaguar-Pack` (main `132cf5c`, push แล้ว) · แม่แบบ: งาน ship2u (`/root/ship2u-migration-report-20261021.md`)
+วันที่ 2026-10-22 · repo `/home/admin/laravel/pack` → GitHub `mxboxcar/Jaguar-Pack` (main `5e88111`, push แล้ว) · แม่แบบ: งาน ship2u (`/root/ship2u-migration-report-20261021.md`)
 
 ## 1. สรุป
 
@@ -13,15 +13,18 @@
   - รายการไฟล์ที่ต่างทั้งหมด: `docs/pack-diff.md` (สร้างด้วย `tools/pack-diff.py`) + ตาราง "foundation helpers"
 - **ทุกกลุ่มพอร์ตครบ** (foundation + 13 กลุ่ม แบ่ง 7 ชุดทำพร้อมกัน) รายละเอียดต่อกลุ่มอยู่ในหัวข้อ "## PACK (2026-10-22)" ของ `docs/modules/<group>.md`
 - **ตัดออก**: LINE Notify (ตามที่เจ้าของสั่ง), หน้าของ SR ที่ pack ไม่มี, ระบบชั้นวางโกดัง (pack ไม่มีตาราง/หน้า/สิทธิ์)
-- **ยังไม่ติดตั้ง /new/** — รอเจ้าของรัน `owner-secrets.sh` (ระบบบล็อกไม่ให้ผมแตะ key/รหัส DB) ไฟล์ทั้งหมดพร้อมใน `/root/pack-new-subfolder` (หัวข้อ 5)
-- **Beacon**: เพิ่ม repo `pack` แล้ว · autodeploy พร้อม (ยังไม่เปิด cron เพราะ /new/ ยังไม่ขึ้น)
+- **ติดตั้ง /new/ แล้ว** (08:10): `https://portal.pack-cargo.net/new/` ต้องมี cookie `pknew` (ค่าใน `/root/pack-new-subfolder/gate-cookie`) · ต่อ DB จริง `admin_packcargo` · เมลยังเป็น `log` · ถอดออกคำสั่งเดียว `rollback-new.sh`
+- **autodeploy เปิดแล้ว** (`/etc/cron.d/pack-autodeploy` ทุก 2 นาที) — รอบจริงรอบแรก deploy `5e88111` ผ่าน (phpunit ใน `pack-ci` + เช็ค 19 หน้า) · Beacon หน้า Repo มี `pack` แล้ว
+- **ย้าย www (`pack-cargo.net`) ด้วย** (เจ้าของสั่งเพิ่ม): เดิมเป็น WordPress 5.2 + Divi บน PHP 7.4 (เคยโดนฝัง webshell 14 ต.ค.) → Laravel ของ pack เสิร์ฟหน้าเดิมทุกไบต์ (หัวข้อ 7) · ดูตัวอย่างที่ `https://pack-cargo.net/new/` (cookie เดียวกัน) · **ยังไม่สลับ** รอเจ้าของสั่ง (`switch-www.sh --yes`)
 
 ## 2. ผลทดสอบ
 
 | ตรวจอะไร | ผล |
 |---|---|
-| phpunit ไม่ใช้ DB | **328 ผ่าน** (111 ข้าม = เทส DB) |
-| phpunit ใช้ bench DB `admin_pack_bench` | **328/328 ผ่าน** |
+| phpunit ไม่ใช้ DB | **336 ผ่าน** (114 ข้าม = เทส DB) — รวมเทส www 8 ตัว |
+| phpunit ใช้ bench DB `admin_pack_bench` | **336/336 ผ่าน** |
+| /new/ บนเว็บจริง (cookie gate) | ไม่มี cookie → เด้งหน้าแรก · มี cookie `/new/login` 200 · asset 200 · POST ไม่มี Origin (`system_check_login`, `_tracking/save`, `_admin/_user/save`) 403 · ต่อ DB จริงได้ (user 1,063 คน) · อ่าน key Azure/Mailgun ได้ · เว็บเดิม `/login` ยัง 200 |
+| www เทียบกับ WordPress เดิม (266 URL รวมค้นหา 31 คำ × 5 แบบ) | **เหมือนทุกไบต์ 253** · ที่เหลือ = หัวข้อ 7 · ผ่าน nginx + pool จริงที่ `/new/`: 24/24 เหมือน |
 | smoke ทุก route บน :8800 | GET 201 route × 3 สถานะ (ไม่ล็อกอิน / ลูกค้า / แอดมิน): **ไม่มี 500** · POST 327 route ที่ไม่มี Origin: **403 ทุกตัว** |
 | เทียบ 1:1 หน้า GET กับเว็บเดิม bench (:8114) session เดียวกัน | แอดมิน 139 หน้า เหมือน 121 · ลูกค้าจริง 53 หน้า เหมือน 41 · ที่เหลือตรวจทีละหน้าแล้ว = ต่างโดยตั้งใจ (หัวข้อ 3) |
 | เทียบ 1:1 ajax อ่านอย่างเดียว | แอดมิน 109 endpoint (151 ครั้ง) · ลูกค้า 42 endpoint (57 ครั้ง) → ต่างแค่บรรทัดว่าง + จุดที่ตั้งใจ |
@@ -95,11 +98,13 @@
   - เครื่องมือ `/root/pack-tools` (`compare.py`, `compare_ajax.py`, `smoke.py`, `rewrite.htaccess` จาก nginx ของ pack)
 - **GitHub**: deploy key `/root/.ssh/pack_deploy_ed25519` (alias `github-pack`, เขียนได้)
 - **Beacon**: เพิ่ม repo `pack` ใน `/etc/beacon/config.json` (backup `/root/beacon-config.json.bak-pack-repo-20261022`) แล้ว restart `beacon-api`
-- **/new/ (ยังไม่ติดตั้ง)** — `/root/pack-new-subfolder`:
-  - ทำแล้ว: user `site_pklv`, `/home/admin/laravel/pack-upload-root`, worktree `pack-live` (composer แล้ว), `pack-ci` (เทสผ่าน), `/var/lib/pack-autodeploy/pages.txt`
-  - รอเจ้าของ: `owner-secrets.sh` (คัดลอก key Azure/Mailgun ให้ `site_pklv` + สร้าง `pack-live/.env` จาก user/รหัส DB/salt/unban token เดิม โดยไม่พิมพ์ค่า)
-  - จากนั้นผมจะ: ติดตั้ง pool `pack-live` (php8.4, max_children 8), map + snippet nginx (gate cookie `pknew`), include ใน vhost, `rollback-new.sh`, cron autodeploy
-- **ไฟล์สลับเว็บ (ห้ามรันจนกว่าเจ้าของสั่ง)**: `portal.pack-cargo.net.laravel.conf`, `cron-pack-live.txt`, `switch.sh --yes` (backup → `.env` URL หลัก + mailgun → nginx → cron เมล → `pack-unban.sh` เป็น `curl -G` → autodeploy BASE/pages.txt → reload → เขียน `rollback-switch.sh` ให้อัตโนมัติ) · `switch.sh` ไม่ยอมรันถ้า `.env` ยังไม่มี `LEGACY_SHOP_UNBAN_TOKEN` · หยุด autodeploy ระหว่างสลับ
+- **/new/ (ติดตั้งแล้ว)** — `/root/pack-new-subfolder` (ดู `README.md`):
+  - user `site_pklv`, `/home/admin/laravel/pack-upload-root`, key `azure-pklv.key`/`mailgun-pklv.key` + `pack-live/.env` (เจ้าของรัน `owner-secrets.sh`)
+  - pool `/etc/php/8.4/fpm/pool.d/pack-live.conf` (max_children 8) · `/etc/nginx/conf.d/00-pack-new-map.conf` · `snippets/pack-new.conf` (portal) + `snippets/pack-www-new.conf` (www)
+  - include ใน `portal.pack-cargo.net.conf` และ `pack-cargo.net.conf` · backup ก่อนแก้: `LAST_NEW_BACKUP` · ถอดทั้งหมด: `rollback-new.sh`
+  - autodeploy: `/etc/cron.d/pack-autodeploy` → `autodeploy.sh` (เทสใน `pack-ci`, เช็ค 24 หน้าใน `/var/lib/pack-autodeploy/pages.txt` รวมหน้า www) · log `/var/log/pack-autodeploy.log` · หยุด: `touch /var/lib/pack-autodeploy/PAUSE`
+- **ไฟล์สลับเว็บ (ห้ามรันจนกว่าเจ้าของสั่ง)**: `portal.pack-cargo.net.laravel.conf`, `cron-pack-live.txt`, `switch.sh --yes` (backup → `.env` URL หลัก + mailgun → nginx → cron เมล → `pack-unban.sh` เป็น `curl -G` → autodeploy BASE/pages.txt → reload → เขียน `rollback-switch.sh` ให้อัตโนมัติ) · `switch.sh` ไม่ยอมรันถ้า `.env` ยังไม่มี `LEGACY_SHOP_UNBAN_TOKEN` (ตอนนี้มีแล้ว) · หยุด autodeploy ระหว่างสลับ
+- **ไฟล์สลับ www (ห้ามรันจนกว่าเจ้าของสั่ง)**: `pack-cargo.net.laravel.conf` + `nginx-pack-www-fastcgi.conf`, `switch-www.sh --yes` (backup → เขียน `rollback-switch-www.sh` → nginx → ปิด pool PHP 7.4 ของ WordPress → pages.txt → เช็คหน้า) · ผ่าน `nginx -t` ในสำเนาทดลองแล้ว · สลับแยกจาก portal ได้
 
 ## 6. เหตุการณ์ระหว่างทำงาน
 
@@ -107,3 +112,15 @@
 - `git stash` ใช้ร่วมกันทุก worktree → งานค้างของบางกลุ่มสลับกันชั่วคราว ตรวจแล้วไม่มีงานหาย · ห้ามใช้ stash แล้ว
 - เว็บเดิม bench ค้าง 2 ครั้ง (query ล็อตลูกค้าไม่มี index) → ฆ่า query และเปิดใหม่ 4 worker
 - **ค่าลับที่ฝังในโค้ดเดิมของ pack**: unban token และ token ของ API ที่ crawler ใช้ — agent กลุ่ม order เห็นค่าใน output ระหว่าง diff (ไม่ได้เขียนลงไฟล์/commit/รายงาน) · ตอนสลับต้องตั้งค่าใน `.env` (`owner-secrets.sh` ใส่ unban token ให้แล้ว)
+
+## 7. www — pack-cargo.net (เพิ่มตามคำสั่งเจ้าของ "ย้าย www ด้วยนะ")
+
+- **เดิม**: WordPress 5.2.24 (หมดอายุ) + ธีม Divi + ปลั๊กอิน 10 ตัว บน PHP 7.4 pool `pack-cargo.net` (user `site_packwp`), DB `admin_packwp2` · เนื้อหา 10 หน้า + 4 บทความ (2020) ไม่มีฟอร์มติดต่อ มีแค่ช่องค้นหา · log มีแต่บอทยิงหา webshell
+- **ใหม่** (แบบเดียวกับ ship2you-cargo.com): Laravel ของ pack ผูกโดเมน `pack-cargo.net`/`www` (`routes/www.php` → `WwwController`) เสิร์ฟ snapshot ของ WordPress ตรงทุกไบต์ (`resources/www/`, สร้างด้วย `tools/www-snapshot.py`)
+  - URL เดิมทุกหน้า + redirect แบบ WordPress (ไม่มี `/` ท้าย, `/index.php`, `/home/`, `?p=`, `?page_id=`, ตัวพิมพ์ใหญ่ก็เปิดได้)
+  - ค้นหา `?s=` ทำแบบ WordPress 5.2 ทุกขั้น (แยกคำ, stopword ภาษาไทย, `-คำ` = ไม่เอา, ลำดับ relevance, หน้าละ 5) โดยให้ MySQL ทำ LIKE ด้วย collation เดิม (ไม่สนวรรณยุกต์ไทย) บนข้อมูลใน `site.json` — ไม่อ่านตารางใด
+  - ฟีด `/feed/`, ฟีดความเห็น, หน้าหมวดหมู่ 2 หน้า, หน้าผู้เขียน, `robots.txt`, หน้า 404 ของธีมเดิม
+  - รูป/CSS/JS ใน `wp-content`, `wp-includes` nginx เสิร์ฟจากโฟลเดอร์เดิม · **ไม่รัน PHP ของ WordPress อีก** (`.php` ทุกไฟล์ 404) · ตอนสลับปิด pool PHP 7.4 ของ WordPress
+- **ต่างจากเดิม (ตั้งใจ)**: `/wp-admin/`, `/login` (เดิมพาไปหน้า login ของ WordPress) → 404 · หน้า archive ตามวันที่ (`/2020/` ฯลฯ) และ `/page/2/` ที่ไม่มีลิงก์ไหนชี้ → 404 · WordPress เดา redirect ให้ URL ผิด (เช่น `/new/` → `/news/`) → 404 · `?page_id=abc` (WordPress พาไปบทความล่าสุด) → 404
+- **ผลต่อเจ้าของ**: แก้เนื้อหาผ่าน wp-admin ไม่ได้แล้ว — ถ้าจะแก้ ให้แก้ไฟล์ใน `resources/www/` (หรือเปิด WordPress กลับชั่วคราว แก้ แล้วรัน `tools/www-snapshot.py` ใหม่) · ไฟล์และ DB ของ WordPress ยังอยู่ครบ
+- **คำถาม**: 18. สลับ www เลยไหม (แยกจาก portal ได้ — www เสี่ยงกว่าเพราะ WordPress เก่ามากและเคยโดนเจาะ) · 19. หลังสลับ ลบ WordPress (ไฟล์ 291 MB + `public_html.infected-20261014` + DB `admin_packwp2`) เลยไหม หรือเก็บไว้ก่อน
