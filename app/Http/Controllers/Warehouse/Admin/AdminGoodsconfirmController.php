@@ -10,6 +10,7 @@ use App\Http\Controllers\Warehouse\Concerns\ReadsLegacyInput;
 use App\Support\Legacy\Alerts;
 use App\Support\Legacy\Lang;
 use App\Support\Legacy\Legacy;
+use App\Support\Legacy\Pricing;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -255,9 +256,16 @@ class AdminGoodsconfirmController extends Controller
                 DB::table('goodsconfirm')->where('id', $id)->update([
                     'status' => '2', 'approved_date' => DB::raw('NOW()'), 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
                 ]);
-                DB::table('tracking')->where('id', $row['tracking_id'] ?? '')->update([
+                $tid = $row['tracking_id'] ?? '';
+                DB::table('tracking')->where('id', $tid)->update([
                     'user' => $row['user'] ?? '', 'mod_date' => DB::raw('NOW()'), 'mod_by' => $uid,
                 ]);
+                // [2026-10-22] เปลี่ยนเจ้าของแล้วคิดค่าขนส่งใหม่ตามเรท/คูปองของเจ้าของใหม่ — เดิมราคาค้างตามเจ้าของเดิม
+                // (vr tracking 2089969: ได้เรทคูปอง 15/กก. ของเจ้าของเดิม แทน 45/กก.) · เฉพาะรายการที่ยังไม่ออกบิล
+                $pay = DB::table('tracking')->where('id', $tid)->value('payment_id');
+                if ($pay !== null && Php74::eq($pay, 0)) {
+                    Pricing::calPriceAutoDiff($tid);
+                }
                 // เดิม include_once('email_approved.php') — ไม่มีไฟล์นี้ในเว็บเดิม → ไม่เคยส่งอีเมล
             }
         });
