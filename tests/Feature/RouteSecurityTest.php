@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Www\WwwController;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -10,6 +11,8 @@ use Tests\TestCase;
  *  - ทุก route (ยกเว้นรายการ PUBLIC) ต้องมี legacy.auth / legacy.perm / legacy.own
  *  - ทุก route ที่เปลี่ยนข้อมูล (ไม่ใช่ GET/HEAD) ต้องอยู่ใต้ group "legacy" (LegacyCsrf) หรือ "web" (CSRF token)
  * route สาธารณะใหม่ (เช่น register / lostpassword) ต้องเพิ่มใน PUBLIC พร้อมเหตุผลใน PR
+ * ยกเว้น: เว็บหน้าแรก pack-cargo.net (routes/www.php ผูกโดเมน → WwwController) = หน้า snapshot คงที่ ไม่มี session ไม่เขียนอะไร
+ *         รับทุก method เพื่อให้ POST ไปโดเมน www ไม่หลุดไปถึง route ของ portal
  */
 class RouteSecurityTest extends TestCase
 {
@@ -45,7 +48,7 @@ class RouteSecurityTest extends TestCase
     {
         $missing = [];
         foreach (Route::getRoutes() as $route) {
-            if (array_key_exists($route->uri(), self::PUBLIC)) {
+            if (array_key_exists($route->uri(), self::PUBLIC) || $this->isWww($route)) {
                 continue;
             }
             $mw = $route->gatherMiddleware();
@@ -66,7 +69,7 @@ class RouteSecurityTest extends TestCase
     {
         $missing = [];
         foreach (Route::getRoutes() as $route) {
-            if (array_diff($route->methods(), ['GET', 'HEAD']) === []) {
+            if (array_diff($route->methods(), ['GET', 'HEAD']) === [] || $this->isWww($route)) {
                 continue;
             }
             $mw = $route->gatherMiddleware();
@@ -75,5 +78,11 @@ class RouteSecurityTest extends TestCase
             }
         }
         $this->assertSame([], $missing, 'route เปลี่ยนข้อมูลที่ไม่มี CSRF');
+    }
+
+    private function isWww(\Illuminate\Routing\Route $route): bool
+    {
+        return in_array($route->getDomain(), ['pack-cargo.net', 'www.pack-cargo.net'], true)
+            && $route->getActionName() === WwwController::class.'@show';
     }
 }

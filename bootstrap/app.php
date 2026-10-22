@@ -24,6 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         // routes/modules/*.php = 1 ไฟล์ต่อ 1 กลุ่ม (โหลดอัตโนมัติ เรียงตามชื่อไฟล์) อยู่ใต้ middleware group "legacy"
         then: function () {
+            // เว็บหน้าแรก pack-cargo.net (ผูกโดเมน) — โหลดก่อน route ของ portal และไม่อยู่ใต้ middleware "legacy"
+            Route::group([], base_path('routes/www.php'));
             Route::middleware('legacy')->group(base_path('routes/legacy.php'));
             foreach (glob(base_path('routes/modules/*.php')) ?: [] as $file) {
                 Route::middleware('legacy')->group($file);
