@@ -118,7 +118,34 @@ final class OrderQueries
     {
         $sql = $q->toSql().'|'.json_encode($q->getBindings()).'|'.$having;
 
-        return (int) Cache::remember('order:'.$tag.':'.sha1($sql), 600, fn () => self::count($q, $having));
+        $key = 'order:'.$tag.':'.sha1($sql);
+        $hit = Cache::get($key);
+        if ($hit !== null) {
+            return (int) $hit;
+        }
+        // กัน stampede (เหมือน pnp 19b5a38 — 2026-10-24 pool เต็มจาก COUNT ทั้งระบบซ้อนกันตอน cache หมดอายุ):
+        // นับทีละคนต่อ key — คนอื่นได้ค่าล่าสุด (stale) หรือรอคนที่กำลังนับสูงสุด 20 วิ
+        $lock = Cache::lock($key.':lock', 300);
+        if ($lock->get()) {
+            try {
+                $n = self::count($q, $having);
+                Cache::put($key, $n, 600);
+                Cache::forever($key.':stale', $n);
+
+                return $n;
+            } finally {
+                $lock->release();
+            }
+        }
+        $stale = Cache::get($key.':stale');
+        if ($stale !== null) {
+            return (int) $stale;
+        }
+        try {
+            return (int) $lock->block(20, fn () => Cache::get($key, 0));
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException) {
+            return 0;
+        }
     }
 
     /**
