@@ -179,6 +179,13 @@
             }
             
 
+            // #wrapper / .content-page เป็น overflow:hidden แต่เบราว์เซอร์ยังเลื่อนแนวนอนเองได้ (focus ช่องที่เกินขอบขวา, ลากเลือกข้อความ, ค้นหาในหน้า)
+            // → เนื้อหาไปมุดใต้เมนูซ้ายค้างไว้ (เจ้าของแจ้ง 2026-10-24) — ดึงกลับทุกครั้งที่ถูกเลื่อน
+            document.addEventListener('scroll', function (e) {
+                var el = e.target;
+                if (el && el.nodeType === 1 && el.scrollLeft !== 0 && (el.id === 'wrapper' || $(el).is('.content-page, .content-page > .content'))) el.scrollLeft = 0;
+            }, true);
+
             // grid: กดเข้ารายการในตารางให้เปิดแท็บใหม่ (เจ้าของสั่ง 2026-10-24) — ข้ามปุ่ม onclick, #, javascript:, fancybox, download
             $(document).on('click', '#gridAjax table a[href]', function () {
                 var href = $(this).attr('href') || '';
