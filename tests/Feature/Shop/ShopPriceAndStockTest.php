@@ -46,6 +46,12 @@ class ShopPriceAndStockTest extends TestCase
         $this->assertSame('9.80', CrawlPrices::resolve(137, self::URL.'&x=1', '9.80'), 'priceRange + URL ที่ crawler ตอบ');
     }
 
+    public function test_crawler_url_that_is_not_a_string_is_ignored(): void
+    {
+        $this->crawl(137, ['url' => ['a', 'b']]);
+        $this->assertSame('10.50', CrawlPrices::resolve(137, self::URL, '10.50'));
+    }
+
     public function test_customer_price_is_ignored_when_not_from_crawler(): void
     {
         $this->crawl(137);

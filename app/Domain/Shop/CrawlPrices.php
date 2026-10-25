@@ -46,7 +46,8 @@ final class CrawlPrices
             }
         }
         $entry = ['base' => $base[0], 'allowed' => array_values(array_unique($all))];
-        foreach (array_unique([$inputUrl, (string) ($data['url'] ?? '')]) as $u) {
+        $crawlUrl = $data['url'] ?? ''; // บางร้าน crawler ตอบ url เป็น array (vr-new 2026-10-26 500 "Array to string")
+        foreach (array_unique([$inputUrl, is_scalar($crawlUrl) ? (string) $crawlUrl : '']) as $u) {
             if (trim($u) !== '') {
                 Cache::put(self::key($uid, $u), $entry, self::TTL);
             }
