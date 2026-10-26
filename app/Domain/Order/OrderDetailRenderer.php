@@ -349,7 +349,7 @@ final class OrderDetailRenderer
                 $html .= '<td style="width:70px;'.$colors.'" class="text-center"><a class="fancybox" href="'.Html::url($item['main_image']).'">
                 <img src="'.Html::h($item['main_image']).'" style="max-width: 46px;max-height: 46px;">
             </a></td>';
-                $html .= '<td style="'.$color.'" ><a href="'.Html::url($item['url']).'">'.Html::h($pname).'</a>';
+                $html .= '<td style="'.$color.'" ><a target="_blank" rel="noopener" href="'.Html::url($item['url']).'">'.Html::h($pname).'</a>';
                 if ($second !== '') {
                     $html .= '<div class="cd-price">'.$second.'</div>';
                 }
@@ -501,7 +501,7 @@ final class OrderDetailRenderer
         $html .= '<div class="" style="float:left;clear:both;">'.Format::getthaidate($exp1, true).'</div>';
         $html .= '<div class="" style="float:left;clear:both;">'.Format::getthaidate($exp2, true).'</div>';
         if ($pay) {
-            $html .= '<div class="" style="float:left;clear:both;"><a href="'.$this->href.'admin/export/'.Html::h($row['payment_id']).'" >'.OrderLookups::prefix('payment').Html::h($row['payment_id']).'</a></div>';
+            $html .= '<div class="" style="float:left;clear:both;"><a target="_blank" href="'.$this->href.'admin/export/'.Html::h($row['payment_id']).'" >'.OrderLookups::prefix('payment').Html::h($row['payment_id']).'</a></div>';
         }
         $html .= '</td>';
         if ($first) {
@@ -621,7 +621,7 @@ final class OrderDetailRenderer
                 $html .= '<td style="width:70px;'.$colors.'" class="text-center"><a class="fancybox" href="'.Html::url($item['main_image']).'">
                 <img src="'.Html::h($item['main_image']).'" style="max-width: 46px;max-height: 46px;">
             </a></td>';
-                $html .= '<td style="'.$color.'" ><a href="'.Html::url($item['url']).'">'.Html::h($pname).'</a>';
+                $html .= '<td style="'.$color.'" ><a target="_blank" rel="noopener" href="'.Html::url($item['url']).'">'.Html::h($pname).'</a>';
                 if ($second !== '') {
                     $html .= '<div class="cd-price">'.$second.'</div>';
                 }
@@ -793,7 +793,7 @@ final class OrderDetailRenderer
         $html .= '<div class="" style="float:left;clear:both;">'.Format::getthaidate($exp1, true).'</div>';
         $html .= '<div class="" style="float:left;clear:both;">'.Format::getthaidate($exp2, true).'</div>';
         if ($pay) {
-            $html .= '<div class="" style="float:left;clear:both;"><a href="'.$this->href.'admin/export/'.Html::h($row['payment_id']).'" >'.OrderLookups::prefix('payment').Html::h($row['payment_id']).'</a></div>';
+            $html .= '<div class="" style="float:left;clear:both;"><a target="_blank" href="'.$this->href.'admin/export/'.Html::h($row['payment_id']).'" >'.OrderLookups::prefix('payment').Html::h($row['payment_id']).'</a></div>';
         }
         $html .= '</td>';
         if ($first) {
