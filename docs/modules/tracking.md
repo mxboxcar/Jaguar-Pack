@@ -286,6 +286,8 @@ ajax / form post (ทุกตัว `legacy.ajax` = system_check_ajax เดิ
   - **(2026-10-18, fix/legacy-risks, เจ้าของอนุมัติ — แก้เฉพาะ Laravel)** เดิมรวม tracking ของลูกค้าต่างคน / ที่ลบแล้ว / อยู่ในบิลแล้ว (`payment_id > 0`) / ล็อก (`-2`) / claim (`-3`) ได้
     → ทั้ง 2 แถว (lock ใน transaction) ต้อง `is_delete = 0`, `payment_id = 0` (ยังไม่ชำระ ไม่ล็อก) และ `user` เดียวกัน ไม่งั้น `ErrorBox` (`CombineTrack::ERR_STATE` / `ERR_USER`) ไม่เปลี่ยนอะไร;
     JS หน้า `admin/combine_track` eval คำตอบที่เป็น `ErrorBox` (เดิมไม่ eval คำตอบเลย) · `CombineTrack::run()` (จาก `_api/submit_order_number_v2`) ยังเหมือนเดิม
+  - **(2026-10-26, เจ้าของอนุมัติ — เหมือน YD 2026-10-25)** ยกเว้น: แถวหนึ่งอยู่ในบิลแล้ว (`payment_id > 0`) + อีกแถวเป็นแถวว่าง (`payment_id = 0`, `lot_id = 0`) ของลูกค้าคนเดียวกัน และเลขพัสดุตรงกัน (`strtolower(trim())`)
+    → `CombineTrack::attach()`: ไม่สร้างแถวใหม่/ไม่คิดราคาใหม่/ไม่แตะ `bill_payment_detail` — เติม `order` ให้แถวในบิล (ถ้ายังว่าง), ย้าย `bill_product_on_tracking` / รูป / ชั้นวางมาที่แถวในบิล แล้วลบแถวว่าง
 - `CombineTrack()`: loop ตรวจ `WHERE lot = ...` (คอลัมน์ไม่มีจริง → SQL error → ไม่ทำอะไร) ตัดทิ้ง; `exit(0)` เมื่อ order ว่าง → คืน flag ให้ผู้เรียกหยุดเอง; ไม่ `echo` แต่คืนข้อความ
 - `save_lock.php`: เดิมไม่สนค่า `value` (ปุ่มล็อก -2 / ปลดล็อก 0) ตั้ง `payment_id = -3` เสมอ — **คงพฤติกรรมเดิม** (เจ้าของยืนยันว่าตั้งใจ)
   - **(2026-10-18, fix/legacy-risks, เจ้าของอนุมัติ)** แต่เดิมเขียนทับ tracking ที่อยู่ในบิลแล้ว (`payment_id > 0` → หลุดจากบิล) หรือที่ลบแล้วได้ → ใหม่: lock แถวใน transaction, แก้เฉพาะแถวที่ `is_delete = 0` และ `payment_id <= 0`;

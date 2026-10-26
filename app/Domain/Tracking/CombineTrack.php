@@ -3,6 +3,7 @@
 namespace App\Domain\Tracking;
 
 use App\Support\Legacy\Pricing;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -102,6 +103,7 @@ final class CombineTrack
      * save_combine.php: รวมได้เฉพาะเมื่อ id ที่ส่งมาตรงกับ 2 แถวพอดี — คืน id ใหม่ (null = ไม่ได้รวม, string = ข้อความ error ไม่เปลี่ยนอะไร)
      * ต่างจากเดิม (เจ้าของอนุมัติ): เดิมรวม tracking ของลูกค้าต่างคน / ที่ลบแล้ว / อยู่ในบิลแล้ว (payment_id > 0) / ล็อก (-2) / claim (-3) ได้
      * → ทุกแถวต้องเป็นของ user เดียวกัน, is_delete = 0, payment_id = 0 (ยังไม่ชำระ/ไม่ล็อก)
+     *   ยกเว้น: แถวในบิล + แถวว่างเลขพัสดุเดียวกัน → attach() (ไม่คิดราคาใหม่)
      */
     public static function mergeIds(array $ids): int|string|null
     {
@@ -114,19 +116,55 @@ final class CombineTrack
             if ($rows->count() !== 2) {
                 return null;
             }
+            $attach = self::attachTarget($rows);
             foreach ($rows as $r) {
-                if ((int) ($r->is_delete ?? 0) !== 0 || (int) ($r->payment_id ?? 0) !== 0) {
+                if ((int) ($r->is_delete ?? 0) !== 0 || ((int) ($r->payment_id ?? 0) !== 0 && $attach === null)) {
                     return self::ERR_STATE;
                 }
             }
             if ($rows->pluck('user')->map(fn ($u) => (string) $u)->unique()->count() !== 1) {
                 return self::ERR_USER;
             }
+            if ($attach !== null) {
+                return self::attach($attach, $rows->firstWhere('id', '!=', $attach->id));
+            }
             $newId = self::insertMerged(self::merge($rows));
             self::replace($rows->pluck('id')->all(), $newId);
 
             return $newId;
         });
+    }
+
+    /**
+     * เหมือน YD (เจ้าของอนุมัติ 2026-10-25, ระบบอื่น 2026-10-26): แถวหนึ่งอยู่ในบิลแล้ว (payment_id > 0) + อีกแถวเป็นแถวว่าง
+     * (payment_id = 0, lot_id = 0 = ยังไม่เข้าโกดัง) และเลขพัสดุตรงกัน (strtolower(trim())) → คืนแถวที่อยู่ในบิล (เป้าหมายของ attach()) ไม่งั้น null
+     */
+    private static function attachTarget(Collection $rows): ?object
+    {
+        $billed = $rows->filter(fn ($r) => (int) ($r->payment_id ?? 0) > 0);
+        $bare = $rows->filter(fn ($r) => (int) ($r->payment_id ?? 0) === 0 && (int) ($r->lot_id ?? 0) === 0);
+        if ($billed->count() !== 1 || $bare->count() !== 1) {
+            return null;
+        }
+        $no = fn ($r) => strtolower(trim((string) ($r->tracking ?? '')));
+
+        return $no($billed->first()) !== '' && $no($billed->first()) === $no($bare->first()) ? $billed->first() : null;
+    }
+
+    /**
+     * รวมแถวว่างเข้าแถวที่อยู่ในบิล: ไม่สร้างแถวใหม่ ไม่คิดราคาใหม่ ไม่แตะ bill_payment_detail (สำเนาของบิลยังชี้ id เดิม)
+     * → เติมเลขออเดอร์ (ถ้าแถวในบิลยังว่าง), ย้ายรายการสั่งซื้อ/รูปที่ผูกกับแถวว่าง (เหมือน replace())มาที่แถวในบิล แล้วลบแถวว่าง
+     */
+    private static function attach(object $billed, object $bare): int
+    {
+        if (Php74::eq((string) ($billed->order ?? ''), '') && Php74::neq((string) ($bare->order ?? ''), '')) {
+            DB::table('tracking')->where('id', $billed->id)->update(['order' => (string) $bare->order]);
+        }
+        DB::table('bill_product_on_tracking')->where('tracking_id', $bare->id)->update(['tracking_id' => $billed->id]);
+        DB::table('tracking_image')->where('tracking_id', $bare->id)->where('is_delete', 0)->update(['tracking_id' => $billed->id]);
+        DB::table('tracking')->where('id', $bare->id)->delete();
+
+        return (int) $billed->id;
     }
 
     /**

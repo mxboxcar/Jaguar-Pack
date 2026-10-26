@@ -238,6 +238,52 @@ class LegacyRisksDbTest extends BenchDbTestCase
         $this->assertNotNull($new);
     }
 
+    /** แถวว่าง (เพิ่มแทรคจากหน้าออเดอร์) + แถวที่อยู่ในบิลแล้ว → ผูกเข้าแถวในบิล ไม่สร้างแถวใหม่ ไม่คิดราคาใหม่ (เหมือน YD) */
+    public function test_combine_attaches_empty_row_to_billed_row_without_repricing(): void
+    {
+        $this->admin();
+        $no = 'ZZ-RISK-'.bin2hex(random_bytes(4));
+        $bare = $this->track(self::CUST, ['tracking' => $no, 'order' => 'ZZ-ORD-1', 'weight' => 0, 'width' => 0, 'height' => 0, 'long' => 0]);
+        $billed = $this->track(self::CUST, ['tracking' => $no, 'lot_id' => 1, 'payment_id' => 2147483000,
+            'price_kg' => 0, 'price_cubic' => 5, 'rate_kg' => 0, 'rate_cubic' => 0]);
+        $link = $this->insertRow('bill_product_on_tracking', ['tracking_id' => $bare, 'bill_product_id' => 0, 'bill_product_detail_id' => 0,
+            'user' => self::CUST]);
+        $img = $this->insertRow('tracking_image', ['tracking_id' => $bare, 'attachment' => 'zz_combine.jpg']);
+        $before = (array) DB::table('tracking')->where('id', $billed)->first();
+        $max = (int) DB::table('tracking')->max('id');
+
+        $out = $this->combine($bare, $billed);
+
+        $this->assertStringContainsString('SuccessBox(', $out);
+        $this->assertSame($max, (int) DB::table('tracking')->max('id'), 'ต้องไม่สร้างแถวใหม่');
+        $this->assertSame(0, DB::table('tracking')->where('id', $bare)->count(), 'แถวว่างถูกลบ');
+        $after = (array) DB::table('tracking')->where('id', $billed)->first();
+        $this->assertSame('ZZ-ORD-1', $after['order']);
+        unset($before['order'], $after['order']);
+        $this->assertSame($before, $after, 'แถวในบิลเปลี่ยนแค่เลขออเดอร์ (ราคาเดิม)');
+        $this->assertSame($billed, (int) DB::table('bill_product_on_tracking')->where('id', $link)->value('tracking_id'));
+        $this->assertSame($billed, (int) DB::table('tracking_image')->where('id', $img)->value('tracking_id'));
+    }
+
+    /** แถวในบิล + แถวที่เข้าโกดังแล้ว / อยู่ในบิลทั้งคู่ / ต่างลูกค้า ยังบล็อก */
+    public function test_combine_billed_row_still_refused_outside_attach_rule(): void
+    {
+        $this->admin();
+        $cases = [
+            'อยู่ในบิลทั้งคู่' => [['payment_id' => 2147483000], ['payment_id' => 2147483000], CombineTrack::ERR_STATE],
+            'อยู่ในบิล + แถวที่เข้าโกดังแล้ว' => [['lot_id' => 1], ['payment_id' => 2147483000], CombineTrack::ERR_STATE],
+            'อยู่ในบิล + ต่างลูกค้า' => [[], ['payment_id' => 2147483000, 'user' => self::ADMIN], CombineTrack::ERR_USER],
+        ];
+        foreach ($cases as $name => [$ea, $eb, $err]) {
+            $no = 'ZZ-RISK-'.bin2hex(random_bytes(4));
+            $a = $this->track(self::CUST, $ea + ['tracking' => $no, 'weight' => 0]);
+            $b = $this->track(self::CUST, $eb + ['tracking' => $no, 'lot_id' => 1]);
+            $out = $this->combine($a, $b);
+            $this->assertStringContainsString($err, $out, $name);
+            $this->assertSame(2, DB::table('tracking')->whereIn('id', [$a, $b])->count(), $name);
+        }
+    }
+
     // ---- 4. save_lock ----
 
     public function test_save_lock_keeps_minus3_but_skips_billed_and_deleted(): void
