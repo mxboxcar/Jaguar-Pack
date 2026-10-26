@@ -31,7 +31,7 @@
                     <tbody>
 @forelse($items as $item)
                         <tr>
-                            <td><a href="{{ legacy_href() }}admin/product_type/{{ $item->id }}">
+                            <td><a target="_blank" href="{{ legacy_href() }}admin/product_type/{{ $item->id }}">
                                 {{ $prefix.$item->id }}</a></td>
                             <td>{{ $item->name }}</td>
                             <td class="text-center">{!! Status::getShipType($item->type) !!}</td>

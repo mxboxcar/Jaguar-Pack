@@ -131,7 +131,7 @@
 		        <div class="form-group">
 		            <label class="col-md-4 control-label">{!! res('customer_code') !!}</label>
 		            <div class="col-md-6 form-control-static">
-		            	<a href="{{ legacy_href() }}admin/user/{{ $g('user_id') }}">{{ $g('code') }}</a>
+		            	<a target="_blank" href="{{ legacy_href() }}admin/user/{{ $g('user_id') }}">{{ $g('code') }}</a>
 		            </div>
 		        </div>
 @endif
@@ -139,7 +139,7 @@
 		        <div class="form-group">
 		            <label class="col-md-4 control-label"> {!! res('order') !!}</label>
 		            <div class="col-md-8  form-control-static">
-		            	<a href="{{ legacy_href() }}{{ $base }}order/{{ $g('order_id') }}" >
+		            	<a target="_blank" href="{{ legacy_href() }}{{ $base }}order/{{ $g('order_id') }}" >
 		            	{{ $orderPrefix.$g('order_id') }}
 		            	</a>
 		            </div>
@@ -294,7 +294,7 @@
                             <th class="text-center" style="width: 140px;">{!! res('amount') !!}</th>
                         </tr>
                     </thead>
-                    <tbody>@forelse ($balances as $item)@php $exp = explode(' ', (string) $item->create_date); @endphp<tr><td>{!! Format::getthaidate($exp[0]) !!}<br />{{ $exp[1] ?? '' }}</td><td class="text-left"><a href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">{{ $item->detail }}</a></td><td class="text-right">@if ((float) $item->amount >= 0)<span class="text-success">+{!! Format::numberformat($item->amount) !!}</span>@else<span class="text-danger">{!! Format::numberformat($item->amount) !!}</span>@endif</td>@empty<tr><td colspan="3" class="text-center">{!! res('no_data') !!}</td></tr>@endforelse
+                    <tbody>@forelse ($balances as $item)@php $exp = explode(' ', (string) $item->create_date); @endphp<tr><td>{!! Format::getthaidate($exp[0]) !!}<br />{{ $exp[1] ?? '' }}</td><td class="text-left"><a target="_blank" href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">{{ $item->detail }}</a></td><td class="text-right">@if ((float) $item->amount >= 0)<span class="text-success">+{!! Format::numberformat($item->amount) !!}</span>@else<span class="text-danger">{!! Format::numberformat($item->amount) !!}</span>@endif</td>@empty<tr><td colspan="3" class="text-center">{!! res('no_data') !!}</td></tr>@endforelse
 
                 </tbody>
             </table>

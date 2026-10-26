@@ -57,7 +57,7 @@
                             $count = $counts[$item->id] ?? null;
                         @endphp
                         <tr>
-                            <td><a href="{{ legacy_href() }}admin/lot/{{ $item->id }}">
+                            <td><a target="_blank" href="{{ legacy_href() }}admin/lot/{{ $item->id }}">
                             @if (Php74::neq($item->name, ''))
 {!! Status::getShipType($item->type) !!} {{ $item->name }}@endif </a></td>
                             <td class="text-left">{{ $item->name_admin }}</td>
@@ -103,7 +103,7 @@
                                 <a  href="#" onclick="LoadRefPrint({{ $item->id }});return false;" data-toggle="tooltip" title="พิมพ์" class="table-action-btn"><i class="fa fa-print text-primary"></i></a>
                                 @endif
                                 
-                                <a  href="{{ legacy_href() }}_admin/_lot/print_receive?id={{ $item->id }}" data-toggle="tooltip" title="พิมพ์ใบรับสินค้า" class="table-action-btn"><i class="fa fa-print text-danger"></i></a>
+                                <a target="_blank"  href="{{ legacy_href() }}_admin/_lot/print_receive?id={{ $item->id }}" data-toggle="tooltip" title="พิมพ์ใบรับสินค้า" class="table-action-btn"><i class="fa fa-print text-danger"></i></a>
 
                                 
                             </td>

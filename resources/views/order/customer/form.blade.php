@@ -172,7 +172,7 @@
                             <th class="text-center" style="width: 140px;">{!! res('amount') !!}</th>
                         </tr>
                     </thead>
-                    <tbody>@if (count($balances) !== 0)@foreach ($balances as $item)@php $exp = explode(' ', (string) $item->create_date); @endphp<tr><td>{!! Format::getthaidate($exp[0]) !!}<br />{{ $exp[1] ?? '' }}</td><td class="text-left"><a href="{{ legacy_href() }}{!! Html::h($item->link) !!}{{ $item->prefix_ref_id }}">{!! Html::h($item->detail) !!}</a></td><td class="text-right">@if (Php74::num($item->amount) >= 0)<span class="text-success">+{!! Format::numberformat($item->amount) !!}</span>@else<span class="text-danger">{!! Format::numberformat($item->amount) !!}</span>@endif</td>@endforeach @else<tr><td colspan="3" class="text-center">{!! res('no_data') !!}</td></tr>@endif
+                    <tbody>@if (count($balances) !== 0)@foreach ($balances as $item)@php $exp = explode(' ', (string) $item->create_date); @endphp<tr><td>{!! Format::getthaidate($exp[0]) !!}<br />{{ $exp[1] ?? '' }}</td><td class="text-left"><a target="_blank" href="{{ legacy_href() }}{!! Html::h($item->link) !!}{{ $item->prefix_ref_id }}">{!! Html::h($item->detail) !!}</a></td><td class="text-right">@if (Php74::num($item->amount) >= 0)<span class="text-success">+{!! Format::numberformat($item->amount) !!}</span>@else<span class="text-danger">{!! Format::numberformat($item->amount) !!}</span>@endif</td>@endforeach @else<tr><td colspan="3" class="text-center">{!! res('no_data') !!}</td></tr>@endif
 
 				</tbody>
 			</table>

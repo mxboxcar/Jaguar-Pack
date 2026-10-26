@@ -22,7 +22,7 @@
 @if(count($rows) != 0)
 @foreach($rows as $item)
                         <tr>
-                            <td><a href="{{ legacy_href() }}admin/notice/{{ (int) $item->id }}">
+                            <td><a target="_blank" href="{{ legacy_href() }}admin/notice/{{ (int) $item->id }}">
                                 {{ $prefix }}{{ (int) $item->id }}</a></td>
                             <td>{!! NoticeText::excerpt($item->text) !!}</td>
                             <td class="text-center">

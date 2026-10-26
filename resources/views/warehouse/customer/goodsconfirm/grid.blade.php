@@ -45,7 +45,7 @@
                     <tbody>
                     @forelse($items as $item)
                         <tr>
-                            <td><a href="{{ legacy_href() }}goodsconfirm/{{ $item['id'] }}">{{ $prefix }}{{ $item['id'] }}</a></td>
+                            <td><a target="_blank" href="{{ legacy_href() }}goodsconfirm/{{ $item['id'] }}">{{ $prefix }}{{ $item['id'] }}</a></td>
                             <td class="text-center">
                                 @php $v = (string) ($item['create_date'] ?? ''); $exp = explode(' ', $v); @endphp
                                 @if($v === '0000-00-00 00:00:00' || $v === '')

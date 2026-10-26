@@ -109,7 +109,6 @@ class ShopPackDbTest extends BenchDbTestCase
         $this->assertStringContainsString($cust->code, $html);
         $this->assertStringContainsString("loadAjaxGrid('_admin/_balance/grid'", $html, 'ajaxpage เดิม = _admin/_balance/grid');
         $this->assertStringNotContainsString('ผู้ทำรายการ', $html, 'รุ่นเก่า: ไม่มีคอลัมน์ผู้ทำรายการ');
-        $this->assertStringNotContainsString('target="_blank"', $html);
 
         $this->actAs($cust);
         $this->assertSame('', $this->act(MallStockController::class, 'grid', ['page' => '1', 'txtsearch' => '']));

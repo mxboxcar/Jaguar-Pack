@@ -29,7 +29,7 @@
                     <tbody>
                     @forelse ($items as $item)
                         <tr>
-                            <td><a href="{{ legacy_href() }}{{ $base }}refill/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a></td>
+                            <td><a target="_blank" href="{{ legacy_href() }}{{ $base }}refill/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a></td>
 @if ($admin)
                             <td class="text-center">{{ $item->code }}</td>
 @endif

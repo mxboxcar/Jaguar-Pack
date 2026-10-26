@@ -129,7 +129,7 @@ class UsersPortTest extends TestCase
         $this->assertNotEmpty($files);
         foreach ($files as $f) {
             $src = (string) file_get_contents($f);
-            foreach (["'commission'", 'comcode', 'JLCARGO', 'JLCargo', 'target="_blank"', "target='_blank'"] as $bad) {
+            foreach (["'commission'", 'comcode', 'JLCARGO', 'JLCargo'] /* target=_blank กลับมาตามเว็บเดิม (2026-10-26) */ as $bad) {
                 $this->assertStringNotContainsString($bad, $src, basename($f).': '.$bad);
             }
         }

@@ -116,7 +116,7 @@ final class Lookups
             foreach ($rows as $item) {
                 $exp = explode(' ', (string) $item->create_date);
                 $h .= ($o['tr'] ? '<tr>' : '').'<td>'.Format::getthaidate($exp[0]).$o['br'].e($exp[1] ?? '').'</td>';
-                $h .= '<td class="text-left"><a href="'.e($href.$item->link.$item->prefix_ref_id).'">'.e($item->detail).'</a></td>';
+                $h .= '<td class="text-left"><a target="_blank" href="'.e($href.$item->link.$item->prefix_ref_id).'">'.e($item->detail).'</a></td>';
                 $h .= '<td class="text-right">';
                 $cn = ($item->types ?? 'balance') === 'balance_cn';
                 $amt = $cn ? Format::numberformat($item->amount, true, true, true) : Format::numberformat($item->amount);

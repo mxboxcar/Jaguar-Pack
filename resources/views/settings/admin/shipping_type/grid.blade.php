@@ -28,7 +28,7 @@
                     <tbody>
 @forelse($items as $item)
                         <tr>
-                            <td><a href="{{ legacy_href() }}admin/shipping_type/{{ $item->id }}">
+                            <td><a target="_blank" href="{{ legacy_href() }}admin/shipping_type/{{ $item->id }}">
                                 {{ $prefix.$item->id }}</a></td>
                             <td class="text-center"><input style="font-size: 10px;height: 20px;width: 30px;text-align: center;" type="text" class="form-control" onblur="onchangelistno($(this), '{{ $item->id }}')" value="{{ $item->no }}" /></td>
                             <td>{{ $item->name }}</td>

@@ -127,7 +127,7 @@
             <div class="form-group">
                 <label class="col-md-4 control-label"> {!! res('edit_last') !!}</label>
                 <div class="col-md-7 form-control-static">
-                    <a href="{{ legacy_href() }}admin/user/{{ $editLast->id ?? '' }}">{!! Html::h($editLast->code ?? '') !!}</a>
+                    <a target="_blank" href="{{ legacy_href() }}admin/user/{{ $editLast->id ?? '' }}">{!! Html::h($editLast->code ?? '') !!}</a>
                 </div>
             </div>
 

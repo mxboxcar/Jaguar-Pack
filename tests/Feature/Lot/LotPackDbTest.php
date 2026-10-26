@@ -184,7 +184,6 @@ class LotPackDbTest extends BenchDbTestCase
         $this->assertStringContainsString('ZZDETAIL.jpg', $html, 'รูปพัสดุมาพร้อมแถว');
         $this->assertStringNotContainsString('LoadDetail(1)', $html);
         $this->assertStringNotContainsString('loadendtable', $html);
-        $this->assertStringNotContainsString('target=', $html);
         $this->assertStringNotContainsString('#768cf2', $html, 'PACK ไม่มีสีถ่ายรูป');
 
         // user 5 (role 6: admin_lot + admin_lot_view) = ช่องเลือก/แก้/ลบ แต่ไม่เห็นคอลัมน์ราคา
@@ -305,6 +304,5 @@ class LotPackDbTest extends BenchDbTestCase
         $this->assertStringNotContainsString('#a3b2f1', $html);
         $this->assertStringNotContainsString('JLcargo', $html);
         $this->assertStringNotContainsStringIgnoringCase('srshipping', $html);
-        $this->assertStringNotContainsString('target=', $html);
     }
 }

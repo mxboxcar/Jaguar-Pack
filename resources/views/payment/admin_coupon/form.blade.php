@@ -108,7 +108,7 @@
 			        <div class="form-group">
 			            <label class="col-md-3 control-label"> เลขบิล</label>
 			            <div class="col-md-7  form-control-static">
-			               	<a href="{{ legacy_href() }}admin/payment/{{ $data->id }}">{{ $payPrefix.$data->payment_id }}</a>
+			               	<a target="_blank" href="{{ legacy_href() }}admin/payment/{{ $data->id }}">{{ $payPrefix.$data->payment_id }}</a>
 			            </div>
 			        </div>      
 		        @endif

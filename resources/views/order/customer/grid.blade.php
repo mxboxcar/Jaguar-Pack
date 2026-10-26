@@ -76,7 +76,7 @@
                     @if (count($items) !== 0)
                         @foreach ($items as $item)
                         <tr>
-                            <td><a href="{{ legacy_href() }}order/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a></td>
+                            <td><a target="_blank" href="{{ legacy_href() }}order/{{ $item->id }}">{{ $prefix }}{{ $item->id }}</a></td>
                             <td class="text-center">
                                 <input onblur="on_saveremark($(this))" onkeydown="javascript: if(event.keyCode == 13) on_saveremark($(this));" class="editable" type="text" value="{!! Html::h($item->quote) !!}" ref="{{ $item->id }}">
                             </td>

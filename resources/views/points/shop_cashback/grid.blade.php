@@ -46,7 +46,7 @@
 @if($admin)
 
 @endif
-                            <td><a href="{{ legacy_href() }}{{ $base }}shop_cashback/{{ $item->id }}">
+                            <td><a target="_blank" href="{{ legacy_href() }}{{ $base }}shop_cashback/{{ $item->id }}">
                                 {{ $prefix.$item->id }}</a></td>
                             <td class="text-center">{!! Format::getthaidate($exp[0], true) !!}<br />{!! Format::gettime(e($exp[1] ?? '')) !!}</td>
 @if($admin)

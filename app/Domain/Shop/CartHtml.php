@@ -98,7 +98,7 @@ final class CartHtml
                         $html .= '</div>';
                     }
                     $html .= ' '.$e($item->remark).'';
-                    $html .= '<p style="margin:0px 5px;float;left"><a href="'.$e($item->url).'"><i class="fa fa-external-link"></i></a></p>';
+                    $html .= '<p style="margin:0px 5px;float;left"><a target="_blank" href="'.$e($item->url).'"><i class="fa fa-external-link"></i></a></p>';
                     $html .= '</div>
                 <div class="col-xs-9" style="margin-top:5px">
                     <div class="pull-left" style="color: #f40;font-size: 18px;font-weight: bold;">
@@ -251,7 +251,7 @@ final class CartHtml
                 if ($newShop) {
                     $html .= '<td rowspan="'.$e($item->count).'"><div style="width: 150px;overflow: hidden;word-break: break-all;">'.$e($item->shop_name).'</div></td>';
                 }
-                $html .= '<td ><a href="'.$e($item->url).'">'.$e($productName).'</a>';
+                $html .= '<td ><a target="_blank" href="'.$e($item->url).'">'.$e($productName).'</a>';
                 if ($second !== '') {
                     $html .= '<div class="cd-price">'.$second.'</div>';
                 }

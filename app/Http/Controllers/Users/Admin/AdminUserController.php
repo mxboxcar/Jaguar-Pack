@@ -167,7 +167,7 @@ class AdminUserController extends Controller
 
         return response(ProfileController::roleTable($active, true).'
 <div class="row">
-<a href="'.Legacy::href('admin/role/').Php74::h($id).'" style="margin:10px" class="pull-right btn btn-default waves-effect waves-light">'.Lang::get('edit_this_module').'
+<a target="_blank" href="'.Legacy::href('admin/role/').Php74::h($id).'" style="margin:10px" class="pull-right btn btn-default waves-effect waves-light">'.Lang::get('edit_this_module').'
    <span class="btn-label btn-label-right"><i class="fa fa-arrow-right"></i>
    </span>
 </a></div>');
@@ -229,7 +229,7 @@ class AdminUserController extends Controller
 		</table>
 
 <div class="row">
-<a href="'.Legacy::href('admin/user_type/').Php74::h($id).'" style="margin:10px" class="pull-right btn btn-default waves-effect waves-light">'.Lang::get('edit_this_module').'
+<a target="_blank" href="'.Legacy::href('admin/user_type/').Php74::h($id).'" style="margin:10px" class="pull-right btn btn-default waves-effect waves-light">'.Lang::get('edit_this_module').'
    <span class="btn-label btn-label-right"><i class="fa fa-arrow-right"></i>
    </span>
 </a></div>';

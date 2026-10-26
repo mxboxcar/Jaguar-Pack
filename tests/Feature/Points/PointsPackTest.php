@@ -102,7 +102,6 @@ class PointsPackTest extends TestCase
         $m = new \ReflectionMethod(CashbackMailer::class, 'button');
         $html = $m->invoke(null, 'https://x/shop_cashback/1');
         $this->assertStringContainsString('width:100%;text-align:center;font-size:15px;background-color:#eb4823;padding:10px 0px;', $html);
-        $this->assertStringNotContainsString('_blank', $html);
         $this->assertStringNotContainsString('a3b2f1', $html);
         $this->assertStringNotContainsString('991b1e', $html);
         // PACK ไม่มี sendLine / push_notification และไม่เลือก line_uid
@@ -125,7 +124,6 @@ class PointsPackTest extends TestCase
         $js = \App\Domain\Points\UploadInline::render('file_1', '', true);
         $this->assertStringNotContainsString('change.reselect', $js);
         $this->assertStringContainsString('if(response.toLowerCase().indexOf(".zip") > -1 || response.toLowerCase().indexOf(".rar") > -1 || response.toLowerCase().indexOf(".7z") > -1) {  $(".upload_file_1_preview").text(response); ', $js);
-        $this->assertStringNotContainsString('_blank', $js);
         $pdf = \App\Domain\Points\UploadInline::render('file_2', 'A.pdf');
         $this->assertStringContainsString("<a class='fancybox' style='float:left;' href='", $pdf);
         $this->assertStringNotContainsString('download', $pdf);

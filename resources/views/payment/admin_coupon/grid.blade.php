@@ -33,13 +33,13 @@
                     <tbody>
                     @forelse ($items as $item)
                         <tr>
-                            <td><a href="{{ legacy_href() }}admin/coupon/{{ $item->id }}">
+                            <td><a target="_blank" href="{{ legacy_href() }}admin/coupon/{{ $item->id }}">
                                 {{ $prefix.$item->id }}</a></td>
                             <td>{{ $item->name }}</td>
                             <td class="text-right">{!! Format::numberformat($item->price) !!}</td>
                             <td class="text-center">
                             	@if (Php74::eq($item->payment_id, 0))@else
-                            	<a href="{{ legacy_href() }}admin/payment/{{ $item->payment_id }}">{{ $payPrefix.$item->payment_id }}</a>
+                            	<a target="_blank" href="{{ legacy_href() }}admin/payment/{{ $item->payment_id }}">{{ $payPrefix.$item->payment_id }}</a>
                             	@endif
                             </td>
                             <td class="text-center">

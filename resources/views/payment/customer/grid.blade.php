@@ -49,7 +49,7 @@
                     <tbody>
                     @forelse ($items as $item)
                         <tr>
-                            <td><a href="{{ legacy_href() }}payment/{{ $item->id }}">{{ $prefix.$item->id }}</a></td>
+                            <td><a target="_blank" href="{{ legacy_href() }}payment/{{ $item->id }}">{{ $prefix.$item->id }}</a></td>
                             <td class="text-left">
                                 {!! P::dateCell($item->create_date, false) !!}
                             </td>

@@ -39,7 +39,7 @@
                             <td class="text-center">{!! Format::getthaidate($exp[0], true) !!}<br />{!! Format::gettime(e($exp[1] ?? '')) !!}</td>
                             <td class="text-center">{{ $item->name }}</td>
                             <td class="text-left">
-                                <a href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">
+                                <a target="_blank" href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">
                                     {{ $item->detail }}
                                 </a>
 @if((string) $item->type === '12' && (string) $item->w_upload !== '')

@@ -45,7 +45,7 @@
                     <tbody>
                     @forelse($items as $item)
                         <tr>
-                            <td><a href="{{ legacy_href() }}admin/goodsconfirm/{{ $item['id'] }}">{{ $prefix }}{{ $item['id'] }}</a></td>
+                            <td><a target="_blank" href="{{ legacy_href() }}admin/goodsconfirm/{{ $item['id'] }}">{{ $prefix }}{{ $item['id'] }}</a></td>
                             <td class="text-center">
                                 @php $v = (string) ($item['create_date'] ?? ''); $exp = explode(' ', $v); @endphp
                                 @if($v === '0000-00-00 00:00:00' || $v === '')
@@ -67,7 +67,7 @@
                                 @if(Php74::eq($item['lot_id'], '0'))
 -
                                 @else
-                                    <a href="{{ legacy_href() }}admin/lot/{{ $item['lot_id'] }}">{{ $item['lot_name'] }}</a>/{{ $item['no'] }}
+                                    <a target="_blank" href="{{ legacy_href() }}admin/lot/{{ $item['lot_id'] }}">{{ $item['lot_name'] }}</a>/{{ $item['no'] }}
                                 @endif
                             </td>
                             <td class="text-left">{{ $item['tracking'] }}</td>

@@ -52,7 +52,7 @@
                     <tbody>
                     @forelse ($items as $item)
                         <tr>
-                            <td><a href="{{ $base.$item->id }}">{{ $prefix.$item->id }}</a></td>
+                            <td><a target="_blank" href="{{ $base.$item->id }}">{{ $prefix.$item->id }}</a></td>
                             <td class="text-center">
                                 {!! P::dateCell($item->create_date, true) !!}
                             </td>

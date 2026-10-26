@@ -26,7 +26,7 @@
                 <tr>
                     <td class="text-right left">{!! res('lot_and_no') !!} : </td>
                     <td style="padding-left:3px" class="text-left">
-                        {!! Status::getShipType($item->lot_type) !!} <a href='{{ legacy_href() }}admin/lot/{{ $item->lot_id }}'>{{ $item->lot_name }}</a>/{{ $item->no }}
+                        {!! Status::getShipType($item->lot_type) !!} <a target="_blank" href='{{ legacy_href() }}admin/lot/{{ $item->lot_id }}'>{{ $item->lot_name }}</a>/{{ $item->no }}
                     </td>
                 </tr>
                 @include('tracking.partials.flags', ['typeName' => $item->product_type_name])
@@ -61,7 +61,7 @@
             @if (Php74::eq($item->payment_id, 0) || Php74::eq($item->payment_id, '-2'))
 <i class='fa  fa-close text-danger' ></i>
             @else
-<i class='fa fa-check-circle text-success' ></i><div><a href='{{ legacy_href() }}admin/payment/{{ $item->payment_id }}'>{{ $payPrefix.$item->payment_id }}</a></div>
+<i class='fa fa-check-circle text-success' ></i><div><a target="_blank" href='{{ legacy_href() }}admin/payment/{{ $item->payment_id }}'>{{ $payPrefix.$item->payment_id }}</a></div>
             @endif
         </td>
         

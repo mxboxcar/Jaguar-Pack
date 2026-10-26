@@ -73,7 +73,7 @@
 		        <div class="form-group">
 		            <label class="col-md-5 control-label">{!! res('customer_code') !!}</label>
 		            <div class="col-md-4 form-control-static">
-		            	<a href="{{ legacy_href() }}admin/user/{{ $data->user_id ?? '' }}">{{ $data->code ?? '' }}</a>
+		            	<a target="_blank" href="{{ legacy_href() }}admin/user/{{ $data->user_id ?? '' }}">{{ $data->code ?? '' }}</a>
 		            </div>
 		        </div>
 		        <div class="form-group">
@@ -129,7 +129,7 @@
                             <th class="text-center" style="width: 80px;">{!! res('amount') !!}</th>
                         </tr>
                     </thead>
-                    <tbody>@forelse($balances as $item)@php $exp = explode(' ', (string) $item->create_date); @endphp<tr><td>{!! Format::getthaidate($exp[0]) !!}<br/>{{ $exp[1] ?? '' }}</td><td class="text-left"><a href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">{{ $item->detail }}</a></td><td class="text-right">@if(Php74::cmp($item->amount, 0) >= 0)<span class="text-success">+{!! Format::numberformat($item->amount, true, true, true) !!}</span>@else<span class="text-danger">{!! Format::numberformat($item->amount, true, true, true) !!}</span>@endif</td>@empty<tr><td colspan="3" class="text-center">{!! res('no_data') !!}</td></tr>@endforelse
+                    <tbody>@forelse($balances as $item)@php $exp = explode(' ', (string) $item->create_date); @endphp<tr><td>{!! Format::getthaidate($exp[0]) !!}<br/>{{ $exp[1] ?? '' }}</td><td class="text-left"><a target="_blank" href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">{{ $item->detail }}</a></td><td class="text-right">@if(Php74::cmp($item->amount, 0) >= 0)<span class="text-success">+{!! Format::numberformat($item->amount, true, true, true) !!}</span>@else<span class="text-danger">{!! Format::numberformat($item->amount, true, true, true) !!}</span>@endif</td>@empty<tr><td colspan="3" class="text-center">{!! res('no_data') !!}</td></tr>@endforelse
 
                 </tbody>
             </table>

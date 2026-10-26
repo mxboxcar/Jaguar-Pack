@@ -28,7 +28,7 @@
 <div class="col-sm-5 pull-right">
 	<div class="button-list">
 		
-		<a class="pull-right btn btn-inverse waves-effect waves-light" 
+		<a target="_blank" class="pull-right btn btn-inverse waves-effect waves-light" 
 			href="{{ legacy_href() }}_admin/_export/print/?id={{ $data->id }}">
             <span class="btn-label"><i class="fa fa-print"></i></span>
             {!! res('print') !!}

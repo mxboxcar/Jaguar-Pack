@@ -88,7 +88,6 @@ class ShopHelpersTest extends TestCase
         $this->assertStringContainsString("<a class='fancybox' style='float:left;' href='", $html);
         $this->assertStringNotContainsString('change.reselect', $html);
         $this->assertStringContainsString('indexOf(".zip") > -1', $html);
-        $this->assertStringNotContainsString('target=', $html);
     }
 
     public function test_random_user_agent_comes_from_legacy_list(): void

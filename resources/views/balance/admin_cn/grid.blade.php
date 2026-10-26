@@ -50,7 +50,7 @@
                                 {{ $item->create_code }}
                             </td>
                             <td class="text-center">{{ $item->name }}</td>
-                            <td class="text-left"><a href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">{{ $item->detail }}</a></td>
+                            <td class="text-left"><a target="_blank" href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">{{ $item->detail }}</a></td>
                             <td class="text-right">
 @if(Ledger::nonNegative($item->amount))
 <span class="text-success">+{!! Format::numberformat($item->amount, true, true, true) !!}</span>

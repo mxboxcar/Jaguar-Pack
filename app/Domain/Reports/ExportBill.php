@@ -131,10 +131,10 @@ final class ExportBill
             $trk = e((string) $item->tracking);
             // PACK/SR: ไม่มีร้านค้า (MALL) — แสดง lot/no เสมอ
             $html .= '<td '.$rs.'class="text-center">'.$str.' '.e((string) $item->lot_name).'/'.e((string) $item->no).'</td>';
-            $html .= '<td style="white-space: nowrap;"><a href="'.$href.($admin ? 'admin/order/' : 'order/').e((string) $bp).'/'.$trk.'">'.$trk.'</a></td>';
+            $html .= '<td style="white-space: nowrap;"><a target="_blank" href="'.$href.($admin ? 'admin/order/' : 'order/').e((string) $bp).'/'.$trk.'">'.$trk.'</a></td>';
             $html .= '<td '.$rs.'style="white-space: nowrap;">';
             if (Php74::neq($bp, '')) {
-                $html .= '<a href="'.$href.'order/'.e((string) $bp).'/'.$trk.'">'.Rows::prefix('order').e((string) $bp).'</a>';
+                $html .= '<a target="_blank" href="'.$href.'order/'.e((string) $bp).'/'.$trk.'">'.Rows::prefix('order').e((string) $bp).'</a>';
             } else {
                 $html .= '-';
             }
@@ -216,7 +216,7 @@ final class ExportBill
             foreach ($rows as $item) {
                 $exp = explode(' ', (string) $item->create_date);
                 $html .= '<tr><td>'.Format::getthaidate($exp[0]).'<br/>'.e($exp[1] ?? '').'</td>';
-                $html .= '<td class="text-left"><a href="'.$href.e((string) $item->link).e((string) $item->prefix_ref_id).'">'.e((string) $item->detail).'</a></td>';
+                $html .= '<td class="text-left"><a target="_blank" href="'.$href.e((string) $item->link).e((string) $item->prefix_ref_id).'">'.e((string) $item->detail).'</a></td>';
                 $html .= '<td class="text-right">';
                 if (self::n($item->amount) >= 0) {
                     $html .= '<span class="text-success">+'.Format::numberformat($item->amount).'</span>';

@@ -46,7 +46,7 @@
                             </td>
                             <td class="text-center">{{ $item->name }}</td>
                             <td class="text-left">
-                                <a href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">
+                                <a target="_blank" href="{{ legacy_href() }}{{ $item->link }}{{ $item->prefix_ref_id }}">
                                     {{ $item->detail }}
                                 </a>
 @if((string) $item->type === '12' && (string) $item->w_upload !== '')

@@ -124,7 +124,6 @@ class MessagingPackDbTest extends BenchDbTestCase
         $this->assertStringContainsString('zz_sendself_row', $selfHtml);
         $this->assertStringNotContainsString('zz_send_row', $selfHtml);
         $this->assertStringContainsString('style="word-break: break-all;"', $selfHtml);
-        $this->assertStringNotContainsString('target="_blank"', $selfHtml);
         $this->assertGreaterThan(0, $self + $send);
     }
 

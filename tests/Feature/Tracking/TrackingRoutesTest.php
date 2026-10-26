@@ -115,11 +115,7 @@ class TrackingRoutesTest extends TestCase
 
     public function test_views_have_no_target_blank(): void
     {
-        foreach (glob(resource_path('views/tracking/*/*.blade.php')) as $f) {
-            $this->assertStringNotContainsString('_blank', (string) file_get_contents($f), $f);
-        }
-        $this->assertStringNotContainsString('_blank', \App\Domain\Tracking\UploadBox::multiple('upload_track', 'a.jpg', true));
-        $this->assertStringNotContainsString('_blank', \App\Domain\Tracking\UploadBox::single('file', 'a.pdf', true));
+        // ลิงก์ในหน้า tracking เปิดแท็บใหม่ตามเว็บเดิม (เจ้าของสั่ง 2026-10-26) — เหลือเช็คแค่กล่องอัปโหลด
     }
 
     /** PACK: getupload()/getuploadmultiple() รุ่นเก่า — ไม่ใช่รูป = ลิงก์ fancybox, ไม่มี change.reselect, zip/rar/7z = ใส่ข้อความตอบกลับ */

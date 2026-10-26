@@ -40,7 +40,7 @@
                     <tbody>
 @forelse($items as $item)
                         <tr>
-                            <td><a href="{{ legacy_href() }}admin/exchange/{{ $item->id }}">{{ $prefix.$item->id }}</a></td>
+                            <td><a target="_blank" href="{{ legacy_href() }}admin/exchange/{{ $item->id }}">{{ $prefix.$item->id }}</a></td>
                             <td class="text-center">{{ $item->code }}</td>
                             <td class="text-center">
 @include('settings.partials.grid-date', ['d' => $item->date])

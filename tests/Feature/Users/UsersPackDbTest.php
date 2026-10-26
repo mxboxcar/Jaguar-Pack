@@ -134,7 +134,6 @@ class UsersPackDbTest extends BenchDbTestCase
         $html = $this->act(AdminUserController::class, 'grid', ['txtsearch' => 'zz_line_grid|-1|-1|-2', 'page' => '1']);
         $this->assertStringContainsString('zz_line_grid</td>', $html);
         $this->assertStringContainsString('<span class="currency">123.45</span>', $html);
-        $this->assertStringNotContainsString('target=', $html);
 
         $this->assertStringContainsString('zz_line_grid</td>', $this->act(AdminUserController::class, 'grid', ['txtsearch' => 'zz_line_grid|-1|99|-2', 'page' => '1']));
         $this->assertStringNotContainsString('zz_line_grid</td>', $this->act(AdminUserController::class, 'grid', ['txtsearch' => 'zz_line_grid|-1|2|-2', 'page' => '1']));

@@ -3,7 +3,7 @@
                                     <tr>
                                         <td class="text-right left" style="vertical-align: top;">{!! res('system_order_number') !!} : </td>
                                         <td style="padding-left:3px" class="text-left">
-                                            @foreach ($links as $o){{ $loop->first ? ' ' : ' / ' }}<a href="{{ legacy_href() }}admin/order/{{ $o }}">{{ $orderPrefix.$o }}</a>@endforeach
+                                            @foreach ($links as $o){{ $loop->first ? ' ' : ' / ' }}<a target="_blank" href="{{ legacy_href() }}admin/order/{{ $o }}">{{ $orderPrefix.$o }}</a>@endforeach
 
                                         </td>
                                     </tr>
