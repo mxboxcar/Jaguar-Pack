@@ -186,15 +186,6 @@
                 if (el && el.nodeType === 1 && el.scrollLeft !== 0 && (el.id === 'wrapper' || $(el).is('.content-page, .content-page > .content'))) el.scrollLeft = 0;
             }, true);
 
-            // grid: กดเข้ารายการในตารางให้เปิดแท็บใหม่ (เจ้าของสั่ง 2026-10-24) — ข้ามปุ่ม onclick, #, javascript:, fancybox, download
-            $(document).on('click', '#gridAjax table a[href]', function () {
-                var href = $(this).attr('href') || '';
-                if (href === '' || href.charAt(0) === '#' || /^javascript:/i.test(href)) return;
-                if (this.hasAttribute('onclick') || this.hasAttribute('download') || $(this).is('.fancybox, [data-toggle], [target]')) return;
-                this.target = '_blank';
-                this.rel = 'noopener';
-            });
-
             function loadAjaxGrid(url, page, txtsearch, fn) {
                 OpenLoading();
                 $.ajax({
